@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Member {
+  id        String        @id @default(uuid())
+  firstName String
+  lastName  String
+  lotNumber String
+  dateJoined DateTime
+  email     String        @unique
+  phone     String
+  circles   CircleMember[]
+  skills    MemberSkill[]
+  loanItems LoanItem[]
+  primaryLinks Circle[]   @relation("PrimaryLink")
+  delegateLinks Circle[]  @relation("DelegateLink")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Circle {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  description String
+  parentId  String?
+  parent    Circle?       @relation("CircleHierarchy", fields: [parentId], references: [id])
+  children  Circle[]      @relation("CircleHierarchy")
+  members   CircleMember[]
+  primaryLinkMemberId String?
+  delegateLinkMemberId String?
+  primaryLinkMember Member? @relation("PrimaryLink", fields: [primaryLinkMemberId], references: [id])
+  delegateLinkMember Member? @relation("DelegateLink", fields: [delegateLinkMemberId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model CircleMember {
+  circle   Circle @relation(fields: [circleId], references: [id])
+  circleId String
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+  role     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([circleId, memberId])
+}
+
+model Skill {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  category  String?
+  members   MemberSkill[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model MemberSkill {
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+  skill    Skill  @relation(fields: [skillId], references: [id])
+  skillId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([memberId, skillId])
+}
+
+model LoanItem {
+  id          String   @id @default(uuid())
+  owner       Member   @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  title       String
+  category    String
+  description String
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
