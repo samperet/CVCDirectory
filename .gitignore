@@ -13,6 +13,9 @@
 # Production
 /build
 
+# Local proposal state fallback (used when R2 is not configured)
+/.data
+
 # Misc
 .DS_Store
 *.log
@@ -27,3 +30,4 @@
 
 # VS Code
 .vscode
+tsconfig.tsbuildinfo

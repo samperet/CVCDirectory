@@ -2,7 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Users2, Layers, Share2, Sparkles } from "lucide-react";
+import { Users2, Layers, Share2, Sparkles, Vote } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 const cards = [
   {
@@ -28,6 +30,12 @@ const cards = [
     title: "Skills",
     description: "Collective skill bank to connect neighbors and talents.",
     icon: Sparkles,
+  },
+  {
+    href: "/proposals",
+    title: "Proposals",
+    description: "Sociocratic proposals open for review, questions, and consent.",
+    icon: Vote,
   },
 ];
 

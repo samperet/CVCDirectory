@@ -10,6 +10,7 @@ A mobile-first community directory for members, sociocratic circles, shared skil
 - 🌱 **Skills Catalog** – Filterable skill bank with member contact information.
 - ⚡ **Optimistic UI** – React Query mutations with toast feedback and rollback handling.
 - 🛡️ **Validated APIs** – Next.js route handlers with Zod schemas, rate limiting, and Prisma enforcement.
+- 🗳️ **Interactive Proposals** – Sociocratic proposals with per-section Q&A, an exponential-cost "Add a day" review extension, and requests to move discussion to an in-person gathering. State is stored as JSON in Cloudflare R2.
 
 ## Getting Started
 
@@ -31,6 +32,12 @@ Required variables:
 
 - `DATABASE_URL` – PostgreSQL connection string (e.g., Vercel Postgres).
 - `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
+
+Optional (interactive proposals — falls back to a local `.data/` JSON file when unset):
+
+- `R2_ACCOUNT_ID` – Cloudflare account ID.
+- `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` – R2 API token credentials (Object Read & Write on the bucket).
+- `R2_BUCKET` – R2 bucket name that holds `proposals/<slug>.json` state documents.
 
 ### Installation
 
@@ -67,11 +74,35 @@ Visit [http://localhost:3000](http://localhost:3000) to view the application.
 npm run lint
 ```
 
+## Interactive Proposals
+
+The `/proposals` section hosts sociocratic consent proposals (currently the four-wheeler
+agricultural-use proposal). Each proposal page offers:
+
+- **Per-section Q&A** – every section has an "Ask about this" button; questions and threaded
+  responses are visible to the whole community.
+- **Add a day** – anyone can extend the 7-day review window. The cost doubles per day: the first
+  extra day takes 1 click, the second 2 more, the third 4 more (2^n − 1 total clicks for n extra
+  days), so extensions stay possible but bounded.
+- **Request in-person discussion** – once enough members ask (default 3), the proposal is flagged
+  to move to the next community gathering's agenda.
+
+Interaction state is a single JSON document per proposal stored in Cloudflare R2 via the
+S3-compatible API. Without R2 credentials the app transparently falls back to `.data/proposals/`
+on disk — fine for local development, ephemeral on Vercel.
+
+To provision R2: create a bucket in the Cloudflare dashboard, generate an R2 API token with
+Object Read & Write scoped to that bucket, and set the four `R2_*` variables in Vercel.
+
+Proposal content lives in `src/lib/proposals/content.ts`; add a new proposal object there to
+publish a new one.
+
 ## Deployment
 
 - The project is configured for Vercel serverless deployment.
 - Prisma `postinstall` automatically generates the client during Vercel builds.
 - Ensure the `DATABASE_URL` environment variable is configured in Vercel project settings.
+- For interactive proposals, also configure the `R2_*` environment variables (see above).
 
 ## Project Structure
 

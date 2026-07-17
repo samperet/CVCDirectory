@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -70,7 +71,7 @@ export function MembersClient() {
   const { data, isLoading } = useQuery<MembersResponse>({
     queryKey: ["members", { search: debouncedSearch, sort, page }],
     queryFn: () => apiFetch(`/api/members${toQueryString({ q: debouncedSearch, sort, page, pageSize: PAGE_SIZE })}`),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const createMember = useMutation({

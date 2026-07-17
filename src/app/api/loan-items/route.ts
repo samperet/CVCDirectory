@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPagination } from "@/lib/pagination";
 import { parseSort } from "@/lib/sort";
@@ -33,7 +34,9 @@ export async function GET(request: NextRequest) {
   const { q, sort, page, pageSize } = getPagination(request);
   const where = buildWhere(q, request.nextUrl.searchParams);
   const parsedSort = parseSort(sort, ["title", "category"]);
-  const orderBy = parsedSort ? { [parsedSort.field]: parsedSort.direction } : { title: "asc" };
+  const orderBy = (
+    parsedSort ? { [parsedSort.field]: parsedSort.direction } : { title: "asc" }
+  ) as Prisma.LoanItemOrderByWithRelationInput;
 
   const [total, data] = await Promise.all([
     prisma.loanItem.count({ where }),

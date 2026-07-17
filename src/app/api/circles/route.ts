@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPagination } from "@/lib/pagination";
 import { parseSort } from "@/lib/sort";
@@ -7,7 +8,7 @@ import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { ensureNoCycle } from "@/lib/circles";
 
-function buildWhere(q: string) {
+function buildWhere(q: string): Prisma.CircleWhereInput {
   if (!q) return {};
   return {
     OR: [
@@ -21,7 +22,9 @@ export async function GET(request: NextRequest) {
   const { q, sort, page, pageSize } = getPagination(request);
   const where = buildWhere(q);
   const parsedSort = parseSort(sort, ["name"]);
-  const orderBy = parsedSort ? { [parsedSort.field]: parsedSort.direction } : { name: "asc" };
+  const orderBy = (
+    parsedSort ? { [parsedSort.field]: parsedSort.direction } : { name: "asc" }
+  ) as Prisma.CircleOrderByWithRelationInput;
 
   const [total, data] = await Promise.all([
     prisma.circle.count({ where }),

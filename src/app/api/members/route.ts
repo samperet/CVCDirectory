@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPagination } from "@/lib/pagination";
 import { parseSort } from "@/lib/sort";
@@ -6,7 +7,7 @@ import { memberInputSchema } from "@/lib/validation";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
-function buildWhere(q: string) {
+function buildWhere(q: string): Prisma.MemberWhereInput {
   if (!q) return {};
   return {
     OR: [
@@ -23,7 +24,9 @@ export async function GET(request: NextRequest) {
   const { q, sort, page, pageSize } = getPagination(request);
   const where = buildWhere(q);
   const parsedSort = parseSort(sort, ["firstName", "lastName", "lotNumber", "dateJoined"]);
-  const orderBy = parsedSort ? { [parsedSort.field]: parsedSort.direction } : { lastName: "asc" };
+  const orderBy = (
+    parsedSort ? { [parsedSort.field]: parsedSort.direction } : { lastName: "asc" }
+  ) as Prisma.MemberOrderByWithRelationInput;
 
   const [total, data] = await Promise.all([
     prisma.member.count({ where }),

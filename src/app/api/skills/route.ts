@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPagination } from "@/lib/pagination";
 import { parseSort } from "@/lib/sort";
@@ -6,7 +7,7 @@ import { skillInputSchema } from "@/lib/validation";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
-function buildWhere(q: string) {
+function buildWhere(q: string): Prisma.SkillWhereInput {
   if (!q) return {};
   return {
     OR: [
@@ -20,7 +21,9 @@ export async function GET(request: NextRequest) {
   const { q, sort, page, pageSize } = getPagination(request);
   const where = buildWhere(q);
   const parsedSort = parseSort(sort, ["name"]);
-  const orderBy = parsedSort ? { [parsedSort.field]: parsedSort.direction } : { name: "asc" };
+  const orderBy = (
+    parsedSort ? { [parsedSort.field]: parsedSort.direction } : { name: "asc" }
+  ) as Prisma.SkillOrderByWithRelationInput;
 
   const [total, data] = await Promise.all([
     prisma.skill.count({ where }),

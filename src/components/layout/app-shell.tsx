@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Users2, Share2, Layers, Grid, Sparkles } from "lucide-react";
+import { Menu, Users2, Share2, Layers, Grid, Sparkles, Vote } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -13,6 +13,7 @@ const links = [
   { href: "/circles", label: "Circles", icon: Layers },
   { href: "/library", label: "Loan Library", icon: Share2 },
   { href: "/skills", label: "Skills", icon: Sparkles },
+  { href: "/proposals", label: "Proposals", icon: Vote },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
