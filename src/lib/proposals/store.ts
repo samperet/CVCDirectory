@@ -100,7 +100,10 @@ async function writeJsonToR2(key: string, value: unknown): Promise<void> {
 }
 
 function localFilePath(key: string) {
-  return path.join(process.cwd(), ".data", key);
+  // On Vercel the deployment bundle is read-only; /tmp is the only writable
+  // location. Data there is ephemeral — R2 is the durable store in production.
+  const base = process.env.VERCEL ? path.join("/tmp", ".data") : path.join(process.cwd(), ".data");
+  return path.join(base, key);
 }
 
 async function readJsonFromFile(key: string): Promise<unknown | null> {

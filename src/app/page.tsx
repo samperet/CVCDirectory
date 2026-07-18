@@ -40,14 +40,19 @@ const cards = [
 ];
 
 async function getStats() {
-  const [memberCount, circleCount, skillCount, loanItemCount] = await Promise.all([
-    prisma.member.count(),
-    prisma.circle.count(),
-    prisma.skill.count(),
-    prisma.loanItem.count({ where: { available: true } }),
-  ]);
-
-  return { memberCount, circleCount, skillCount, loanItemCount };
+  try {
+    const [memberCount, circleCount, skillCount, loanItemCount] = await Promise.all([
+      prisma.member.count(),
+      prisma.circle.count(),
+      prisma.skill.count(),
+      prisma.loanItem.count({ where: { available: true } }),
+    ]);
+    return { memberCount, circleCount, skillCount, loanItemCount };
+  } catch (error) {
+    // No DATABASE_URL configured (or the database is unreachable) — the
+    // dashboard should still render rather than crash the landing page.
+    return null;
+  }
 }
 
 export default async function DashboardPage() {
@@ -61,24 +66,33 @@ export default async function DashboardPage() {
           loan library.
         </p>
       </section>
-      <section className="grid gap-4 sm:grid-cols-2">
+      {stats ? (
+        <section className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <p className="text-xs uppercase text-foreground/60">Active Members</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.memberCount}</p>
+          </Card>
+          <Card>
+            <p className="text-xs uppercase text-foreground/60">Circles</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.circleCount}</p>
+          </Card>
+          <Card>
+            <p className="text-xs uppercase text-foreground/60">Skills Cataloged</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.skillCount}</p>
+          </Card>
+          <Card>
+            <p className="text-xs uppercase text-foreground/60">Available Loan Items</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.loanItemCount}</p>
+          </Card>
+        </section>
+      ) : (
         <Card>
-          <p className="text-xs uppercase text-foreground/60">Active Members</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{stats.memberCount}</p>
+          <p className="text-sm text-foreground/70">
+            Directory database is not connected yet — member, circle, skill, and loan-library data
+            will appear once it is configured. Proposals are available below.
+          </p>
         </Card>
-        <Card>
-          <p className="text-xs uppercase text-foreground/60">Circles</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{stats.circleCount}</p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase text-foreground/60">Skills Cataloged</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{stats.skillCount}</p>
-        </Card>
-        <Card>
-          <p className="text-xs uppercase text-foreground/60">Available Loan Items</p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">{stats.loanItemCount}</p>
-        </Card>
-      </section>
+      )}
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
           <Card key={card.href} className="flex flex-col gap-4">
