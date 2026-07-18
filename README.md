@@ -87,15 +87,21 @@ agricultural-use proposal). Each proposal page offers:
 - **Request in-person discussion** – once enough members ask (default 3), the proposal is flagged
   to move to the next community gathering's agenda.
 
-Interaction state is a single JSON document per proposal stored in Cloudflare R2 via the
-S3-compatible API. Without R2 credentials the app transparently falls back to `.data/proposals/`
-on disk — fine for local development, ephemeral on Vercel.
+- **Editable, data-driven proposals** – each proposal (content + interaction state) is a JSON
+  document in the store. The four-wheeler proposal ships as the seeded first proposal; its text
+  can be edited in place via the "Edit proposal" button, and new proposals can be started from
+  the `/proposals` page (they get template sections and a fresh 7-day review clock). Edits never
+  touch the review clock or past questions.
+
+Documents are stored in Cloudflare R2 via the S3-compatible API (one JSON per proposal plus an
+index). Without R2 credentials the app transparently falls back to `.data/` on disk — fine for
+local development, ephemeral on Vercel.
 
 To provision R2: create a bucket in the Cloudflare dashboard, generate an R2 API token with
 Object Read & Write scoped to that bucket, and set the four `R2_*` variables in Vercel.
 
-Proposal content lives in `src/lib/proposals/content.ts`; add a new proposal object there to
-publish a new one.
+Seed proposals live in `src/lib/proposals/content.ts`; they are logged into the store on first
+access, after which the stored copy is the editable source of truth.
 
 ## Deployment
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getProposal } from "@/lib/proposals/content";
 import { buildStateResponse } from "@/lib/proposals/serialize";
-import { mutateProposalState } from "@/lib/proposals/store";
+import { mutateProposalDocument, readProposalDocument } from "@/lib/proposals/store";
 import { questionInputSchema } from "@/lib/proposals/validation";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -14,8 +13,8 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
     return problem("Too many requests", 429, "Too Many Requests");
   }
 
-  const proposal = getProposal(params.slug);
-  if (!proposal) {
+  const existing = await readProposalDocument(params.slug);
+  if (!existing) {
     return problem("Proposal not found", 404, "Not Found");
   }
 
@@ -24,24 +23,31 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
     return problem(parsed.error.errors.map((err) => err.message).join(", "));
   }
 
-  if (!proposal.sections.some((section) => section.id === parsed.data.sectionId)) {
+  if (!existing.content.sections.some((section) => section.id === parsed.data.sectionId)) {
     return problem("Unknown proposal section");
   }
 
-  const state = await mutateProposalState(proposal.slug, (current) => ({
+  const doc = await mutateProposalDocument(params.slug, (current) => ({
     ...current,
-    questions: [
-      ...current.questions,
-      {
-        id: randomUUID(),
-        sectionId: parsed.data.sectionId,
-        authorName: parsed.data.authorName,
-        body: parsed.data.body,
-        createdAt: new Date().toISOString(),
-        responses: [],
-      },
-    ],
+    state: {
+      ...current.state,
+      questions: [
+        ...current.state.questions,
+        {
+          id: randomUUID(),
+          sectionId: parsed.data.sectionId,
+          authorName: parsed.data.authorName,
+          body: parsed.data.body,
+          createdAt: new Date().toISOString(),
+          responses: [],
+        },
+      ],
+    },
   }));
 
-  return NextResponse.json(buildStateResponse(proposal, state), { status: 201 });
+  if (!doc) {
+    return problem("Proposal not found", 404, "Not Found");
+  }
+
+  return NextResponse.json(buildStateResponse(doc), { status: 201 });
 }

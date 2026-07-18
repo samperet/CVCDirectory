@@ -38,6 +38,29 @@ export const extendInputSchema = z.object({
   name: optionalName,
 });
 
+const sectionSchema = z.object({
+  id: z.string().min(1).max(60),
+  title: z.string().trim().min(1, "Section title is required").max(120),
+  icon: z.string().max(30).optional().default("sprout"),
+  paragraphs: z.array(z.string().trim().min(1).max(3000)).max(20),
+  bullets: z.array(z.string().trim().min(1).max(600)).max(20).optional(),
+});
+
+export const proposalContentUpdateSchema = z.object({
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(160),
+  summary: z.string().trim().min(10, "Summary must be at least 10 characters").max(1200),
+  proposer: z.string().trim().min(1, "Proposer is required").max(80),
+  circle: z.string().trim().min(1, "Circle is required").max(80),
+  sections: z.array(sectionSchema).min(1, "At least one section is required").max(20),
+});
+
+export const proposalCreateSchema = z.object({
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(160),
+  summary: z.string().trim().min(10, "Summary must be at least 10 characters").max(1200),
+  proposer: z.string().trim().min(1, "Proposer is required").max(80),
+  circle: z.string().trim().min(1, "Circle is required").max(80),
+});
+
 export const meetingRequestInputSchema = z.object({
   name: optionalName,
   note: z

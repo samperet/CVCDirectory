@@ -1,11 +1,13 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { ProposalState } from "./types";
+import { getSeedProposal, listSeedSlugs } from "./content";
+import { ProposalContent, ProposalDocument, ProposalState } from "./types";
 
 /**
- * Proposal state lives as one JSON document per proposal in Cloudflare R2
- * (S3-compatible API). When the R2 environment variables are not configured
- * (local development, preview builds), state falls back to a JSON file under
+ * Each proposal lives as one JSON document (content + interaction state) in
+ * Cloudflare R2 (S3-compatible API), with an index document listing all
+ * slugs. When the R2 environment variables are not configured (local
+ * development, preview builds), storage falls back to JSON files under
  * .data/ so the feature stays fully functional without credentials.
  */
 
@@ -36,8 +38,20 @@ function normalizeState(raw: unknown): ProposalState {
   };
 }
 
-function objectKey(slug: string) {
-  return `proposals/${slug}.json`;
+function normalizeDocument(slug: string, raw: unknown): ProposalDocument | null {
+  const seed = getSeedProposal(slug);
+  if (!raw) {
+    return seed ? { content: seed, state: emptyState() } : null;
+  }
+  const doc = raw as { content?: ProposalContent; state?: unknown; questions?: unknown };
+  if (doc.content && typeof doc.content === "object") {
+    return { content: { ...doc.content, slug }, state: normalizeState(doc.state) };
+  }
+  // Legacy shape: the document held interaction state only, content was static.
+  if (Array.isArray(doc.questions) && seed) {
+    return { content: seed, state: normalizeState(raw) };
+  }
+  return seed ? { content: seed, state: emptyState() } : null;
 }
 
 async function getS3Client() {
@@ -54,83 +68,118 @@ async function getS3Client() {
   });
 }
 
-async function readFromR2(slug: string): Promise<ProposalState> {
+async function readJsonFromR2(key: string): Promise<unknown | null> {
   const { GetObjectCommand } = await import("@aws-sdk/client-s3");
   const config = r2Config()!;
   const client = await getS3Client();
   try {
-    const result = await client.send(
-      new GetObjectCommand({ Bucket: config.bucket, Key: objectKey(slug) })
-    );
+    const result = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
     const body = await result.Body?.transformToString();
-    return normalizeState(body ? JSON.parse(body) : null);
+    return body ? JSON.parse(body) : null;
   } catch (error) {
     const name = (error as { name?: string })?.name;
     if (name === "NoSuchKey" || name === "NotFound") {
-      return emptyState();
+      return null;
     }
     throw error;
   }
 }
 
-async function writeToR2(slug: string, state: ProposalState): Promise<void> {
+async function writeJsonToR2(key: string, value: unknown): Promise<void> {
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const config = r2Config()!;
   const client = await getS3Client();
   await client.send(
     new PutObjectCommand({
       Bucket: config.bucket,
-      Key: objectKey(slug),
-      Body: JSON.stringify(state, null, 2),
+      Key: key,
+      Body: JSON.stringify(value, null, 2),
       ContentType: "application/json",
     })
   );
 }
 
-function localFilePath(slug: string) {
-  return path.join(process.cwd(), ".data", "proposals", `${slug}.json`);
+function localFilePath(key: string) {
+  return path.join(process.cwd(), ".data", key);
 }
 
-async function readFromFile(slug: string): Promise<ProposalState> {
+async function readJsonFromFile(key: string): Promise<unknown | null> {
   try {
-    const raw = await fs.readFile(localFilePath(slug), "utf-8");
-    return normalizeState(JSON.parse(raw));
+    const raw = await fs.readFile(localFilePath(key), "utf-8");
+    return JSON.parse(raw);
   } catch (error) {
-    return emptyState();
+    return null;
   }
 }
 
-async function writeToFile(slug: string, state: ProposalState): Promise<void> {
-  const filePath = localFilePath(slug);
+async function writeJsonToFile(key: string, value: unknown): Promise<void> {
+  const filePath = localFilePath(key);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(state, null, 2), "utf-8");
+  await fs.writeFile(filePath, JSON.stringify(value, null, 2), "utf-8");
 }
 
-export async function readProposalState(slug: string): Promise<ProposalState> {
-  return isPersistent() ? readFromR2(slug) : readFromFile(slug);
+async function readJson(key: string): Promise<unknown | null> {
+  return isPersistent() ? readJsonFromR2(key) : readJsonFromFile(key);
 }
 
-async function writeProposalState(slug: string, state: ProposalState): Promise<void> {
-  return isPersistent() ? writeToR2(slug, state) : writeToFile(slug, state);
+async function writeJson(key: string, value: unknown): Promise<void> {
+  return isPersistent() ? writeJsonToR2(key, value) : writeJsonToFile(key, value);
 }
 
-// Serialize read-modify-write cycles per proposal within this server instance
-// to avoid clobbering concurrent submissions.
+function documentKey(slug: string) {
+  return `proposals/${slug}.json`;
+}
+
+const INDEX_KEY = "proposals/index.json";
+
+async function readIndex(): Promise<string[]> {
+  const raw = (await readJson(INDEX_KEY)) as { slugs?: unknown } | null;
+  return Array.isArray(raw?.slugs) ? (raw!.slugs as string[]).filter((s) => typeof s === "string") : [];
+}
+
+export async function listProposalSlugs(): Promise<string[]> {
+  const slugs = new Set([...listSeedSlugs(), ...(await readIndex())]);
+  return Array.from(slugs);
+}
+
+export async function readProposalDocument(slug: string): Promise<ProposalDocument | null> {
+  return normalizeDocument(slug, await readJson(documentKey(slug)));
+}
+
+// Serialize read-modify-write cycles per key within this server instance to
+// avoid clobbering concurrent submissions.
 const mutationQueues = new Map<string, Promise<unknown>>();
 
-export async function mutateProposalState(
-  slug: string,
-  mutate: (state: ProposalState) => ProposalState
-): Promise<ProposalState> {
-  const previous = mutationQueues.get(slug) ?? Promise.resolve();
-  const next = previous
-    .catch(() => undefined)
-    .then(async () => {
-      const state = await readProposalState(slug);
-      const updated = { ...mutate(state), updatedAt: new Date().toISOString() };
-      await writeProposalState(slug, updated);
-      return updated;
-    });
-  mutationQueues.set(slug, next);
+function enqueue<T>(key: string, task: () => Promise<T>): Promise<T> {
+  const previous = mutationQueues.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(task);
+  mutationQueues.set(key, next);
   return next;
+}
+
+export async function mutateProposalDocument(
+  slug: string,
+  mutate: (doc: ProposalDocument) => ProposalDocument
+): Promise<ProposalDocument | null> {
+  return enqueue(documentKey(slug), async () => {
+    const doc = normalizeDocument(slug, await readJson(documentKey(slug)));
+    if (!doc) return null;
+    const updated = mutate(doc);
+    updated.state = { ...updated.state, updatedAt: new Date().toISOString() };
+    await writeJson(documentKey(slug), updated);
+    return updated;
+  });
+}
+
+export async function createProposalDocument(content: ProposalContent): Promise<ProposalDocument> {
+  const doc: ProposalDocument = { content, state: emptyState() };
+  await enqueue(documentKey(content.slug), () => writeJson(documentKey(content.slug), doc));
+  await enqueue(INDEX_KEY, async () => {
+    const slugs = await readIndex();
+    if (!slugs.includes(content.slug)) {
+      slugs.push(content.slug);
+      await writeJson(INDEX_KEY, { slugs });
+    }
+  });
+  return doc;
 }

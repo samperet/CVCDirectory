@@ -94,14 +94,54 @@ const fourWheelerProposal: ProposalContent = {
   ],
 };
 
-const proposals: Record<string, ProposalContent> = {
+// Seed proposals are logged into the document store on first access, so the
+// community's first proposal exists without any manual setup. After seeding,
+// the stored (editable) copy is the source of truth.
+const seedProposals: Record<string, ProposalContent> = {
   [fourWheelerProposal.slug]: fourWheelerProposal,
 };
 
-export function getProposal(slug: string): ProposalContent | undefined {
-  return proposals[slug];
+export function getSeedProposal(slug: string): ProposalContent | undefined {
+  return seedProposals[slug];
 }
 
-export function listProposals(): ProposalContent[] {
-  return Object.values(proposals);
+export function listSeedSlugs(): string[] {
+  return Object.keys(seedProposals);
+}
+
+export function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+export function starterSections(): ProposalContent["sections"] {
+  return [
+    {
+      id: "introduction",
+      title: "Introduction",
+      icon: "book",
+      paragraphs: ["Describe the problem or opportunity, and the story behind it."],
+    },
+    {
+      id: "request",
+      title: "Request",
+      icon: "warehouse",
+      paragraphs: ["What exactly are you asking the community to consent to?"],
+    },
+    {
+      id: "rationale",
+      title: "Rationale",
+      icon: "sprout",
+      paragraphs: ["Why does this serve the community? How will it be measured and evaluated?"],
+    },
+    {
+      id: "logistics",
+      title: "Logistics & Stewardship",
+      icon: "user",
+      paragraphs: ["Costs, responsibilities, accountability, and how the arrangement gets reviewed."],
+    },
+  ];
 }

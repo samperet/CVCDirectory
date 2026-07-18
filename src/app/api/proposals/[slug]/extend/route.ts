@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getProposal } from "@/lib/proposals/content";
 import { computeReviewWindow, summarizeExtension } from "@/lib/proposals/logic";
 import { buildStateResponse } from "@/lib/proposals/serialize";
-import { mutateProposalState, readProposalState } from "@/lib/proposals/store";
+import { mutateProposalDocument, readProposalDocument } from "@/lib/proposals/store";
 import { extendInputSchema } from "@/lib/proposals/validation";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -15,8 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
     return problem("Too many requests", 429, "Too Many Requests");
   }
 
-  const proposal = getProposal(params.slug);
-  if (!proposal) {
+  const existing = await readProposalDocument(params.slug);
+  if (!existing) {
     return problem("Proposal not found", 404, "Not Found");
   }
 
@@ -25,22 +24,31 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
     return problem(parsed.error.errors.map((err) => err.message).join(", "));
   }
 
-  const current = await readProposalState(proposal.slug);
-  const extension = summarizeExtension(current.extensionClicks.length, proposal.maxExtraDays);
+  const extension = summarizeExtension(
+    existing.state.extensionClicks.length,
+    existing.content.maxExtraDays
+  );
   if (extension.atMaxExtension) {
     return problem("The review period has reached its maximum extension", 409, "Conflict");
   }
-  if (computeReviewWindow(proposal, extension.extraDays).closed) {
+  if (computeReviewWindow(existing.content, extension.extraDays).closed) {
     return problem("The review period has already closed", 409, "Conflict");
   }
 
-  const state = await mutateProposalState(proposal.slug, (draft) => ({
-    ...draft,
-    extensionClicks: [
-      ...draft.extensionClicks,
-      { id: randomUUID(), name: parsed.data.name, createdAt: new Date().toISOString() },
-    ],
+  const doc = await mutateProposalDocument(params.slug, (current) => ({
+    ...current,
+    state: {
+      ...current.state,
+      extensionClicks: [
+        ...current.state.extensionClicks,
+        { id: randomUUID(), name: parsed.data.name, createdAt: new Date().toISOString() },
+      ],
+    },
   }));
 
-  return NextResponse.json(buildStateResponse(proposal, state), { status: 201 });
+  if (!doc) {
+    return problem("Proposal not found", 404, "Not Found");
+  }
+
+  return NextResponse.json(buildStateResponse(doc), { status: 201 });
 }

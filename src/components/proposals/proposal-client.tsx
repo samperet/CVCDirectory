@@ -8,6 +8,7 @@ import {
   Clock,
   ListChecks,
   MessageCircleQuestion,
+  Pencil,
   Scale,
   ShieldCheck,
   Sprout,
@@ -28,7 +29,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
 
 const sectionIcons: Record<string, typeof Sprout> = {
   book: BookOpen,
@@ -58,11 +58,12 @@ function formatDate(iso: string) {
   });
 }
 
-export function ProposalClient({ content }: { content: ProposalContent }) {
+export function ProposalClient({ slug }: { slug: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [now, setNow] = useState<number | null>(null);
   const [participantName, setParticipantName] = useState("");
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     setNow(Date.now());
@@ -70,20 +71,22 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
     return () => clearInterval(timer);
   }, []);
 
-  const queryKey = ["proposal", content.slug];
-  const { data, isLoading } = useQuery<ProposalStateResponse>({
+  const queryKey = ["proposal", slug];
+  const { data, isLoading, isError, error } = useQuery<ProposalStateResponse>({
     queryKey,
-    queryFn: () => apiFetch(`/api/proposals/${content.slug}`),
+    queryFn: () => apiFetch(`/api/proposals/${slug}`),
     refetchInterval: 30_000,
+    retry: 1,
   });
 
   const updateFromResponse = (response: ProposalStateResponse) => {
     queryClient.setQueryData(queryKey, response);
+    queryClient.invalidateQueries({ queryKey: ["proposals"] });
   };
 
   const extend = useMutation({
     mutationFn: () =>
-      apiFetch<ProposalStateResponse>(`/api/proposals/${content.slug}/extend`, {
+      apiFetch<ProposalStateResponse>(`/api/proposals/${slug}/extend`, {
         method: "POST",
         body: JSON.stringify({ name: participantName || undefined }),
       }),
@@ -102,13 +105,13 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
               } will add the next day.`,
       });
     },
-    onError: (error: Error) =>
-      toast({ title: "Unable to add a day", description: error.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Unable to add a day", description: err.message, variant: "destructive" }),
   });
 
   const requestMeeting = useMutation({
     mutationFn: (note: string) =>
-      apiFetch<ProposalStateResponse>(`/api/proposals/${content.slug}/meeting-request`, {
+      apiFetch<ProposalStateResponse>(`/api/proposals/${slug}/meeting-request`, {
         method: "POST",
         body: JSON.stringify({ name: participantName || undefined, note: note || undefined }),
       }),
@@ -123,10 +126,11 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
           : undefined,
       });
     },
-    onError: (error: Error) =>
-      toast({ title: "Unable to record request", description: error.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Unable to record request", description: err.message, variant: "destructive" }),
   });
 
+  const content = data?.content;
   const state = data?.state;
   const review = data?.review;
   const extension = data?.extension;
@@ -155,6 +159,33 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
 
   const reviewClosed = remainingMs !== null ? remainingMs <= 0 : review?.closed ?? false;
 
+  if (isError) {
+    return (
+      <Card className="flex flex-col gap-2">
+        <h1 className="text-lg font-semibold text-foreground">Proposal not found</h1>
+        <p className="text-sm text-foreground/70">{(error as Error)?.message}</p>
+      </Card>
+    );
+  }
+
+  if (isLoading || !content) {
+    return <Card>Loading proposal…</Card>;
+  }
+
+  if (editing) {
+    return (
+      <ProposalEditor
+        slug={slug}
+        content={content}
+        onClose={() => setEditing(false)}
+        onSaved={(response) => {
+          updateFromResponse(response);
+          setEditing(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
@@ -168,6 +199,15 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
           ) : (
             <Badge>Open for review</Badge>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            onClick={() => setEditing(true)}
+          >
+            <Pencil className="mr-1 h-4 w-4" />
+            Edit proposal
+          </Button>
         </div>
         <h1 className="text-2xl font-semibold text-foreground md:text-3xl">{content.title}</h1>
         <p className="text-sm text-foreground/70">
@@ -305,12 +345,12 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
         {content.sections.map((section) => (
           <SectionCard
             key={section.id}
-            content={content}
+            slug={slug}
+            proposer={content.proposer}
             section={section}
             questions={questionsBySection.get(section.id) ?? []}
             participantName={participantName}
             onUpdate={updateFromResponse}
-            loading={isLoading}
           />
         ))}
       </section>
@@ -318,20 +358,144 @@ export function ProposalClient({ content }: { content: ProposalContent }) {
   );
 }
 
-function SectionCard({
+function ProposalEditor({
+  slug,
   content,
+  onClose,
+  onSaved,
+}: {
+  slug: string;
+  content: ProposalContent;
+  onClose: () => void;
+  onSaved: (response: ProposalStateResponse) => void;
+}) {
+  const { toast } = useToast();
+  const [title, setTitle] = useState(content.title);
+  const [summary, setSummary] = useState(content.summary);
+  const [proposer, setProposer] = useState(content.proposer);
+  const [circle, setCircle] = useState(content.circle);
+  const [sections, setSections] = useState(
+    content.sections.map((section) => ({
+      id: section.id,
+      icon: section.icon,
+      title: section.title,
+      paragraphs: section.paragraphs.join("\n\n"),
+      bullets: (section.bullets ?? []).join("\n"),
+    }))
+  );
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiFetch<ProposalStateResponse>(`/api/proposals/${slug}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title,
+          summary,
+          proposer,
+          circle,
+          sections: sections.map((section) => {
+            const bullets = section.bullets
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean);
+            return {
+              id: section.id,
+              icon: section.icon,
+              title: section.title,
+              paragraphs: section.paragraphs
+                .split(/\n\s*\n/)
+                .map((p) => p.trim())
+                .filter(Boolean),
+              ...(bullets.length > 0 ? { bullets } : {}),
+            };
+          }),
+        }),
+      }),
+    onSuccess: (response) => {
+      toast({ title: "Proposal updated" });
+      onSaved(response);
+    },
+    onError: (err: Error) =>
+      toast({ title: "Unable to save", description: err.message, variant: "destructive" }),
+  });
+
+  const updateSection = (index: number, patch: Partial<(typeof sections)[number]>) => {
+    setSections((current) =>
+      current.map((section, i) => (i === index ? { ...section, ...patch } : section))
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-foreground">Edit proposal</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            Save changes
+          </Button>
+        </div>
+      </div>
+      <p className="text-xs text-foreground/60">
+        Edits update the proposal for everyone. The review clock and past questions are not
+        affected. Separate paragraphs with a blank line; put each bullet on its own line.
+      </p>
+
+      <Card className="flex flex-col gap-3">
+        <label className="text-sm font-medium text-foreground">Title</label>
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-foreground">Proposer</label>
+            <Input value={proposer} onChange={(e) => setProposer(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-foreground">Circle</label>
+            <Input value={circle} onChange={(e) => setCircle(e.target.value)} />
+          </div>
+        </div>
+        <label className="text-sm font-medium text-foreground">Summary</label>
+        <Textarea rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} />
+      </Card>
+
+      {sections.map((section, index) => (
+        <Card key={section.id} className="flex flex-col gap-3">
+          <label className="text-sm font-medium text-foreground">Section title</label>
+          <Input value={section.title} onChange={(e) => updateSection(index, { title: e.target.value })} />
+          <label className="text-sm font-medium text-foreground">Paragraphs</label>
+          <Textarea
+            rows={5}
+            value={section.paragraphs}
+            onChange={(e) => updateSection(index, { paragraphs: e.target.value })}
+          />
+          <label className="text-sm font-medium text-foreground">Bullet points (optional)</label>
+          <Textarea
+            rows={3}
+            value={section.bullets}
+            onChange={(e) => updateSection(index, { bullets: e.target.value })}
+          />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function SectionCard({
+  slug,
+  proposer,
   section,
   questions,
   participantName,
   onUpdate,
-  loading,
 }: {
-  content: ProposalContent;
+  slug: string;
+  proposer: string;
   section: ProposalSection;
   questions: ProposalQuestion[];
   participantName: string;
   onUpdate: (response: ProposalStateResponse) => void;
-  loading: boolean;
 }) {
   const { toast } = useToast();
   const [askOpen, setAskOpen] = useState(false);
@@ -340,7 +504,7 @@ function SectionCard({
 
   const askQuestion = useMutation({
     mutationFn: () =>
-      apiFetch<ProposalStateResponse>(`/api/proposals/${content.slug}/questions`, {
+      apiFetch<ProposalStateResponse>(`/api/proposals/${slug}/questions`, {
         method: "POST",
         body: JSON.stringify({
           sectionId: section.id,
@@ -354,8 +518,8 @@ function SectionCard({
       setAskOpen(false);
       toast({ title: "Question posted", description: `Filed under “${section.title}”.` });
     },
-    onError: (error: Error) =>
-      toast({ title: "Unable to post question", description: error.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Unable to post question", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -406,7 +570,7 @@ function SectionCard({
         </div>
       ) : null}
 
-      {loading && questions.length === 0 ? null : questions.length > 0 ? (
+      {questions.length > 0 ? (
         <div className="flex flex-col gap-3 border-t border-border pt-3">
           <p className="text-xs font-medium uppercase tracking-wide text-foreground/60">
             {questions.length} question{questions.length === 1 ? "" : "s"} on this section
@@ -414,7 +578,8 @@ function SectionCard({
           {questions.map((question) => (
             <QuestionThread
               key={question.id}
-              content={content}
+              slug={slug}
+              proposer={proposer}
               question={question}
               participantName={participantName}
               onUpdate={onUpdate}
@@ -427,12 +592,14 @@ function SectionCard({
 }
 
 function QuestionThread({
-  content,
+  slug,
+  proposer,
   question,
   participantName,
   onUpdate,
 }: {
-  content: ProposalContent;
+  slug: string;
+  proposer: string;
   question: ProposalQuestion;
   participantName: string;
   onUpdate: (response: ProposalStateResponse) => void;
@@ -443,21 +610,18 @@ function QuestionThread({
 
   const respond = useMutation({
     mutationFn: () =>
-      apiFetch<ProposalStateResponse>(
-        `/api/proposals/${content.slug}/questions/${question.id}/responses`,
-        {
-          method: "POST",
-          body: JSON.stringify({ authorName: participantName, body: replyBody }),
-        }
-      ),
+      apiFetch<ProposalStateResponse>(`/api/proposals/${slug}/questions/${question.id}/responses`, {
+        method: "POST",
+        body: JSON.stringify({ authorName: participantName, body: replyBody }),
+      }),
     onSuccess: (response) => {
       onUpdate(response);
       setReplyBody("");
       setReplyOpen(false);
       toast({ title: "Response posted" });
     },
-    onError: (error: Error) =>
-      toast({ title: "Unable to post response", description: error.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Unable to post response", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -473,7 +637,7 @@ function QuestionThread({
         <div key={response.id} className="ml-3 border-l-2 border-primary/40 pl-3">
           <p className="text-xs font-medium text-foreground">
             {response.authorName}
-            {response.authorName === content.proposer ? " (proposer)" : ""}
+            {response.authorName === proposer ? " (proposer)" : ""}
           </p>
           <p className="text-sm text-foreground/80">{response.body}</p>
         </div>

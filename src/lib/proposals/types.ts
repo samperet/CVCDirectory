@@ -70,10 +70,23 @@ export interface ReviewWindow {
   closed: boolean;
 }
 
+export interface ProposalDocument {
+  content: ProposalContent;
+  state: ProposalState;
+}
+
 export interface ProposalStateResponse {
+  content: ProposalContent;
   state: ProposalState;
   extension: ExtensionSummary;
   review: ReviewWindow;
   meetingRequested: boolean;
   persistent: boolean;
+}
+
+export interface ProposalListItem {
+  content: ProposalContent;
+  review: ReviewWindow;
+  questionCount: number;
+  meetingRequested: boolean;
 }
