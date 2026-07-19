@@ -33,11 +33,18 @@ Required variables:
 - `DATABASE_URL` – PostgreSQL connection string (e.g., Vercel Postgres).
 - `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
 
-Optional (interactive proposals — falls back to a local `.data/` JSON file when unset):
+Optional (interactive proposals & community accounts — falls back to a local `.data/` JSON file when unset):
 
 - `R2_ACCOUNT_ID` – Cloudflare account ID.
 - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` – R2 API token credentials (Object Read & Write on the bucket).
-- `R2_BUCKET` – R2 bucket name that holds `proposals/<slug>.json` state documents.
+- `R2_BUCKET` – R2 bucket name that holds `proposals/<slug>.json` state documents and `auth/users.json`.
+
+Community accounts (name-picker sign-in + magic-link verification):
+
+- `AUTH_SECRET` – Secret used to sign session cookies. **Set this in production**; without it a public fallback secret is used and sessions can be forged.
+- `RESEND_API_KEY` – Resend API key for delivering magic-link verification emails. When unset, the verify link is shown directly in the UI (preview mode) instead of being emailed.
+- `EMAIL_FROM` – From address for verification emails (defaults to Resend's onboarding sender).
+- `APP_URL` – Public base URL used in magic links (defaults to the request origin).
 
 ### Installation
 

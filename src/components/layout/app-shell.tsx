@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Menu, Users2, Share2, Layers, Grid, Sparkles, Vote } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/auth/user-menu";
 
 const links = [
   { href: "/", label: "Dashboard", icon: Grid },
@@ -27,32 +28,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/" className="text-lg font-semibold text-foreground">
             CVC Directory
           </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            className="md:hidden"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-label="Toggle navigation"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
-          <nav className="hidden gap-2 md:flex">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
-                  pathname === link.href
-                    ? "bg-primary text-primary-foreground shadow-soft"
-                    : "text-foreground/70 hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <link.icon className="h-4 w-4" />
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          <div className="flex items-center gap-2 md:hidden">
+            <UserMenu />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Toggle navigation"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="hidden items-center gap-3 md:flex">
+            <nav className="flex gap-2">
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
+                    pathname === link.href
+                      ? "bg-primary text-primary-foreground shadow-soft"
+                      : "text-foreground/70 hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+            <UserMenu />
+          </div>
         </div>
         {menuOpen ? (
           <div className="border-t border-border bg-background px-4 pb-4 pt-2 md:hidden">

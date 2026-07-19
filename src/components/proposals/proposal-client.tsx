@@ -29,6 +29,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { useSession, useVerifiedNames } from "@/lib/auth/client";
+import { VerifiedBadge } from "@/components/auth/verified-badge";
 
 const sectionIcons: Record<string, typeof Sprout> = {
   book: BookOpen,
@@ -64,6 +66,12 @@ export function ProposalClient({ slug }: { slug: string }) {
   const [now, setNow] = useState<number | null>(null);
   const [participantName, setParticipantName] = useState("");
   const [editing, setEditing] = useState(false);
+  const { user } = useSession();
+
+  // Signed-in members participate under their account name automatically.
+  useEffect(() => {
+    if (user) setParticipantName(user.name);
+  }, [user]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -329,16 +337,28 @@ export function ProposalClient({ slug }: { slug: string }) {
       </section>
 
       <Card className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-foreground" htmlFor="participant-name">
-          Your name (used when you ask, respond, or vote)
-        </label>
-        <Input
-          id="participant-name"
-          placeholder="e.g. River W."
-          value={participantName}
-          onChange={(event) => setParticipantName(event.target.value)}
-          className="md:max-w-sm"
-        />
+        {user ? (
+          <p className="flex items-center gap-1.5 text-sm text-foreground">
+            Participating as <span className="font-medium">{user.name}</span>
+            {user.verified ? <VerifiedBadge /> : null}
+          </p>
+        ) : (
+          <>
+            <label className="text-sm font-medium text-foreground" htmlFor="participant-name">
+              Your name (used when you ask, respond, or vote)
+            </label>
+            <Input
+              id="participant-name"
+              placeholder="e.g. River W."
+              value={participantName}
+              onChange={(event) => setParticipantName(event.target.value)}
+              className="md:max-w-sm"
+            />
+            <p className="text-xs text-foreground/60">
+              Tip: sign in from the header to keep your name everywhere and earn a verified badge.
+            </p>
+          </>
+        )}
       </Card>
 
       <section className="flex flex-col gap-4">
@@ -607,6 +627,7 @@ function QuestionThread({
   const { toast } = useToast();
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyBody, setReplyBody] = useState("");
+  const verifiedNames = useVerifiedNames();
 
   const respond = useMutation({
     mutationFn: () =>
@@ -627,7 +648,10 @@ function QuestionThread({
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground">{question.authorName}</p>
+        <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          {question.authorName}
+          {verifiedNames.has(question.authorName.toLowerCase()) ? <VerifiedBadge /> : null}
+        </p>
         <p className="text-xs text-foreground/50">
           {new Date(question.createdAt).toLocaleDateString()}
         </p>
@@ -635,9 +659,10 @@ function QuestionThread({
       <p className="text-sm text-foreground/80">{question.body}</p>
       {question.responses.map((response) => (
         <div key={response.id} className="ml-3 border-l-2 border-primary/40 pl-3">
-          <p className="text-xs font-medium text-foreground">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
             {response.authorName}
             {response.authorName === proposer ? " (proposer)" : ""}
+            {verifiedNames.has(response.authorName.toLowerCase()) ? <VerifiedBadge className="[&>svg]:h-3.5 [&>svg]:w-3.5" /> : null}
           </p>
           <p className="text-sm text-foreground/80">{response.body}</p>
         </div>
