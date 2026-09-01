@@ -3,7 +3,8 @@ import path from "path";
 
 /**
  * Shared JSON-document storage. Documents live in Cloudflare R2 (S3-compatible
- * API) when the R2 environment variables are configured; otherwise storage
+ * API) when R2 credentials are configured — either as four discrete
+ * R2_* variables or as a single combined R2 variable; otherwise storage
  * falls back to JSON files under .data/ (or /tmp/.data on Vercel, where the
  * deployment bundle is read-only) so features stay functional without
  * credentials — with the caveat that fallback data is ephemeral.
@@ -11,11 +12,94 @@ import path from "path";
 
 const R2_ENV_KEYS = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"] as const;
 
-function r2Config() {
-  const values = R2_ENV_KEYS.map((key) => process.env[key]);
-  if (values.some((value) => !value)) return null;
-  const [accountId, accessKeyId, secretAccessKey, bucket] = values as string[];
+export interface R2Config {
+  accountId: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+}
+
+/** Field aliases accepted inside a combined R2 variable. */
+const FIELD_ALIASES: Record<keyof R2Config, string[]> = {
+  accountId: ["r2_account_id", "accountid", "account_id", "account", "cf_account_id"],
+  accessKeyId: ["r2_access_key_id", "accesskeyid", "access_key_id", "access_key", "aws_access_key_id"],
+  secretAccessKey: [
+    "r2_secret_access_key",
+    "secretaccesskey",
+    "secret_access_key",
+    "secret_key",
+    "aws_secret_access_key",
+  ],
+  bucket: ["r2_bucket", "bucket", "bucketname", "bucket_name", "r2_bucket_name"],
+};
+
+/** Pull the account ID out of an R2 S3 endpoint, e.g. https://<id>.r2.cloudflarestorage.com */
+function accountIdFromEndpoint(endpoint: string): string | null {
+  const match = endpoint.match(/https?:\/\/([a-z0-9]+)\.r2\.cloudflarestorage\.com/i);
+  return match ? match[1] : null;
+}
+
+/**
+ * Parse a single combined variable holding all four credentials. Accepts a
+ * JSON object, or KEY=VALUE pairs separated by newlines, commas, or
+ * semicolons — the shapes people naturally paste into one Vercel variable.
+ */
+function parseCombined(raw: string): Record<string, string> {
+  const trimmed = raw.trim();
+  const pairs: Record<string, string> = {};
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === "string") pairs[key.toLowerCase()] = value;
+      }
+      return pairs;
+    } catch {
+      // Fall through to KEY=VALUE parsing.
+    }
+  }
+
+  for (const line of trimmed.split(/[\n,;]+/)) {
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim().toLowerCase();
+    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    if (key && value) pairs[key] = value;
+  }
+  return pairs;
+}
+
+function fromCombined(raw: string): R2Config | null {
+  const pairs = parseCombined(raw);
+  const pick = (field: keyof R2Config) => {
+    for (const alias of FIELD_ALIASES[field]) {
+      if (pairs[alias]) return pairs[alias];
+    }
+    return undefined;
+  };
+
+  const endpoint = pairs["endpoint"] ?? pairs["r2_endpoint"] ?? pairs["url"];
+  const accountId = pick("accountId") ?? (endpoint ? accountIdFromEndpoint(endpoint) ?? undefined : undefined);
+  const accessKeyId = pick("accessKeyId");
+  const secretAccessKey = pick("secretAccessKey");
+  const bucket = pick("bucket");
+
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return null;
   return { accountId, accessKeyId, secretAccessKey, bucket };
+}
+
+export function r2Config(): R2Config | null {
+  // Preferred: four discrete environment variables.
+  const values = R2_ENV_KEYS.map((key) => process.env[key]);
+  if (values.every(Boolean)) {
+    const [accountId, accessKeyId, secretAccessKey, bucket] = values as string[];
+    return { accountId, accessKeyId, secretAccessKey, bucket };
+  }
+
+  // Fallback: a single combined variable holding all four.
+  const combined = process.env.R2 ?? process.env.R2_CONFIG ?? process.env.R2_CREDENTIALS;
+  return combined ? fromCombined(combined) : null;
 }
 
 export function isPersistent() {
