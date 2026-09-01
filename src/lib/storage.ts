@@ -69,7 +69,9 @@ function normalizeAccountId(raw: string): string {
   if (value.toLowerCase().endsWith(".r2.cloudflarestorage.com")) {
     value = value.split(".")[0];
   }
-  return value.trim();
+  // SNI is conventionally lowercase; a mixed-case name can be rejected with a
+  // TLS handshake failure.
+  return value.trim().toLowerCase();
 }
 
 /**
@@ -169,37 +171,33 @@ export function isPersistent() {
   return r2Config() !== null;
 }
 
-let warnedAboutShape = false;
+let describedConfig = false;
 
 /**
- * Describe the credential shape without revealing any value, so a
- * misconfiguration is diagnosable from the runtime logs.
+ * Describe the resolved R2 target once, in the runtime logs, to make
+ * misconfiguration diagnosable. The account id and bucket are not secrets —
+ * they appear in every R2 endpoint URL — and these logs are private to the
+ * project. The access key id is reported by length only, and the secret is
+ * never touched.
  */
-function warnIfShapeLooksWrong(config: R2Config) {
-  if (warnedAboutShape) return;
-  warnedAboutShape = true;
-  const accountLooksValid = /^[a-f0-9]{32}$/i.test(config.accountId);
-  if (!accountLooksValid) {
-    console.warn(
-      "[r2] account id has an unexpected shape: " +
-        `length=${config.accountId.length}, expected 32 hex characters. ` +
-        `containsDot=${config.accountId.includes(".")}, ` +
-        "the S3 endpoint requires the bare account id only."
-    );
-  }
-  if (config.bucket.includes("/") || config.bucket.includes(".")) {
-    console.warn(
-      `[r2] bucket name has an unexpected shape: length=${config.bucket.length}; ` +
-        "expected a bare bucket name, not a URL or path."
-    );
-  }
+function describeConfigOnce(config: R2Config) {
+  if (describedConfig) return;
+  describedConfig = true;
+  const endpoint = `https://${config.accountId}.r2.cloudflarestorage.com`;
+  console.warn(
+    `[r2] endpoint=${endpoint} bucket=${config.bucket} ` +
+      `accountIdLength=${config.accountId.length} ` +
+      `accountIdIsHex=${/^[a-f0-9]{32}$/.test(config.accountId)} ` +
+      `accessKeyIdLength=${config.accessKeyId.length} ` +
+      `secretLength=${config.secretAccessKey.length}`
+  );
 }
 
 async function getS3Client() {
   const { S3Client } = await import("@aws-sdk/client-s3");
   const config = r2Config();
   if (!config) throw new Error("R2 is not configured");
-  warnIfShapeLooksWrong(config);
+  describeConfigOnce(config);
   return new S3Client({
     region: "auto",
     endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
