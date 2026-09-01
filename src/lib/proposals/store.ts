@@ -1,6 +1,6 @@
 import { getSeedProposal, listSeedSlugs } from "./content";
 import { ProposalContent, ProposalDocument, ProposalState } from "./types";
-import { enqueue, isPersistent, readJson, writeJson } from "@/lib/storage";
+import { enqueue, isDurable, isPersistent, readJson, writeJson } from "@/lib/storage";
 
 /**
  * Each proposal lives as one JSON document (content + interaction state) in
@@ -8,7 +8,7 @@ import { enqueue, isPersistent, readJson, writeJson } from "@/lib/storage";
  * with an index document listing all slugs.
  */
 
-export { isPersistent };
+export { isPersistent, isDurable };
 
 export function emptyState(): ProposalState {
   return { questions: [], extensionClicks: [], meetingRequests: [], updatedAt: null };

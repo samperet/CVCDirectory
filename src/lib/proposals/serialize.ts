@@ -1,5 +1,5 @@
 import { computeReviewWindow, summarizeExtension } from "./logic";
-import { isPersistent } from "./store";
+import { isDurable } from "./store";
 import { ProposalDocument, ProposalListItem, ProposalStateResponse } from "./types";
 
 export function buildStateResponse(doc: ProposalDocument): ProposalStateResponse {
@@ -12,7 +12,7 @@ export function buildStateResponse(doc: ProposalDocument): ProposalStateResponse
     extension,
     review,
     meetingRequested: state.meetingRequests.length >= content.meetingRequestThreshold,
-    persistent: isPersistent(),
+    persistent: isDurable(),
   };
 }
 

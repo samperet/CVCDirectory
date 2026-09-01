@@ -259,12 +259,48 @@ async function writeJsonToFile(key: string, value: unknown): Promise<void> {
   await fs.writeFile(filePath, JSON.stringify(value, null, 2), "utf-8");
 }
 
+let r2Degraded = false;
+
+/**
+ * R2 is the durable store, but a credential or endpoint misconfiguration must
+ * not take the whole site down: fall back to the local file store and log
+ * loudly. The fallback is ephemeral on Vercel, so degraded mode keeps the app
+ * usable while the configuration is corrected rather than serving errors.
+ */
+function noteDegraded(operation: string, error: unknown) {
+  const err = error as { name?: string; code?: string; message?: string };
+  if (!r2Degraded) {
+    r2Degraded = true;
+    console.error(
+      `[r2] ${operation} failed, falling back to ephemeral local storage — ` +
+        `${err.name ?? "Error"}${err.code ? ` (${err.code})` : ""}: ${err.message ?? "unknown"}`
+    );
+  }
+}
+
 export async function readJson(key: string): Promise<unknown | null> {
-  return isPersistent() ? readJsonFromR2(key) : readJsonFromFile(key);
+  if (!isPersistent()) return readJsonFromFile(key);
+  try {
+    return await readJsonFromR2(key);
+  } catch (error) {
+    noteDegraded("read", error);
+    return readJsonFromFile(key);
+  }
 }
 
 export async function writeJson(key: string, value: unknown): Promise<void> {
-  return isPersistent() ? writeJsonToR2(key, value) : writeJsonToFile(key, value);
+  if (!isPersistent()) return writeJsonToFile(key, value);
+  try {
+    return await writeJsonToR2(key, value);
+  } catch (error) {
+    noteDegraded("write", error);
+    return writeJsonToFile(key, value);
+  }
+}
+
+/** True only when R2 is configured AND has not failed at runtime. */
+export function isDurable() {
+  return isPersistent() && !r2Degraded;
 }
 
 // Serialize read-modify-write cycles per key within this server instance to
