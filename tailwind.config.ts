@@ -1,4 +1,8 @@
 import type { Config } from "tailwindcss";
+
+// Palette lifted from the CVC Folks directory (doub1ejack-cvc-folks-wumv.bolt.host)
+// so both apps read as one product: sage greens on a mint-white ground, with
+// the logo's golden sun as the accent.
 const colors = {
   leaf: "#97cf8a",
   sprout: "#b1dd9e",
@@ -6,6 +10,7 @@ const colors = {
   moss: "#7a9f79",
   mint: "#acd1af",
   forest: "#315a39",
+  sun: "#e8a317",
 };
 
 const config: Config = {
@@ -19,25 +24,33 @@ const config: Config = {
     extend: {
       colors: {
         primary: colors.leaf,
-        "primary-foreground": "#0f2d11",
+        "primary-foreground": "#1e4620",
         secondary: colors.sprout,
         "secondary-foreground": colors.pine,
-        accent: colors.mint,
+        accent: "#e8f5e9",
         "accent-foreground": colors.forest,
-        muted: colors.moss,
+        muted: "#6b8e70",
         "muted-foreground": "#f5fff4",
-        background: "#f7fbf4",
-        foreground: colors.forest,
-        border: colors.moss,
+        background: "#f6fef9",
+        surface: "#ffffff",
+        foreground: "#1e4620",
+        "foreground-light": "#2f5a32",
+        border: "#d1e7d8",
         ring: colors.leaf,
-        destructive: "#b83c2f",
+        sun: colors.sun,
+        warning: "#fbbf24",
+        destructive: "#ef4444",
         "destructive-foreground": "#fffaf8"
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui"],
       },
+      borderRadius: {
+        card: "1rem",
+      },
       boxShadow: {
-        soft: "0 10px 30px -12px rgba(49, 90, 57, 0.35)"
+        soft: "0 2px 8px rgba(0, 0, 0, 0.06)",
+        elev: "0 4px 16px rgba(0, 0, 0, 0.08)",
       }
     }
   },

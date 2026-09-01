@@ -1,31 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BadgeCheck, LogOut, Plus, UserCircle2 } from "lucide-react";
+import { BadgeCheck, LogOut, ShieldCheck, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { VerifiedBadge } from "@/components/auth/verified-badge";
-import {
-  useCreateUser,
-  useLogin,
-  useLogout,
-  useRequestMagicLink,
-  useSession,
-  useUsers,
-} from "@/lib/auth/client";
+import { useLogout, useRequestMagicLink, useSession } from "@/lib/auth/client";
 
 export function UserMenu() {
   const { toast } = useToast();
   const { user, isLoading } = useSession();
-  const { users } = useUsers();
-  const login = useLogin();
-  const createUser = useCreateUser();
   const logout = useLogout();
   const magicLink = useRequestMagicLink();
 
   const [open, setOpen] = useState(false);
-  const [newName, setNewName] = useState("");
   const [email, setEmail] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -55,35 +45,20 @@ export function UserMenu() {
     return <div className="h-9 w-24 animate-pulse rounded-full bg-accent" aria-hidden />;
   }
 
+  if (!user) {
+    return (
+      <Button asChild size="sm" className="gap-2">
+        <Link href="/login">
+          <UserCircle2 className="h-4 w-4" />
+          Sign in
+        </Link>
+      </Button>
+    );
+  }
+
   const closePanel = () => {
     setOpen(false);
     setPreviewUrl(null);
-  };
-
-  const handleLogin = (userId: string) => {
-    login.mutate(userId, {
-      onSuccess: (response) => {
-        closePanel();
-        toast({ title: `Welcome back, ${response.user.name}` });
-      },
-      onError: (error) => toast({ title: "Could not sign in", description: String(error), variant: "destructive" }),
-    });
-  };
-
-  const handleCreate = () => {
-    const name = newName.trim();
-    if (!name) return;
-    createUser.mutate(name, {
-      onSuccess: (response) => {
-        setNewName("");
-        closePanel();
-        toast({
-          title: `Welcome, ${response.user.name}`,
-          description: "You're signed in. Verify your email from the account menu to earn a verified badge.",
-        });
-      },
-      onError: (error) => toast({ title: "Could not add name", description: String(error), variant: "destructive" }),
-    });
   };
 
   const handleMagicLink = () => {
@@ -101,118 +76,75 @@ export function UserMenu() {
           setPreviewUrl(response.previewUrl ?? null);
         }
       },
-      onError: (error) =>
-        toast({ title: "Could not send magic link", description: String(error), variant: "destructive" }),
+      onError: (error: Error) =>
+        toast({ title: "Could not send magic link", description: error.message, variant: "destructive" }),
     });
   };
 
   return (
     <div className="relative">
-      {user ? (
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen((value) => !value)}>
-          <UserCircle2 className="h-4 w-4" />
-          {user.name}
-          {user.verified ? <VerifiedBadge /> : null}
-        </Button>
-      ) : (
-        <Button size="sm" className="gap-2" onClick={() => setOpen((value) => !value)}>
-          <UserCircle2 className="h-4 w-4" />
-          Sign in
-        </Button>
-      )}
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen((value) => !value)}>
+        <UserCircle2 className="h-4 w-4" />
+        {user.name}
+        {user.verified ? <VerifiedBadge /> : null}
+      </Button>
 
       {open ? (
         <>
           <div className="fixed inset-0 z-40" onClick={closePanel} aria-hidden />
-          <div className="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-border bg-background p-4 shadow-soft">
-            {user ? (
-              <div className="flex flex-col gap-3">
-                <div>
-                  <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                    {user.name}
-                    {user.verified ? <VerifiedBadge /> : null}
-                  </p>
-                  <p className="text-xs text-foreground/60">
-                    {user.verified
-                      ? "Verified member"
-                      : "Not verified yet — verify your email to earn a badge."}
-                  </p>
-                </div>
-
-                {!user.verified ? (
-                  <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/40 p-3">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                      <BadgeCheck className="h-4 w-4 text-emerald-600" />
-                      Get your verified badge
-                    </p>
-                    <p className="text-xs text-foreground/60">
-                      We&apos;ll email you a magic link. Clicking it proves it&apos;s really you.
-                    </p>
-                    <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      onKeyDown={(event) => event.key === "Enter" && handleMagicLink()}
-                    />
-                    <Button size="sm" onClick={handleMagicLink} disabled={magicLink.isPending}>
-                      {magicLink.isPending ? "Sending…" : "Send magic link"}
-                    </Button>
-                    {previewUrl ? (
-                      <p className="break-all text-xs text-foreground/70">
-                        Email delivery isn&apos;t configured yet, so here is your link directly:{" "}
-                        <a className="font-medium text-primary underline" href={previewUrl}>
-                          verify my account
-                        </a>
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => logout.mutate(undefined, { onSuccess: closePanel })}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </Button>
+          <div className="absolute right-0 z-50 mt-2 w-80 rounded-card border border-border bg-surface p-4 shadow-elev">
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  {user.name}
+                  {user.verified ? <BadgeCheck className="h-4 w-4 text-primary" /> : null}
+                </p>
+                <p className="text-xs text-muted">
+                  {user.verified ? "Verified member" : "Not verified yet — verify to earn a badge."}
+                </p>
               </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <p className="text-sm font-medium text-foreground">Who are you?</p>
-                {users.length ? (
-                  <div className="flex max-h-56 flex-col gap-1 overflow-y-auto">
-                    {users.map((candidate) => (
-                      <button
-                        key={candidate.id}
-                        type="button"
-                        className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-left text-sm text-foreground transition hover:bg-accent"
-                        onClick={() => handleLogin(candidate.id)}
-                      >
-                        {candidate.name}
-                        {candidate.verified ? <VerifiedBadge /> : null}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-foreground/60">No names yet — add yours below.</p>
-                )}
-                <div className="flex items-center gap-2 border-t border-border pt-3">
+
+              {!user.verified ? (
+                <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    Get your verified badge
+                  </p>
+                  <p className="text-xs text-muted">
+                    We&apos;ll email you a magic link. Clicking it proves it&apos;s really you.
+                  </p>
                   <Input
-                    placeholder="Add your name"
-                    value={newName}
-                    onChange={(event) => setNewName(event.target.value)}
-                    onKeyDown={(event) => event.key === "Enter" && handleCreate()}
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    onKeyDown={(event) => event.key === "Enter" && handleMagicLink()}
+                    className="bg-white"
                   />
-                  <Button size="sm" className="gap-1" onClick={handleCreate} disabled={createUser.isPending}>
-                    <Plus className="h-4 w-4" />
-                    Add
+                  <Button size="sm" onClick={handleMagicLink} disabled={magicLink.isPending}>
+                    {magicLink.isPending ? "Sending…" : "Send magic link"}
                   </Button>
+                  {previewUrl ? (
+                    <p className="break-all text-xs text-muted">
+                      Email delivery isn&apos;t configured yet, so here is your link directly:{" "}
+                      <a className="font-medium text-secondary-foreground underline" href={previewUrl}>
+                        verify my account
+                      </a>
+                    </p>
+                  ) : null}
                 </div>
-              </div>
-            )}
+              ) : null}
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => logout.mutate(undefined, { onSuccess: closePanel })}
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+            </div>
           </div>
         </>
       ) : null}

@@ -24,3 +24,29 @@ textarea,
 select {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
 }
+
+/*
+ * Easter egg carried over from the CVC Folks directory: clicking the logo
+ * winds it back slightly, then spins it three times counter-clockwise.
+ */
+@keyframes logo-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  9.09% {
+    transform: rotate(20deg);
+  }
+  100% {
+    transform: rotate(-1075deg);
+  }
+}
+
+.logo-animate {
+  animation: logo-spin 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-animate {
+    animation: none;
+  }
+}

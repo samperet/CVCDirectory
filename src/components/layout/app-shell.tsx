@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Menu, Users2, Share2, Layers, Grid, Sparkles, Vote } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/auth/user-menu";
 
@@ -25,10 +26,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:px-6">
-          <Link href="/" className="text-lg font-semibold text-foreground">
+          <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
+            <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
             CVC Directory
           </Link>
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <UserMenu />
             <Button
               variant="outline"
@@ -39,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Menu className="h-4 w-4" />
             </Button>
           </div>
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 lg:flex">
             <nav className="flex gap-2">
               {links.map((link) => (
                 <Link
@@ -61,7 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         {menuOpen ? (
-          <div className="border-t border-border bg-background px-4 pb-4 pt-2 md:hidden">
+          <div className="border-t border-border bg-background px-4 pb-4 pt-2 lg:hidden">
             <nav className="flex flex-col gap-2">
               {links.map((link) => (
                 <Link

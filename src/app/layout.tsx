@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: "Community Village Cooperative Directory",
   description:
     "Collaborative directory for members, sociocratic circles, shared skills, and the community loan library.",
+  icons: {
+    icon: "/CVC.png",
+    apple: "/CVC.png",
+  },
 };
 
 export default function RootLayout({
