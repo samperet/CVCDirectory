@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -32,6 +33,18 @@ const FIELD_ALIASES: Record<keyof R2Config, string[]> = {
   ],
   bucket: ["r2_bucket", "bucket", "bucketname", "bucket_name", "r2_bucket_name"],
 };
+
+/**
+ * A Cloudflare API token can drive the S3 API too: the Access Key ID is the
+ * token's id, and the Secret Access Key is the SHA-256 of the token value.
+ * See https://developers.cloudflare.com/r2/api/tokens/
+ */
+const TOKEN_ID_ALIASES = ["r2_token_id", "token_id", "tokenid", "api_token_id", "id"];
+const TOKEN_VALUE_ALIASES = ["r2_api_token", "api_token", "token_value", "token", "value"];
+
+function secretFromToken(tokenValue: string) {
+  return createHash("sha256").update(tokenValue).digest("hex");
+}
 
 /** Pull the account ID out of an R2 S3 endpoint, e.g. https://<id>.r2.cloudflarestorage.com */
 function accountIdFromEndpoint(endpoint: string): string | null {
@@ -81,9 +94,15 @@ function fromCombined(raw: string): R2Config | null {
 
   const endpoint = pairs["endpoint"] ?? pairs["r2_endpoint"] ?? pairs["url"];
   const accountId = pick("accountId") ?? (endpoint ? accountIdFromEndpoint(endpoint) ?? undefined : undefined);
-  const accessKeyId = pick("accessKeyId");
-  const secretAccessKey = pick("secretAccessKey");
   const bucket = pick("bucket");
+
+  const first = (aliases: string[]) => aliases.map((alias) => pairs[alias]).find(Boolean);
+  const tokenId = first(TOKEN_ID_ALIASES);
+  const tokenValue = first(TOKEN_VALUE_ALIASES);
+
+  const accessKeyId = pick("accessKeyId") ?? tokenId;
+  const secretAccessKey =
+    pick("secretAccessKey") ?? (tokenValue ? secretFromToken(tokenValue) : undefined);
 
   if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return null;
   return { accountId, accessKeyId, secretAccessKey, bucket };
@@ -97,7 +116,21 @@ export function r2Config(): R2Config | null {
     return { accountId, accessKeyId, secretAccessKey, bucket };
   }
 
-  // Fallback: a single combined variable holding all four.
+  // A Cloudflare API token supplied as discrete variables.
+  const tokenId = process.env.R2_TOKEN_ID;
+  const tokenValue = process.env.R2_API_TOKEN;
+  const account = process.env.R2_ACCOUNT_ID;
+  const bucketName = process.env.R2_BUCKET;
+  if (tokenId && tokenValue && account && bucketName) {
+    return {
+      accountId: account,
+      accessKeyId: tokenId,
+      secretAccessKey: secretFromToken(tokenValue),
+      bucket: bucketName,
+    };
+  }
+
+  // Fallback: a single combined variable holding the credentials.
   const combined = process.env.R2 ?? process.env.R2_CONFIG ?? process.env.R2_CREDENTIALS;
   return combined ? fromCombined(combined) : null;
 }
