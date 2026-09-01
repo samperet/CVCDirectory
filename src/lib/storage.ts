@@ -53,6 +53,26 @@ function accountIdFromEndpoint(endpoint: string): string | null {
 }
 
 /**
+ * Reduce whatever was pasted to the bare account id. The S3 endpoint is
+ * https://<account>.r2.cloudflarestorage.com, and its wildcard certificate
+ * covers exactly one label — so a value carrying a scheme, a full host, or a
+ * path yields a hostname the TLS handshake rejects (alert 40). Accept the
+ * common paste shapes and reduce them to the single label.
+ */
+function normalizeAccountId(raw: string): string {
+  let value = raw.trim().replace(/^["']|["']$/g, "");
+  const fromEndpoint = accountIdFromEndpoint(value);
+  if (fromEndpoint) return fromEndpoint;
+  // Strip scheme and anything from the first slash onward.
+  value = value.replace(/^https?:\/\//i, "").split("/")[0];
+  // A bare host still carries the R2 suffix; keep only the first label.
+  if (value.toLowerCase().endsWith(".r2.cloudflarestorage.com")) {
+    value = value.split(".")[0];
+  }
+  return value.trim();
+}
+
+/**
  * Parse a single combined variable holding all four credentials. Accepts a
  * JSON object, or KEY=VALUE pairs separated by newlines, commas, or
  * semicolons — the shapes people naturally paste into one Vercel variable.
@@ -105,7 +125,12 @@ function fromCombined(raw: string): R2Config | null {
     pick("secretAccessKey") ?? (tokenValue ? secretFromToken(tokenValue) : undefined);
 
   if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return null;
-  return { accountId, accessKeyId, secretAccessKey, bucket };
+  return {
+    accountId: normalizeAccountId(accountId),
+    accessKeyId: accessKeyId.trim(),
+    secretAccessKey: secretAccessKey.trim(),
+    bucket: bucket.trim(),
+  };
 }
 
 export function r2Config(): R2Config | null {
@@ -113,7 +138,12 @@ export function r2Config(): R2Config | null {
   const values = R2_ENV_KEYS.map((key) => process.env[key]);
   if (values.every(Boolean)) {
     const [accountId, accessKeyId, secretAccessKey, bucket] = values as string[];
-    return { accountId, accessKeyId, secretAccessKey, bucket };
+    return {
+      accountId: normalizeAccountId(accountId),
+      accessKeyId: accessKeyId.trim(),
+      secretAccessKey: secretAccessKey.trim(),
+      bucket: bucket.trim(),
+    };
   }
 
   // A Cloudflare API token supplied as discrete variables.
@@ -123,10 +153,10 @@ export function r2Config(): R2Config | null {
   const bucketName = process.env.R2_BUCKET;
   if (tokenId && tokenValue && account && bucketName) {
     return {
-      accountId: account,
-      accessKeyId: tokenId,
-      secretAccessKey: secretFromToken(tokenValue),
-      bucket: bucketName,
+      accountId: normalizeAccountId(account),
+      accessKeyId: tokenId.trim(),
+      secretAccessKey: secretFromToken(tokenValue.trim()),
+      bucket: bucketName.trim(),
     };
   }
 
@@ -139,10 +169,37 @@ export function isPersistent() {
   return r2Config() !== null;
 }
 
+let warnedAboutShape = false;
+
+/**
+ * Describe the credential shape without revealing any value, so a
+ * misconfiguration is diagnosable from the runtime logs.
+ */
+function warnIfShapeLooksWrong(config: R2Config) {
+  if (warnedAboutShape) return;
+  warnedAboutShape = true;
+  const accountLooksValid = /^[a-f0-9]{32}$/i.test(config.accountId);
+  if (!accountLooksValid) {
+    console.warn(
+      "[r2] account id has an unexpected shape: " +
+        `length=${config.accountId.length}, expected 32 hex characters. ` +
+        `containsDot=${config.accountId.includes(".")}, ` +
+        "the S3 endpoint requires the bare account id only."
+    );
+  }
+  if (config.bucket.includes("/") || config.bucket.includes(".")) {
+    console.warn(
+      `[r2] bucket name has an unexpected shape: length=${config.bucket.length}; ` +
+        "expected a bare bucket name, not a URL or path."
+    );
+  }
+}
+
 async function getS3Client() {
   const { S3Client } = await import("@aws-sdk/client-s3");
   const config = r2Config();
   if (!config) throw new Error("R2 is not configured");
+  warnIfShapeLooksWrong(config);
   return new S3Client({
     region: "auto",
     endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
