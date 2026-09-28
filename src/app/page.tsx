@@ -1,8 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Users2, Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
+import { Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
+import { readDirectory } from "@/lib/directory/store";
+import { listSkills } from "@/lib/skills/store";
+import { listLoanItems } from "@/lib/library/store";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +16,6 @@ const cards = [
     icon: BookUser,
   },
   {
-    href: "/members",
-    title: "Members",
-    description: "Directory of community households and steward contact details.",
-    icon: Users2,
-  },
-  {
     href: "/circles",
     title: "Circles",
     description: "Sociocratic circles with primary and delegate links.",
@@ -28,13 +24,13 @@ const cards = [
   {
     href: "/library",
     title: "Loan Library",
-    description: "Shared tools, books, and equipment available in the village.",
+    description: "Tools, books, and gear neighbors are happy to lend.",
     icon: Share2,
   },
   {
     href: "/skills",
     title: "Skills",
-    description: "Collective skill bank to connect neighbors and talents.",
+    description: "What neighbors can help with, and who to ask.",
     icon: Sparkles,
   },
   {
@@ -46,19 +42,14 @@ const cards = [
 ];
 
 async function getStats() {
-  try {
-    const [memberCount, circleCount, skillCount, loanItemCount] = await Promise.all([
-      prisma.member.count(),
-      prisma.circle.count(),
-      prisma.skill.count(),
-      prisma.loanItem.count({ where: { available: true } }),
-    ]);
-    return { memberCount, circleCount, skillCount, loanItemCount };
-  } catch (error) {
-    // No DATABASE_URL configured (or the database is unreachable) — the
-    // dashboard should still render rather than crash the landing page.
-    return null;
-  }
+  const [directory, skills, items] = await Promise.all([readDirectory(), listSkills(), listLoanItems()]);
+  return {
+    residents: directory?.people.length ?? 0,
+    units: directory ? new Set(directory.people.map((person) => person.unit)).size : 0,
+    circles: directory?.circles.length ?? 0,
+    skills: skills.length,
+    availableItems: items.filter((item) => item.available).length,
+  };
 }
 
 export default async function DashboardPage() {
@@ -68,37 +59,24 @@ export default async function DashboardPage() {
       <section className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-foreground">Community Village Cooperative</h1>
         <p className="text-sm text-foreground/70">
-          A shared directory for members, sociocratic circles, neighborhood skills, and our growing
+          A shared directory for residents, sociocratic circles, neighborhood skills, and our growing
           loan library.
         </p>
       </section>
-      {stats ? (
-        <section className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <p className="text-xs uppercase text-foreground/60">Active Members</p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.memberCount}</p>
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Residents", value: stats.residents, detail: `across ${stats.units} units` },
+          { label: "Circles", value: stats.circles },
+          { label: "Skills listed", value: stats.skills },
+          { label: "Items to borrow", value: stats.availableItems },
+        ].map((stat) => (
+          <Card key={stat.label}>
+            <p className="text-xs uppercase text-foreground/60">{stat.label}</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">{stat.value}</p>
+            {stat.detail ? <p className="text-xs text-muted">{stat.detail}</p> : null}
           </Card>
-          <Card>
-            <p className="text-xs uppercase text-foreground/60">Circles</p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.circleCount}</p>
-          </Card>
-          <Card>
-            <p className="text-xs uppercase text-foreground/60">Skills Cataloged</p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.skillCount}</p>
-          </Card>
-          <Card>
-            <p className="text-xs uppercase text-foreground/60">Available Loan Items</p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{stats.loanItemCount}</p>
-          </Card>
-        </section>
-      ) : (
-        <Card>
-          <p className="text-sm text-foreground/70">
-            Directory database is not connected yet — member, circle, skill, and loan-library data
-            will appear once it is configured. The forum is available below.
-          </p>
-        </Card>
-      )}
+        ))}
+      </section>
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
           <Card key={card.href} className="flex flex-col gap-4">

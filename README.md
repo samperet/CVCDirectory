@@ -1,17 +1,16 @@
 # Community Village Cooperative Directory
 
-A mobile-first community directory for members, sociocratic circles, shared skills, and the loan library. Built with Next.js 14 App Router, Tailwind CSS, shadcn-inspired primitives, Prisma, and Vercel Postgres.
+A mobile-first community directory for residents, sociocratic circles, shared skills, and the loan library. Built with Next.js 14 App Router and Tailwind CSS, with data stored as JSON documents in Cloudflare R2.
 
 ## Features
 
-- 📇 **Members** – Inline editable directory with CSV import/export and detailed drawer for skills, loan items, and circle memberships.
-- 🌀 **Circles** – Sociocratic hierarchy management with primary/delegate link validation and visual relationship diagram.
-- 🛠️ **Loan Library** – Searchable inventory with optimistic availability toggles.
-- 🌱 **Skills Catalog** – Filterable skill bank with member contact information.
-- ⚡ **Optimistic UI** – React Query mutations with toast feedback and rollback handling.
-- 🛡️ **Validated APIs** – Next.js route handlers with Zod schemas, rate limiting, and Prisma enforcement.
+- 🔐 **Resident sign-in** – Pick your name, enter your phone number; signed-out visitors see only the sign-in page.
+- 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
+- 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
+- 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions with replies nested to any depth.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
+- 🌀 **Circles** – Sociocratic hierarchy management (still backed by the Postgres schema, which is not yet connected).
 
 ## Getting Started
 
@@ -119,6 +118,10 @@ Authors always come from the signed-in session, never from the request body.
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.
+- **Loan Library** (`/library`) – things residents are happy to lend. Every item belongs to the
+  resident who lists it; only they can mark it lent out (optionally noting who has it), returned,
+  or remove it. Others see an "Ask to borrow" button that emails (or calls) the owner using their
+  directory contact details. Stored in `library/items.json`.
 
 ## Storage
 

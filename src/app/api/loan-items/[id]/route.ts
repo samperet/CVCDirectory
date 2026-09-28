@@ -1,52 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { loanItemUpdateSchema } from "@/lib/validation";
+import { getSessionUser } from "@/lib/auth/session";
+import { loanItemUpdateSchema, removeLoanItem, updateLoanItem } from "@/lib/library/store";
 import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const item = await prisma.loanItem.findUnique({
-    where: { id: params.id },
-    include: { owner: true },
-  });
+export const dynamic = "force-dynamic";
 
-  if (!item) {
-    return problem("Loan item not found", 404, "Not Found");
-  }
-
-  return NextResponse.json(item);
+function denied(reason: "not_found" | "forbidden") {
+  return reason === "not_found"
+    ? problem("Item not found", 404, "Not Found")
+    : problem("Only the item's owner can change it", 403, "Forbidden");
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  if (!rateLimit(request.ip ?? "anonymous")) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
-  const json = await request.json();
-  const parsed = loanItemUpdateSchema.safeParse(json);
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const user = await getSessionUser();
+  if (!user?.personId) return problem("Sign in to update an item", 401, "Unauthorized");
 
-  try {
-    const item = await prisma.loanItem.update({
-      where: { id: params.id },
-      data: parsed.data,
-      include: { owner: true },
-    });
-    return NextResponse.json(item);
-  } catch (error) {
-    return problem("Unable to update loan item", 400);
-  }
+  const parsed = loanItemUpdateSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+
+  const result = await updateLoanItem(user.personId, params.id, parsed.data);
+  return result.ok ? NextResponse.json({ item: result.value }) : denied(result.reason);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  if (!rateLimit(request.ip ?? "anonymous")) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
-  try {
-    await prisma.loanItem.delete({ where: { id: params.id } });
-    return NextResponse.json({ status: "ok" });
-  } catch (error) {
-    return problem("Unable to delete loan item", 400);
-  }
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  const user = await getSessionUser();
+  if (!user?.personId) return problem("Sign in to remove an item", 401, "Unauthorized");
+
+  const result = await removeLoanItem(user.personId, params.id);
+  return result.ok ? NextResponse.json({ ok: true }) : denied(result.reason);
 }

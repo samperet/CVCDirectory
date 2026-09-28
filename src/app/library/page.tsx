@@ -9,10 +9,9 @@ export default function LibraryPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">Community Loan Library</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Loan Library</h1>
         <p className="text-sm text-foreground/70">
-          Track shared items, categories, and availability to make borrowing effortless for every
-          circle.
+          Tools, books, and gear neighbors are happy to lend. Every item is listed by the resident who owns it.
         </p>
       </div>
       <LibraryClient />

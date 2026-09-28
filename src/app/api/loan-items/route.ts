@@ -1,75 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { getPagination } from "@/lib/pagination";
-import { parseSort } from "@/lib/sort";
-import { loanItemInputSchema } from "@/lib/validation";
+import { getSessionUser } from "@/lib/auth/session";
+import { readDirectory } from "@/lib/directory/store";
+import { addLoanItem, listLoanItems, loanItemInputSchema } from "@/lib/library/store";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
-function buildWhere(q: string, params: URLSearchParams) {
-  const filters: any = {};
-  if (q) {
-    filters.OR = [
-      { title: { contains: q, mode: "insensitive" } },
-      { description: { contains: q, mode: "insensitive" } },
-      { category: { contains: q, mode: "insensitive" } },
-    ];
-  }
-  const category = params.get("category");
-  if (category) {
-    filters.category = { equals: category };
-  }
-  const available = params.get("available");
-  if (available === "true") {
-    filters.available = true;
-  }
-  if (available === "false") {
-    filters.available = false;
-  }
-  return filters;
-}
+export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const { q, sort, page, pageSize } = getPagination(request);
-  const where = buildWhere(q, request.nextUrl.searchParams);
-  const parsedSort = parseSort(sort, ["title", "category"]);
-  const orderBy = (
-    parsedSort ? { [parsedSort.field]: parsedSort.direction } : { title: "asc" }
-  ) as Prisma.LoanItemOrderByWithRelationInput;
+/**
+ * Every item with its owner's current name, unit, and contact details from
+ * the directory (already visible to signed-in residents), so borrowers can
+ * reach the owner directly.
+ */
+export async function GET() {
+  const user = await getSessionUser();
+  if (!user) return problem("Sign in to view the loan library", 401, "Unauthorized");
 
-  const [total, data] = await Promise.all([
-    prisma.loanItem.count({ where }),
-    prisma.loanItem.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: { owner: true },
-    }),
-  ]);
-
-  return NextResponse.json({ data, total, page, pageSize });
+  const [items, directory] = await Promise.all([listLoanItems(), readDirectory()]);
+  const people = new Map((directory?.people ?? []).map((person) => [person.id, person]));
+  return NextResponse.json(
+    {
+      items: items.map((item) => {
+        const owner = people.get(item.ownerPersonId);
+        return {
+          ...item,
+          ownerName: owner?.displayName ?? item.ownerName,
+          ownerUnit: owner?.unit ?? null,
+          ownerEmail: owner?.email ?? null,
+          ownerPhone: owner?.phone ?? owner?.landline ?? null,
+          mine: item.ownerPersonId === user.personId,
+        };
+      }),
+    },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 export async function POST(request: NextRequest) {
-  if (!rateLimit(request.ip ?? "anonymous")) {
+  if (!rateLimit(`library:${request.ip ?? "anonymous"}`)) {
     return problem("Too many requests", 429, "Too Many Requests");
   }
+  const user = await getSessionUser();
+  if (!user?.personId) return problem("Sign in to list an item", 401, "Unauthorized");
 
-  const json = await request.json();
-  const parsed = loanItemInputSchema.safeParse(json);
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const parsed = loanItemInputSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
 
-  try {
-    const item = await prisma.loanItem.create({
-      data: parsed.data,
-      include: { owner: true },
-    });
-    return NextResponse.json(item, { status: 201 });
-  } catch (error) {
-    return problem("Unable to create loan item", 400);
-  }
+  const item = await addLoanItem({ personId: user.personId, name: user.name }, parsed.data);
+  if (item === "limit") return problem("You can list up to 50 items", 409, "Conflict");
+  return NextResponse.json({ item }, { status: 201 });
 }

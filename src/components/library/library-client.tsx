@@ -1,231 +1,333 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Mail, Phone, Plus, Search, Trash2, Undo2, UserRoundCheck } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { LoanItem, Member } from "@/types";
-import { Input } from "@/components/ui/input";
+import type { LoanItem } from "@/lib/library/store";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 
-interface LoanResponse {
-  data: LoanItem[];
-  total: number;
-  page: number;
-  pageSize: number;
+interface LibraryListing extends LoanItem {
+  ownerUnit: number | null;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+  mine: boolean;
+}
+
+type Availability = "all" | "available" | "lent";
+
+const SUGGESTED_CATEGORIES = ["Tools", "Garden", "Kitchen", "Books", "Games", "Outdoor", "Kids", "Electronics", "General"];
+
+function AskToBorrow({ item }: { item: LibraryListing }) {
+  if (item.ownerEmail) {
+    const subject = encodeURIComponent(`Borrowing your ${item.title}`);
+    const body = encodeURIComponent(`Hi ${item.ownerName.split(" ")[0]},\n\nCould I borrow your ${item.title}?\n\nThanks!`);
+    return (
+      <Button asChild size="sm" className="gap-1.5">
+        <a href={`mailto:${item.ownerEmail}?subject=${subject}&body=${body}`}>
+          <Mail className="h-4 w-4" /> Ask to borrow
+        </a>
+      </Button>
+    );
+  }
+  if (item.ownerPhone) {
+    return (
+      <Button asChild size="sm" className="gap-1.5">
+        <a href={`tel:${item.ownerPhone.replace(/\D/g, "")}`}>
+          <Phone className="h-4 w-4" /> Call to borrow
+        </a>
+      </Button>
+    );
+  }
+  return <p className="text-xs text-muted">Ask {item.ownerName} in person.</p>;
+}
+
+function OwnerControls({ item }: { item: LibraryListing }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [lending, setLending] = useState(false);
+  const [lentTo, setLentTo] = useState("");
+
+  const onError = (err: Error) => toast({ title: "Could not update item", description: err.message, variant: "destructive" });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["library"] });
+
+  const update = useMutation({
+    mutationFn: (body: { available: boolean; lentTo?: string | null }) =>
+      apiFetch(`/api/loan-items/${item.id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      setLending(false);
+      setLentTo("");
+      refresh();
+    },
+    onError,
+  });
+  const remove = useMutation({
+    mutationFn: () => apiFetch(`/api/loan-items/${item.id}`, { method: "DELETE" }),
+    onSuccess: refresh,
+    onError,
+  });
+
+  if (lending) {
+    return (
+      <form
+        className="flex flex-col gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          update.mutate({ available: false, lentTo: lentTo.trim() || null });
+        }}
+      >
+        <Input
+          autoFocus
+          placeholder="Who has it? (optional)"
+          value={lentTo}
+          maxLength={80}
+          onChange={(event) => setLentTo(event.target.value)}
+          className="bg-white"
+        />
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={update.isPending}>
+            Mark as lent out
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => setLending(false)}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {item.available ? (
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setLending(true)}>
+          <UserRoundCheck className="h-4 w-4" /> Lent out…
+        </Button>
+      ) : (
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => update.mutate({ available: true })} disabled={update.isPending}>
+          <Undo2 className="h-4 w-4" /> Returned
+        </Button>
+      )}
+      <Button
+        size="sm"
+        variant="ghost"
+        className="gap-1.5 text-muted hover:text-destructive"
+        onClick={() => {
+          if (window.confirm(`Remove "${item.title}" from the library?`)) remove.mutate();
+        }}
+        disabled={remove.isPending}
+      >
+        <Trash2 className="h-4 w-4" /> Remove
+      </Button>
+    </div>
+  );
 }
 
 export function LibraryClient() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [availabilityFilter, setAvailabilityFilter] = useState("all");
-  const [newItem, setNewItem] = useState({ title: "", category: "", description: "", ownerId: "" });
+  const [availability, setAvailability] = useState<Availability>("all");
+  const [mineOnly, setMineOnly] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: "", category: "", description: "" });
 
-  const { data: members } = useQuery<{ data: Member[] }>({
-    queryKey: ["members", "for-library"],
-    queryFn: () => apiFetch(`/api/members${"?pageSize=200"}`),
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["library"],
+    queryFn: () => apiFetch<{ items: LibraryListing[] }>("/api/loan-items"),
   });
+  const items = useMemo(() => data?.items ?? [], [data]);
 
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(handler);
-  }, [search]);
+  const categories = useMemo(
+    () => Array.from(new Set([...SUGGESTED_CATEGORIES, ...items.map((item) => item.category)])).sort(),
+    [items]
+  );
+  const usedCategories = useMemo(() => Array.from(new Set(items.map((item) => item.category))).sort(), [items]);
 
-  const queryString = useMemo(() => {
-    const params = new URLSearchParams();
-    if (debouncedSearch) params.set("q", debouncedSearch);
-    if (categoryFilter) params.set("category", categoryFilter);
-    if (availabilityFilter !== "all") params.set("available", availabilityFilter === "available" ? "true" : "false");
-    params.set("pageSize", "50");
-    return params.toString();
-  }, [debouncedSearch, categoryFilter, availabilityFilter]);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items
+      .filter((item) => !mineOnly || item.mine)
+      .filter((item) => !categoryFilter || item.category === categoryFilter)
+      .filter((item) => availability === "all" || (availability === "available" ? item.available : !item.available))
+      .filter(
+        (item) =>
+          !q ||
+          item.title.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q) ||
+          item.ownerName.toLowerCase().includes(q)
+      )
+      .sort((a, b) => Number(b.available) - Number(a.available) || a.title.localeCompare(b.title));
+  }, [items, query, categoryFilter, availability, mineOnly]);
 
-  const { data, isLoading } = useQuery<LoanResponse>({
-    queryKey: ["loan-items", queryString],
-    queryFn: () => apiFetch(`/api/loan-items${queryString ? `?${queryString}` : ""}`),
-  });
-
-  const createItem = useMutation({
+  const add = useMutation({
     mutationFn: () =>
-      apiFetch(`/api/loan-items`, {
+      apiFetch("/api/loan-items", {
         method: "POST",
-        body: JSON.stringify({ ...newItem, available: true }),
+        body: JSON.stringify({
+          title: form.title,
+          category: form.category || undefined,
+          description: form.description || undefined,
+        }),
       }),
     onSuccess: () => {
-      toast({ title: "Item added" });
-      setNewItem({ title: "", category: "", description: "", ownerId: "" });
-      queryClient.invalidateQueries({ queryKey: ["loan-items"] });
+      setForm({ title: "", category: "", description: "" });
+      setAdding(false);
+      queryClient.invalidateQueries({ queryKey: ["library"] });
+      toast({ title: "Item listed", description: "Neighbors can now ask to borrow it." });
     },
-    onError: () => toast({ title: "Unable to add item", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Could not list item", description: err.message, variant: "destructive" }),
   });
-
-  const updateItem = useMutation({
-    mutationFn: ({ id, data: payload }: { id: string; data: Partial<LoanItem> }) =>
-      apiFetch(`/api/loan-items/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-    onSuccess: () => {
-      toast({ title: "Item updated" });
-      queryClient.invalidateQueries({ queryKey: ["loan-items"] });
-    },
-    onError: () => toast({ title: "Unable to update item", variant: "destructive" }),
-  });
-
-  const deleteItem = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/loan-items/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      toast({ title: "Item removed" });
-      queryClient.invalidateQueries({ queryKey: ["loan-items"] });
-    },
-  });
-
-  const items = data?.data ?? [];
-  const categories = Array.from(new Set(items.map((item) => item.category))).filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-border bg-background p-4 shadow-soft">
-        <h2 className="text-lg font-semibold text-foreground">Add Item</h2>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <Input
-            placeholder="Title"
-            value={newItem.title}
-            onChange={(event) => setNewItem((value) => ({ ...value, title: event.target.value }))}
-          />
-          <Input
-            placeholder="Category"
-            value={newItem.category}
-            onChange={(event) => setNewItem((value) => ({ ...value, category: event.target.value }))}
-          />
-        </div>
-        <Textarea
-          className="mt-2"
-          placeholder="Description"
-          value={newItem.description}
-          onChange={(event) => setNewItem((value) => ({ ...value, description: event.target.value }))}
-        />
-        <label className="mt-2 flex flex-col gap-1 text-sm text-foreground/70">
-          Owner
-          <select
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            value={newItem.ownerId}
-            onChange={(event) => setNewItem((value) => ({ ...value, ownerId: event.target.value }))}
-          >
-            <option value="">Select member</option>
-            {members?.data.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.firstName} {member.lastName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button
-          className="mt-3"
-          onClick={() => createItem.mutate()}
-          disabled={!newItem.title || !newItem.category || !newItem.description || !newItem.ownerId}
-        >
-          Save item
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button className="gap-1" variant={adding ? "outline" : "default"} onClick={() => setAdding((v) => !v)}>
+          <Plus className="h-4 w-4" /> {adding ? "Cancel" : "Lend something"}
         </Button>
+        <span className="text-sm text-muted">Items you list are shown under your name, with a way to reach you.</span>
       </div>
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 shadow-soft">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Input
-            className="md:max-w-xs"
-            placeholder="Search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-sm text-foreground/70">
-            <label className="flex items-center gap-2">
-              Category
-              <select
-                className="rounded-lg border border-border bg-background px-2 py-1"
-                value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
-              >
-                <option value="">All</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2">
-              Availability
-              <select
-                className="rounded-lg border border-border bg-background px-2 py-1"
-                value={availabilityFilter}
-                onChange={(event) => setAvailabilityFilter(event.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="available">Available</option>
-                <option value="unavailable">Checked out</option>
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Title</TableHeader>
-                <TableHeader>Category</TableHeader>
-                <TableHeader>Description</TableHeader>
-                <TableHeader>Owner</TableHeader>
-                <TableHeader>Available</TableHeader>
-                <TableHeader className="text-right">Actions</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-foreground/60">
-                    Loading items...
-                  </TableCell>
-                </TableRow>
-              ) : null}
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.title}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell className="max-w-xs text-sm text-foreground/70">{item.description}</TableCell>
-                  <TableCell>{item.owner?.firstName ? `${item.owner.firstName} ${item.owner.lastName}` : ""}</TableCell>
-                  <TableCell>
-                    <label className="flex items-center gap-2 text-xs text-foreground/70">
-                      <Checkbox
-                        checked={item.available}
-                        onChange={() => updateItem.mutate({ id: item.id, data: { available: !item.available } })}
-                      />
-                      {item.available ? "Available" : "Checked out"}
-                    </label>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => deleteItem.mutate(item.id)}
-                    >
-                      Delete
-                    </Button>
-                  </TableCell>
-                </TableRow>
+
+      {adding ? (
+        <Card className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              placeholder="What can you lend? e.g. Ladder"
+              value={form.title}
+              maxLength={80}
+              onChange={(event) => setForm((f) => ({ ...f, title: event.target.value }))}
+              className="bg-white"
+            />
+            <Input
+              placeholder="Category"
+              list="library-categories"
+              value={form.category}
+              maxLength={40}
+              onChange={(event) => setForm((f) => ({ ...f, category: event.target.value }))}
+              className="bg-white sm:max-w-[12rem]"
+            />
+            <datalist id="library-categories">
+              {categories.map((cat) => (
+                <option key={cat} value={cat} />
               ))}
-              {!isLoading && items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-foreground/60">
-                    No items found.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+            </datalist>
+          </div>
+          <Textarea
+            rows={2}
+            placeholder="Details (optional): size, condition, anything a borrower should know"
+            value={form.description}
+            maxLength={500}
+            onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
+            className="bg-white"
+          />
+          <div>
+            <Button onClick={() => add.mutate()} disabled={add.isPending || form.title.trim().length < 2}>
+              {add.isPending ? "Listing…" : "List item"}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="relative md:w-80">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Input
+            placeholder="Search items or owners"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="bg-white pl-9"
+            aria-label="Search the loan library"
+          />
         </div>
+        <select
+          className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground"
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          aria-label="Filter by category"
+        >
+          <option value="">All categories</option>
+          {usedCategories.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+        <div role="group" aria-label="Filter by availability" className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1">
+          {(
+            [
+              ["all", "All"],
+              ["available", "Available"],
+              ["lent", "Lent out"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={availability === value}
+              onClick={() => setAvailability(value)}
+              className={cn(
+                "rounded-full px-3 py-1 text-sm transition",
+                availability === value ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-accent"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm text-foreground-light">
+          <input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />
+          My items
+        </label>
       </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted">Loading the library…</p>
+      ) : error ? (
+        <Card>
+          <p className="text-sm text-foreground">{(error as Error).message}</p>
+        </Card>
+      ) : visible.length ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {visible.map((item) => (
+            <Card key={item.id} className={cn("flex flex-col gap-3 p-5", !item.available && "opacity-80")}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="font-semibold text-foreground">{item.title}</h2>
+                  <p className="text-xs text-muted">{item.category}</p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                    item.available ? "bg-secondary text-secondary-foreground" : "border border-border text-muted"
+                  )}
+                >
+                  {item.available ? "Available" : "Lent out"}
+                </span>
+              </div>
+              {item.description ? <p className="whitespace-pre-wrap text-sm text-foreground-light">{item.description}</p> : null}
+              {!item.available && item.lentTo ? <p className="text-xs text-muted">With {item.lentTo}</p> : null}
+              <p className="text-sm text-foreground">
+                {item.mine ? "You" : item.ownerName}
+                {item.ownerUnit !== null ? <span className="ml-1.5 text-xs text-muted">Unit {item.ownerUnit}</span> : null}
+              </p>
+              <div className="mt-auto">
+                {item.mine ? <OwnerControls item={item} /> : item.available ? <AskToBorrow item={item} /> : null}
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <p className="text-sm text-muted">
+            {items.length ? "No items match these filters." : "Nothing listed yet — lend something to get the library started."}
+          </p>
+        </Card>
+      )}
     </div>
   );
 }
