@@ -11,7 +11,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💬 **Forum** – Neighborhood discussions with replies nested to any depth.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
-- 📅 **Calendar** – The community Google Calendar on the dashboard.
+- 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
 - 🌀 **Circles** – Who serves on each circle and where seats are open, with uploadable circle icons shown as badges in the directory.
 
 ## Getting Started
@@ -137,8 +137,10 @@ their role.
   requires the current number, and at least one must remain. Photos are center-cropped and
   downscaled in the browser, verified server-side by their bytes (JPEG, PNG, or WebP, up to 1 MB),
   stored in `profiles/photos/`, and served only to signed-in residents.
-- **Community calendar** – the dashboard embeds the community's public Google Calendar (month view
-  on wide screens, agenda on phones) with a link to add it in Google Calendar.
+- **Community calendar** – the dashboard shows the next event, read server-side from the calendar's
+  public iCal feed (cached 15 minutes) with recurring events expanded — honouring cancelled dates
+  and one-off changes — and all-day dates anchored to Eastern time. `/calendar` embeds the full
+  Google Calendar (month view on wide screens, agenda on phones) with a link to add it.
 
 ## Community Directory Import
 

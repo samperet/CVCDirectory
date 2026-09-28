@@ -5,7 +5,8 @@ import { Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react
 import { readDirectory } from "@/lib/directory/store";
 import { listSkills } from "@/lib/skills/store";
 import { listLoanItems } from "@/lib/library/store";
-import { CommunityCalendar } from "@/components/dashboard/community-calendar";
+import { NextEvent } from "@/components/calendar/next-event";
+import { getUpcomingEvents } from "@/lib/calendar/events";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ async function getStats() {
 }
 
 export default async function DashboardPage() {
-  const stats = await getStats();
+  const [stats, [nextEvent]] = await Promise.all([getStats(), getUpcomingEvents(1)]);
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
@@ -64,7 +65,8 @@ export default async function DashboardPage() {
           loan library.
         </p>
       </section>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <NextEvent event={nextEvent ?? null} />
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Residents", value: stats.residents, detail: `across ${stats.units} units` },
           { label: "Circles", value: stats.circles },
@@ -78,7 +80,6 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </section>
-      <CommunityCalendar />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
           <Card key={card.href} className="flex flex-col gap-4">

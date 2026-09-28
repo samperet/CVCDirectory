@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser } from "lucide-react";
+import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const links = [
   { href: "/library", label: "Loan Library", icon: Share2 },
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/forum", label: "Forum", icon: MessagesSquare },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -57,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
             <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
             CVC Directory
@@ -74,7 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
           <div className="hidden items-center gap-3 xl:flex">
-            <nav className="flex gap-2">
+            <nav className="flex gap-1">
               {links.map((link) => (
                 <Link
                   key={link.href}

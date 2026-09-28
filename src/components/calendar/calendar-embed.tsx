@@ -1,8 +1,6 @@
-import { CalendarDays, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
-
-const CALENDAR_ID = "champlainvalleycohousinginfo@gmail.com";
-const TIME_ZONE = "America/New_York";
+import { CALENDAR_ID, CALENDAR_TIME_ZONE as TIME_ZONE } from "@/lib/calendar/events";
 // Opening this link in Google Calendar offers to add it to your own calendars.
 const SUBSCRIBE_URL = "https://calendar.google.com/calendar/u/0?cid=Y2hhbXBsYWludmFsbGV5Y29ob3VzaW5naW5mb0BnbWFpbC5jb20";
 
@@ -21,13 +19,10 @@ function embedUrl(mode: "MONTH" | "AGENDA") {
 }
 
 /** The community's public Google Calendar: month view on wide screens, agenda on phones. */
-export function CommunityCalendar() {
+export function CalendarEmbed() {
   return (
     <Card className="flex flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <CalendarDays className="h-5 w-5 text-primary" /> Community calendar
-        </h2>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <a
           href={SUBSCRIBE_URL}
           target="_blank"
