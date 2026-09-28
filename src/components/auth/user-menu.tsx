@@ -26,9 +26,10 @@ export function UserMenu() {
 
   return (
     <div className="relative">
-      <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap pl-1.5" onClick={() => setOpen((value) => !value)}>
+      <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap pl-1.5 max-sm:pr-1.5" onClick={() => setOpen((value) => !value)} aria-label={`Account menu for ${user.name}`}>
         <Avatar name={user.name} photoUrl={user.photoUrl} size={24} />
-        {user.name}
+        {/* On phones the avatar alone keeps the header on one line; the menu shows the name. */}
+        <span className="hidden sm:inline">{user.name}</span>
       </Button>
 
       {open ? (

@@ -23,6 +23,9 @@ const links = [
   { href: "/resources", label: "Resources", icon: Lightbulb },
 ];
 
+/** A section is active on its own page and the pages under it (e.g. a circle, a forum thread). */
+const isActive = (pathname: string, href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -84,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href={link.href}
                   className={cn(
                     "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
-                    pathname === link.href
+                    isActive(pathname, link.href)
                       ? "bg-primary text-primary-foreground shadow-soft"
                       : "text-foreground/70 hover:bg-accent hover:text-foreground"
                   )}
@@ -105,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href={link.href}
                   className={cn(
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-                    pathname === link.href
+                    isActive(pathname, link.href)
                       ? "bg-primary text-primary-foreground shadow-soft"
                       : "text-foreground/70 hover:bg-accent hover:text-foreground"
                   )}

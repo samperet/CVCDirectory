@@ -169,10 +169,11 @@ from then on, so re-importing the directory never overwrites circle changes.
 
 ## Resources
 
-- `/resources` lists recommendations for local services (plumbers, dentists, realtors…) grouped by
-  category, each showing who recommended it. Residents search and filter, recommend someone
-  themselves, like recommendations, and comment on them. Phone numbers, emails, and web
-  addresses in the text become links.
+- `/resources` lists the categories (plumbers, dentists, realtors…) with how many recommendations
+  each has; `/resources/<category>` shows that category's recommendations, each with who
+  recommended it. Searching on the main page shows matching recommendations from every category.
+  Residents recommend someone themselves (the category page prefills its category), like
+  recommendations, and comment on them. Phone numbers, emails, and web addresses become links.
 - Whoever made a recommendation (matched by directory person) or an admin can edit or remove it;
   comment authors or admins can edit or delete comments. Stored in
   `resources/recommendations.json`.
