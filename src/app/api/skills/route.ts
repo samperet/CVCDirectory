@@ -1,63 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { getPagination } from "@/lib/pagination";
-import { parseSort } from "@/lib/sort";
-import { skillInputSchema } from "@/lib/validation";
+import { getSessionUser } from "@/lib/auth/session";
+import { readDirectory } from "@/lib/directory/store";
+import { addSkill, listSkills, skillInputSchema } from "@/lib/skills/store";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
-function buildWhere(q: string): Prisma.SkillWhereInput {
-  if (!q) return {};
-  return {
-    OR: [
-      { name: { contains: q, mode: "insensitive" } },
-      { category: { contains: q, mode: "insensitive" } },
-    ],
-  };
-}
+export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const { q, sort, page, pageSize } = getPagination(request);
-  const where = buildWhere(q);
-  const parsedSort = parseSort(sort, ["name"]);
-  const orderBy = (
-    parsedSort ? { [parsedSort.field]: parsedSort.direction } : { name: "asc" }
-  ) as Prisma.SkillOrderByWithRelationInput;
+/** Every skill with the resident who offers it (current directory name and unit). */
+export async function GET() {
+  const user = await getSessionUser();
+  if (!user) return problem("Sign in to view skills", 401, "Unauthorized");
 
-  const [total, data] = await Promise.all([
-    prisma.skill.count({ where }),
-    prisma.skill.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        members: {
-          include: { member: true },
-        },
-      },
+  const [skills, directory] = await Promise.all([listSkills(), readDirectory()]);
+  const people = new Map((directory?.people ?? []).map((person) => [person.id, person]));
+  return NextResponse.json({
+    skills: skills.map((skill) => {
+      const person = people.get(skill.personId);
+      return {
+        id: skill.id,
+        name: skill.name,
+        category: skill.category,
+        personId: skill.personId,
+        personName: person?.displayName ?? skill.personName,
+        unit: person?.unit ?? null,
+        mine: skill.personId === user.personId,
+      };
     }),
-  ]);
-
-  return NextResponse.json({ data, total, page, pageSize });
+  });
 }
 
 export async function POST(request: NextRequest) {
-  if (!rateLimit(request.ip ?? "anonymous")) {
+  if (!rateLimit(`skills:${request.ip ?? "anonymous"}`)) {
     return problem("Too many requests", 429, "Too Many Requests");
   }
+  const user = await getSessionUser();
+  if (!user?.personId) return problem("Sign in to add a skill", 401, "Unauthorized");
 
-  const json = await request.json();
-  const parsed = skillInputSchema.safeParse(json);
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const parsed = skillInputSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
 
-  try {
-    const skill = await prisma.skill.create({ data: parsed.data });
-    return NextResponse.json(skill, { status: 201 });
-  } catch (error) {
-    return problem("Unable to create skill", 400);
+  const result = await addSkill({ id: user.personId, name: user.name }, parsed.data);
+  if (!result.ok) {
+    return result.reason === "duplicate"
+      ? problem("You've already listed that skill", 409, "Conflict")
+      : problem("You can list up to 30 skills", 409, "Conflict");
   }
+  return NextResponse.json({ skill: result.skill }, { status: 201 });
 }

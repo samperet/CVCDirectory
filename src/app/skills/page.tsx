@@ -9,10 +9,9 @@ export default function SkillsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">Skills Catalog</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Skills</h1>
         <p className="text-sm text-foreground/70">
-          Discover the talents available in our community and connect members quickly by interest
-          area.
+          What neighbors can help with, and who to ask. Every skill is listed by the resident who offers it.
         </p>
       </div>
       <SkillsClient />
