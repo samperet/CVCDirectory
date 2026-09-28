@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Users2, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser } from "lucide-react";
+import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { useSession } from "@/lib/auth/client";
 const links = [
   { href: "/", label: "Dashboard", icon: Grid },
   { href: "/directory", label: "Directory", icon: BookUser },
-  { href: "/members", label: "Members", icon: Users2 },
   { href: "/circles", label: "Circles", icon: Layers },
   { href: "/library", label: "Loan Library", icon: Share2 },
   { href: "/skills", label: "Skills", icon: Sparkles },
