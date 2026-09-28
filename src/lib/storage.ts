@@ -317,6 +317,81 @@ export async function deleteJson(key: string): Promise<void> {
   await fs.rm(localFilePath(key), { force: true });
 }
 
+// --- Binary objects (profile photos) --------------------------------------
+
+export interface BinaryObject {
+  bytes: Uint8Array;
+  contentType: string;
+}
+
+async function readBinaryFromR2(key: string): Promise<BinaryObject | null> {
+  const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+    const bytes = await result.Body?.transformToByteArray();
+    return bytes ? { bytes, contentType: result.ContentType ?? "application/octet-stream" } : null;
+  } catch (error) {
+    const name = (error as { name?: string })?.name;
+    if (name === "NoSuchKey" || name === "NotFound") return null;
+    throw error;
+  }
+}
+
+async function writeBinaryToR2(key: string, object: BinaryObject): Promise<void> {
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  await client.send(new PutObjectCommand({ Bucket: config.bucket, Key: key, Body: object.bytes, ContentType: object.contentType }));
+}
+
+// Local fallback keeps the content type in a sidecar file.
+async function readBinaryFromFile(key: string): Promise<BinaryObject | null> {
+  try {
+    const [bytes, contentType] = await Promise.all([
+      fs.readFile(localFilePath(key)),
+      fs.readFile(`${localFilePath(key)}.type`, "utf-8"),
+    ]);
+    return { bytes: new Uint8Array(bytes), contentType };
+  } catch {
+    return null;
+  }
+}
+
+async function writeBinaryToFile(key: string, object: BinaryObject): Promise<void> {
+  const filePath = localFilePath(key);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, object.bytes);
+  await fs.writeFile(`${filePath}.type`, object.contentType, "utf-8");
+}
+
+export async function readBinary(key: string): Promise<BinaryObject | null> {
+  if (!isPersistent()) return readBinaryFromFile(key);
+  try {
+    return await readBinaryFromR2(key);
+  } catch (error) {
+    noteDegraded("read", error);
+    return readBinaryFromFile(key);
+  }
+}
+
+export async function writeBinary(key: string, object: BinaryObject): Promise<void> {
+  if (!isPersistent()) return writeBinaryToFile(key, object);
+  try {
+    return await writeBinaryToR2(key, object);
+  } catch (error) {
+    noteDegraded("write", error);
+    return writeBinaryToFile(key, object);
+  }
+}
+
+/** Delete a binary object (and its local content-type sidecar). */
+export async function deleteBinary(key: string): Promise<void> {
+  await deleteJson(key);
+  await fs.rm(`${localFilePath(key)}.type`, { force: true });
+}
+
 /**
  * Write to R2 or fail. Unlike writeJson, this never degrades to the local
  * file store: for imports and other writes that must not silently land in

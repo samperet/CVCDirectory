@@ -5,6 +5,7 @@ import { Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react
 import { readDirectory } from "@/lib/directory/store";
 import { listSkills } from "@/lib/skills/store";
 import { listLoanItems } from "@/lib/library/store";
+import { CommunityCalendar } from "@/components/dashboard/community-calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,7 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </section>
+      <CommunityCalendar />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
           <Card key={card.href} className="flex flex-col gap-4">

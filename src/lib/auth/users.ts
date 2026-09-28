@@ -18,6 +18,8 @@ export interface CommunityUser {
 export interface PublicUser {
   id: string;
   name: string;
+  personId: string | null;
+  photoUrl?: string | null;
 }
 
 const USERS_KEY = "auth/users.json";
@@ -45,7 +47,7 @@ async function mutateUsers<T>(mutate: (users: CommunityUser[]) => { users: Commu
 }
 
 export function toPublicUser(user: CommunityUser): PublicUser {
-  return { id: user.id, name: user.name };
+  return { id: user.id, name: user.name, personId: user.personId ?? null };
 }
 
 export async function getUser(id: string): Promise<CommunityUser | null> {
@@ -80,4 +82,12 @@ export async function userForPerson(person: { id: string; displayName: string })
     };
     return { users: [...users, user], result: user };
   });
+}
+
+/** Keep the account name in step with the resident's edited display name. */
+export async function renameUserForPerson(personId: string, name: string): Promise<void> {
+  await mutateUsers((users) => ({
+    users: users.map((user) => (user.personId === personId ? { ...user, name } : user)),
+    result: null,
+  }));
 }

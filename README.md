@@ -10,6 +10,8 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions with replies nested to any depth.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
+- 🙂 **Profiles** – Residents edit their own details and add a photo.
+- 📅 **Calendar** – The community Google Calendar on the dashboard.
 - 🌀 **Circles** – Sociocratic hierarchy management (still backed by the Postgres schema, which is not yet connected).
 
 ## Getting Started
@@ -134,6 +136,18 @@ only) and returns 503 unless writes are actually reaching R2.
 
 To provision R2: create a bucket in the Cloudflare dashboard, generate an R2 API token with
 Object Read & Write scoped to that bucket, and set the four `R2_*` variables in Vercel.
+
+## Profiles & Calendar
+
+- **Profiles** (`/profile`) – residents edit their own name, email, phone numbers, birthday, and a
+  short bio, and upload a photo. Edits live in `profiles/index.json`, separate from the imported
+  sheet, and are layered over it wherever resident data is read, so a re-import never wipes them.
+  Unit and owner/renter stay as imported. Because phone numbers are passwords, changing one
+  requires the current number, and at least one must remain. Photos are center-cropped and
+  downscaled in the browser, verified server-side by their bytes (JPEG, PNG, or WebP, up to 1 MB),
+  stored in `profiles/photos/`, and served only to signed-in residents.
+- **Community calendar** – the dashboard embeds the community's public Google Calendar (month view
+  on wide screens, agenda on phones) with a link to add it in Google Calendar.
 
 ## Community Directory Import
 

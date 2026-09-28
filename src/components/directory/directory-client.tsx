@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Cake, Car, Home, Mail, Phone, Search, Users2 } from "lucide-react";
@@ -8,6 +9,8 @@ import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/profile/avatar";
+import { useSession } from "@/lib/auth/client";
 
 type Tab = "residents" | "circles" | "carsheds";
 
@@ -50,13 +53,21 @@ function RoleTag({ person }: { person: Person }) {
   );
 }
 
-function PersonRow({ person }: { person: Person }) {
+function PersonRow({ person, isMe }: { person: Person; isMe: boolean }) {
   return (
-    <li className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+    <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
+      <Avatar name={person.displayName} photoUrl={person.photoUrl} size={40} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-foreground">{person.displayName}</span>
         <RoleTag person={person} />
+        {isMe ? (
+          <Link href="/profile" className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline">
+            Edit your profile
+          </Link>
+        ) : null}
       </div>
+      {person.bio ? <p className="whitespace-pre-wrap text-sm text-foreground-light">{person.bio}</p> : null}
       <div className="flex flex-col gap-0.5 text-sm">
         {person.phone ? (
           <a href={`tel:${digits(person.phone)}`} className="inline-flex w-fit items-center gap-1.5 text-foreground-light hover:underline">
@@ -79,11 +90,13 @@ function PersonRow({ person }: { person: Person }) {
           </span>
         ) : null}
       </div>
+      </div>
     </li>
   );
 }
 
 function Residents({ people }: { people: Person[] }) {
+  const { user } = useSession();
   const [query, setQuery] = useState("");
   const units = useMemo(() => {
     const byUnit = new Map<number, Person[]>();
@@ -116,7 +129,7 @@ function Residents({ people }: { people: Person[] }) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Unit {unit}</h2>
               <ul className="divide-y divide-border">
                 {members.map((person) => (
-                  <PersonRow key={person.id} person={person} />
+                  <PersonRow key={person.id} person={person} isMe={person.id === user?.personId} />
                 ))}
               </ul>
             </Card>
@@ -183,6 +196,7 @@ function Circles({ circles, people }: { circles: Circle[]; people: Person[] }) {
 }
 
 function Carsheds({ doc }: { doc: DirectoryDocument }) {
+  const byId = new Map(doc.people.map((person) => [person.id, person]));
   const rows = (["northern", "western"] as const).map((row) => ({
     row,
     slots: doc.carsheds.filter((slot) => slot.row === row),
@@ -210,7 +224,9 @@ function Carsheds({ doc }: { doc: DirectoryDocument }) {
                 <li key={slot.slot} className="flex items-baseline justify-between gap-3 py-2 text-sm">
                   <span className="text-muted">Shed {slot.slot}</span>
                   <span className="text-right text-foreground">
-                    {slot.occupants.map((occupant) => occupant.name).join(" & ")}
+                    {slot.occupants
+                      .map((occupant) => (occupant.personId && byId.get(occupant.personId)?.displayName) || occupant.name)
+                      .join(" & ")}
                     <span className="ml-1.5 text-xs text-muted">Unit {slot.unit}</span>
                   </span>
                 </li>

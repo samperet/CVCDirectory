@@ -12,6 +12,9 @@ export interface Person {
   landline: string | null;
   email: string | null;
   birthday: string | null;
+  /** From the resident's own profile edits; not part of the import. */
+  bio?: string | null;
+  photoUrl?: string | null;
 }
 
 export interface CircleSeat {

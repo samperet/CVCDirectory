@@ -1,4 +1,5 @@
 import { readJson, writeJsonDurable } from "@/lib/storage";
+import { applyProfile, readProfiles } from "@/lib/profiles/store";
 import { DirectoryDocument, DirectorySummary } from "./types";
 
 /**
@@ -9,8 +10,16 @@ import { DirectoryDocument, DirectorySummary } from "./types";
  */
 const DIRECTORY_KEY = "directory/directory.json";
 
-export async function readDirectory(): Promise<DirectoryDocument | null> {
+/** The directory as imported from the spreadsheet, without residents' edits. */
+export async function readImportedDirectory(): Promise<DirectoryDocument | null> {
   return (await readJson(DIRECTORY_KEY)) as DirectoryDocument | null;
+}
+
+/** The directory with each resident's own profile edits and photo applied. */
+export async function readDirectory(): Promise<DirectoryDocument | null> {
+  const [doc, profiles] = await Promise.all([readImportedDirectory(), readProfiles()]);
+  if (!doc) return null;
+  return { ...doc, people: doc.people.map((person) => applyProfile(person, profiles[person.id])) };
 }
 
 export async function writeDirectory(doc: DirectoryDocument): Promise<void> {

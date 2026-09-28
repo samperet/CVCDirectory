@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
-import { readDirectory, summarize, writeDirectory } from "@/lib/directory/store";
+import { readImportedDirectory, summarize, writeDirectory } from "@/lib/directory/store";
 import { directoryDocumentSchema } from "@/lib/directory/validation";
 import { DirectoryDocument } from "@/lib/directory/types";
 import { problem } from "@/lib/http";
@@ -31,7 +31,7 @@ function authorize(request: NextRequest): NextResponse | null {
 export async function GET(request: NextRequest) {
   const denied = authorize(request);
   if (denied) return denied;
-  const doc = await readDirectory();
+  const doc = await readImportedDirectory();
   return NextResponse.json({ imported: doc !== null, summary: doc ? summarize(doc) : null });
 }
 

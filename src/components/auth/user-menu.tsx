@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LogOut, UserCircle2 } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLogout, useSession } from "@/lib/auth/client";
+import { Avatar } from "@/components/profile/avatar";
 
 export function UserMenu() {
   const router = useRouter();
@@ -24,8 +26,8 @@ export function UserMenu() {
 
   return (
     <div className="relative">
-      <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap" onClick={() => setOpen((value) => !value)}>
-        <UserCircle2 className="h-4 w-4" />
+      <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap pl-1.5" onClick={() => setOpen((value) => !value)}>
+        <Avatar name={user.name} photoUrl={user.photoUrl} size={24} />
         {user.name}
       </Button>
 
@@ -34,6 +36,11 @@ export function UserMenu() {
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
           <div className="absolute right-0 z-50 mt-2 w-56 rounded-card border border-border bg-surface p-3 shadow-elev">
             <p className="px-1 pb-2 text-sm font-medium text-foreground">{user.name}</p>
+            <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+              <Link href="/profile" onClick={() => setOpen(false)}>
+                <UserRound className="h-4 w-4" /> Your profile
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" className="w-full gap-2" onClick={signOut} disabled={logout.isPending}>
               <LogOut className="h-4 w-4" />
               {logout.isPending ? "Signing out…" : "Sign out"}
