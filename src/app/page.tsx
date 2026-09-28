@@ -1,7 +1,5 @@
-import { Card } from "@/components/ui/card";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
+import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 
@@ -17,7 +15,7 @@ const cards = [
   {
     href: "/circles",
     title: "Circles",
-    description: "Who serves on each circle, and where seats are open.",
+    description: "Each circle, its purpose, and who serves on it.",
     icon: Layers,
   },
   {
@@ -54,20 +52,21 @@ export default async function DashboardPage() {
       <NextEvent event={nextEvent ?? null} />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
-          <Card key={card.href} className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <card.icon className="h-8 w-8 text-primary" />
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">{card.title}</h2>
-                <p className="text-sm text-foreground/70">{card.description}</p>
-              </div>
+          <Link
+            key={card.href}
+            href={card.href}
+            className="group flex items-center gap-3 rounded-2xl border border-border bg-background p-6 shadow-soft transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent hover:shadow-elev focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-0 active:shadow-soft motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          >
+            <card.icon className="h-8 w-8 shrink-0 text-primary" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold text-foreground">{card.title}</h2>
+              <p className="text-sm text-foreground/70">{card.description}</p>
             </div>
-            <div>
-              <Button asChild variant="outline">
-                <Link href={card.href}>Open {card.title}</Link>
-              </Button>
-            </div>
-          </Card>
+            <ChevronRight
+              className="h-5 w-5 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
+              aria-hidden
+            />
+          </Link>
         ))}
       </section>
     </div>
