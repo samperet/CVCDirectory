@@ -1,5 +1,3 @@
-import { problemFromError } from "@/lib/utils";
-
 export async function apiFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
     headers: {
@@ -19,7 +17,8 @@ export async function apiFetch<T>(input: RequestInfo, init?: RequestInit): Promi
     } catch (error) {
       // ignore json parse errors
     }
-    throw problemFromError(detail);
+    // A real Error, so callers' onError handlers can read error.message.
+    throw new Error(detail || `Request failed with status ${res.status}`);
   }
   return res.json() as Promise<T>;
 }

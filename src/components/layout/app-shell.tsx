@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Users2, Share2, Layers, Grid, Sparkles, Vote } from "lucide-react";
+import { Menu, Users2, Share2, Layers, Grid, Sparkles, MessagesSquare } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/auth/user-menu";
+import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
 
 const links = [
   { href: "/", label: "Dashboard", icon: Grid },
@@ -15,7 +16,7 @@ const links = [
   { href: "/circles", label: "Circles", icon: Layers },
   { href: "/library", label: "Loan Library", icon: Share2 },
   { href: "/skills", label: "Skills", icon: Sparkles },
-  { href: "/proposals", label: "Proposals", icon: Vote },
+  { href: "/forum", label: "Forum", icon: MessagesSquare },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
@@ -85,9 +86,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         ) : null}
       </header>
-      <main className="mx-auto flex max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
         {children}
       </main>
+      <AppreciationsFooter />
     </div>
   );
 }

@@ -10,7 +10,8 @@ A mobile-first community directory for members, sociocratic circles, shared skil
 - 🌱 **Skills Catalog** – Filterable skill bank with member contact information.
 - ⚡ **Optimistic UI** – React Query mutations with toast feedback and rollback handling.
 - 🛡️ **Validated APIs** – Next.js route handlers with Zod schemas, rate limiting, and Prisma enforcement.
-- 🗳️ **Interactive Proposals** – Sociocratic proposals with per-section Q&A, an exponential-cost "Add a day" review extension, and requests to move discussion to an in-person gathering. State is stored as JSON in Cloudflare R2.
+- 💬 **Forum** – Neighborhood discussions with replies nested to any depth.
+- 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 
 ## Getting Started
 
@@ -33,11 +34,11 @@ Required variables:
 - `DATABASE_URL` – PostgreSQL connection string (e.g., Vercel Postgres).
 - `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
 
-Optional (interactive proposals & community accounts — falls back to a local `.data/` JSON file when unset):
+Optional (forum, appreciations & community accounts — falls back to a local `.data/` JSON file when unset):
 
 - `R2_ACCOUNT_ID` – Cloudflare account ID.
 - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` – R2 API token credentials (Object Read & Write on the bucket).
-- `R2_BUCKET` – R2 bucket name that holds `proposals/<slug>.json` state documents and `auth/users.json`.
+- `R2_BUCKET` – R2 bucket name that holds the JSON documents (`forum/`, `appreciations/`, `auth/`, `directory/`).
 
 Community accounts (name-picker sign-in + magic-link verification):
 
@@ -81,41 +82,42 @@ Visit [http://localhost:3000](http://localhost:3000) to view the application.
 npm run lint
 ```
 
-## Interactive Proposals
+## Forum & Appreciations
 
-The `/proposals` section hosts sociocratic consent proposals (currently the four-wheeler
-agricultural-use proposal). Each proposal page offers:
+- **Forum** (`/forum`) – signed-in members start discussions and reply to any post; replies nest
+  to any depth (indentation stops at five levels so long chains stay readable on phones) and any
+  branch can be collapsed. Each thread is one JSON document (`forum/threads/<id>.json`) with
+  replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
+- **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
+  to someone. They rotate through the footer of every page (pausable, and not auto-advancing for
+  visitors who prefer reduced motion). Stored in `appreciations/index.json`, newest 500 kept.
 
-- **Per-section Q&A** – every section has an "Ask about this" button; questions and threaded
-  responses are visible to the whole community.
-- **Add a day** – anyone can extend the 7-day review window. The cost doubles per day: the first
-  extra day takes 1 click, the second 2 more, the third 4 more (2^n − 1 total clicks for n extra
-  days), so extensions stay possible but bounded.
-- **Request in-person discussion** – once enough members ask (default 3), the proposal is flagged
-  to move to the next community gathering's agenda.
+Authors always come from the signed-in session, never from the request body, and verified members
+show a badge next to their name.
 
-- **Editable, data-driven proposals** – each proposal (content + interaction state) is a JSON
-  document in the store. The four-wheeler proposal ships as the seeded first proposal; its text
-  can be edited in place via the "Edit proposal" button, and new proposals can be started from
-  the `/proposals` page (they get template sections and a fresh 7-day review clock). Edits never
-  touch the review clock or past questions.
+## Storage
 
-Documents are stored in Cloudflare R2 via the S3-compatible API (one JSON per proposal plus an
-index). Without R2 credentials the app transparently falls back to `.data/` on disk — fine for
-local development, ephemeral on Vercel.
+JSON documents are stored in Cloudflare R2 via the S3-compatible API. Without R2 credentials — or
+if R2 is unreachable — the app falls back to `.data/` on disk: fine for local development,
+ephemeral on Vercel. `GET /api/health` reports `{ storage: { configured, durable } }` (booleans
+only) and returns 503 unless writes are actually reaching R2.
 
 To provision R2: create a bucket in the Cloudflare dashboard, generate an R2 API token with
 Object Read & Write scoped to that bucket, and set the four `R2_*` variables in Vercel.
 
-Seed proposals live in `src/lib/proposals/content.ts`; they are logged into the store on first
-access, after which the stored copy is the editable source of truth.
+## Community Directory Import
+
+`PUT /api/admin/directory` imports residents, circles, and carshed allocations into R2 as one
+document. It requires `Authorization: Bearer $ADMIN_TOKEN` (disabled when `ADMIN_TOKEN` is unset),
+writes to R2 only — never to the ephemeral fallback — and responds with counts only. The directory
+holds residents' contact details, so exports are gitignored and there is no public read route.
 
 ## Deployment
 
 - The project is configured for Vercel serverless deployment.
 - Prisma `postinstall` automatically generates the client during Vercel builds.
 - Ensure the `DATABASE_URL` environment variable is configured in Vercel project settings.
-- For interactive proposals, also configure the `R2_*` environment variables (see above).
+- For durable forum, appreciation, and account storage, also configure the `R2_*` environment variables (see above).
 
 ## Project Structure
 

@@ -29,6 +29,12 @@ export function useVerifiedNames(): Set<string> {
   return new Set(users.filter((user) => user.verified).map((user) => user.name.toLowerCase()));
 }
 
+/** Ids of verified users — for badging authors by account rather than by name. */
+export function useVerifiedIds(): Set<string> {
+  const { users } = useUsers();
+  return new Set(users.filter((user) => user.verified).map((user) => user.id));
+}
+
 function useInvalidateAuth() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ["auth"] });

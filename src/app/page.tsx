@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Users2, Layers, Share2, Sparkles, Vote } from "lucide-react";
+import { Users2, Layers, Share2, Sparkles, MessagesSquare } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +32,10 @@ const cards = [
     icon: Sparkles,
   },
   {
-    href: "/proposals",
-    title: "Proposals",
-    description: "Sociocratic proposals open for review, questions, and consent.",
-    icon: Vote,
+    href: "/forum",
+    title: "Forum",
+    description: "Neighborhood discussions with threaded replies.",
+    icon: MessagesSquare,
   },
 ];
 
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
         <Card>
           <p className="text-sm text-foreground/70">
             Directory database is not connected yet — member, circle, skill, and loan-library data
-            will appear once it is configured. Proposals are available below.
+            will appear once it is configured. The forum is available below.
           </p>
         </Card>
       )}
