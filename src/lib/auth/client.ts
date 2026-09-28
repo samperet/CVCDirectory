@@ -35,7 +35,17 @@ export function usePeople() {
   return { people: query.data?.people ?? [], isLoading: query.isLoading, error: query.error };
 }
 
-export function useLogin() {
+/** Reload the signed-in account (e.g. after signing in with `deferSession`). */
+export function useRefreshSession() {
+  return useInvalidateAuth();
+}
+
+/**
+ * Sign in. With `deferSession`, the app doesn't switch to the signed-in view
+ * until the caller calls `useRefreshSession()` — the sign-in page uses this to
+ * finish its logo animation first.
+ */
+export function useLogin({ deferSession = false }: { deferSession?: boolean } = {}) {
   const invalidate = useInvalidateAuth();
   return useMutation({
     mutationFn: (input: { personId: string; phone: string }) =>
@@ -43,7 +53,7 @@ export function useLogin() {
         method: "POST",
         body: JSON.stringify(input),
       }),
-    onSuccess: invalidate,
+    onSuccess: deferSession ? undefined : invalidate,
   });
 }
 

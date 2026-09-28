@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { CvcLogo } from "@/components/auth/cvc-logo";
+import { LogoSpin, startLogoSpin } from "@/components/auth/logo-spin";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
-import { useLogin, usePeople, useSession } from "@/lib/auth/client";
+import { useLogin, usePeople, useRefreshSession, useSession } from "@/lib/auth/client";
 
 /** Where to go after signing in: a same-site path from ?next=, never another origin. */
 function destination(): string {
@@ -23,7 +24,12 @@ export function LoginClient() {
   const { toast } = useToast();
   const { user: sessionUser } = useSession();
   const { people, isLoading, error: peopleError } = usePeople();
-  const login = useLogin();
+  const login = useLogin({ deferSession: true });
+  const refreshSession = useRefreshSession();
+  const logoRef = useRef<HTMLImageElement>(null);
+  const spinRef = useRef<LogoSpin | null>(null);
+  // From the click until the app switches over (or sign-in fails).
+  const [signingIn, setSigningIn] = useState(false);
 
   const [selected, setSelected] = useState<NameOption | null>(null);
   const [phone, setPhone] = useState("");
@@ -34,6 +40,8 @@ export function LoginClient() {
   useEffect(() => {
     if (sessionUser) router.replace(destination());
   }, [sessionUser, router]);
+
+  useEffect(() => () => spinRef.current?.cancel(), []);
 
   // Clear a stale error as soon as the person changes their input.
   useEffect(() => {
@@ -50,14 +58,29 @@ export function LoginClient() {
       setFormError("Please enter your phone number");
       return;
     }
+    // Wind up and spin the logo while signing in.
+    spinRef.current?.cancel();
+    const spin = logoRef.current ? startLogoSpin(logoRef.current) : null;
+    spinRef.current = spin;
+    setSigningIn(true);
+
     login.mutate(
       { personId: selected.id, phone },
       {
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
           setPhone("");
+          // Now that the session cookie is set, fetch the next page while the
+          // spin winds down. (Before signing in, it would only redirect here.)
+          router.prefetch(destination());
+          await spin?.finish();
           toast({ title: `Welcome, ${response.user.name}` });
+          await refreshSession(); // the app switches over and this page redirects
         },
-        onError: (error: Error) => setFormError(error.message),
+        onError: (error: Error) => {
+          setFormError(error.message);
+          setSigningIn(false);
+          void spin?.finish();
+        },
       }
     );
   };
@@ -68,7 +91,7 @@ export function LoginClient() {
         <div className="rounded-card border border-border bg-surface p-8 shadow-soft">
           <div className="mb-8 text-center">
             <div className="mb-6 flex justify-center">
-              <CvcLogo size={120} />
+              <CvcLogo ref={logoRef} size={120} busy={signingIn} />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-foreground">Sign In</h1>
             <p className="text-lg text-muted">Select your name and enter your phone number</p>
@@ -91,7 +114,7 @@ export function LoginClient() {
                   value={selected}
                   onChange={setSelected}
                   loading={isLoading}
-                  disabled={login.isPending}
+                  disabled={signingIn}
                   placeholder="Start typing your name..."
                 />
                 {peopleError ? (
@@ -112,7 +135,7 @@ export function LoginClient() {
                     placeholder="e.g. 802-555-1234"
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
-                    disabled={login.isPending}
+                    disabled={signingIn}
                     className="h-12 bg-white pr-11 text-base"
                   />
                   <button
@@ -129,8 +152,8 @@ export function LoginClient() {
                 </p>
               </div>
 
-              <Button type="submit" className="w-full py-3 text-lg" size="lg" disabled={login.isPending || isLoading}>
-                {login.isPending ? "Signing in…" : "Sign In"}
+              <Button type="submit" className="w-full py-3 text-lg" size="lg" disabled={signingIn || isLoading}>
+                {signingIn ? "Signing in…" : "Sign In"}
               </Button>
 
               <p className="text-center text-sm text-muted">
