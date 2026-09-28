@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { History, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLogout, useSession } from "@/lib/auth/client";
 import { Avatar } from "@/components/profile/avatar";
@@ -47,6 +47,13 @@ export function UserMenu() {
                 <UserRound className="h-4 w-4" /> Your profile
               </Link>
             </Button>
+            {user.isAdmin ? (
+              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+                <Link href="/admin/sign-ins" onClick={() => setOpen(false)}>
+                  <History className="h-4 w-4" /> Sign-in log
+                </Link>
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" className="w-full gap-2" onClick={signOut} disabled={logout.isPending}>
               <LogOut className="h-4 w-4" />
               {logout.isPending ? "Signing out…" : "Sign out"}

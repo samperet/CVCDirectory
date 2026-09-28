@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDirectory } from "@/lib/directory/store";
 import { phoneMatches } from "@/lib/auth/phone";
 import { clearFailures, lockedForMs, recordFailure } from "@/lib/auth/lockout";
+import { recordSignIn } from "@/lib/auth/sign-in-log";
 import { toPublicUser, userForPerson } from "@/lib/auth/users";
 import { createSessionValue, sessionCookieOptions } from "@/lib/auth/session";
 import { loginSchema } from "@/lib/auth/validation";
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
     console.error("[auth] cannot sign sessions: set AUTH_SECRET");
     return problem("Sign-in is temporarily unavailable", 503, "Service Unavailable");
   }
+  await recordSignIn(person);
   const response = NextResponse.json({ user: toPublicUser(user) });
   const { name, ...options } = sessionCookieOptions();
   response.cookies.set(name, session, options);

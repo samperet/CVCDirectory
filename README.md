@@ -97,6 +97,10 @@ Admin status is checked server-side on every request, and the user menu shows an
 - **Appreciations** – remove any appreciation (authors can remove their own).
 - **Profiles** – edit any resident's entry and photo from the "Edit" link beside them in the
   directory (`/profile/<personId>`), including resetting a phone number without the current one.
+- **Sign-in log** – "Sign-in log" in the user menu (`/admin/sign-ins`) lists every successful
+  sign-in, newest first, by day or by resident (sign-in count and last sign-in). It records only
+  who and when — no phone numbers or devices — keeps the latest 2,000 in `auth/sign-in-log.json`,
+  and is served only to admins.
 
 ## Forum & Appreciations
 
