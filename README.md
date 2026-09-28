@@ -94,8 +94,10 @@ contact details or unit numbers.
 - Signed-out visitors see only the sign-in page: middleware redirects every other page to `/login`
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
 
-Phone numbers are not secret, so this keeps the barrier low rather than high. Keep `AUTH_SECRET`
-set in production so sessions can't be forged.
+Phone numbers are not secret, so this keeps the barrier low rather than high. Session cookies are
+signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SECRET_ACCESS_KEY`
+(never the public development default), and with neither it refuses to create sessions. Setting
+`AUTH_SECRET` explicitly is still recommended.
 
 ## Forum & Appreciations
 

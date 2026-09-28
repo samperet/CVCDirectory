@@ -41,6 +41,12 @@ function constantTimeEqual(a: string, b: string) {
 
 async function hasValidSession(value: string | undefined): Promise<boolean> {
   if (!value) return false;
+  try {
+    authSecret();
+  } catch {
+    console.error("[auth] middleware has no session signing key; set AUTH_SECRET");
+    return false; // no signing key configured: nobody is signed in
+  }
   const lastDot = value.lastIndexOf(".");
   if (lastDot === -1) return false;
   const payload = value.slice(0, lastDot);

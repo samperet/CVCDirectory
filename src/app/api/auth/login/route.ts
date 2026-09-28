@@ -55,8 +55,15 @@ export async function POST(request: NextRequest) {
 
   await clearFailures(person.id);
   const user = await userForPerson(person);
+  let session: string;
+  try {
+    session = createSessionValue(user.id);
+  } catch {
+    console.error("[auth] cannot sign sessions: set AUTH_SECRET");
+    return problem("Sign-in is temporarily unavailable", 503, "Service Unavailable");
+  }
   const response = NextResponse.json({ user: toPublicUser(user) });
   const { name, ...options } = sessionCookieOptions();
-  response.cookies.set(name, createSessionValue(user.id), options);
+  response.cookies.set(name, session, options);
   return response;
 }

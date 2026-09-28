@@ -24,6 +24,11 @@ export function createSessionValue(userId: string): string {
 
 export function parseSessionValue(value: string | undefined): string | null {
   if (!value) return null;
+  try {
+    authSecret();
+  } catch {
+    return null; // no signing key configured: nobody is signed in
+  }
   const lastDot = value.lastIndexOf(".");
   if (lastDot === -1) return null;
   const payload = value.slice(0, lastDot);
