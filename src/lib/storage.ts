@@ -298,6 +298,18 @@ export async function writeJson(key: string, value: unknown): Promise<void> {
   }
 }
 
+/**
+ * Write to R2 or fail. Unlike writeJson, this never degrades to the local
+ * file store: for imports and other writes that must not silently land in
+ * ephemeral storage, a failure is reported to the caller instead.
+ */
+export async function writeJsonDurable(key: string, value: unknown): Promise<void> {
+  if (!isPersistent()) {
+    throw new Error("R2 is not configured; refusing to write to ephemeral storage");
+  }
+  await writeJsonToR2(key, value);
+}
+
 /** True only when R2 is configured AND has not failed at runtime. */
 export function isDurable() {
   return isPersistent() && !r2Degraded;
