@@ -2,9 +2,6 @@ import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
-import { readDirectory } from "@/lib/directory/store";
-import { listSkills } from "@/lib/skills/store";
-import { listLoanItems } from "@/lib/library/store";
 import { NextEvent } from "@/components/calendar/next-event";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 
@@ -43,19 +40,8 @@ const cards = [
   },
 ];
 
-async function getStats() {
-  const [directory, skills, items] = await Promise.all([readDirectory(), listSkills(), listLoanItems()]);
-  return {
-    residents: directory?.people.length ?? 0,
-    units: directory ? new Set(directory.people.map((person) => person.unit)).size : 0,
-    circles: directory?.circles.length ?? 0,
-    skills: skills.length,
-    availableItems: items.filter((item) => item.available).length,
-  };
-}
-
 export default async function DashboardPage() {
-  const [stats, [nextEvent]] = await Promise.all([getStats(), getUpcomingEvents(1)]);
+  const [nextEvent] = await getUpcomingEvents(1);
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
@@ -66,20 +52,6 @@ export default async function DashboardPage() {
         </p>
       </section>
       <NextEvent event={nextEvent ?? null} />
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          { label: "Residents", value: stats.residents, detail: `across ${stats.units} units` },
-          { label: "Circles", value: stats.circles },
-          { label: "Skills listed", value: stats.skills },
-          { label: "Items to borrow", value: stats.availableItems },
-        ].map((stat) => (
-          <Card key={stat.label}>
-            <p className="text-xs uppercase text-foreground/60">{stat.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{stat.value}</p>
-            {stat.detail ? <p className="text-xs text-muted">{stat.detail}</p> : null}
-          </Card>
-        ))}
-      </section>
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
           <Card key={card.href} className="flex flex-col gap-4">
