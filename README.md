@@ -20,7 +20,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 
 - Node.js 18+
 - npm 9+
-- A Vercel Postgres database (or any PostgreSQL-compatible connection string)
+- A Cloudflare R2 bucket for durable storage (optional for local development)
 
 ### Environment Variables
 
@@ -30,40 +30,22 @@ Create a `.env.local` file using the template below:
 cp .env.example .env.local
 ```
 
-Required variables:
-
-- `DATABASE_URL` – PostgreSQL connection string (e.g., Vercel Postgres).
-- `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
-
-Optional (forum, appreciations & community accounts — falls back to a local `.data/` JSON file when unset):
+Storage (all app data — falls back to local `.data/` files when unset, which is ephemeral on Vercel):
 
 - `R2_ACCOUNT_ID` – Cloudflare account ID.
 - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` – R2 API token credentials (Object Read & Write on the bucket).
-- `R2_BUCKET` – R2 bucket name that holds the JSON documents (`forum/`, `appreciations/`, `auth/`, `directory/`).
+- `R2_BUCKET` – R2 bucket holding the app's documents and images.
 
-Community accounts (name + phone-number sign-in):
+Accounts and admin:
 
-- `AUTH_SECRET` – Secret used to sign session cookies. **Set this in production**; without it a public fallback secret is used and sessions can be forged.
+- `AUTH_SECRET` – Signs session cookies. Set it in production (see Signing In below).
+- `ADMIN_TOKEN` – Enables the admin directory import; leave unset to disable it.
+- `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
 
 ### Installation
 
 ```bash
 npm install
-```
-
-### Database Setup
-
-Generate the Prisma client and apply migrations:
-
-```bash
-npx prisma migrate dev
-npx prisma db seed
-```
-
-For production (e.g., on Vercel), use:
-
-```bash
-npm run db:migrate
 ```
 
 ### Development
@@ -168,9 +150,8 @@ holds residents' contact details, so exports are gitignored and only signed-in r
 ## Deployment
 
 - The project is configured for Vercel serverless deployment.
-- Prisma `postinstall` automatically generates the client during Vercel builds.
-- Ensure the `DATABASE_URL` environment variable is configured in Vercel project settings.
-- For durable forum, appreciation, and account storage, also configure the `R2_*` environment variables (see above).
+- Configure the `R2_*` variables and `AUTH_SECRET` in Vercel project settings (see above).
+- Environment variables apply to new deployments, so redeploy after changing them.
 
 ## Project Structure
 
@@ -178,11 +159,8 @@ holds residents' contact details, so exports are gitignored and only signed-in r
 src/
   app/           # Next.js App Router routes
   components/    # Reusable UI and feature components
-  lib/           # Utilities, Prisma client, validation, rate limiting
-  types/         # Shared TypeScript types
-prisma/
-  schema.prisma  # Database schema
-  seed.ts        # Seed data script
+  lib/           # Storage (R2), auth, feature stores, utilities
+  middleware.ts  # Sends signed-out visitors to the sign-in page
 ```
 
 ## Testing Notes
