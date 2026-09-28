@@ -11,8 +11,8 @@ export default function CirclesPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-foreground">Circles</h1>
         <p className="text-sm text-foreground/70">
-          Our sociocratic circles, who serves on each, and where seats are open. Circle members and the Board
-          can upload each circle&apos;s icon, which shows as a badge next to members in the directory.
+          Our sociocratic circles and who serves on each. Open a circle to see its page, where its members
+          and the Board can update members, details, and its icon.
         </p>
       </div>
       <CirclesClient />

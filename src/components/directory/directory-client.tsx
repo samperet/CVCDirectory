@@ -35,7 +35,7 @@ function CircleBadges({ memberships }: { memberships: Membership[] }) {
       {memberships.map(({ circle, position }) => {
         const label = `${circle.name} — ${sentence(position ?? "Member")}`;
         return (
-          <Link key={circle.id} href="/circles" title={label} aria-label={label} className="rounded-lg ring-offset-1 hover:ring-2 hover:ring-primary">
+          <Link key={circle.id} href={`/circles/${circle.id}`} title={label} aria-label={label} className="rounded-lg ring-offset-1 hover:ring-2 hover:ring-primary">
             <CircleIcon circle={circle} size={22} />
           </Link>
         );

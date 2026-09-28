@@ -12,7 +12,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
-- 🌀 **Circles** – Who serves on each circle and where seats are open, with uploadable circle icons shown as badges in the directory.
+- 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
 
@@ -121,12 +121,19 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 
 ## Circles
 
-`/circles` lists each circle from the imported directory with its members (current names and
-photos), roles, terms, and open seats. Each circle can have an uploaded icon — changeable by that
-circle's members or the Board, so empty circles can get one too — stored as a binary object
-(`circles/icons/<id>`, metadata in `circles/icons.json`) and served only to signed-in residents.
-In the directory, residents show the icons of the circles they serve on as badges, labelled with
-their role.
+Circles are managed in the app (`circles/circles.json`). The store is seeded once from the imported
+sheet — members only, dropping the sheet's empty placeholder seats — and is the source of truth
+from then on, so re-importing the directory never overwrites circle changes.
+
+- `/circles` lists every circle with its members and roles; any resident can start a circle and
+  becomes its first member.
+- `/circles/<id>` is each circle's page. Its members and the Board can edit its name, short code,
+  and description, add residents, change a member's role or term, remove members, and upload an
+  icon. Only the Board can delete a circle, the Board itself can't be deleted, and the Board always
+  keeps at least one member.
+- Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
+  served only to signed-in residents. In the directory, residents show the icons of their circles
+  as badges linking to each circle's page.
 
 ## Profiles & Calendar
 

@@ -18,6 +18,8 @@ export interface Person {
 }
 
 export interface CircleSeat {
+  /** Present once circles are managed in the app; the import has no seat ids. */
+  id?: string;
   position: string | null;
   termEnds: string | null;
   personId: string | null;
@@ -28,6 +30,7 @@ export interface Circle {
   id: string;
   code: string;
   name: string;
+  description?: string | null;
   seats: CircleSeat[];
   /** Uploaded by the circle; not part of the import. */
   iconUrl?: string | null;

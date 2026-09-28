@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { readDirectory } from "@/lib/directory/store";
-import { canManageCircle, iconKey, isCircleId, setCircleIcon } from "@/lib/circles/icons";
+import { circleContext } from "@/lib/circles/access";
+import { iconKey, isCircleId, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary, readBinary, writeBinary } from "@/lib/storage";
 import { MAX_IMAGE_BYTES, PRIVATE_IMAGE_HEADERS, sniffImageType } from "@/lib/images";
 import { problem } from "@/lib/http";
@@ -11,18 +11,10 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string } };
 
-/** Resolve the circle and confirm the signed-in resident may change its icon. */
+/** Confirm the signed-in resident may change this circle's icon. */
 async function authorize(circleId: string) {
-  const user = await getSessionUser();
-  if (!user?.personId) return problem("Sign in to change a circle's icon", 401, "Unauthorized");
-  const directory = await readDirectory();
-  if (!isCircleId(circleId) || !directory?.circles.some((circle) => circle.id === circleId)) {
-    return problem("Circle not found", 404, "Not Found");
-  }
-  if (!canManageCircle(directory, circleId, user.personId)) {
-    return problem("Only this circle's members or the Board can change its icon", 403, "Forbidden");
-  }
-  return null;
+  const ctx = await circleContext({ circleId, require: "member-or-board" });
+  return "error" in ctx ? ctx.error : null;
 }
 
 export async function GET(_request: Request, { params }: Params) {

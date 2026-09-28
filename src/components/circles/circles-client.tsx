@@ -1,121 +1,128 @@
 "use client";
 
-import { useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { useSession } from "@/lib/auth/client";
 import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
-import { prepareSquareImage, uploadImage } from "@/lib/image-client";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-function IconControls({ circle }: { circle: Circle }) {
+function NewCircleForm({ onCancel }: { onCancel: () => void }) {
+  const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const input = useRef<HTMLInputElement>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["directory"] });
-  const onError = (err: Error) => toast({ title: "Could not update icon", description: err.message, variant: "destructive" });
+  const [form, setForm] = useState({ name: "", code: "", description: "" });
 
-  const upload = useMutation({
-    mutationFn: async (file: File) => uploadImage(`/api/circles/${circle.id}/icon`, await prepareSquareImage(file, 256, "image/png")),
-    onSuccess: () => {
-      refresh();
-      toast({ title: `${circle.name} icon updated` });
+  const create = useMutation({
+    mutationFn: () =>
+      apiFetch<{ circle: Circle }>("/api/circles", {
+        method: "POST",
+        body: JSON.stringify({ name: form.name, code: form.code, description: form.description || undefined }),
+      }),
+    onSuccess: ({ circle }) => {
+      queryClient.invalidateQueries({ queryKey: ["directory"] });
+      router.push(`/circles/${circle.id}`);
     },
-    onError,
-  });
-  const remove = useMutation({
-    mutationFn: () => apiFetch(`/api/circles/${circle.id}/icon`, { method: "DELETE" }),
-    onSuccess: refresh,
-    onError,
+    onError: (err: Error) => toast({ title: "Could not create circle", description: err.message, variant: "destructive" }),
   });
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) upload.mutate(file);
-          event.target.value = "";
-        }}
-      />
-      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => input.current?.click()} disabled={upload.isPending}>
-        <ImagePlus className="h-4 w-4" />
-        {upload.isPending ? "Uploading…" : circle.iconUrl ? "Change icon" : "Upload icon"}
-      </Button>
-      {circle.iconUrl ? (
-        <Button size="sm" variant="ghost" className="gap-1.5 text-muted" onClick={() => remove.mutate()} disabled={remove.isPending}>
-          <Trash2 className="h-4 w-4" /> Remove
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function CircleCard({ circle, people, canManage }: { circle: Circle; people: Map<string, Person>; canManage: boolean }) {
-  const filled = circle.seats.filter((seat) => seat.name);
-  const open = circle.seats.length - filled.length;
-  return (
-    <Card className="flex flex-col gap-4 p-5">
-      <div className="flex items-start gap-4">
-        <CircleIcon circle={circle} size={64} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="text-lg font-semibold text-foreground">
-            {circle.name}
-            {circle.name !== circle.code ? <span className="ml-2 text-sm font-normal text-muted">{circle.code}</span> : null}
-          </h2>
-          <p className="text-xs text-muted">
-            {filled.length} of {circle.seats.length} seats filled
-          </p>
-          {canManage ? <IconControls circle={circle} /> : null}
-        </div>
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold text-foreground">Start a circle</h2>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          placeholder="Name, e.g. Welcome Circle"
+          value={form.name}
+          maxLength={80}
+          onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+          className="bg-white"
+        />
+        <Input
+          placeholder="Short code, e.g. WC"
+          value={form.code}
+          maxLength={8}
+          onChange={(event) => setForm((f) => ({ ...f, code: event.target.value }))}
+          className="bg-white sm:max-w-[10rem]"
+        />
       </div>
-      {filled.length ? (
-        <ul className="flex flex-col gap-3">
-          {filled.map((seat, index) => {
-            const person = seat.personId ? people.get(seat.personId) : undefined;
-            const name = person?.displayName ?? seat.name ?? "";
-            return (
-              <li key={index} className="flex items-center gap-3">
-                <Avatar name={name} photoUrl={person?.photoUrl} size={36} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground">
-                    {name}
-                    {person ? <span className="ml-1.5 text-xs text-muted">Unit {person.unit}</span> : null}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {sentence(seat.position ?? "Member")}
-                    {seat.termEnds ? ` · term ends ${seat.termEnds}` : ""}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted">No members listed yet.</p>
-      )}
-      {open ? (
-        <p className="rounded-lg bg-accent/60 px-3 py-2 text-xs text-foreground-light">
-          {open} open seat{open === 1 ? "" : "s"} — interested? Reach out to the circle.
-        </p>
-      ) : null}
+      <Textarea
+        rows={2}
+        placeholder="What does this circle take care of? (optional)"
+        value={form.description}
+        maxLength={1000}
+        onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
+        className="bg-white"
+      />
+      <p className="text-xs text-muted">You&apos;ll be its first member, and can add others from its page.</p>
+      <div className="flex gap-2">
+        <Button onClick={() => create.mutate()} disabled={create.isPending || form.name.trim().length < 2 || !form.code.trim()}>
+          {create.isPending ? "Creating…" : "Create circle"}
+        </Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
     </Card>
   );
 }
 
+function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Person> }) {
+  const members = circle.seats.filter((seat) => seat.personId || seat.name);
+  return (
+    <Link href={`/circles/${circle.id}`} className="block rounded-2xl transition hover:ring-2 hover:ring-primary">
+      <Card className="flex h-full flex-col gap-4 p-5">
+        <div className="flex items-start gap-4">
+          <CircleIcon circle={circle} size={56} />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold text-foreground">
+              {circle.name}
+              {circle.name !== circle.code ? <span className="ml-2 text-sm font-normal text-muted">{circle.code}</span> : null}
+            </h2>
+            <p className="text-xs text-muted">
+              {members.length} {members.length === 1 ? "member" : "members"}
+            </p>
+            {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
+          </div>
+        </div>
+        {members.length ? (
+          <ul className="flex flex-col gap-2">
+            {members.map((seat, index) => {
+              const person = seat.personId ? people.get(seat.personId) : undefined;
+              const name = person?.displayName ?? seat.name ?? "";
+              return (
+                <li key={seat.id ?? index} className="flex items-center gap-3">
+                  <Avatar name={name} photoUrl={person?.photoUrl} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground">{name}</p>
+                    <p className="text-xs text-muted">
+                      {sentence(seat.position ?? "Member")}
+                      {seat.termEnds ? ` · term ends ${seat.termEnds}` : ""}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">No members yet.</p>
+        )}
+      </Card>
+    </Link>
+  );
+}
+
 export function CirclesClient() {
-  const { user } = useSession();
+  const [creating, setCreating] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["directory"],
     queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
@@ -131,15 +138,22 @@ export function CirclesClient() {
   }
 
   const people = new Map(data.people.map((person) => [person.id, person]));
-  const seatedIn = (circleId: string) =>
-    !!user?.personId && data.circles.some((c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId));
-  const onBoard = seatedIn("board");
-
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {data.circles.map((circle) => (
-        <CircleCard key={circle.id} circle={circle} people={people} canManage={onBoard || seatedIn(circle.id)} />
-      ))}
+    <div className="flex flex-col gap-4">
+      {creating ? (
+        <NewCircleForm onCancel={() => setCreating(false)} />
+      ) : (
+        <div>
+          <Button className="gap-1" onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Start a circle
+          </Button>
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {data.circles.map((circle) => (
+          <CircleCard key={circle.id} circle={circle} people={people} />
+        ))}
+      </div>
     </div>
   );
 }
