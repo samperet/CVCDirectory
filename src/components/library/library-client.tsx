@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, Phone, Plus, Search, Trash2, Undo2, UserRoundCheck } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { useSession } from "@/lib/auth/client";
 import type { LoanItem } from "@/lib/library/store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -129,6 +130,8 @@ function OwnerControls({ item }: { item: LibraryListing }) {
 
 export function LibraryClient() {
   const { toast } = useToast();
+  const { user } = useSession();
+  const isAdmin = !!user?.isAdmin;
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -316,7 +319,14 @@ export function LibraryClient() {
                 {item.ownerUnit !== null ? <span className="ml-1.5 text-xs text-muted">Unit {item.ownerUnit}</span> : null}
               </p>
               <div className="mt-auto">
-                {item.mine ? <OwnerControls item={item} /> : item.available ? <AskToBorrow item={item} /> : null}
+                {item.mine ? (
+                  <OwnerControls item={item} />
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {item.available ? <AskToBorrow item={item} /> : null}
+                    {isAdmin ? <OwnerControls item={item} /> : null}
+                  </div>
+                )}
               </div>
             </Card>
           ))}

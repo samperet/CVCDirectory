@@ -7,10 +7,19 @@ import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
  * stored flat with parentId links) and an index document for the thread list.
  * Replies nest to any depth; the tree is assembled by the client.
  *
- * Authors can edit and delete their own posts. Deleting a reply that others
- * have answered leaves a placeholder so the conversation below it survives;
- * placeholders disappear once nothing hangs off them.
+ * Authors can edit and delete their own posts, and admins can moderate any
+ * post. Deleting a reply that others have answered leaves a placeholder so the
+ * conversation below it survives; placeholders disappear once nothing hangs
+ * off them.
  */
+
+/** Who is acting: their account id, and whether they're an admin. */
+export interface ForumActor {
+  id: string;
+  admin: boolean;
+}
+
+const mayChange = (authorId: string, actor: ForumActor) => actor.admin || authorId === actor.id;
 
 export interface ForumReply {
   id: string;
@@ -180,11 +189,11 @@ export function addReply(threadId: string, author: { id: string; name: string },
   });
 }
 
-export function editReply(threadId: string, userId: string, replyId: string, body: string) {
+export function editReply(threadId: string, actor: ForumActor, replyId: string, body: string) {
   return mutateThread(threadId, (doc) => {
     const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
     if (!reply) return "not_found";
-    if (reply.authorId !== userId) return "forbidden";
+    if (!mayChange(reply.authorId, actor)) return "forbidden";
     return {
       ...doc,
       replies: doc.replies.map((entry) =>
@@ -195,14 +204,15 @@ export function editReply(threadId: string, userId: string, replyId: string, bod
 }
 
 /**
- * Remove your own reply. If others answered it, keep a placeholder so their
- * replies stay attached; then drop any placeholders left with no replies.
+ * Remove your own reply (or, for admins, anyone's). If others answered it,
+ * keep a placeholder so their replies stay attached; then drop any
+ * placeholders left with no replies.
  */
-export function deleteReply(threadId: string, userId: string, replyId: string) {
+export function deleteReply(threadId: string, actor: ForumActor, replyId: string) {
   return mutateThread(threadId, (doc) => {
     const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
     if (!reply) return "not_found";
-    if (reply.authorId !== userId) return "forbidden";
+    if (!mayChange(reply.authorId, actor)) return "forbidden";
 
     let replies = doc.replies.map((entry) =>
       entry.id === replyId ? { ...entry, body: "", deletedAt: new Date().toISOString() } : entry
@@ -218,21 +228,26 @@ export function deleteReply(threadId: string, userId: string, replyId: string) {
   });
 }
 
-export function editThread(threadId: string, userId: string, update: { title?: string; body?: string }) {
+export function editThread(threadId: string, actor: ForumActor, update: { title?: string; body?: string }) {
   return mutateThread(threadId, (doc) => {
-    if (doc.thread.authorId !== userId) return "forbidden";
+    if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
     return { ...doc, thread: { ...doc.thread, ...update, editedAt: new Date().toISOString() } };
   });
 }
 
-/** Delete your own discussion — only while nobody else has replied, so their comments are never lost. */
-export async function deleteThread(threadId: string, userId: string): Promise<{ ok: true } | { ok: false; reason: Failure }> {
+/**
+ * Delete your own discussion — only while nobody else has replied, so their
+ * comments are never lost. Admins can delete any discussion, replies and all.
+ */
+export async function deleteThread(threadId: string, actor: ForumActor): Promise<{ ok: true } | { ok: false; reason: Failure }> {
   if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
   const result = await enqueue<{ ok: true } | { ok: false; reason: Failure }>(threadKey(threadId), async () => {
     const doc = await getThread(threadId);
     if (!doc) return { ok: false, reason: "not_found" };
-    if (doc.thread.authorId !== userId) return { ok: false, reason: "forbidden" };
-    if (live(doc.replies).some((reply) => reply.authorId !== userId)) return { ok: false, reason: "has_replies" };
+    if (!mayChange(doc.thread.authorId, actor)) return { ok: false, reason: "forbidden" };
+    if (!actor.admin && live(doc.replies).some((reply) => reply.authorId !== actor.id)) {
+      return { ok: false, reason: "has_replies" };
+    }
     await deleteJson(threadKey(threadId));
     return { ok: true };
   });

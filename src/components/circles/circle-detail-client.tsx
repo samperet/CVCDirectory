@@ -217,7 +217,8 @@ export function CircleDetailClient({ id }: { id: string }) {
   const people = useMemo(() => new Map((data?.people ?? []).map((person) => [person.id, person])), [data]);
   const inCircle = (circleId: string) =>
     !!user?.personId && !!data?.circles.some((c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId));
-  const onBoard = inCircle("board");
+  // Admins can manage every circle, as the Board can.
+  const onBoard = inCircle("board") || !!user?.isAdmin;
   const canManage = onBoard || inCircle(id);
 
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>

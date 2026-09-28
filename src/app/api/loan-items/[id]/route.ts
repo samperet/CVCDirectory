@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/admins";
 import { loanItemUpdateSchema, removeLoanItem, updateLoanItem } from "@/lib/library/store";
 import { problem } from "@/lib/http";
 
@@ -18,7 +19,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const parsed = loanItemUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
 
-  const result = await updateLoanItem(user.personId, params.id, parsed.data);
+  const result = await updateLoanItem({ personId: user.personId, admin: isAdmin(user) }, params.id, parsed.data);
   return result.ok ? NextResponse.json({ item: result.value }) : denied(result.reason);
 }
 
@@ -26,6 +27,6 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   const user = await getSessionUser();
   if (!user?.personId) return problem("Sign in to remove an item", 401, "Unauthorized");
 
-  const result = await removeLoanItem(user.personId, params.id);
+  const result = await removeLoanItem({ personId: user.personId, admin: isAdmin(user) }, params.id);
   return result.ok ? NextResponse.json({ ok: true }) : denied(result.reason);
 }

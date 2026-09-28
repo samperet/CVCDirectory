@@ -20,6 +20,7 @@ export interface PublicUser {
   name: string;
   personId: string | null;
   photoUrl?: string | null;
+  isAdmin?: boolean;
 }
 
 const USERS_KEY = "auth/users.json";

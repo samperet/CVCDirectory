@@ -81,8 +81,16 @@ export async function addLoanItem(
 
 type OwnerResult<T> = { ok: true; value: T } | { ok: false; reason: "not_found" | "forbidden" };
 
+/** The person acting on an item: its owner, or an admin, may change it. */
+export interface LoanActor {
+  personId: string;
+  admin: boolean;
+}
+
+const mayChange = (item: LoanItem, actor: LoanActor) => actor.admin || item.ownerPersonId === actor.personId;
+
 export async function updateLoanItem(
-  personId: string,
+  actor: LoanActor,
   id: string,
   update: z.infer<typeof loanItemUpdateSchema>
 ): Promise<OwnerResult<LoanItem>> {
@@ -90,7 +98,7 @@ export async function updateLoanItem(
     const items = normalize(await readJson(KEY));
     const index = items.findIndex((item) => item.id === id);
     if (index === -1) return { ok: false, reason: "not_found" };
-    if (items[index].ownerPersonId !== personId) return { ok: false, reason: "forbidden" };
+    if (!mayChange(items[index], actor)) return { ok: false, reason: "forbidden" };
     const next = { ...items[index], ...update, updatedAt: new Date().toISOString() };
     // Returning an item clears who had it.
     if (update.available === true) next.lentTo = null;
@@ -102,12 +110,12 @@ export async function updateLoanItem(
   });
 }
 
-export async function removeLoanItem(personId: string, id: string): Promise<OwnerResult<null>> {
+export async function removeLoanItem(actor: LoanActor, id: string): Promise<OwnerResult<null>> {
   return enqueue<OwnerResult<null>>(KEY, async () => {
     const items = normalize(await readJson(KEY));
     const item = items.find((entry) => entry.id === id);
     if (!item) return { ok: false, reason: "not_found" };
-    if (item.ownerPersonId !== personId) return { ok: false, reason: "forbidden" };
+    if (!mayChange(item, actor)) return { ok: false, reason: "forbidden" };
     await writeJson(KEY, { items: items.filter((entry) => entry.id !== id) });
     return { ok: true, value: null };
   });

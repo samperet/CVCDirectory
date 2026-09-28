@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { useSession } from "@/lib/auth/client";
 
 function splitBirthday(value: string | null) {
   const match = value?.match(/^([A-Za-z]+) (\d{1,2})$/);
@@ -46,16 +47,25 @@ function toForm(profile: Person): FormState {
 
 const digits = (value: string) => value.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
 
-export function ProfileClient() {
+/**
+ * Edit a directory entry: your own by default, or — for admins — any
+ * resident's, when given their person id.
+ */
+export function ProfileClient({ personId }: { personId?: string } = {}) {
   const { toast } = useToast();
+  const { user } = useSession();
+  const isAdmin = !!user?.isAdmin;
+  const own = !personId || personId === user?.personId;
+  const base = own ? "/api/profiles/me" : `/api/profiles/${personId}`;
+  const queryKey = ["profile", own ? "me" : personId];
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [currentPhone, setCurrentPhone] = useState("");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["profile", "me"],
-    queryFn: () => apiFetch<{ profile: Person }>("/api/profiles/me"),
+    queryKey,
+    queryFn: () => apiFetch<{ profile: Person }>(base),
   });
   const profile = data?.profile;
 
@@ -71,9 +81,9 @@ export function ProfileClient() {
 
   const save = useMutation({
     mutationFn: (body: Record<string, string>) =>
-      apiFetch<{ profile: Person }>("/api/profiles/me", { method: "PATCH", body: JSON.stringify(body) }),
+      apiFetch<{ profile: Person }>(base, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: (response) => {
-      queryClient.setQueryData(["profile", "me"], response);
+      queryClient.setQueryData(queryKey, response);
       setForm(toForm(response.profile));
       setCurrentPhone("");
       refreshEverywhere();
@@ -83,7 +93,7 @@ export function ProfileClient() {
   });
 
   const upload = useMutation({
-    mutationFn: async (file: File) => uploadImage("/api/profiles/me/photo", await prepareSquareImage(file, 400, "image/jpeg")),
+    mutationFn: async (file: File) => uploadImage(`${base}/photo`, await prepareSquareImage(file, 400, "image/jpeg")),
     onSuccess: () => {
       refreshEverywhere();
       toast({ title: "Photo updated" });
@@ -92,12 +102,12 @@ export function ProfileClient() {
   });
 
   const removePhoto = useMutation({
-    mutationFn: () => apiFetch("/api/profiles/me/photo", { method: "DELETE" }),
+    mutationFn: () => apiFetch(`${base}/photo`, { method: "DELETE" }),
     onSuccess: refreshEverywhere,
     onError: (err: Error) => toast({ title: "Could not remove photo", description: err.message, variant: "destructive" }),
   });
 
-  if (isLoading || (profile && !form)) return <p className="text-sm text-muted">Loading your profile…</p>;
+  if (isLoading || (profile && !form)) return <p className="text-sm text-muted">Loading {own ? "your profile" : "profile"}…</p>;
   if (error || !profile || !form) {
     return (
       <Card>
@@ -106,6 +116,8 @@ export function ProfileClient() {
     );
   }
 
+  // Admins can reset phone numbers without knowing the current one.
+  const needsCurrentPhone = !isAdmin;
   const phonesChanged = digits(form.phone) !== digits(profile.phone ?? "") || digits(form.landline) !== digits(profile.landline ?? "");
   const set = (key: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((current) => (current ? { ...current, [key]: event.target.value } : current));
@@ -122,7 +134,7 @@ export function ProfileClient() {
     if (phonesChanged) {
       body.phone = form.phone;
       body.landline = form.landline;
-      body.currentPhone = currentPhone;
+      if (needsCurrentPhone) body.currentPhone = currentPhone;
     }
     save.mutate(body);
   };
@@ -130,8 +142,12 @@ export function ProfileClient() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Your profile</h1>
-        <p className="text-sm text-muted">This is how neighbors see you in the directory.</p>
+        <h1 className="text-2xl font-semibold text-foreground">{own ? "Your profile" : `Edit ${profile.displayName}`}</h1>
+        <p className="text-sm text-muted">
+          {own
+            ? "This is how neighbors see you in the directory."
+            : "You're editing this resident's directory entry as an admin."}
+        </p>
       </div>
 
       <Card className="flex flex-col items-center gap-4 sm:flex-row">
@@ -195,9 +211,11 @@ export function ProfileClient() {
               <Input type="tel" inputMode="tel" value={form.landline} maxLength={40} onChange={set("landline")} className="bg-white" />
             </label>
           </div>
-          <p className="-mt-2 text-xs text-muted">Your phone numbers are also how you sign in.</p>
+          <p className="-mt-2 text-xs text-muted">
+            {own ? "Your phone numbers are also how you sign in." : "These phone numbers are also how they sign in."}
+          </p>
 
-          {phonesChanged ? (
+          {phonesChanged && needsCurrentPhone ? (
             <label className="flex flex-col gap-1 rounded-lg border border-border bg-accent/50 p-3 text-sm font-medium text-foreground">
               Current phone number
               <span className="text-xs font-normal text-muted">To change a phone number, confirm the one you sign in with now.</span>
@@ -236,7 +254,7 @@ export function ProfileClient() {
           </fieldset>
 
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-            About you
+            {own ? "About you" : "About"}
             <Textarea
               rows={3}
               value={form.bio}
@@ -248,7 +266,7 @@ export function ProfileClient() {
           </label>
 
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={save.isPending || !form.firstName.trim() || (phonesChanged && !currentPhone.trim())}>
+            <Button type="submit" disabled={save.isPending || !form.firstName.trim() || (phonesChanged && needsCurrentPhone && !currentPhone.trim())}>
               {save.isPending ? "Saving…" : "Save profile"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setForm(toForm(profile))}>

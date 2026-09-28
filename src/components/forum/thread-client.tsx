@@ -166,7 +166,9 @@ function ReplyNode({
   const children = childrenOf.get(reply.id) ?? [];
   const indent = depth > 0 && depth <= MAX_INDENT_DEPTH;
   const beyondIndent = depth > MAX_INDENT_DEPTH;
-  const mine = currentUserId !== null && reply.authorId === currentUserId;
+  const { user } = useSession();
+  // Authors manage their own comments; admins can moderate any.
+  const mine = (currentUserId !== null && reply.authorId === currentUserId) || !!user?.isAdmin;
 
   const remove = useThreadMutation(
     threadId,
@@ -255,7 +257,10 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { thread } = doc;
-  const mine = currentUserId !== null && thread.authorId === currentUserId;
+  const { user } = useSession();
+  const author = currentUserId !== null && thread.authorId === currentUserId;
+  const mine = author || !!user?.isAdmin;
+  const othersReplied = doc.replies.some((reply) => !reply.deletedAt && reply.authorId !== currentUserId);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(thread.title);
   const [body, setBody] = useState(thread.body);
@@ -321,7 +326,11 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
           <ActionLink
             danger
             onClick={() => {
-              if (window.confirm("Delete this discussion?")) remove.mutate();
+              const warning =
+                !author || othersReplied
+                  ? "Delete this discussion and all of its replies? This can't be undone."
+                  : "Delete this discussion?";
+              if (window.confirm(warning)) remove.mutate();
             }}
           >
             {remove.isPending ? "Deleting…" : "Delete discussion"}

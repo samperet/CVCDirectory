@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { isAdmin } from "@/lib/auth/admins";
 import { removeSkill } from "@/lib/skills/store";
 import { problem } from "@/lib/http";
 
@@ -9,7 +10,7 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   const user = await getSessionUser();
   if (!user?.personId) return problem("Sign in to remove a skill", 401, "Unauthorized");
 
-  const result = await removeSkill(user.personId, params.id);
+  const result = await removeSkill({ personId: user.personId, admin: isAdmin(user) }, params.id);
   if (result === "not_found") return problem("Skill not found", 404, "Not Found");
   if (result === "forbidden") return problem("You can only remove your own skills", 403, "Forbidden");
   return NextResponse.json({ ok: true });

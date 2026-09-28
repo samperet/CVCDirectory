@@ -27,7 +27,7 @@ interface GroupedSkill {
   key: string;
   name: string;
   category: string;
-  members: { personId: string; personName: string; unit: number | null }[];
+  members: { skillId: string; personId: string; personName: string; unit: number | null }[];
 }
 
 export function SkillsClient() {
@@ -56,7 +56,7 @@ export function SkillsClient() {
     for (const skill of skills) {
       const key = skill.name.toLowerCase();
       const group = bySkill.get(key) ?? { key, name: skill.name, category: skill.category, members: [] };
-      group.members.push({ personId: skill.personId, personName: skill.personName, unit: skill.unit });
+      group.members.push({ skillId: skill.id, personId: skill.personId, personName: skill.personName, unit: skill.unit });
       bySkill.set(key, group);
     }
     const visible = Array.from(bySkill.values()).filter(
@@ -188,9 +188,24 @@ export function SkillsClient() {
                     <p className="font-semibold text-foreground">{group.name}</p>
                     <ul className="flex flex-col gap-1 text-sm">
                       {group.members.map((member) => (
-                        <li key={member.personId} className="text-foreground-light">
+                        <li key={member.skillId} className="flex items-center text-foreground-light">
                           {member.personName}
                           {member.unit !== null ? <span className="ml-1.5 text-xs text-muted">Unit {member.unit}</span> : null}
+                          {user?.isAdmin ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Remove “${group.name}” from ${member.personName}'s skills?`)) {
+                                  remove.mutate(member.skillId);
+                                }
+                              }}
+                              disabled={remove.isPending}
+                              className="ml-auto rounded-full p-1 text-muted hover:bg-accent hover:text-foreground"
+                              aria-label={`Remove ${group.name} from ${member.personName}`}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

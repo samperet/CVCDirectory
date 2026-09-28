@@ -77,7 +77,17 @@ function RoleTag({ person }: { person: Person }) {
   );
 }
 
-function PersonRow({ person, isMe, memberships }: { person: Person; isMe: boolean; memberships: Membership[] }) {
+function PersonRow({
+  person,
+  isMe,
+  isAdmin,
+  memberships,
+}: {
+  person: Person;
+  isMe: boolean;
+  isAdmin: boolean;
+  memberships: Membership[];
+}) {
   return (
     <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
       <Avatar name={person.displayName} photoUrl={person.photoUrl} size={40} />
@@ -89,6 +99,13 @@ function PersonRow({ person, isMe, memberships }: { person: Person; isMe: boolea
         {isMe ? (
           <Link href="/profile" className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline">
             Edit your profile
+          </Link>
+        ) : isAdmin ? (
+          <Link
+            href={`/profile/${person.id}`}
+            className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline"
+          >
+            Edit
           </Link>
         ) : null}
       </div>
@@ -168,6 +185,7 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
                     key={person.id}
                     person={person}
                     isMe={person.id === user?.personId}
+                    isAdmin={!!user?.isAdmin}
                     memberships={membershipsOf.get(person.id) ?? []}
                   />
                 ))}

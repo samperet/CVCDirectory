@@ -67,12 +67,16 @@ export async function addSkill(
 }
 
 /** Removes a skill only if it belongs to the given person. */
-export async function removeSkill(personId: string, skillId: string): Promise<"removed" | "not_found" | "forbidden"> {
+/** Remove a skill you offer; admins can remove anyone's. */
+export async function removeSkill(
+  actor: { personId: string; admin: boolean },
+  skillId: string
+): Promise<"removed" | "not_found" | "forbidden"> {
   return enqueue(KEY, async () => {
     const skills = normalize(await readJson(KEY));
     const skill = skills.find((entry) => entry.id === skillId);
     if (!skill) return "not_found" as const;
-    if (skill.personId !== personId) return "forbidden" as const;
+    if (!actor.admin && skill.personId !== actor.personId) return "forbidden" as const;
     await writeJson(KEY, { skills: skills.filter((entry) => entry.id !== skillId) });
     return "removed" as const;
   });

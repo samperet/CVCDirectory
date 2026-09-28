@@ -3,6 +3,7 @@ import { readDirectory, readImportedDirectory } from "@/lib/directory/store";
 import { problem } from "@/lib/http";
 import { BOARD_ID } from "./store";
 import { canManageCircle, isCircleId } from "./icons";
+import { isAdmin } from "@/lib/auth/admins";
 
 type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member";
 
@@ -23,6 +24,7 @@ export function circleProblem(reason: Failure) {
 /**
  * Load the signed-in resident, the directory, and the imported circles (used
  * to seed the circle store), and optionally check they may manage a circle.
+ * Admins pass every check.
  */
 export async function circleContext(options: { circleId?: string; require?: "member-or-board" | "board" } = {}) {
   const user = await getSessionUser();
@@ -35,10 +37,11 @@ export async function circleContext(options: { circleId?: string; require?: "mem
     if (!isCircleId(circleId) || !directory.circles.some((circle) => circle.id === circleId)) {
       return { error: problem("Circle not found", 404, "Not Found") } as const;
     }
-    if (require === "member-or-board" && !canManageCircle(directory, circleId, user.personId)) {
+    const admin = isAdmin(user);
+    if (require === "member-or-board" && !admin && !canManageCircle(directory, circleId, user.personId)) {
       return { error: problem("Only this circle's members or the Board can change it", 403, "Forbidden") } as const;
     }
-    if (require === "board" && !canManageCircle(directory, BOARD_ID, user.personId)) {
+    if (require === "board" && !admin && !canManageCircle(directory, BOARD_ID, user.personId)) {
       return { error: problem("Only the Board can do that", 403, "Forbidden") } as const;
     }
   }

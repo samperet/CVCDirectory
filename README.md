@@ -40,6 +40,7 @@ Accounts and admin:
 
 - `AUTH_SECRET` – Signs session cookies. Set it in production (see Signing In below).
 - `ADMIN_TOKEN` – Enables the admin directory import; leave unset to disable it.
+- `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins (see Admins).
 - `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
 
 ### Installation
@@ -82,6 +83,20 @@ signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SE
 (never the public development default), and with neither it refuses to create sessions. Setting
 `AUTH_SECRET` explicitly is still recommended.
 
+## Admins
+
+Admins can do anything a resident can, on anyone's content. Sam Peret is built in
+(`src/lib/auth/admins.ts`); add more by setting `ADMIN_PERSON_IDS` to their directory person ids.
+Admin status is checked server-side on every request, and the user menu shows an "Admin" label.
+
+- **Circles** – edit, manage members of, and delete any circle, as the Board can.
+- **Forum** – edit or delete any post, including a whole discussion after others have replied.
+- **Skills & Loan Library** – remove anyone's skills; mark anyone's items lent out or returned, or
+  remove them.
+- **Appreciations** – remove any appreciation (authors can remove their own).
+- **Profiles** – edit any resident's entry and photo from the "Edit" link beside them in the
+  directory (`/profile/<personId>`), including resetting a phone number without the current one.
+
 ## Forum & Appreciations
 
 - **Forum** (`/forum`) – signed-in members start discussions and reply to any post; replies nest
@@ -92,7 +107,8 @@ signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SE
   replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
   to someone. They rotate through the footer of every page (pausable, and not auto-advancing for
-  visitors who prefer reduced motion). Stored in `appreciations/index.json`, newest 500 kept.
+  visitors who prefer reduced motion). Authors can remove their own. Stored in
+  `appreciations/index.json`, newest 500 kept.
 
 Authors always come from the signed-in session, never from the request body.
 

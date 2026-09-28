@@ -63,3 +63,18 @@ export async function addAppreciation(
   });
   return appreciation;
 }
+
+/** Remove an appreciation: its author or an admin may. */
+export async function removeAppreciation(
+  id: string,
+  actor: { id: string; admin: boolean }
+): Promise<"removed" | "not_found" | "forbidden"> {
+  return enqueue(KEY, async () => {
+    const items = normalize(await readJson(KEY));
+    const item = items.find((entry) => entry.id === id);
+    if (!item) return "not_found" as const;
+    if (!actor.admin && item.authorId !== actor.id) return "forbidden" as const;
+    await writeJson(KEY, { items: items.filter((entry) => entry.id !== id) });
+    return "removed" as const;
+  });
+}

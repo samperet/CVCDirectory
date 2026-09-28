@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Heart, Pause, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Pause, Play, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Appreciation } from "@/lib/appreciations/store";
@@ -68,7 +68,18 @@ export function AppreciationsFooter() {
       toast({ title: "Could not share appreciation", description: error.message, variant: "destructive" }),
   });
 
+  const remove = useMutation({
+    mutationFn: (id: string) => apiFetch<{ ok: true }>(`/api/appreciations/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appreciations"] });
+      toast({ title: "Appreciation removed" });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Could not remove appreciation", description: error.message, variant: "destructive" }),
+  });
+
   const current = items[index];
+  const canRemove = !!current && !!user && (current.authorId === user.id || !!user.isAdmin);
   const step = (delta: number) => setIndex((i) => (i + delta + items.length) % items.length);
 
   return (
@@ -93,6 +104,19 @@ export function AppreciationsFooter() {
                 <figcaption className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted">
                   <span>— {current.authorName}</span>
                   {current.to ? <span>to {current.to}</span> : null}
+                  {canRemove ? (
+                    <button
+                      type="button"
+                      className="ml-1 inline-flex items-center gap-1 rounded px-1 text-muted hover:text-red-600 disabled:opacity-50"
+                      onClick={() => {
+                        if (window.confirm("Remove this appreciation?")) remove.mutate(current.id);
+                      }}
+                      disabled={remove.isPending}
+                      aria-label="Remove this appreciation"
+                    >
+                      <Trash2 className="h-3 w-3" /> Remove
+                    </button>
+                  ) : null}
                 </figcaption>
               </figure>
             ) : (
