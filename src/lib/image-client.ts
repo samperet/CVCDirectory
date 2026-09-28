@@ -22,6 +22,33 @@ export async function prepareSquareImage(file: File, size: number, type: "image/
   );
 }
 
+/**
+ * Downscale a photo in the browser so its longest side is at most `maxSide`,
+ * re-encoded as JPEG. Re-encoding also drops embedded metadata such as the
+ * camera's GPS location.
+ */
+export async function preparePhoto(file: File, maxSide = 2400): Promise<Blob> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error(`“${file.name}” couldn't be read as an image. Try a JPEG or PNG.`);
+  }
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Your browser couldn't process the image.");
+  context.fillStyle = "#ffffff"; // transparent areas become white rather than black
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))), "image/jpeg", 0.85)
+  );
+}
+
 /** Upload a prepared image as the raw request body; throws with the server's message on failure. */
 export async function uploadImage(url: string, blob: Blob): Promise<void> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": blob.type }, body: blob });

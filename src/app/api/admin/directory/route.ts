@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, timingSafeEqual } from "crypto";
+import { authorizeAdminToken as authorize } from "@/lib/auth/admin-token";
 import { readImportedDirectory, summarize, writeDirectory } from "@/lib/directory/store";
 import { directoryDocumentSchema } from "@/lib/directory/validation";
 import { DirectoryDocument } from "@/lib/directory/types";
@@ -12,22 +12,6 @@ export const dynamic = "force-dynamic";
  * `Authorization: Bearer <ADMIN_TOKEN>` and fails closed when ADMIN_TOKEN is
  * unset. Responses carry counts only — never residents' contact details.
  */
-function authorize(request: NextRequest): NextResponse | null {
-  const expected = process.env.ADMIN_TOKEN;
-  if (!expected) {
-    return problem("Directory admin is disabled: ADMIN_TOKEN is not configured", 503, "Service Unavailable");
-  }
-  const header = request.headers.get("authorization") ?? "";
-  const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
-  // Compare digests so the comparison is constant-time regardless of length.
-  const a = new Uint8Array(createHash("sha256").update(supplied).digest());
-  const b = new Uint8Array(createHash("sha256").update(expected).digest());
-  if (!supplied || !timingSafeEqual(a, b)) {
-    return problem("Invalid or missing admin token", 401, "Unauthorized");
-  }
-  return null;
-}
-
 export async function GET(request: NextRequest) {
   const denied = authorize(request);
   if (denied) return denied;

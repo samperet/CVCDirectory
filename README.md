@@ -12,6 +12,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
+- 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
 - 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -39,7 +40,7 @@ Storage (all app data — falls back to local `.data/` files when unset, which i
 Accounts and admin:
 
 - `AUTH_SECRET` – Signs session cookies. Set it in production (see Signing In below).
-- `ADMIN_TOKEN` – Enables the admin directory import; leave unset to disable it.
+- `ADMIN_TOKEN` – Enables the admin API (directory import, photo seeding); leave unset to disable it.
 - `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins (see Admins).
 - `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
 
@@ -150,6 +151,17 @@ from then on, so re-importing the directory never overwrites circle changes.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
+
+## Photos
+
+- `/photos` is a shared gallery. Any resident can add photos (several at once, each with an
+  optional caption); they're downscaled to at most 2400 px and re-encoded as JPEG in the browser,
+  which also strips embedded metadata such as GPS location, then verified server-side by their
+  bytes (up to 4 MB). Whoever added a photo — or an admin — can edit its caption or remove it.
+- Images are stored in R2 (`photos/files/<id>`, details in `photos/index.json`) and served only to
+  signed-in residents; photos are never committed to the (public) repository.
+- `POST /api/admin/photos?caption=…` seeds the gallery with the image as the raw body, using
+  `Authorization: Bearer $ADMIN_TOKEN`. Seeded photos have no uploader, so only admins manage them.
 
 ## Profiles & Calendar
 

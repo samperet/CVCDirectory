@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
+import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 
@@ -35,6 +35,12 @@ const cards = [
     title: "Forum",
     description: "Neighborhood discussions with threaded replies.",
     icon: MessagesSquare,
+  },
+  {
+    href: "/photos",
+    title: "Photos",
+    description: "Snapshots of life in the neighborhood.",
+    icon: Camera,
   },
 ];
 
