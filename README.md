@@ -12,6 +12,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
+- 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
 - 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
@@ -172,6 +173,25 @@ from then on, so re-importing the directory never overwrites circle changes.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
+
+## App & Notifications
+
+- **Installable (PWA)** – `public/manifest.json`, icons in `public/icons/`, and a service worker
+  (`public/sw.js`) make CVC installable: Chrome/Edge/Android offer "Install", and on iPhone it's
+  Safari → Share → Add to Home Screen. The service worker caches nothing (every page needs a fresh,
+  signed-in response); it exists for installing and for notifications. The manifest, service
+  worker, and icons are served without sign-in, since browsers fetch them without cookies.
+- **Push notifications** – residents turn them on per device under **App & notifications** on
+  their profile (or from a one-time prompt on the dashboard), and choose what to hear about: new
+  discussions, replies in discussions they started or joined, appreciations, photos, new
+  recommendations and comments on theirs, and new loan-library items. Nobody is notified about
+  their own posts. On iPhone/iPad (iOS 16.4+), notifications work once CVC is on the home screen.
+- Delivery uses standard Web Push (`web-push`). The VAPID key pair comes from `VAPID_PUBLIC_KEY` /
+  `VAPID_PRIVATE_KEY` if set, otherwise it's generated once and kept in R2 (`push/vapid.json`) —
+  don't delete it, or every device must turn notifications on again. `VAPID_SUBJECT` optionally
+  sets the contact URL/mailto. Subscriptions live in `push/subscriptions.json` (expired ones are
+  dropped automatically) and choices in `push/preferences.json`. Sending never blocks or breaks
+  a post: it's capped at a few seconds and failures are only logged.
 
 ## Resources
 

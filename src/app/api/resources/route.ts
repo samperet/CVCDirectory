@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { excerpt, notify } from "@/lib/push/notify";
+import { categorySlug } from "@/lib/resources/slug";
 import { addRecommendations, listRecommendations, recommendationInputSchema } from "@/lib/resources/store";
 import { invalid, resourceActor } from "@/lib/resources/http";
 import { problem } from "@/lib/http";
@@ -20,5 +22,14 @@ export async function POST(request: NextRequest) {
   const { actor } = found;
   const result = await addRecommendations([{ ...parsed.data, submittedBy: { personId: actor.personId, name: actor.name } }]);
   if (!result.ok) return problem("There's no room for more recommendations", 409, "Conflict");
-  return NextResponse.json({ recommendation: result.value[0] }, { status: 201 });
+  const recommendation = result.value[0];
+  await notify({
+    topic: "resources",
+    title: `${actor.name} recommends a ${recommendation.category.toLowerCase()}: ${recommendation.title}`,
+    body: excerpt(recommendation.body),
+    url: `/resources/${categorySlug(recommendation.category)}`,
+    tag: `resource-${recommendation.id}`,
+    exceptUserId: actor.userId,
+  });
+  return NextResponse.json({ recommendation }, { status: 201 });
 }

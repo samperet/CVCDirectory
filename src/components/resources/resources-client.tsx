@@ -16,16 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { categorySlug } from "@/lib/resources/slug";
 
 const KEY = ["resources"];
 
-/** A category's address: "Attorney, real estate" → "attorney-real-estate". */
-export function categorySlug(category: string) {
-  return category
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+
 type ListResponse = { recommendations: Recommendation[] };
 
 /** Phone numbers, email addresses, and web addresses in a recommendation become links. */

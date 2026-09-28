@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/auth/user-menu";
 import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
 import { useSession, useViewAs } from "@/lib/auth/client";
+import { setUpPwa } from "@/components/notifications/pwa";
 
 const links = [
   { href: "/", label: "Dashboard", icon: Grid },
@@ -33,6 +34,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const exitView = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
   const onLoginPage = pathname === "/login";
+
+  // Register the service worker (installable app, notifications) and catch the install prompt.
+  useEffect(() => setUpPwa(), []);
 
   // The middleware only checks the cookie's signature; if the account behind
   // it doesn't exist, send the visitor to sign in rather than show an empty app.

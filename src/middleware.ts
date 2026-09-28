@@ -100,5 +100,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // Everything except build assets and public files.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|robots.txt).*)"],
+  // The manifest, service worker, and app icons are fetched without cookies, so they must stay public.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|robots.txt).*)"],
 };

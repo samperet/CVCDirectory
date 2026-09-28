@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { excerpt, notify } from "@/lib/push/notify";
 import { createThread, listThreads, threadInputSchema } from "@/lib/forum/store";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -26,5 +27,13 @@ export async function POST(request: NextRequest) {
   }
 
   const doc = await createThread({ id: user.id, name: user.name }, parsed.data);
+  await notify({
+    topic: "discussions",
+    title: `New discussion: ${doc.thread.title}`,
+    body: `${user.name}: ${excerpt(doc.thread.body)}`,
+    url: `/forum/${doc.thread.id}`,
+    tag: `forum-${doc.thread.id}`,
+    exceptUserId: user.id,
+  });
   return NextResponse.json(doc, { status: 201 });
 }

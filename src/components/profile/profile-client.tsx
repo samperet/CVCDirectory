@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/lib/auth/client";
+import { AppSettings } from "@/components/notifications/app-settings";
 
 function splitBirthday(value: string | null) {
   const match = value?.match(/^([A-Za-z]+) (\d{1,2})$/);
@@ -275,6 +276,8 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
           </div>
         </form>
       </Card>
+
+      {own ? <AppSettings /> : null}
     </div>
   );
 }

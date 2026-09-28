@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { readDirectory } from "@/lib/directory/store";
+import { excerpt, notify } from "@/lib/push/notify";
 import { addLoanItem, listLoanItems, loanItemInputSchema } from "@/lib/library/store";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -48,5 +49,13 @@ export async function POST(request: NextRequest) {
 
   const item = await addLoanItem({ personId: user.personId, name: user.name }, parsed.data);
   if (item === "limit") return problem("You can list up to 50 items", 409, "Conflict");
+  await notify({
+    topic: "library",
+    title: `${user.name} is lending: ${item.title}`,
+    body: item.description ? excerpt(item.description) : `New in the loan library (${item.category}).`,
+    url: "/library",
+    tag: `library-${item.id}`,
+    exceptUserId: user.id,
+  });
   return NextResponse.json({ item }, { status: 201 });
 }

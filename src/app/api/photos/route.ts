@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { excerpt, notify } from "@/lib/push/notify";
 import { addPhoto, listPhotos } from "@/lib/photos/store";
 import { readPhotoUpload } from "@/lib/photos/upload";
 import { problem } from "@/lib/http";
@@ -24,5 +25,14 @@ export async function POST(request: NextRequest) {
 
   const photo = await addPhoto({ id: user.id, name: user.name }, upload.file, upload.caption);
   if (photo === "full") return problem("The photo gallery is full", 409, "Conflict");
+  // Several photos added at once replace each other on a device rather than piling up.
+  await notify({
+    topic: "photos",
+    title: `New photo from ${user.name}`,
+    body: photo.caption ? excerpt(photo.caption) : "Take a look in Photos.",
+    url: "/photos",
+    tag: `photos-${user.id}`,
+    exceptUserId: user.id,
+  });
   return NextResponse.json({ photo }, { status: 201 });
 }

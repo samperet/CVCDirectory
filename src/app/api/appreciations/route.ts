@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { excerpt, notify } from "@/lib/push/notify";
 import { addAppreciation, appreciationInputSchema, listAppreciations } from "@/lib/appreciations/store";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
@@ -28,5 +29,13 @@ export async function POST(request: NextRequest) {
   }
 
   const appreciation = await addAppreciation({ id: user.id, name: user.name }, parsed.data);
+  await notify({
+    topic: "appreciations",
+    title: appreciation.to ? `${user.name} appreciates ${appreciation.to}` : `An appreciation from ${user.name}`,
+    body: excerpt(appreciation.message),
+    url: "/",
+    tag: "appreciations",
+    exceptUserId: user.id,
+  });
   return NextResponse.json({ appreciation }, { status: 201 });
 }

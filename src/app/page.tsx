@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera, Lightbulb } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
+import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ export default async function DashboardPage() {
           loan library.
         </p>
       </section>
+      <NotificationsNudge />
       <NextEvent event={nextEvent ?? null} />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
