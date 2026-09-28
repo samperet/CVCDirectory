@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/profile/avatar";
-import { useSession } from "@/lib/auth/client";
+import { useSession, useViewAs } from "@/lib/auth/client";
 
 type Tab = "residents" | "carsheds";
 
@@ -77,6 +77,21 @@ function RoleTag({ person }: { person: Person }) {
   );
 }
 
+/** Admins: see the app as this resident does (read-only). */
+function ViewAsButton({ personId }: { personId: string }) {
+  const view = useViewAs();
+  return (
+    <button
+      type="button"
+      onClick={() => view.mutate(personId)}
+      disabled={view.isPending}
+      className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline"
+    >
+      {view.isPending ? "Switching…" : "View as"}
+    </button>
+  );
+}
+
 function PersonRow({
   person,
   isMe,
@@ -101,12 +116,15 @@ function PersonRow({
             Edit your profile
           </Link>
         ) : isAdmin ? (
-          <Link
-            href={`/profile/${person.id}`}
-            className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline"
-          >
-            Edit
-          </Link>
+          <>
+            <Link
+              href={`/profile/${person.id}`}
+              className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline"
+            >
+              Edit
+            </Link>
+            <ViewAsButton personId={person.id} />
+          </>
         ) : null}
       </div>
       {person.bio ? <p className="whitespace-pre-wrap text-sm text-foreground-light">{person.bio}</p> : null}

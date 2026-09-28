@@ -56,6 +56,12 @@ export async function getUser(id: string): Promise<CommunityUser | null> {
   return users.find((user) => user.id === id) ?? null;
 }
 
+/** A resident's account, if they've signed in before (never creates one). */
+export async function getUserForPerson(personId: string): Promise<CommunityUser | null> {
+  const users = await readUsers();
+  return users.find((user) => user.personId === personId) ?? null;
+}
+
 /**
  * The account for a directory resident, created on first sign-in. A legacy
  * name-only account with the same name is claimed by the resident, since the

@@ -2,13 +2,16 @@ import { enqueue, readJson, writeJson } from "@/lib/storage";
 
 /**
  * A log of successful sign-ins, newest kept, for admins. It records who
- * signed in and when — no phone numbers, addresses, or devices.
+ * signed in and when — no phone numbers, addresses, or devices — and when an
+ * admin viewed the app as someone.
  */
 
 export interface SignInEntry {
   at: string;
   personId: string;
   name: string;
+  /** Set when this was an admin viewing as the resident, not the resident signing in. */
+  viewedBy?: string;
 }
 
 const KEY = "auth/sign-in-log.json";
@@ -25,11 +28,16 @@ export async function listSignIns(): Promise<SignInEntry[]> {
 }
 
 /** Record a sign-in. Never throws: a logging failure must not block signing in. */
-export async function recordSignIn(person: { id: string; displayName: string }): Promise<void> {
+export async function recordSignIn(person: { id: string; displayName: string }, viewedBy?: string): Promise<void> {
   try {
     await enqueue(KEY, async () => {
       const entries = normalize(await readJson(KEY));
-      const entry: SignInEntry = { at: new Date().toISOString(), personId: person.id, name: person.displayName };
+      const entry: SignInEntry = {
+        at: new Date().toISOString(),
+        personId: person.id,
+        name: person.displayName,
+        ...(viewedBy ? { viewedBy } : {}),
+      };
       await writeJson(KEY, { entries: [...entries, entry].slice(-MAX_ENTRIES) });
     });
   } catch (error) {

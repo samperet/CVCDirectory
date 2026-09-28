@@ -9,10 +9,22 @@ export type { PublicUser };
 export function useSession() {
   const query = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: () => apiFetch<{ user: PublicUser | null }>("/api/auth/me"),
+    queryFn: () => apiFetch<{ user: PublicUser | null; viewAs?: { by: string } | null }>("/api/auth/me"),
     staleTime: 30_000,
   });
-  return { user: query.data?.user ?? null, isLoading: query.isLoading };
+  return { user: query.data?.user ?? null, viewAs: query.data?.viewAs ?? null, isLoading: query.isLoading };
+}
+
+/**
+ * Admins: start or stop viewing the app as another resident. Either way the
+ * page reloads, so nothing cached from the other view lingers.
+ */
+export function useViewAs() {
+  return useMutation({
+    mutationFn: (personId: string | null) =>
+      apiFetch("/api/auth/view-as", personId ? { method: "POST", body: JSON.stringify({ personId }) } : { method: "DELETE" }),
+    onSuccess: (_result, personId) => window.location.assign(personId ? "/" : window.location.pathname),
+  });
 }
 
 function useInvalidateAuth() {
@@ -26,11 +38,12 @@ export interface SignInPerson {
 }
 
 /** Residents who can sign in (those with a phone number on file). */
-export function usePeople() {
+export function usePeople({ enabled = true }: { enabled?: boolean } = {}) {
   const query = useQuery({
     queryKey: ["auth", "people"],
     queryFn: () => apiFetch<{ people: SignInPerson[] }>("/api/auth/people"),
     staleTime: 5 * 60_000,
+    enabled,
   });
   return { people: query.data?.people ?? [], isLoading: query.isLoading, error: query.error };
 }

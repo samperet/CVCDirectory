@@ -59,6 +59,7 @@ export function SignInLogClient() {
   const byPerson = useMemo(() => {
     const people = new Map<string, { name: string; count: number; last: string; first: string }>();
     for (const entry of entries) {
+      if (entry.viewedBy) continue; // an admin viewing as them isn't them signing in
       const existing = people.get(entry.personId);
       if (existing) {
         existing.count += 1;
@@ -70,8 +71,9 @@ export function SignInLogClient() {
     return Array.from(people.values());
   }, [entries]);
 
-  const total = data?.entries.length ?? 0;
-  const residents = new Set((data?.entries ?? []).map((entry) => entry.personId)).size;
+  const signIns = (data?.entries ?? []).filter((entry) => !entry.viewedBy);
+  const total = signIns.length;
+  const residents = new Set(signIns.map((entry) => entry.personId)).size;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -135,7 +137,12 @@ export function SignInLogClient() {
               <ul className="divide-y divide-border">
                 {group.entries.map((entry, index) => (
                   <li key={`${entry.at}-${index}`} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                    <span className="font-medium text-foreground">{entry.name}</span>
+                    <span className="font-medium text-foreground">
+                      {entry.name}
+                      {entry.viewedBy ? (
+                        <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-xs font-normal text-muted">viewed as by {entry.viewedBy}</span>
+                      ) : null}
+                    </span>
                     <time dateTime={entry.at} className="shrink-0 tabular-nums text-muted">
                       {time(new Date(entry.at))}
                     </time>

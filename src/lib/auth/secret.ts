@@ -3,6 +3,8 @@
  * import any Node-only modules.
  */
 export const SESSION_COOKIE = "cvc_session";
+/** Set while an admin is viewing the app as another resident (read-only). */
+export const VIEW_AS_COOKIE = "cvc_view_as";
 
 const DEV_SECRET = "cvc-directory-insecure-dev-secret";
 

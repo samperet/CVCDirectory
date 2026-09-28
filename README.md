@@ -98,6 +98,12 @@ Admin status is checked server-side on every request, and the user menu shows an
 - **Appreciations** – remove any appreciation (authors can remove their own).
 - **Profiles** – edit any resident's entry and photo from the "Edit" link beside them in the
   directory (`/profile/<personId>`), including resetting a phone number without the current one.
+- **View as a resident** – "View as resident…" in the user menu, or "View as" beside anyone in the
+  directory, shows the app exactly as that resident sees it: their name, their permissions, their
+  own posts. It's read-only — while it's on, the middleware refuses every change, so an admin can
+  never post or edit in someone's name — lasts at most an hour, and shows a banner with a way
+  back. The view is a separate signed cookie tied to the admin's own session (useless to anyone
+  else), and each view is recorded in the sign-in log.
 - **Sign-in log** – "Sign-in log" in the user menu (`/admin/sign-ins`) lists every successful
   sign-in, newest first, by day or by resident (sign-in count and last sign-in). It records only
   who and when — no phone numbers or devices — keeps the latest 2,000 in `auth/sign-in-log.json`,
