@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { ForumReply, ForumThreadDocument } from "@/lib/forum/store";
+import type { ForumLike, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +51,72 @@ function ActionLink({ onClick, children, danger }: { onClick: () => void; childr
       className={cn("font-medium hover:underline", danger ? "text-muted hover:text-destructive" : "text-secondary-foreground")}
     >
       {children}
+    </button>
+  );
+}
+
+/** "Sam Peret, Alex Kim and 3 others" — who liked a post, for the like button's tooltip. */
+function likedByLabel(likes: ForumLike[], currentUserId: string | null) {
+  const names = likes.map((like) => (like.userId === currentUserId ? "You" : like.name));
+  names.sort((a, b) => (a === "You" ? -1 : b === "You" ? 1 : 0));
+  if (names.length <= 3) return `Liked by ${names.join(", ").replace(/, ([^,]*)$/, " and $1")}`;
+  return `Liked by ${names.slice(0, 2).join(", ")} and ${names.length - 2} others`;
+}
+
+/**
+ * Like or unlike a post (the opening post when `replyId` is null). The heart
+ * fills straight away; if saving fails, the thread is put back as it was.
+ */
+function LikeButton({ threadId, replyId, likes = [] }: { threadId: string; replyId: string | null; likes?: ForumLike[] }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useSession();
+  const key = ["forum", "thread", threadId];
+  const liked = !!user && likes.some((like) => like.userId === user.id);
+  const url = replyId ? `/api/forum/threads/${threadId}/replies/${replyId}/like` : `/api/forum/threads/${threadId}/like`;
+
+  const toggle = useMutation({
+    mutationFn: (like: boolean) => apiFetch<ForumThreadDocument>(url, { method: like ? "PUT" : "DELETE" }),
+    onMutate: async (like: boolean) => {
+      if (!user) return;
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ForumThreadDocument>(key);
+      const update = (current: ForumLike[] | undefined) => {
+        const others = (current ?? []).filter((entry) => entry.userId !== user.id);
+        return like ? [...others, { userId: user.id, name: user.name }] : others;
+      };
+      if (previous) {
+        queryClient.setQueryData<ForumThreadDocument>(key, {
+          ...previous,
+          thread: replyId ? previous.thread : { ...previous.thread, likes: update(previous.thread.likes) },
+          replies: replyId
+            ? previous.replies.map((entry) => (entry.id === replyId ? { ...entry, likes: update(entry.likes) } : entry))
+            : previous.replies,
+        });
+      }
+      return { previous };
+    },
+    onError: (error: Error, _like, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+      toast({ title: "Could not save your like", description: error.message, variant: "destructive" });
+    },
+    onSuccess: (doc) => queryClient.setQueryData(key, doc),
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => toggle.mutate(!liked)}
+      aria-pressed={liked}
+      aria-label={liked ? "Unlike" : "Like"}
+      title={likes.length ? likedByLabel(likes, user?.id ?? null) : "Like"}
+      className={cn(
+        "inline-flex items-center gap-1 font-medium transition",
+        liked ? "text-rose-600 hover:text-rose-700" : "text-muted hover:text-rose-600"
+      )}
+    >
+      <Heart className={cn("h-3.5 w-3.5", liked && "fill-current")} />
+      {likes.length ? <span className="tabular-nums">{likes.length}</span> : <span>Like</span>}
     </button>
   );
 }
@@ -200,7 +266,10 @@ function ReplyNode({
         )}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           {!reply.deletedAt && mode !== "edit" ? (
-            <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>Reply</ActionLink>
+            <>
+              <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />
+              <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>Reply</ActionLink>
+            </>
           ) : null}
           {mine && !reply.deletedAt && mode === "view" ? (
             <>
@@ -320,23 +389,26 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
         <Byline name={thread.authorName} createdAt={thread.createdAt} editedAt={thread.editedAt} />
       </p>
       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p>
-      {mine ? (
-        <div className="flex gap-3 text-xs">
-          <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
-          <ActionLink
-            danger
-            onClick={() => {
-              const warning =
-                !author || othersReplied
-                  ? "Delete this discussion and all of its replies? This can't be undone."
-                  : "Delete this discussion?";
-              if (window.confirm(warning)) remove.mutate();
-            }}
-          >
-            {remove.isPending ? "Deleting…" : "Delete discussion"}
-          </ActionLink>
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />
+        {mine ? (
+          <>
+            <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
+            <ActionLink
+              danger
+              onClick={() => {
+                const warning =
+                  !author || othersReplied
+                    ? "Delete this discussion and all of its replies? This can't be undone."
+                    : "Delete this discussion?";
+                if (window.confirm(warning)) remove.mutate();
+              }}
+            >
+              {remove.isPending ? "Deleting…" : "Delete discussion"}
+            </ActionLink>
+          </>
+        ) : null}
+      </div>
     </Card>
   );
 }

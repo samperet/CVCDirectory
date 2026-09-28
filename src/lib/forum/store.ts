@@ -21,6 +21,12 @@ export interface ForumActor {
 
 const mayChange = (authorId: string, actor: ForumActor) => actor.admin || authorId === actor.id;
 
+/** Someone who liked a post; the name is kept so "liked by…" needs no lookups. */
+export interface ForumLike {
+  userId: string;
+  name: string;
+}
+
 export interface ForumReply {
   id: string;
   parentId: string | null; // null = a direct reply to the opening post
@@ -30,6 +36,7 @@ export interface ForumReply {
   createdAt: string;
   editedAt?: string | null;
   deletedAt?: string | null;
+  likes?: ForumLike[];
 }
 
 export interface ForumThread {
@@ -40,6 +47,7 @@ export interface ForumThread {
   authorName: string;
   createdAt: string;
   editedAt?: string | null;
+  likes?: ForumLike[];
 }
 
 export interface ForumThreadDocument {
@@ -158,7 +166,8 @@ export type ThreadResult = { ok: true; doc: ForumThreadDocument } | { ok: false;
  */
 async function mutateThread(
   threadId: string,
-  change: (doc: ForumThreadDocument) => ForumThreadDocument | Failure
+  change: (doc: ForumThreadDocument) => ForumThreadDocument | Failure,
+  { sync = true }: { sync?: boolean } = {}
 ): Promise<ThreadResult> {
   if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
   const result = await enqueue<ThreadResult>(threadKey(threadId), async () => {
@@ -169,7 +178,7 @@ async function mutateThread(
     await writeJson(threadKey(threadId), next);
     return { ok: true, doc: next };
   });
-  if (result.ok) await syncSummary(result.doc);
+  if (result.ok && sync) await syncSummary(result.doc);
   return result;
 }
 
@@ -215,7 +224,7 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
     if (!mayChange(reply.authorId, actor)) return "forbidden";
 
     let replies = doc.replies.map((entry) =>
-      entry.id === replyId ? { ...entry, body: "", deletedAt: new Date().toISOString() } : entry
+      entry.id === replyId ? { ...entry, body: "", likes: [], deletedAt: new Date().toISOString() } : entry
     );
     // Prune placeholders with nothing beneath them, walking up the chain.
     for (;;) {
@@ -253,4 +262,30 @@ export async function deleteThread(threadId: string, actor: ForumActor): Promise
   });
   if (result.ok) await updateIndex((threads) => threads.filter((summary) => summary.id !== threadId));
   return result;
+}
+
+function withLike(likes: ForumLike[] | undefined, user: { id: string; name: string }, liked: boolean): ForumLike[] {
+  const others = (likes ?? []).filter((like) => like.userId !== user.id);
+  return liked ? [...others, { userId: user.id, name: user.name }] : others;
+}
+
+/**
+ * Like or unlike a post: the opening post when `replyId` is null, otherwise a
+ * reply. Setting the same state twice is harmless. Likes don't change the
+ * thread's place in the list, so the index is left alone.
+ */
+export function setLike(threadId: string, replyId: string | null, user: { id: string; name: string }, liked: boolean) {
+  return mutateThread(
+    threadId,
+    (doc) => {
+      if (replyId === null) return { ...doc, thread: { ...doc.thread, likes: withLike(doc.thread.likes, user, liked) } };
+      const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
+      if (!reply) return "not_found";
+      return {
+        ...doc,
+        replies: doc.replies.map((entry) => (entry.id === replyId ? { ...entry, likes: withLike(entry.likes, user, liked) } : entry)),
+      };
+    },
+    { sync: false }
+  );
 }

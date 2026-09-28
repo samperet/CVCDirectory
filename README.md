@@ -108,7 +108,8 @@ Admin status is checked server-side on every request, and the user menu shows an
   to any depth (indentation stops at five levels so long chains stay readable on phones) and any
   branch can be collapsed. Authors can edit and delete their own posts; deleting a reply that
   others answered leaves a placeholder so the conversation below survives, and a discussion can be
-  deleted by its author only while no one else has replied. Each thread is one JSON document (`forum/threads/<id>.json`) with
+  deleted by its author only while no one else has replied. Anyone can like the opening post or any reply (the heart
+  fills straight away; hovering shows who liked it). Each thread is one JSON document (`forum/threads/<id>.json`) with
   replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
   to someone. They rotate through the footer of every page (pausable, and not auto-advancing for
