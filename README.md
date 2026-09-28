@@ -12,6 +12,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
+- 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
 - 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -165,6 +166,19 @@ from then on, so re-importing the directory never overwrites circle changes.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
+
+## Resources
+
+- `/resources` lists recommendations for local services (plumbers, dentists, realtors…) grouped by
+  category, each showing who recommended it. Residents search and filter, recommend someone
+  themselves, like recommendations, and comment on them. Phone numbers, emails, and web
+  addresses in the text become links.
+- Whoever made a recommendation (matched by directory person) or an admin can edit or remove it;
+  comment authors or admins can edit or delete comments. Stored in
+  `resources/recommendations.json`.
+- `POST /api/admin/resources` (with `ADMIN_TOKEN`) adds recommendations on a resident's behalf:
+  `{ submittedByPersonId, recommendations: [{ category, title, body }] }`. They're credited to, and
+  editable by, that resident.
 
 ## Photos
 

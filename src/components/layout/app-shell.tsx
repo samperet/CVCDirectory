@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera } from "lucide-react";
+import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ const links = [
   { href: "/forum", label: "Forum", icon: MessagesSquare },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/photos", label: "Photos", icon: Camera },
+  { href: "/resources", label: "Resources", icon: Lightbulb },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -82,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition",
+                    "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
                     pathname === link.href
                       ? "bg-primary text-primary-foreground shadow-soft"
                       : "text-foreground/70 hover:bg-accent hover:text-foreground"
