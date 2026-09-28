@@ -153,6 +153,15 @@ from then on, so re-importing the directory never overwrites circle changes.
   and description, add residents, change a member's role or term, remove members, and upload an
   icon. Only the Board can delete a circle, the Board itself can't be deleted, and the Board always
   keeps at least one member.
+- **Duty schedules** – a circle can have a rotation (e.g. the Chicken Tenders' chicken and compost
+  duty), shown on its page as a month calendar that continues indefinitely: today's and
+  tomorrow's duty, your household's next turns, households with members' phone numbers (from
+  the directory), and the duty instructions for the current season. Each weekday belongs to one
+  household, or to several that alternate week by week. Households on the rotation, the circle's
+  members, the Board, and admins can record a swap or cover for any day (or flag that it needs
+  cover); the circle's members, the Board, and admins set up the rotation via "Add a duty
+  schedule" / "Edit rotation". Stored in `circles/schedules/<id>.json`. `GET/PUT
+  /api/admin/schedules` (with `ADMIN_TOKEN`) lists circles and seeds a schedule.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
