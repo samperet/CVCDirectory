@@ -61,5 +61,8 @@ export function sessionCookieName() {
 export async function getSessionUser(): Promise<CommunityUser | null> {
   const userId = parseSessionValue(cookies().get(SESSION_COOKIE)?.value);
   if (!userId) return null;
-  return getUser(userId);
+  const user = await getUser(userId);
+  // Sessions from the retired name-only sign-in don't count: only accounts
+  // linked to a resident (proven by phone number) are signed in.
+  return user?.personId ? user : null;
 }

@@ -40,7 +40,7 @@ Optional (forum, appreciations & community accounts — falls back to a local `.
 - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` – R2 API token credentials (Object Read & Write on the bucket).
 - `R2_BUCKET` – R2 bucket name that holds the JSON documents (`forum/`, `appreciations/`, `auth/`, `directory/`).
 
-Community accounts (name-picker sign-in + magic-link verification):
+Community accounts (name + phone-number sign-in, magic-link verification):
 
 - `AUTH_SECRET` – Secret used to sign session cookies. **Set this in production**; without it a public fallback secret is used and sessions can be forged.
 - `RESEND_API_KEY` – Resend API key for delivering magic-link verification emails. When unset, the verify link is shown directly in the UI (preview mode) instead of being emailed.
@@ -81,6 +81,23 @@ Visit [http://localhost:3000](http://localhost:3000) to view the application.
 ```bash
 npm run lint
 ```
+
+## Signing In
+
+Residents sign in at `/login` by choosing their name from a searchable dropdown and entering
+their phone number as the password. The names come from the imported community directory — only
+residents with a phone number on file can sign in — and the dropdown exposes names only, never
+contact details or unit numbers.
+
+- Formatting is ignored: `802-555-1234`, `802.555.1234`, `(802) 555 1234`, and `+1 802 555 1234`
+  all match. A landline on file works too.
+- Five wrong attempts lock that name for 15 minutes. Failures are tracked in the shared store, so
+  the limit holds across serverless instances.
+- An account is created on a resident's first sign-in and linked to their directory entry.
+  Verifying an email by magic link adds a verified badge.
+
+Phone numbers are not secret, so this keeps the barrier low rather than high. Keep `AUTH_SECRET`
+set in production so sessions can't be forged.
 
 ## Forum & Appreciations
 

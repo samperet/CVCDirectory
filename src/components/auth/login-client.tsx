@@ -2,71 +2,57 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BadgeCheck, Plus, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { CvcLogo } from "@/components/auth/cvc-logo";
-import { NameCombobox } from "@/components/auth/name-combobox";
-import {
-  PublicUser,
-  useCreateUser,
-  useLogin,
-  useRequestMagicLink,
-  useSession,
-  useUsers,
-} from "@/lib/auth/client";
+import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
+import { useLogin, usePeople, useRequestMagicLink, useSession } from "@/lib/auth/client";
 
 export function LoginClient() {
   const router = useRouter();
   const { toast } = useToast();
   const { user: sessionUser } = useSession();
-  const { users, isLoading } = useUsers();
+  const { people, isLoading, error: peopleError } = usePeople();
   const login = useLogin();
-  const createUser = useCreateUser();
   const magicLink = useRequestMagicLink();
 
-  const [selected, setSelected] = useState<PublicUser | null>(null);
-  const [addingName, setAddingName] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
+  const [selected, setSelected] = useState<NameOption | null>(null);
+  const [phone, setPhone] = useState("");
+  const [showPhone, setShowPhone] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // Once signed in, the card becomes the "get verified" step.
   const signedIn = sessionUser !== null;
 
+  // Clear a stale error as soon as the person changes their input.
   useEffect(() => {
-    if (sessionUser && !selected) setSelected(sessionUser);
-  }, [sessionUser, selected]);
+    setFormError(null);
+  }, [selected, phone]);
 
-  const handleSignIn = () => {
-    if (!selected) return;
-    login.mutate(selected.id, {
-      onSuccess: (response) => {
-        toast({ title: `Welcome back, ${response.user.name}` });
-        if (response.user.verified) router.push("/");
-      },
-      onError: (error: Error) =>
-        toast({ title: "Could not sign in", description: error.message, variant: "destructive" }),
-    });
-  };
-
-  const handleAdd = () => {
-    const name = addingName.trim();
-    if (!name) return;
-    createUser.mutate(name, {
-      onSuccess: (response) => {
-        setAddingName("");
-        setShowAdd(false);
-        setSelected(response.user);
-        toast({
-          title: `Welcome, ${response.user.name}`,
-          description: "You're signed in. Verify your email below to earn a badge.",
-        });
-      },
-      onError: (error: Error) =>
-        toast({ title: "Could not add name", description: error.message, variant: "destructive" }),
-    });
+  const handleSignIn = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selected) {
+      setFormError("Please select your name");
+      return;
+    }
+    if (!phone.trim()) {
+      setFormError("Please enter your phone number");
+      return;
+    }
+    login.mutate(
+      { personId: selected.id, phone },
+      {
+        onSuccess: (response) => {
+          setPhone("");
+          toast({ title: `Welcome, ${response.user.name}` });
+          if (response.user.verified) router.push("/");
+        },
+        onError: (error: Error) => setFormError(error.message),
+      }
+    );
   };
 
   const handleMagicLink = () => {
@@ -96,66 +82,72 @@ export function LoginClient() {
             </div>
             <h1 className="mb-2 text-3xl font-bold text-foreground">Sign In</h1>
             <p className="text-lg text-muted">
-              {signedIn ? "You're signed in" : "Select your name to join the conversation"}
+              {signedIn ? "You're signed in" : "Select your name and enter your phone number"}
             </p>
           </div>
 
           {!signedIn ? (
-            <div className="flex flex-col gap-6">
+            <form className="flex flex-col gap-6" onSubmit={handleSignIn} noValidate>
+              {formError ? (
+                <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {formError}
+                </p>
+              ) : null}
+
               <div>
                 <label className="mb-2 block text-sm font-semibold text-foreground">Your Name</label>
                 <NameCombobox
-                  users={users}
+                  users={people}
                   value={selected}
                   onChange={setSelected}
                   loading={isLoading}
+                  disabled={login.isPending}
+                  placeholder="Start typing your name..."
                 />
+                {peopleError ? (
+                  <p className="mt-2 text-sm text-destructive">{(peopleError as Error).message}</p>
+                ) : null}
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="mb-2 block text-sm font-semibold text-foreground">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Input
+                    id="phone"
+                    type={showPhone ? "text" : "password"}
+                    inputMode="tel"
+                    autoComplete="current-password"
+                    placeholder="e.g. 802-555-1234"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    disabled={login.isPending}
+                    className="h-12 bg-white pr-11 text-base"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPhone((value) => !value)}
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted hover:text-foreground"
+                    aria-label={showPhone ? "Hide phone number" : "Show phone number"}
+                  >
+                    {showPhone ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="mt-3 text-sm text-muted">
-                  No password needed — pick your name and you&apos;re in.
+                  Your phone number is your password. Dashes, dots, spaces, and parentheses are all fine.
                 </p>
               </div>
 
-              <Button
-                className="w-full py-3 text-lg"
-                size="lg"
-                disabled={!selected || login.isPending}
-                onClick={handleSignIn}
-              >
+              <Button type="submit" className="w-full py-3 text-lg" size="lg" disabled={login.isPending || isLoading}>
                 {login.isPending ? "Signing in…" : "Sign In"}
               </Button>
 
-              {showAdd ? (
-                <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-4">
-                  <label className="text-sm font-semibold text-foreground">
-                    New here? Add your name
-                  </label>
-                  <Input
-                    placeholder="e.g. River W."
-                    value={addingName}
-                    onChange={(event) => setAddingName(event.target.value)}
-                    onKeyDown={(event) => event.key === "Enter" && handleAdd()}
-                    className="bg-white"
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleAdd} disabled={createUser.isPending}>
-                      {createUser.isPending ? "Adding…" : "Add & sign in"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-1.5 text-sm font-medium text-secondary-foreground underline-offset-4 hover:underline"
-                  onClick={() => setShowAdd(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Don&apos;t see your name? Add it
-                </button>
-              )}
-            </div>
+              <p className="text-center text-sm text-muted">
+                Don&apos;t see your name? Only residents with a phone number on the HOA contact list can sign
+                in — ask the Board to update your entry.
+              </p>
+            </form>
           ) : (
             <div className="flex flex-col gap-4">
               <p className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
@@ -179,8 +171,8 @@ export function LoginClient() {
                     Get your verified badge
                   </p>
                   <p className="text-sm text-muted">
-                    We&apos;ll email a magic link. Clicking it proves it&apos;s really you and adds a
-                    badge next to your name.
+                    We&apos;ll email a magic link. Clicking it proves it&apos;s really you and adds a badge next
+                    to your name.
                   </p>
                   <Input
                     type="email"

@@ -4,7 +4,12 @@ import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { VerifiedBadge } from "@/components/auth/verified-badge";
-import type { PublicUser } from "@/lib/auth/client";
+
+export interface NameOption {
+  id: string;
+  name: string;
+  verified?: boolean;
+}
 
 /**
  * Searchable name picker, mirroring the combobox on the CVC Folks login:
@@ -19,9 +24,9 @@ export function NameCombobox({
   disabled,
   placeholder = "Search for your name...",
 }: {
-  users: PublicUser[];
-  value: PublicUser | null;
-  onChange: (user: PublicUser) => void;
+  users: NameOption[];
+  value: NameOption | null;
+  onChange: (user: NameOption) => void;
   loading?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -49,7 +54,7 @@ export function NameCombobox({
     return () => document.removeEventListener("mousedown", onClickAway);
   }, []);
 
-  const select = (user: PublicUser) => {
+  const select = (user: NameOption) => {
     onChange(user);
     setQuery("");
     setOpen(false);

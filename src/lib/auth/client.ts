@@ -40,25 +40,28 @@ function useInvalidateAuth() {
   return () => queryClient.invalidateQueries({ queryKey: ["auth"] });
 }
 
+export interface SignInPerson {
+  id: string;
+  name: string;
+}
+
+/** Residents who can sign in (those with a phone number on file). */
+export function usePeople() {
+  const query = useQuery({
+    queryKey: ["auth", "people"],
+    queryFn: () => apiFetch<{ people: SignInPerson[] }>("/api/auth/people"),
+    staleTime: 5 * 60_000,
+  });
+  return { people: query.data?.people ?? [], isLoading: query.isLoading, error: query.error };
+}
+
 export function useLogin() {
   const invalidate = useInvalidateAuth();
   return useMutation({
-    mutationFn: (userId: string) =>
+    mutationFn: (input: { personId: string; phone: string }) =>
       apiFetch<{ user: PublicUser }>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ userId }),
-      }),
-    onSuccess: invalidate,
-  });
-}
-
-export function useCreateUser() {
-  const invalidate = useInvalidateAuth();
-  return useMutation({
-    mutationFn: (name: string) =>
-      apiFetch<{ user: PublicUser }>("/api/users", {
-        method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(input),
       }),
     onSuccess: invalidate,
   });

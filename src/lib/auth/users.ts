@@ -2,14 +2,16 @@ import { createHash, randomBytes, randomUUID } from "crypto";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 
 /**
- * Community user registry. Anyone can claim a name to participate (low
- * friction, trust-based); verifying an email via magic link earns the account
- * a verified badge. Names are unique case-insensitively so a badge can be
- * associated with a display name unambiguously.
+ * Community user registry. Every account belongs to a resident in the
+ * directory (linked by personId) and is created on that resident's first
+ * sign-in with their phone number. Verifying an email via magic link earns
+ * the account a verified badge.
  */
 
 export interface CommunityUser {
   id: string;
+  /** The directory resident this account belongs to; null for legacy name-only accounts. */
+  personId?: string | null;
   name: string;
   email: string | null;
   verified: boolean;
@@ -69,22 +71,36 @@ export async function getUser(id: string): Promise<CommunityUser | null> {
   return users.find((user) => user.id === id) ?? null;
 }
 
-export async function createUser(name: string): Promise<{ user: CommunityUser | null; conflict: boolean }> {
-  return mutateUsers<{ user: CommunityUser | null; conflict: boolean }>((users) => {
-    const exists = users.some((user) => user.name.localeCompare(name, undefined, { sensitivity: "base" }) === 0);
-    if (exists) {
-      return { users, result: { user: null, conflict: true } };
+/**
+ * The account for a directory resident, created on first sign-in. A legacy
+ * name-only account with the same name is claimed by the resident, since the
+ * phone number proved who they are.
+ */
+export async function userForPerson(person: { id: string; displayName: string }): Promise<CommunityUser> {
+  return mutateUsers<CommunityUser>((users) => {
+    const linked = users.find((user) => user.personId === person.id);
+    if (linked) {
+      return { users, result: linked };
+    }
+    const sameName = users.findIndex(
+      (user) => !user.personId && user.name.localeCompare(person.displayName, undefined, { sensitivity: "base" }) === 0
+    );
+    if (sameName !== -1) {
+      const next = [...users];
+      next[sameName] = { ...next[sameName], personId: person.id, name: person.displayName };
+      return { users: next, result: next[sameName] };
     }
     const user: CommunityUser = {
       id: randomUUID(),
-      name,
+      personId: person.id,
+      name: person.displayName,
       email: null,
       verified: false,
       verifiedAt: null,
       createdAt: new Date().toISOString(),
       pendingVerification: null,
     };
-    return { users: [...users, user], result: { user, conflict: false } };
+    return { users: [...users, user], result: user };
   });
 }
 
