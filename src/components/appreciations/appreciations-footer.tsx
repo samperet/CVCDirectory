@@ -5,13 +5,12 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Heart, Pause, Play, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { useSession, useVerifiedIds } from "@/lib/auth/client";
+import { useSession } from "@/lib/auth/client";
 import type { Appreciation } from "@/lib/appreciations/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { VerifiedBadge } from "@/components/auth/verified-badge";
 import { cn } from "@/lib/utils";
 
 const ROTATE_MS = 7000;
@@ -20,7 +19,6 @@ export function AppreciationsFooter() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
-  const verifiedIds = useVerifiedIds();
 
   const { data } = useQuery({
     queryKey: ["appreciations"],
@@ -93,10 +91,7 @@ export function AppreciationsFooter() {
               <figure key={current.id} className="animate-in fade-in duration-500 motion-reduce:animate-none">
                 <blockquote className="text-sm text-foreground">&ldquo;{current.message}&rdquo;</blockquote>
                 <figcaption className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted">
-                  <span className="inline-flex items-center gap-1">
-                    — {current.authorName}
-                    {verifiedIds.has(current.authorId) ? <VerifiedBadge className="[&>svg]:h-3.5 [&>svg]:w-3.5" /> : null}
-                  </span>
+                  <span>— {current.authorName}</span>
                   {current.to ? <span>to {current.to}</span> : null}
                 </figcaption>
               </figure>

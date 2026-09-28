@@ -2,11 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Users2, Layers, Share2, Sparkles, MessagesSquare } from "lucide-react";
+import { Users2, Layers, Share2, Sparkles, MessagesSquare, BookUser } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 const cards = [
+  {
+    href: "/directory",
+    title: "Directory",
+    description: "Neighbors' contact details, circles, and carshed allocations.",
+    icon: BookUser,
+  },
   {
     href: "/members",
     title: "Members",

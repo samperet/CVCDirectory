@@ -1,11 +1,10 @@
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 
 /**
  * Community user registry. Every account belongs to a resident in the
  * directory (linked by personId) and is created on that resident's first
- * sign-in with their phone number. Verifying an email via magic link earns
- * the account a verified badge.
+ * sign-in with their phone number.
  */
 
 export interface CommunityUser {
@@ -13,25 +12,15 @@ export interface CommunityUser {
   /** The directory resident this account belongs to; null for legacy name-only accounts. */
   personId?: string | null;
   name: string;
-  email: string | null;
-  verified: boolean;
-  verifiedAt: string | null;
   createdAt: string;
-  pendingVerification: {
-    tokenHash: string;
-    email: string;
-    expiresAt: string;
-  } | null;
 }
 
 export interface PublicUser {
   id: string;
   name: string;
-  verified: boolean;
 }
 
 const USERS_KEY = "auth/users.json";
-const TOKEN_TTL_MS = 30 * 60 * 1000;
 
 function normalizeUsers(raw: unknown): CommunityUser[] {
   const doc = (raw ?? {}) as { users?: unknown };
@@ -56,14 +45,7 @@ async function mutateUsers<T>(mutate: (users: CommunityUser[]) => { users: Commu
 }
 
 export function toPublicUser(user: CommunityUser): PublicUser {
-  return { id: user.id, name: user.name, verified: user.verified };
-}
-
-export async function listUsers(): Promise<PublicUser[]> {
-  const users = await readUsers();
-  return users
-    .map(toPublicUser)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  return { id: user.id, name: user.name };
 }
 
 export async function getUser(id: string): Promise<CommunityUser | null> {
@@ -94,58 +76,8 @@ export async function userForPerson(person: { id: string; displayName: string })
       id: randomUUID(),
       personId: person.id,
       name: person.displayName,
-      email: null,
-      verified: false,
-      verifiedAt: null,
       createdAt: new Date().toISOString(),
-      pendingVerification: null,
     };
     return { users: [...users, user], result: user };
-  });
-}
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-export async function startVerification(userId: string, email: string): Promise<{ token: string } | null> {
-  const token = randomBytes(32).toString("hex");
-  const updated = await mutateUsers((users) => {
-    const index = users.findIndex((user) => user.id === userId);
-    if (index === -1) return { users, result: false };
-    const next = [...users];
-    next[index] = {
-      ...next[index],
-      pendingVerification: {
-        tokenHash: hashToken(token),
-        email,
-        expiresAt: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
-      },
-    };
-    return { users: next, result: true };
-  });
-  return updated ? { token } : null;
-}
-
-export async function verifyToken(token: string): Promise<CommunityUser | null> {
-  const tokenHash = hashToken(token);
-  return mutateUsers<CommunityUser | null>((users) => {
-    const index = users.findIndex((user) => user.pendingVerification?.tokenHash === tokenHash);
-    if (index === -1) return { users, result: null };
-    const pending = users[index].pendingVerification!;
-    if (new Date(pending.expiresAt).getTime() < Date.now()) {
-      const next = [...users];
-      next[index] = { ...next[index], pendingVerification: null };
-      return { users: next, result: null };
-    }
-    const next = [...users];
-    next[index] = {
-      ...next[index],
-      email: pending.email,
-      verified: true,
-      verifiedAt: new Date().toISOString(),
-      pendingVerification: null,
-    };
-    return { users: next, result: next[index] };
   });
 }

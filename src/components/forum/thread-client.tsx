@@ -5,26 +5,20 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { useSession, useVerifiedIds } from "@/lib/auth/client";
+import { useSession } from "@/lib/auth/client";
 import type { ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { VerifiedBadge } from "@/components/auth/verified-badge";
 import { cn } from "@/lib/utils";
 
 /** Past this depth replies stop indenting further, so long chains stay readable on phones. */
 const MAX_INDENT_DEPTH = 5;
 
-function Author({ id, name, verifiedIds }: { id: string; name: string; verifiedIds: Set<string> }) {
-  return (
-    <span className="inline-flex items-center gap-1 font-medium text-foreground">
-      {name}
-      {verifiedIds.has(id) ? <VerifiedBadge className="[&>svg]:h-3.5 [&>svg]:w-3.5" /> : null}
-    </span>
-  );
+function Author({ name }: { name: string }) {
+  return <span className="font-medium text-foreground">{name}</span>;
 }
 
 function ReplyForm({
@@ -106,14 +100,12 @@ function ReplyNode({
   childrenOf,
   depth,
   threadId,
-  verifiedIds,
   parentName,
 }: {
   reply: ForumReply;
   childrenOf: Map<string | null, ForumReply[]>;
   depth: number;
   threadId: string;
-  verifiedIds: Set<string>;
   parentName: string | null;
 }) {
   const [replying, setReplying] = useState(false);
@@ -126,7 +118,7 @@ function ReplyNode({
     <li className={cn(indent && "ml-3 border-l-2 border-border pl-3 md:ml-5 md:pl-4")}>
       <div className="flex flex-col gap-1 py-2">
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-          <Author id={reply.authorId} name={reply.authorName} verifiedIds={verifiedIds} />
+          <Author name={reply.authorName} />
           <time dateTime={reply.createdAt}>{timeAgo(reply.createdAt)}</time>
           {beyondIndent && parentName ? (
             <span className="inline-flex items-center gap-1">
@@ -166,7 +158,6 @@ function ReplyNode({
               childrenOf={childrenOf}
               depth={depth + 1}
               threadId={threadId}
-              verifiedIds={verifiedIds}
               parentName={reply.authorName}
             />
           ))}
@@ -177,7 +168,6 @@ function ReplyNode({
 }
 
 export function ThreadClient({ id }: { id: string }) {
-  const verifiedIds = useVerifiedIds();
   const { data, isLoading, error } = useQuery({
     queryKey: ["forum", "thread", id],
     queryFn: () => apiFetch<ForumThreadDocument>(`/api/forum/threads/${id}`),
@@ -219,7 +209,7 @@ export function ThreadClient({ id }: { id: string }) {
       <Card className="flex flex-col gap-3">
         <h1 className="text-2xl font-semibold text-foreground">{thread.title}</h1>
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-          <Author id={thread.authorId} name={thread.authorName} verifiedIds={verifiedIds} />
+          <Author name={thread.authorName} />
           <time dateTime={thread.createdAt}>{timeAgo(thread.createdAt)}</time>
         </p>
         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p>
@@ -239,7 +229,6 @@ export function ThreadClient({ id }: { id: string }) {
                 childrenOf={childrenOf}
                 depth={0}
                 threadId={thread.id}
-                verifiedIds={verifiedIds}
                 parentName={null}
               />
             ))}

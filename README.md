@@ -40,12 +40,9 @@ Optional (forum, appreciations & community accounts — falls back to a local `.
 - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` – R2 API token credentials (Object Read & Write on the bucket).
 - `R2_BUCKET` – R2 bucket name that holds the JSON documents (`forum/`, `appreciations/`, `auth/`, `directory/`).
 
-Community accounts (name + phone-number sign-in, magic-link verification):
+Community accounts (name + phone-number sign-in):
 
 - `AUTH_SECRET` – Secret used to sign session cookies. **Set this in production**; without it a public fallback secret is used and sessions can be forged.
-- `RESEND_API_KEY` – Resend API key for delivering magic-link verification emails. When unset, the verify link is shown directly in the UI (preview mode) instead of being emailed.
-- `EMAIL_FROM` – From address for verification emails (defaults to Resend's onboarding sender).
-- `APP_URL` – Public base URL used in magic links (defaults to the request origin).
 
 ### Installation
 
@@ -94,7 +91,8 @@ contact details or unit numbers.
 - Five wrong attempts lock that name for 15 minutes. Failures are tracked in the shared store, so
   the limit holds across serverless instances.
 - An account is created on a resident's first sign-in and linked to their directory entry.
-  Verifying an email by magic link adds a verified badge.
+- Signed-out visitors see only the sign-in page: middleware redirects every other page to `/login`
+  (returning afterwards to the page they asked for) and answers 401 for every other API route.
 
 Phone numbers are not secret, so this keeps the barrier low rather than high. Keep `AUTH_SECRET`
 set in production so sessions can't be forged.
@@ -109,8 +107,16 @@ set in production so sessions can't be forged.
   to someone. They rotate through the footer of every page (pausable, and not auto-advancing for
   visitors who prefer reduced motion). Stored in `appreciations/index.json`, newest 500 kept.
 
-Authors always come from the signed-in session, never from the request body, and verified members
-show a badge next to their name.
+Authors always come from the signed-in session, never from the request body.
+
+## Directory & Skills
+
+- **Directory** (`/directory`) – residents grouped by unit with phone, landline, email, and
+  birthday; circles with their seats and open positions; and carshed allocations. Served by
+  `GET /api/directory` to signed-in residents only (the route confirms the account server-side).
+- **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
+  signed-in account. Residents add and remove only their own; the catalog groups skills by
+  category and shows who offers each one. Stored in `skills/index.json`.
 
 ## Storage
 
@@ -127,7 +133,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 `PUT /api/admin/directory` imports residents, circles, and carshed allocations into R2 as one
 document. It requires `Authorization: Bearer $ADMIN_TOKEN` (disabled when `ADMIN_TOKEN` is unset),
 writes to R2 only — never to the ephemeral fallback — and responds with counts only. The directory
-holds residents' contact details, so exports are gitignored and there is no public read route.
+holds residents' contact details, so exports are gitignored and only signed-in residents can read it.
 
 ## Deployment
 

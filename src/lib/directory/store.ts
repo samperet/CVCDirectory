@@ -4,8 +4,8 @@ import { DirectoryDocument, DirectorySummary } from "./types";
 /**
  * The community directory (residents, circles, carsheds) lives as a single
  * JSON document in R2. It holds residents' contact details, so it is only
- * ever written durably — never to the ephemeral local fallback — and there is
- * deliberately no public read route for it.
+ * ever written durably — never to the ephemeral local fallback — and is
+ * readable only by signed-in residents (GET /api/directory).
  */
 const DIRECTORY_KEY = "directory/directory.json";
 

@@ -1,24 +1,19 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { CommunityUser, getUser } from "./users";
+import { SESSION_COOKIE, authSecret } from "./secret";
 
 /**
- * Session cookies are `userId.expiresAtMs.hmac` signed with AUTH_SECRET.
- * Identity here is intentionally lightweight — picking a name signs you in —
- * so the cookie only guards against casual tampering, not determined attack.
- * Set AUTH_SECRET in production so sessions survive across deployments and
- * cannot be forged with the public fallback secret.
+ * Session cookies are `userId.expiresAtMs.hmac` signed with AUTH_SECRET, and
+ * are issued only after a resident signs in with their phone number. Set
+ * AUTH_SECRET in production so sessions cannot be forged with the public
+ * fallback secret. The edge middleware verifies the same format.
  */
 
-const SESSION_COOKIE = "cvc_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 90;
 
-function secret() {
-  return process.env.AUTH_SECRET ?? "cvc-directory-insecure-dev-secret";
-}
-
 function sign(payload: string) {
-  return createHmac("sha256", secret()).update(payload).digest("hex");
+  return createHmac("sha256", authSecret()).update(payload).digest("hex");
 }
 
 export function createSessionValue(userId: string): string {

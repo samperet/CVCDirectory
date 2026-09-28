@@ -15,26 +15,6 @@ export function useSession() {
   return { user: query.data?.user ?? null, isLoading: query.isLoading };
 }
 
-export function useUsers() {
-  const query = useQuery({
-    queryKey: ["auth", "users"],
-    queryFn: () => apiFetch<{ users: PublicUser[] }>("/api/users"),
-    staleTime: 30_000,
-  });
-  return { users: query.data?.users ?? [], isLoading: query.isLoading };
-}
-
-export function useVerifiedNames(): Set<string> {
-  const { users } = useUsers();
-  return new Set(users.filter((user) => user.verified).map((user) => user.name.toLowerCase()));
-}
-
-/** Ids of verified users — for badging authors by account rather than by name. */
-export function useVerifiedIds(): Set<string> {
-  const { users } = useUsers();
-  return new Set(users.filter((user) => user.verified).map((user) => user.id));
-}
-
 function useInvalidateAuth() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ["auth"] });
@@ -72,15 +52,5 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
     onSuccess: invalidate,
-  });
-}
-
-export function useRequestMagicLink() {
-  return useMutation({
-    mutationFn: (email: string) =>
-      apiFetch<{ sent: boolean; previewUrl?: string }>("/api/auth/magic-link", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      }),
   });
 }

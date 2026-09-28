@@ -3,12 +3,10 @@
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { VerifiedBadge } from "@/components/auth/verified-badge";
 
 export interface NameOption {
   id: string;
   name: string;
-  verified?: boolean;
 }
 
 /**
@@ -98,7 +96,6 @@ export function NameCombobox({
           }}
           onKeyDown={onKeyDown}
         />
-        {value?.verified && !open ? <VerifiedBadge /> : null}
         <ChevronDown
           className={cn("h-4 w-4 shrink-0 text-muted transition", open && "rotate-180")}
         />
@@ -121,7 +118,6 @@ export function NameCombobox({
               >
                 <span className="flex items-center gap-1.5 text-foreground">
                   {user.name}
-                  {user.verified ? <VerifiedBadge /> : null}
                 </span>
                 {value?.id === user.id ? <Check className="h-4 w-4 text-primary" /> : null}
               </div>

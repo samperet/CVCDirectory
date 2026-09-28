@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MessageSquare, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { useSession, useVerifiedIds } from "@/lib/auth/client";
+import { useSession } from "@/lib/auth/client";
 import type { ForumThreadDocument, ForumThreadSummary } from "@/lib/forum/store";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { VerifiedBadge } from "@/components/auth/verified-badge";
 
 export function ForumIndexClient() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useSession();
-  const verifiedIds = useVerifiedIds();
   const [composing, setComposing] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -86,10 +84,7 @@ export function ForumIndexClient() {
               <Link href={`/forum/${thread.id}`} className="block rounded-2xl border border-border bg-surface p-4 shadow-soft transition hover:border-primary">
                 <p className="font-semibold text-foreground">{thread.title}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                  <span className="inline-flex items-center gap-1">
-                    {thread.authorName}
-                    {verifiedIds.has(thread.authorId) ? <VerifiedBadge className="[&>svg]:h-3.5 [&>svg]:w-3.5" /> : null}
-                  </span>
+                  <span>{thread.authorName}</span>
                   <span>started {timeAgo(thread.createdAt)}</span>
                   <span className="inline-flex items-center gap-1">
                     <MessageSquare className="h-3.5 w-3.5" />
