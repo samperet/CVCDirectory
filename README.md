@@ -12,7 +12,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The community Google Calendar on the dashboard.
-- 🌀 **Circles** – Sociocratic hierarchy management (still backed by the Postgres schema, which is not yet connected).
+- 🌀 **Circles** – Who serves on each circle and where seats are open, with uploadable circle icons shown as badges in the directory.
 
 ## Getting Started
 
@@ -136,6 +136,15 @@ only) and returns 503 unless writes are actually reaching R2.
 
 To provision R2: create a bucket in the Cloudflare dashboard, generate an R2 API token with
 Object Read & Write scoped to that bucket, and set the four `R2_*` variables in Vercel.
+
+## Circles
+
+`/circles` lists each circle from the imported directory with its members (current names and
+photos), roles, terms, and open seats. Each circle can have an uploaded icon — changeable by that
+circle's members or the Board, so empty circles can get one too — stored as a binary object
+(`circles/icons/<id>`, metadata in `circles/icons.json`) and served only to signed-in residents.
+In the directory, residents show the icons of the circles they serve on as badges, labelled with
+their role.
 
 ## Profiles & Calendar
 

@@ -1,5 +1,6 @@
 import { readJson, writeJsonDurable } from "@/lib/storage";
 import { applyProfile, readProfiles } from "@/lib/profiles/store";
+import { applyCircleIcon, readCircleIcons } from "@/lib/circles/icons";
 import { DirectoryDocument, DirectorySummary } from "./types";
 
 /**
@@ -15,11 +16,15 @@ export async function readImportedDirectory(): Promise<DirectoryDocument | null>
   return (await readJson(DIRECTORY_KEY)) as DirectoryDocument | null;
 }
 
-/** The directory with each resident's own profile edits and photo applied. */
+/** The directory with residents' own profile edits and photos, and circle icons, applied. */
 export async function readDirectory(): Promise<DirectoryDocument | null> {
-  const [doc, profiles] = await Promise.all([readImportedDirectory(), readProfiles()]);
+  const [doc, profiles, icons] = await Promise.all([readImportedDirectory(), readProfiles(), readCircleIcons()]);
   if (!doc) return null;
-  return { ...doc, people: doc.people.map((person) => applyProfile(person, profiles[person.id])) };
+  return {
+    ...doc,
+    people: doc.people.map((person) => applyProfile(person, profiles[person.id])),
+    circles: doc.circles.map((circle) => applyCircleIcon(circle, icons[circle.id])),
+  };
 }
 
 export async function writeDirectory(doc: DirectoryDocument): Promise<void> {

@@ -6,19 +6,43 @@ import { useQuery } from "@tanstack/react-query";
 import { Cake, Car, Home, Mail, Phone, Search, Users2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
+import { CircleIcon } from "@/components/circles/circle-icon";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/profile/avatar";
 import { useSession } from "@/lib/auth/client";
 
-type Tab = "residents" | "circles" | "carsheds";
+type Tab = "residents" | "carsheds";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "residents", label: "Residents" },
-  { id: "circles", label: "Circles" },
   { id: "carsheds", label: "Carsheds" },
 ];
+
+interface Membership {
+  circle: Circle;
+  position: string | null;
+}
+
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** Each circle's icon as a small badge, labelled with the circle and the resident's role in it. */
+function CircleBadges({ memberships }: { memberships: Membership[] }) {
+  if (!memberships.length) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {memberships.map(({ circle, position }) => {
+        const label = `${circle.name} — ${sentence(position ?? "Member")}`;
+        return (
+          <Link key={circle.id} href="/circles" title={label} aria-label={label} className="rounded-lg ring-offset-1 hover:ring-2 hover:ring-primary">
+            <CircleIcon circle={circle} size={22} />
+          </Link>
+        );
+      })}
+    </span>
+  );
+}
 
 function digits(value: string | null) {
   return (value ?? "").replace(/\D/g, "");
@@ -53,13 +77,14 @@ function RoleTag({ person }: { person: Person }) {
   );
 }
 
-function PersonRow({ person, isMe }: { person: Person; isMe: boolean }) {
+function PersonRow({ person, isMe, memberships }: { person: Person; isMe: boolean; memberships: Membership[] }) {
   return (
     <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
       <Avatar name={person.displayName} photoUrl={person.photoUrl} size={40} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-foreground">{person.displayName}</span>
+        <CircleBadges memberships={memberships} />
         <RoleTag person={person} />
         {isMe ? (
           <Link href="/profile" className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline">
@@ -95,9 +120,19 @@ function PersonRow({ person, isMe }: { person: Person; isMe: boolean }) {
   );
 }
 
-function Residents({ people }: { people: Person[] }) {
+function Residents({ people, circles }: { people: Person[]; circles: Circle[] }) {
   const { user } = useSession();
   const [query, setQuery] = useState("");
+  const membershipsOf = useMemo(() => {
+    const map = new Map<string, Membership[]>();
+    for (const circle of circles) {
+      for (const seat of circle.seats) {
+        if (!seat.personId) continue;
+        map.set(seat.personId, [...(map.get(seat.personId) ?? []), { circle, position: seat.position }]);
+      }
+    }
+    return map;
+  }, [circles]);
   const units = useMemo(() => {
     const byUnit = new Map<number, Person[]>();
     for (const person of people.filter((p) => matches(p, query))) {
@@ -129,7 +164,12 @@ function Residents({ people }: { people: Person[] }) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Unit {unit}</h2>
               <ul className="divide-y divide-border">
                 {members.map((person) => (
-                  <PersonRow key={person.id} person={person} isMe={person.id === user?.personId} />
+                  <PersonRow
+                    key={person.id}
+                    person={person}
+                    isMe={person.id === user?.personId}
+                    memberships={membershipsOf.get(person.id) ?? []}
+                  />
                 ))}
               </ul>
             </Card>
@@ -140,57 +180,6 @@ function Residents({ people }: { people: Person[] }) {
           <p className="text-sm text-muted">No residents match &ldquo;{query}&rdquo;.</p>
         </Card>
       )}
-    </div>
-  );
-}
-
-function Circles({ circles, people }: { circles: Circle[]; people: Person[] }) {
-  const byId = new Map(people.map((person) => [person.id, person]));
-  const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {circles.map((circle) => {
-        const filled = circle.seats.filter((seat) => seat.name);
-        const open = circle.seats.length - filled.length;
-        return (
-          <Card key={circle.id} className="flex flex-col gap-3 p-5">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold text-foreground">
-                {circle.name}
-                {circle.name !== circle.code ? <span className="ml-2 text-sm font-normal text-muted">{circle.code}</span> : null}
-              </h2>
-              <span className="text-xs text-muted">
-                {filled.length} of {circle.seats.length} seats filled
-              </span>
-            </div>
-            {filled.length ? (
-              <ul className="flex flex-col gap-2">
-                {filled.map((seat, index) => (
-                  <li key={index} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-                    <span className="text-foreground">
-                      {(seat.personId && byId.get(seat.personId)?.displayName) ?? seat.name}
-                      {seat.personId && byId.has(seat.personId) ? (
-                        <span className="ml-1.5 text-xs text-muted">Unit {byId.get(seat.personId)!.unit}</span>
-                      ) : null}
-                    </span>
-                    <span className="text-xs text-muted">
-                      {sentence(seat.position ?? "Member")}
-                      {seat.termEnds ? ` · term ends ${seat.termEnds}` : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted">No members listed yet.</p>
-            )}
-            {open ? (
-              <p className="rounded-lg bg-accent/60 px-3 py-2 text-xs text-foreground-light">
-                {open} open seat{open === 1 ? "" : "s"} — interested? Reach out to the circle.
-              </p>
-            ) : null}
-          </Card>
-        );
-      })}
     </div>
   );
 }
@@ -252,7 +241,7 @@ export function DirectoryClient() {
         <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
           <Users2 className="h-6 w-6 text-primary" /> Directory
         </h1>
-        <p className="text-sm text-muted">Neighbors, circles, and carshed allocations. For residents only — please keep it private.</p>
+        <p className="text-sm text-muted">Neighbors and carshed allocations, with circle badges. For residents only — please keep it private.</p>
       </div>
 
       <div role="tablist" aria-label="Directory sections" className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1">
@@ -279,9 +268,7 @@ export function DirectoryClient() {
           <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "The directory is unavailable."}</p>
         </Card>
       ) : tab === "residents" ? (
-        <Residents people={data.people} />
-      ) : tab === "circles" ? (
-        <Circles circles={data.circles} people={data.people} />
+        <Residents people={data.people} circles={data.circles} />
       ) : (
         <Carsheds doc={data} />
       )}

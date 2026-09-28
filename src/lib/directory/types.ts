@@ -29,6 +29,8 @@ export interface Circle {
   code: string;
   name: string;
   seats: CircleSeat[];
+  /** Uploaded by the circle; not part of the import. */
+  iconUrl?: string | null;
 }
 
 export interface CarshedSlot {

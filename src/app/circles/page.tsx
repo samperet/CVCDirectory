@@ -9,9 +9,10 @@ export default function CirclesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">Sociocratic Circles</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Circles</h1>
         <p className="text-sm text-foreground/70">
-          Manage circles, membership, and the sociocratic primary and delegate link relationships.
+          Our sociocratic circles, who serves on each, and where seats are open. Circle members and the Board
+          can upload each circle&apos;s icon, which shows as a badge next to members in the directory.
         </p>
       </div>
       <CirclesClient />

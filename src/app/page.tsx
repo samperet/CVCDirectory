@@ -13,13 +13,13 @@ const cards = [
   {
     href: "/directory",
     title: "Directory",
-    description: "Neighbors' contact details, circles, and carshed allocations.",
+    description: "Neighbors' contact details and carshed allocations.",
     icon: BookUser,
   },
   {
     href: "/circles",
     title: "Circles",
-    description: "Sociocratic circles with primary and delegate links.",
+    description: "Who serves on each circle, and where seats are open.",
     icon: Layers,
   },
   {

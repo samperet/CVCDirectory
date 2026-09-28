@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { readBinary } from "@/lib/storage";
 import { isPersonId, photoKey } from "@/lib/profiles/store";
 import { problem } from "@/lib/http";
+import { PRIVATE_IMAGE_HEADERS } from "@/lib/images";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +17,6 @@ export async function GET(_request: Request, { params }: { params: { personId: s
   if (!photo) return problem("Photo not found", 404, "Not Found");
 
   return new NextResponse(photo.bytes as unknown as BodyInit, {
-    headers: {
-      "Content-Type": photo.contentType,
-      "Cache-Control": "private, max-age=86400",
-      "X-Content-Type-Options": "nosniff",
-      "Content-Disposition": "inline",
-    },
+    headers: { "Content-Type": photo.contentType, ...PRIVATE_IMAGE_HEADERS },
   });
 }

@@ -7,33 +7,12 @@ import { apiFetch } from "@/lib/api-client";
 import type { Person } from "@/lib/directory/types";
 import { MONTHS } from "@/lib/profiles/months";
 import { Avatar } from "@/components/profile/avatar";
+import { prepareSquareImage, uploadImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-
-const PHOTO_SIZE = 400;
-
-/** Center-crop to a square and downscale in the browser, so uploads are small and consistent. */
-async function preparePhoto(file: File): Promise<Blob> {
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    throw new Error("That file couldn't be read as an image. Try a JPEG or PNG.");
-  }
-  const side = Math.min(bitmap.width, bitmap.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = Math.min(PHOTO_SIZE, side);
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Your browser couldn't process the image.");
-  context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))), "image/jpeg", 0.85)
-  );
-}
 
 function splitBirthday(value: string | null) {
   const match = value?.match(/^([A-Za-z]+) (\d{1,2})$/);
@@ -104,14 +83,7 @@ export function ProfileClient() {
   });
 
   const upload = useMutation({
-    mutationFn: async (file: File) => {
-      const blob = await preparePhoto(file);
-      const res = await fetch("/api/profiles/me/photo", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
-      if (!res.ok) {
-        const detail = await res.json().then((body) => body?.detail).catch(() => null);
-        throw new Error(detail ?? "Upload failed");
-      }
-    },
+    mutationFn: async (file: File) => uploadImage("/api/profiles/me/photo", await prepareSquareImage(file, 400, "image/jpeg")),
     onSuccess: () => {
       refreshEverywhere();
       toast({ title: "Photo updated" });
