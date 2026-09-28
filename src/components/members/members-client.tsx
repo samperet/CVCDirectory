@@ -181,33 +181,6 @@ export function MembersClient() {
     return Math.max(1, Math.ceil(data.total / PAGE_SIZE));
   }, [data]);
 
-  const handleImport = async (file: File) => {
-    const text = await file.text();
-    const rows = text.split(/\r?\n/).filter(Boolean);
-    const [headerLine, ...entries] = rows;
-    const headers = headerLine.split(",").map((h) => h.trim());
-    const required = ["firstName", "lastName", "lotNumber", "dateJoined", "email", "phone"];
-    if (!required.every((key) => headers.includes(key))) {
-      toast({ title: "Invalid CSV headers", variant: "destructive" });
-      return;
-    }
-    entries.forEach((row) => {
-      const values = row.split(",");
-      const payload: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        payload[header] = values[index];
-      });
-      createMember.mutate({
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        lotNumber: payload.lotNumber,
-        dateJoined: payload.dateJoined,
-        email: payload.email,
-        phone: payload.phone,
-      });
-    });
-  };
-
   const handleExport = () => {
     if (!data) return;
     const csv = [
@@ -263,22 +236,6 @@ export function MembersClient() {
               <option value="dateJoined:asc">Oldest</option>
             </select>
           </label>
-          <input
-            type="file"
-            accept=".csv"
-            className="hidden"
-            id="members-import"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                void handleImport(file);
-                event.target.value = "";
-              }
-            }}
-          />
-          <Button variant="outline" size="sm" onClick={() => document.getElementById("members-import")?.click()}>
-            Import CSV
-          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             Export CSV
           </Button>
