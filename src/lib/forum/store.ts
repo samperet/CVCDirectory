@@ -1,11 +1,15 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
 
 /**
  * Forum threads, one document per thread (the opening post plus every reply,
  * stored flat with parentId links) and an index document for the thread list.
  * Replies nest to any depth; the tree is assembled by the client.
+ *
+ * Authors can edit and delete their own posts. Deleting a reply that others
+ * have answered leaves a placeholder so the conversation below it survives;
+ * placeholders disappear once nothing hangs off them.
  */
 
 export interface ForumReply {
@@ -15,6 +19,8 @@ export interface ForumReply {
   authorName: string;
   body: string;
   createdAt: string;
+  editedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface ForumThread {
@@ -24,6 +30,7 @@ export interface ForumThread {
   authorId: string;
   authorName: string;
   createdAt: string;
+  editedAt?: string | null;
 }
 
 export interface ForumThreadDocument {
@@ -41,15 +48,22 @@ export interface ForumThreadSummary {
   replyCount: number;
 }
 
-export const threadInputSchema = z.object({
-  title: z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer"),
-  body: z.string().trim().min(1, "Write something to start the discussion").max(5000, "Post must be 5000 characters or fewer"),
-});
+const title = z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer");
+const postBody = z.string().trim().min(1, "Write something to start the discussion").max(5000, "Post must be 5000 characters or fewer");
+const replyBody = z.string().trim().min(1, "Reply cannot be empty").max(3000, "Reply must be 3000 characters or fewer");
+
+export const threadInputSchema = z.object({ title, body: postBody });
+
+export const threadUpdateSchema = z
+  .object({ title: title.optional(), body: postBody.optional() })
+  .refine((value) => value.title !== undefined || value.body !== undefined, "Nothing to update");
 
 export const replyInputSchema = z.object({
   parentId: z.string().uuid().nullable().optional().transform((value) => value ?? null),
-  body: z.string().trim().min(1, "Reply cannot be empty").max(3000, "Reply must be 3000 characters or fewer"),
+  body: replyBody,
 });
+
+export const replyUpdateSchema = z.object({ body: replyBody });
 
 const INDEX_KEY = "forum/index.json";
 const MAX_REPLIES = 1000;
@@ -70,6 +84,8 @@ function normalizeIndex(raw: unknown): ForumThreadSummary[] {
   return Array.isArray(threads) ? (threads as ForumThreadSummary[]) : [];
 }
 
+const live = (replies: ForumReply[]) => replies.filter((reply) => !reply.deletedAt);
+
 /** Most recently active first. */
 export async function listThreads(): Promise<ForumThreadSummary[]> {
   const threads = normalizeIndex(await readJson(INDEX_KEY));
@@ -89,6 +105,19 @@ async function updateIndex(update: (threads: ForumThreadSummary[]) => ForumThrea
   });
 }
 
+/** Refresh a thread's list entry (title, reply count, last activity) from its document. */
+async function syncSummary(doc: ForumThreadDocument) {
+  const replies = live(doc.replies);
+  const lastActivityAt = replies.length ? replies[replies.length - 1].createdAt : doc.thread.createdAt;
+  await updateIndex((threads) =>
+    threads.map((summary) =>
+      summary.id === doc.thread.id
+        ? { ...summary, title: doc.thread.title, replyCount: replies.length, lastActivityAt }
+        : summary
+    )
+  );
+}
+
 export async function createThread(
   author: { id: string; name: string },
   input: { title: string; body: string }
@@ -106,38 +135,39 @@ export async function createThread(
   await enqueue(threadKey(thread.id), () => writeJson(threadKey(thread.id), doc));
   await updateIndex((threads) => [
     ...threads,
-    {
-      id: thread.id,
-      title: thread.title,
-      authorId: author.id,
-      authorName: author.name,
-      createdAt: now,
-      lastActivityAt: now,
-      replyCount: 0,
-    },
+    { id: thread.id, title: thread.title, authorId: author.id, authorName: author.name, createdAt: now, lastActivityAt: now, replyCount: 0 },
   ]);
   return doc;
 }
 
-export type AddReplyResult =
-  | { ok: true; doc: ForumThreadDocument }
-  | { ok: false; reason: "not_found" | "unknown_parent" | "full" };
+type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies";
+export type ThreadResult = { ok: true; doc: ForumThreadDocument } | { ok: false; reason: Failure };
 
-export async function addReply(
+/**
+ * Apply a change to one thread under its write queue, then refresh the
+ * thread's list entry. The change returns the updated document or a failure.
+ */
+async function mutateThread(
   threadId: string,
-  author: { id: string; name: string },
-  input: { parentId: string | null; body: string }
-): Promise<AddReplyResult> {
+  change: (doc: ForumThreadDocument) => ForumThreadDocument | Failure
+): Promise<ThreadResult> {
   if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
-
-  const result = await enqueue<AddReplyResult>(threadKey(threadId), async () => {
+  const result = await enqueue<ThreadResult>(threadKey(threadId), async () => {
     const doc = await getThread(threadId);
     if (!doc) return { ok: false, reason: "not_found" };
-    if (input.parentId && !doc.replies.some((reply) => reply.id === input.parentId)) {
-      return { ok: false, reason: "unknown_parent" };
-    }
-    if (doc.replies.length >= MAX_REPLIES) return { ok: false, reason: "full" };
+    const next = change(doc);
+    if (typeof next === "string") return { ok: false, reason: next };
+    await writeJson(threadKey(threadId), next);
+    return { ok: true, doc: next };
+  });
+  if (result.ok) await syncSummary(result.doc);
+  return result;
+}
 
+export function addReply(threadId: string, author: { id: string; name: string }, input: { parentId: string | null; body: string }) {
+  return mutateThread(threadId, (doc) => {
+    if (input.parentId && !live(doc.replies).some((reply) => reply.id === input.parentId)) return "unknown_parent";
+    if (doc.replies.length >= MAX_REPLIES) return "full";
     const reply: ForumReply = {
       id: randomUUID(),
       parentId: input.parentId,
@@ -146,19 +176,66 @@ export async function addReply(
       body: input.body,
       createdAt: new Date().toISOString(),
     };
-    const updated = { ...doc, replies: [...doc.replies, reply] };
-    await writeJson(threadKey(threadId), updated);
-    return { ok: true, doc: updated };
+    return { ...doc, replies: [...doc.replies, reply] };
   });
+}
 
-  if (result.ok) {
-    const { doc } = result;
-    const lastActivityAt = doc.replies[doc.replies.length - 1].createdAt;
-    await updateIndex((threads) =>
-      threads.map((summary) =>
-        summary.id === threadId ? { ...summary, lastActivityAt, replyCount: doc.replies.length } : summary
-      )
+export function editReply(threadId: string, userId: string, replyId: string, body: string) {
+  return mutateThread(threadId, (doc) => {
+    const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
+    if (!reply) return "not_found";
+    if (reply.authorId !== userId) return "forbidden";
+    return {
+      ...doc,
+      replies: doc.replies.map((entry) =>
+        entry.id === replyId ? { ...entry, body, editedAt: new Date().toISOString() } : entry
+      ),
+    };
+  });
+}
+
+/**
+ * Remove your own reply. If others answered it, keep a placeholder so their
+ * replies stay attached; then drop any placeholders left with no replies.
+ */
+export function deleteReply(threadId: string, userId: string, replyId: string) {
+  return mutateThread(threadId, (doc) => {
+    const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
+    if (!reply) return "not_found";
+    if (reply.authorId !== userId) return "forbidden";
+
+    let replies = doc.replies.map((entry) =>
+      entry.id === replyId ? { ...entry, body: "", deletedAt: new Date().toISOString() } : entry
     );
-  }
+    // Prune placeholders with nothing beneath them, walking up the chain.
+    for (;;) {
+      const parents = new Set(replies.map((entry) => entry.parentId));
+      const pruned = replies.filter((entry) => !entry.deletedAt || parents.has(entry.id));
+      if (pruned.length === replies.length) break;
+      replies = pruned;
+    }
+    return { ...doc, replies };
+  });
+}
+
+export function editThread(threadId: string, userId: string, update: { title?: string; body?: string }) {
+  return mutateThread(threadId, (doc) => {
+    if (doc.thread.authorId !== userId) return "forbidden";
+    return { ...doc, thread: { ...doc.thread, ...update, editedAt: new Date().toISOString() } };
+  });
+}
+
+/** Delete your own discussion — only while nobody else has replied, so their comments are never lost. */
+export async function deleteThread(threadId: string, userId: string): Promise<{ ok: true } | { ok: false; reason: Failure }> {
+  if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
+  const result = await enqueue<{ ok: true } | { ok: false; reason: Failure }>(threadKey(threadId), async () => {
+    const doc = await getThread(threadId);
+    if (!doc) return { ok: false, reason: "not_found" };
+    if (doc.thread.authorId !== userId) return { ok: false, reason: "forbidden" };
+    if (live(doc.replies).some((reply) => reply.authorId !== userId)) return { ok: false, reason: "has_replies" };
+    await deleteJson(threadKey(threadId));
+    return { ok: true };
+  });
+  if (result.ok) await updateIndex((threads) => threads.filter((summary) => summary.id !== threadId));
   return result;
 }

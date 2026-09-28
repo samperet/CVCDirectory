@@ -102,7 +102,9 @@ signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SE
 
 - **Forum** (`/forum`) – signed-in members start discussions and reply to any post; replies nest
   to any depth (indentation stops at five levels so long chains stay readable on phones) and any
-  branch can be collapsed. Each thread is one JSON document (`forum/threads/<id>.json`) with
+  branch can be collapsed. Authors can edit and delete their own posts; deleting a reply that
+  others answered leaves a placeholder so the conversation below survives, and a discussion can be
+  deleted by its author only while no one else has replied. Each thread is one JSON document (`forum/threads/<id>.json`) with
   replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
   to someone. They rotate through the footer of every page (pausable, and not auto-advancing for

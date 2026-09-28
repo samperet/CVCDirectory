@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
@@ -10,6 +11,7 @@ import type { ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
@@ -17,8 +19,40 @@ import { cn } from "@/lib/utils";
 /** Past this depth replies stop indenting further, so long chains stay readable on phones. */
 const MAX_INDENT_DEPTH = 5;
 
-function Author({ name }: { name: string }) {
-  return <span className="font-medium text-foreground">{name}</span>;
+/** Mutations that return the updated thread write it straight into the cache. */
+function useThreadMutation<T>(threadId: string, request: (input: T) => Promise<ForumThreadDocument>, errorTitle: string) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: request,
+    onSuccess: (doc) => {
+      queryClient.setQueryData(["forum", "thread", threadId], doc);
+      queryClient.invalidateQueries({ queryKey: ["forum", "threads"] });
+    },
+    onError: (error: Error) => toast({ title: errorTitle, description: error.message, variant: "destructive" }),
+  });
+}
+
+function Byline({ name, createdAt, editedAt }: { name: string; createdAt: string; editedAt?: string | null }) {
+  return (
+    <>
+      <span className="font-medium text-foreground">{name}</span>
+      <time dateTime={createdAt}>{timeAgo(createdAt)}</time>
+      {editedAt ? <span title={`Edited ${new Date(editedAt).toLocaleString()}`}>(edited)</span> : null}
+    </>
+  );
+}
+
+function ActionLink({ onClick, children, danger }: { onClick: () => void; children: React.ReactNode; danger?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn("font-medium hover:underline", danger ? "text-muted hover:text-destructive" : "text-secondary-foreground")}
+    >
+      {children}
+    </button>
+  );
 }
 
 function ReplyForm({
@@ -32,44 +66,29 @@ function ReplyForm({
   onDone?: () => void;
   autoFocus?: boolean;
 }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user } = useSession();
   const [body, setBody] = useState("");
-
-  const reply = useMutation({
-    mutationFn: () =>
+  const reply = useThreadMutation(
+    threadId,
+    () =>
       apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies`, {
         method: "POST",
         body: JSON.stringify({ parentId, body }),
       }),
-    onSuccess: (doc) => {
-      queryClient.setQueryData(["forum", "thread", threadId], doc);
-      queryClient.invalidateQueries({ queryKey: ["forum", "threads"] });
-      setBody("");
-      onDone?.();
-    },
-    onError: (error: Error) =>
-      toast({ title: "Could not post reply", description: error.message, variant: "destructive" }),
-  });
-
-  if (!user) {
-    return (
-      <p className="text-sm text-muted">
-        <Link href="/login" className="font-medium text-secondary-foreground underline underline-offset-4">
-          Sign in
-        </Link>{" "}
-        to reply.
-      </p>
-    );
-  }
+    "Could not post reply"
+  );
 
   return (
     <form
       className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        if (body.trim()) reply.mutate();
+        if (body.trim())
+          reply.mutate(undefined, {
+            onSuccess: () => {
+              setBody("");
+              onDone?.();
+            },
+          });
       }}
     >
       <Textarea
@@ -95,42 +114,105 @@ function ReplyForm({
   );
 }
 
+function EditReplyForm({ threadId, reply, onDone }: { threadId: string; reply: ForumReply; onDone: () => void }) {
+  const [body, setBody] = useState(reply.body);
+  const save = useThreadMutation(
+    threadId,
+    () =>
+      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies/${reply.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ body }),
+      }),
+    "Could not save changes"
+  );
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (body.trim()) save.mutate(undefined, { onSuccess: onDone });
+      }}
+    >
+      <Textarea rows={3} value={body} maxLength={3000} autoFocus onChange={(event) => setBody(event.target.value)} className="bg-white" />
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={save.isPending || !body.trim() || body.trim() === reply.body}>
+          {save.isPending ? "Saving…" : "Save"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function ReplyNode({
   reply,
   childrenOf,
   depth,
   threadId,
   parentName,
+  currentUserId,
 }: {
   reply: ForumReply;
   childrenOf: Map<string | null, ForumReply[]>;
   depth: number;
   threadId: string;
   parentName: string | null;
+  currentUserId: string | null;
 }) {
-  const [replying, setReplying] = useState(false);
+  const [mode, setMode] = useState<"view" | "reply" | "edit">("view");
   const [collapsed, setCollapsed] = useState(false);
   const children = childrenOf.get(reply.id) ?? [];
   const indent = depth > 0 && depth <= MAX_INDENT_DEPTH;
   const beyondIndent = depth > MAX_INDENT_DEPTH;
+  const mine = currentUserId !== null && reply.authorId === currentUserId;
+
+  const remove = useThreadMutation(
+    threadId,
+    () => apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies/${reply.id}`, { method: "DELETE" }),
+    "Could not delete comment"
+  );
 
   return (
     <li className={cn(indent && "ml-3 border-l-2 border-border pl-3 md:ml-5 md:pl-4")}>
       <div className="flex flex-col gap-1 py-2">
-        <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-          <Author name={reply.authorName} />
-          <time dateTime={reply.createdAt}>{timeAgo(reply.createdAt)}</time>
-          {beyondIndent && parentName ? (
-            <span className="inline-flex items-center gap-1">
-              <CornerDownRight className="h-3 w-3" /> replying to {parentName}
-            </span>
+        {reply.deletedAt ? (
+          <p className="text-sm italic text-muted">This comment was deleted.</p>
+        ) : (
+          <>
+            <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+              <Byline name={reply.authorName} createdAt={reply.createdAt} editedAt={reply.editedAt} />
+              {beyondIndent && parentName ? (
+                <span className="inline-flex items-center gap-1">
+                  <CornerDownRight className="h-3 w-3" /> replying to {parentName}
+                </span>
+              ) : null}
+            </p>
+            {mode === "edit" ? (
+              <EditReplyForm threadId={threadId} reply={reply} onDone={() => setMode("view")} />
+            ) : (
+              <p className="whitespace-pre-wrap break-words text-sm text-foreground">{reply.body}</p>
+            )}
+          </>
+        )}
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {!reply.deletedAt && mode !== "edit" ? (
+            <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>Reply</ActionLink>
           ) : null}
-        </p>
-        <p className="whitespace-pre-wrap break-words text-sm text-foreground">{reply.body}</p>
-        <div className="flex items-center gap-3 text-xs">
-          <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setReplying((v) => !v)}>
-            Reply
-          </button>
+          {mine && !reply.deletedAt && mode === "view" ? (
+            <>
+              <ActionLink onClick={() => setMode("edit")}>Edit</ActionLink>
+              <ActionLink
+                danger
+                onClick={() => {
+                  if (window.confirm("Delete this comment?")) remove.mutate(undefined);
+                }}
+              >
+                {remove.isPending ? "Deleting…" : "Delete"}
+              </ActionLink>
+            </>
+          ) : null}
           {children.length ? (
             <button
               type="button"
@@ -143,9 +225,9 @@ function ReplyNode({
             </button>
           ) : null}
         </div>
-        {replying ? (
+        {mode === "reply" ? (
           <div className="mt-1">
-            <ReplyForm threadId={threadId} parentId={reply.id} autoFocus onDone={() => setReplying(false)} />
+            <ReplyForm threadId={threadId} parentId={reply.id} autoFocus onDone={() => setMode("view")} />
           </div>
         ) : null}
       </div>
@@ -158,7 +240,8 @@ function ReplyNode({
               childrenOf={childrenOf}
               depth={depth + 1}
               threadId={threadId}
-              parentName={reply.authorName}
+              parentName={reply.deletedAt ? null : reply.authorName}
+              currentUserId={currentUserId}
             />
           ))}
         </ul>
@@ -167,7 +250,90 @@ function ReplyNode({
   );
 }
 
+function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; currentUserId: string | null }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { thread } = doc;
+  const mine = currentUserId !== null && thread.authorId === currentUserId;
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(thread.title);
+  const [body, setBody] = useState(thread.body);
+
+  const save = useThreadMutation(
+    thread.id,
+    () =>
+      apiFetch<ForumThreadDocument>(`/api/forum/threads/${thread.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title, body }),
+      }),
+    "Could not save changes"
+  );
+  const remove = useMutation({
+    mutationFn: () => apiFetch(`/api/forum/threads/${thread.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["forum", "threads"] });
+      toast({ title: "Discussion deleted" });
+      router.replace("/forum");
+    },
+    onError: (error: Error) => toast({ title: "Could not delete discussion", description: error.message, variant: "destructive" }),
+  });
+
+  if (editing) {
+    return (
+      <Card className="flex flex-col gap-3">
+        <Input value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} className="bg-white text-lg font-semibold" aria-label="Title" />
+        <Textarea rows={6} value={body} maxLength={5000} onChange={(event) => setBody(event.target.value)} className="bg-white" aria-label="Post" />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            disabled={save.isPending || title.trim().length < 3 || !body.trim()}
+            onClick={() => save.mutate(undefined, { onSuccess: () => setEditing(false) })}
+          >
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setTitle(thread.title);
+              setBody(thread.body);
+              setEditing(false);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <h1 className="text-2xl font-semibold text-foreground">{thread.title}</h1>
+      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+        <Byline name={thread.authorName} createdAt={thread.createdAt} editedAt={thread.editedAt} />
+      </p>
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p>
+      {mine ? (
+        <div className="flex gap-3 text-xs">
+          <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
+          <ActionLink
+            danger
+            onClick={() => {
+              if (window.confirm("Delete this discussion?")) remove.mutate();
+            }}
+          >
+            {remove.isPending ? "Deleting…" : "Delete discussion"}
+          </ActionLink>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 export function ThreadClient({ id }: { id: string }) {
+  const { user } = useSession();
   const { data, isLoading, error } = useQuery({
     queryKey: ["forum", "thread", id],
     queryFn: () => apiFetch<ForumThreadDocument>(`/api/forum/threads/${id}`),
@@ -197,8 +363,8 @@ export function ThreadClient({ id }: { id: string }) {
     );
   }
 
-  const { thread, replies } = data;
   const topLevel = childrenOf.get(null) ?? [];
+  const count = data.replies.filter((reply) => !reply.deletedAt).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -206,20 +372,12 @@ export function ThreadClient({ id }: { id: string }) {
         <ArrowLeft className="h-4 w-4" /> All discussions
       </Link>
 
-      <Card className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold text-foreground">{thread.title}</h1>
-        <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-          <Author name={thread.authorName} />
-          <time dateTime={thread.createdAt}>{timeAgo(thread.createdAt)}</time>
-        </p>
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p>
-      </Card>
+      <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />
 
       <Card className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-foreground">
-          {replies.length} {replies.length === 1 ? "reply" : "replies"}
+          {count} {count === 1 ? "reply" : "replies"}
         </h2>
-        <ReplyForm threadId={thread.id} parentId={null} />
         {topLevel.length ? (
           <ul className="divide-y divide-border">
             {topLevel.map((reply) => (
@@ -228,12 +386,18 @@ export function ThreadClient({ id }: { id: string }) {
                 reply={reply}
                 childrenOf={childrenOf}
                 depth={0}
-                threadId={thread.id}
+                threadId={data.thread.id}
                 parentName={null}
+                currentUserId={user?.id ?? null}
               />
             ))}
           </ul>
-        ) : null}
+        ) : (
+          <p className="text-sm text-muted">No replies yet. Start the conversation below.</p>
+        )}
+        <div className="border-t border-border pt-4">
+          <ReplyForm threadId={data.thread.id} parentId={null} />
+        </div>
       </Card>
     </div>
   );

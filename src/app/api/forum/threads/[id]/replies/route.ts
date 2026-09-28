@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { addReply, replyInputSchema } from "@/lib/forum/store";
+import { forumProblem } from "@/lib/forum/http";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -22,10 +23,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   const result = await addReply(params.id, { id: user.id, name: user.name }, parsed.data);
-  if (!result.ok) {
-    if (result.reason === "not_found") return problem("Discussion not found", 404, "Not Found");
-    if (result.reason === "unknown_parent") return problem("The reply you're responding to no longer exists");
-    return problem("This discussion has reached its reply limit", 409, "Conflict");
-  }
+  if (!result.ok) return forumProblem(result.reason);
   return NextResponse.json(result.doc, { status: 201 });
 }

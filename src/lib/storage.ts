@@ -298,6 +298,25 @@ export async function writeJson(key: string, value: unknown): Promise<void> {
   }
 }
 
+async function deleteFromR2(key: string): Promise<void> {
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
+}
+
+/** Delete a document. Missing documents are not an error. */
+export async function deleteJson(key: string): Promise<void> {
+  if (isPersistent()) {
+    try {
+      return await deleteFromR2(key);
+    } catch (error) {
+      noteDegraded("delete", error);
+    }
+  }
+  await fs.rm(localFilePath(key), { force: true });
+}
+
 /**
  * Write to R2 or fail. Unlike writeJson, this never degrades to the local
  * file store: for imports and other writes that must not silently land in
