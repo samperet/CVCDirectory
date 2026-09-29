@@ -54,9 +54,9 @@ const cards = [
 ];
 
 export const metadata = {
-  title: "Champlain Valley Cohousing · Charlotte, Vermont",
+  title: "CVC · Charlotte, Vermont",
   description:
-    "A self-managed, participatory cohousing community in Charlotte, Vermont, stewarding 115 acres of conserved farmland and wildlife habitat.",
+    "Do you seek community? CVC: energy-efficient homes clustered around a central green on 125 acres of farmland, woods, and ponds in Charlotte, Vermont.",
 };
 
 /** The public front page for visitors; the dashboard for signed-in residents. */
@@ -66,7 +66,7 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">Community Village Cooperative</h1>
+        <h1 className="text-2xl font-semibold text-foreground">CVC</h1>
         <p className="text-sm text-foreground/70">
           A shared directory for residents, sociocratic circles, neighborhood skills, and our growing
           loan library.

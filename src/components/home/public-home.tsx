@@ -1,28 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Leaf, LogIn, Mail, MapPin, Mountain, Sprout, Trees, Users } from "lucide-react";
+import { ArrowDown, Home, LogIn, Mail, MapPin, Sun, Trees } from "lucide-react";
 
 /**
- * The public front page for Champlain Valley Cohousing, shown at "/" to
- * visitors who aren't signed in (residents see their dashboard there). It
- * describes the community for prospective neighbors and links residents to
- * sign in. Everything here is public: no resident names or contact details.
+ * The public front page for CVC, shown at "/" to
+ * visitors who aren't signed in (residents see their dashboard there). The
+ * text is the community's own, from its original website. Everything here is
+ * public: no resident names or contact details.
  */
 
 const CONTACT_EMAIL = "champlainvalleycohousinginfo@gmail.com";
 
 const sections = [
-  { href: "#about", label: "About" },
+  { href: "#about", label: "About us" },
   { href: "#land", label: "Our land" },
-  { href: "#life", label: "Community life" },
-  { href: "#visit", label: "Visit" },
+  { href: "#homes", label: "Our homes" },
+  { href: "#sustainability", label: "Sustainability" },
 ];
 
 const facts = [
-  { icon: Trees, value: "115 acres", label: "of conserved farmland and wildlife habitat" },
-  { icon: Leaf, value: "Since 2006", label: "living together, after planning began in 2000" },
-  { icon: MapPin, value: "Charlotte, VT", label: "about 14 miles from Burlington" },
-  { icon: Users, value: "Sociocracy", label: "self-governed through the work of circles" },
+  { icon: Trees, value: "125 acres", label: "of farmland, wetlands, meadows, brooks, woods, and ponds" },
+  { icon: Trees, value: "115 acres", label: "preserved forever for wildlife corridors and farming" },
+  { icon: MapPin, value: "14 miles", label: "from Burlington; Lake Champlain is four miles away" },
+  { icon: Sun, value: "Over 50%", label: "of our homes have some form of solar energy" },
 ];
 
 /** `compact`: just "Sign in" on phones, so the header keeps room for the community's name. */
@@ -45,6 +45,32 @@ function SignInButton({ className = "", compact = false }: { className?: string;
   );
 }
 
+function Section({
+  id,
+  icon: Icon,
+  title,
+  children,
+  tinted = false,
+}: {
+  id: string;
+  icon: typeof Trees;
+  title: string;
+  children: React.ReactNode;
+  tinted?: boolean;
+}) {
+  return (
+    <section id={id} className={`scroll-mt-20 ${tinted ? "bg-accent/60" : ""}`}>
+      <div className="mx-auto flex max-w-6xl gap-5 px-4 py-12 md:px-6 md:py-14">
+        <Icon className="mt-1 hidden h-8 w-8 shrink-0 text-primary sm:block" aria-hidden />
+        <div className="flex max-w-3xl flex-col gap-3">
+          <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+          <p className="text-lg leading-relaxed text-foreground-light">{children}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function PublicHome() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -52,9 +78,9 @@ export function PublicHome() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-foreground">
             <Image src="/CVC.png" alt="" width={36} height={36} priority className="h-9 w-9 shrink-0" />
-            <span className="text-sm font-semibold leading-tight sm:text-lg">Champlain Valley Cohousing</span>
+            <span className="text-lg font-semibold">CVC</span>
           </Link>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Sections">
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Sections">
             {sections.map((section) => (
               <a
                 key={section.href}
@@ -73,21 +99,20 @@ export function PublicHome() {
         {/* Hero */}
         <section className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pb-10 pt-12 md:px-6 md:pt-16">
           <div className="flex max-w-3xl flex-col gap-4">
-            <p className="text-sm font-semibold uppercase tracking-wider text-muted">Charlotte, Vermont</p>
-            <h1 className="text-4xl font-bold leading-tight text-foreground md:text-5xl">
-              A cohousing community on 115 acres of Vermont farmland
-            </h1>
-            <p className="text-lg text-foreground-light">
-              We are a self-managed, participatory cohousing community living in a cluster of energy-efficient,
-              privately-owned homes, collectively enjoying, learning from, and stewarding 115 acres of conserved
-              farmland and wildlife habitat.
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted">CVC · Charlotte, Vermont</p>
+            <h1 className="text-4xl font-bold leading-tight text-foreground md:text-5xl">Do you seek community?</h1>
+            <p className="text-lg leading-relaxed text-foreground-light">
+              As a community, we are dedicated to knowing each other in a meaningful way. We help each other with
+              childcare, meals, and all sorts of projects. Our energy-efficient homes are clustered around a central
+              green, enabling little ones to enjoy safe independence and allowing all neighbors to enjoy spontaneous and
+              meaningful social interaction.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <a
-                href="#visit"
+                href="#about"
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground shadow-soft transition hover:bg-accent"
               >
-                Visit us <ArrowRight className="h-4 w-4" aria-hidden />
+                More about us <ArrowDown className="h-4 w-4" aria-hidden />
               </a>
               <SignInButton />
             </div>
@@ -95,7 +120,7 @@ export function PublicHome() {
           <div className="overflow-hidden rounded-2xl border border-border shadow-elev">
             <Image
               src="/home/neighborhood.jpg"
-              alt="Champlain Valley Cohousing's homes — red, green, blue, and yellow farmhouse-style houses with solar panels — across a green meadow in spring"
+              alt="CVC's homes — red, green, blue, and yellow farmhouse-style houses with solar panels — across a green meadow in spring"
               width={900}
               height={200}
               priority
@@ -106,7 +131,7 @@ export function PublicHome() {
         </section>
 
         {/* Facts */}
-        <section id="about" className="scroll-mt-20 border-y border-border bg-surface">
+        <section className="border-y border-border bg-surface">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-10 sm:grid-cols-2 md:px-6 lg:grid-cols-4">
             {facts.map((fact) => (
               <div key={fact.value} className="flex items-start gap-3">
@@ -120,80 +145,36 @@ export function PublicHome() {
           </div>
         </section>
 
-        {/* About / homes */}
-        <section className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-2 md:px-6">
-          <div className="flex flex-col gap-3">
-            <h2 className="text-2xl font-semibold text-foreground">Our homes</h2>
-            <p className="text-foreground-light">
-              Our community lies in the charming rural village of Charlotte, Vermont. Our energy-efficient,
-              privately-owned homes — single-family houses and townhomes — are clustered around a common green with a
-              playground and a yurt, our common gathering space.
-            </p>
-            <p className="text-foreground-light">
-              Clustering our homes leaves the rest of the land open: fields, woods, and wetlands that we care for
-              together.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-2xl font-semibold text-foreground">How we govern ourselves</h2>
-            <p className="text-foreground-light">
-              We govern ourselves through the principles of Sociocracy (also called Dynamic Governance), carried out
-              through the work of circles. Every household takes part in the decisions that shape our shared life and
-              land.
-            </p>
-          </div>
-        </section>
+        <Section id="about" icon={MapPin} title="Where we are">
+          Our land lies in the charming rural village of Charlotte, Vermont. We are 14 miles from the vibrant city of
+          Burlington, which has a lively downtown pedestrian mall, several small colleges, the University of Vermont, a
+          regional teaching hospital, and an international airport. Gorgeous Lake Champlain is just four miles away.
+        </Section>
 
-        {/* Land */}
-        <section id="land" className="scroll-mt-20 bg-accent/60">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-14 md:px-6">
-            <div className="flex max-w-3xl flex-col gap-3">
-              <h2 className="text-2xl font-semibold text-foreground">Our land</h2>
-              <p className="text-foreground-light">
-                We share 115 acres of rolling farmland, wetlands, meadows, brooks, woods, hiking paths, and ponds. You can
-                cross-country ski right out the back door, and hiking Mt. Philo or swimming in Lake Champlain are easy
-                bike rides away — Charlotte beach is just four miles from home.
-              </p>
-            </div>
-            <ul className="grid gap-4 sm:grid-cols-3">
-              {[
-                { icon: Sprout, title: "Farmland & gardens", text: "Conserved fields and shared gardens we tend together." },
-                { icon: Trees, title: "Woods & wetlands", text: "Wildlife habitat, brooks, and hiking paths across the property." },
-                { icon: Mountain, title: "Mt. Philo & the lake", text: "Hiking, beaches, and Lake Champlain a short ride away." },
-              ].map((item) => (
-                <li key={item.title} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-5 shadow-soft">
-                  <item.icon className="h-6 w-6 text-primary" aria-hidden />
-                  <p className="font-semibold text-foreground">{item.title}</p>
-                  <p className="text-sm text-foreground-light">{item.text}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+        <Section id="land" icon={Trees} title="Our land" tinted>
+          Our land consists of 125 acres of rolling farmland, wetlands, meadows, brooks, woods, hiking paths, and ponds.
+          Some 115 acres are preserved forever for wildlife corridors and farming. Surrounded by distant views of Buck
+          Mountain, Mt Philo, and a glimpse of the Adirondack peaks, we are a rural, pedestrian-centered community.
+        </Section>
 
-        {/* Community life */}
-        <section id="life" className="mx-auto flex max-w-6xl scroll-mt-20 flex-col gap-3 px-4 py-14 md:px-6">
-          <h2 className="text-2xl font-semibold text-foreground">Community life</h2>
-          <p className="max-w-3xl text-foreground-light">
-            We enjoy potluck dinners together, work side by side keeping our community beautiful, and help each other
-            with childcare, meals, and all sorts of projects. Neighbors of every age — families with children, retirees,
-            and everyone in between — make Champlain Valley Cohousing home.
-          </p>
-          <p className="max-w-3xl text-foreground-light">
-            Burlington, with its lively downtown, colleges, the University of Vermont, a regional hospital, and an
-            international airport, is about 14 miles away.
-          </p>
-        </section>
+        <Section id="homes" icon={Home} title="Our homes">
+          We privately own our own modest, energy efficient homes, which are nestled around an extensive central green.
+          We share the trails, organic community garden, and yurt. We enjoy monthly potluck dinners, work together on
+          keeping our community beautiful, and have lots of fun.
+        </Section>
 
-        {/* Visit */}
-        <section id="visit" className="scroll-mt-20 border-t border-border bg-surface">
+        <Section id="sustainability" icon={Sun} title="Living sustainably" tinted>
+          We are committed to living in a thoughtful way that promotes environmental sustainability and healthy community
+          relationships. More than 50% of our homes have some form of solar energy. While most of us own cars, we carpool
+          often and park on the periphery of our neighborhood, making it safe for little ones and pedestrian-centric.
+        </Section>
+
+        {/* Contact */}
+        <section id="contact" className="scroll-mt-20 border-t border-border bg-surface">
           <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-14 md:flex-row md:items-center md:justify-between md:px-6">
             <div className="flex max-w-2xl flex-col gap-2">
-              <h2 className="text-2xl font-semibold text-foreground">Interested in visiting?</h2>
-              <p className="text-foreground-light">
-                We welcome visitors who&apos;d like to learn about cohousing or our community. Send us a note and we&apos;ll
-                be in touch.
-              </p>
+              <h2 className="text-2xl font-semibold text-foreground">Get in touch</h2>
+              <p className="text-foreground-light">Curious about cohousing or our community? We&apos;d love to hear from you.</p>
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
                 className="mt-1 inline-flex w-fit items-center gap-2 break-all font-medium text-secondary-foreground underline decoration-border underline-offset-4 hover:decoration-current"
@@ -212,7 +193,7 @@ export function PublicHome() {
 
       <footer className="border-t border-border bg-background">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted sm:flex-row sm:items-center sm:justify-between md:px-6">
-          <p>© {new Date().getFullYear()} Champlain Valley Cohousing · Charlotte, Vermont 05445</p>
+          <p>© {new Date().getFullYear()} CVC · Charlotte, Vermont 05445</p>
           <div className="flex gap-4">
             <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground">
               Contact

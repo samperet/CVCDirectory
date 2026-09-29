@@ -5,7 +5,7 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * The Champlain Valley Cohousing mark. Clicking it spins the wreath, an
+ * The CVC mark. Clicking it spins the wreath, an
  * easter egg carried over from the CVC Folks directory. The sign-in page also
  * drives it directly (through the forwarded image element) while signing in;
  * `busy` turns the click easter egg off meanwhile.
@@ -34,7 +34,7 @@ export const CvcLogo = forwardRef<HTMLImageElement, { size?: number; className?:
       <Image
         ref={ref}
         src="/CVC.png"
-        alt="Champlain Valley Cohousing"
+        alt="CVC"
         width={size}
         height={size}
         priority

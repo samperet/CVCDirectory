@@ -9,7 +9,7 @@ import { ToastProvider } from "@/components/ui/use-toast";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Community Village Cooperative Directory",
+  title: "CVC Directory",
   description:
     "Collaborative directory for members, sociocratic circles, shared skills, and the community loan library.",
   applicationName: "CVC Directory",

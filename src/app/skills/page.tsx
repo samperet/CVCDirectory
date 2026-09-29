@@ -2,7 +2,7 @@ import { SkillsClient } from "@/components/skills/skills-client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Skills | Community Village Cooperative Directory",
+  title: "Skills · CVC Directory",
 };
 
 export default function SkillsPage() {

@@ -1,4 +1,4 @@
-# Community Village Cooperative Directory
+# CVC Directory
 
 A mobile-first community directory for residents, sociocratic circles, shared skills, and the loan library. Built with Next.js 14 App Router and Tailwind CSS, with data stored as JSON documents in Cloudflare R2.
 
@@ -68,7 +68,7 @@ npm run lint
 
 ## Public Front Page
 
-Signed-out visitors to `/` see a public page about Champlain Valley Cohousing — the community, its
+Signed-out visitors to `/` see a public page about CVC — the community, its
 land, how it governs itself, and how to get in touch — with **Resident sign-in** buttons; signed-in
 residents see their dashboard at `/` instead (`src/components/home/public-home.tsx`). It contains
 no resident information. Its hero photo lives in `public/home/`, which (like the manifest and icons)

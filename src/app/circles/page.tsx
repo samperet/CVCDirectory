@@ -2,7 +2,7 @@ import { CirclesClient } from "@/components/circles/circles-client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Circles | Community Village Cooperative Directory",
+  title: "Circles · CVC Directory",
 };
 
 export default function CirclesPage() {

@@ -306,7 +306,7 @@ export function PhotosClient() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Photos</h1>
-          <p className="text-sm text-muted">Snapshots of life at Champlain Valley Cohousing.</p>
+          <p className="text-sm text-muted">Snapshots of life at CVC.</p>
         </div>
         <input
           ref={fileInput}

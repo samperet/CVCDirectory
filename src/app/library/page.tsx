@@ -2,7 +2,7 @@ import { LibraryClient } from "@/components/library/library-client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Loan Library | Community Village Cooperative Directory",
+  title: "Loan Library · CVC Directory",
 };
 
 export default function LibraryPage() {
