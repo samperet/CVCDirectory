@@ -227,7 +227,7 @@ from then on, so re-importing the directory never overwrites circle changes.
   signed-in response); it exists for installing and for notifications. The manifest, service
   worker, and icons are served without sign-in, since browsers fetch them without cookies.
 - **Push notifications** – residents turn them on per device under **App & notifications** on
-  their profile (or from a one-time prompt on the dashboard), and choose what to hear about: new
+  their profile (or from a one-time prompt on the dashboard, shown only in the installed app), and choose what to hear about: new
   discussions, replies in discussions they started or joined, appreciations, photos, new
   recommendations and comments on theirs, and new loan-library items. Nobody is notified about
   their own posts. On iPhone/iPad (iOS 16.4+), notifications work once CVC is on the home screen.
