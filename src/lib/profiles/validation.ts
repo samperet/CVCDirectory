@@ -34,6 +34,7 @@ export const profileUpdateSchema = z.object({
   /** Directory managers only. */
   unit: z.coerce.number().int().min(1, "Enter a unit number").max(999).optional(),
   role: z.enum(["owner", "renter", "household"]).optional(),
+  resident: z.boolean().optional(),
   /** Required to change either phone number, since phone numbers are how residents sign in. */
   currentPhone: z.string().trim().max(40).optional(),
 });

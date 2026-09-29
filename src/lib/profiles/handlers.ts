@@ -4,6 +4,7 @@ import { canManageDirectory } from "@/lib/directory/access";
 import { renameUserForPerson } from "@/lib/auth/users";
 import { phoneMatches, phoneDigits } from "@/lib/auth/phone";
 import { readDirectory } from "@/lib/directory/store";
+import { entriesOf } from "@/lib/directory/manage";
 import { deleteBinary, writeBinary } from "@/lib/storage";
 import { ProfileOverride, isPersonId, photoKey, updateProfile } from "@/lib/profiles/store";
 import { formatPhone, normalizeBirthday, profileUpdateSchema } from "@/lib/profiles/validation";
@@ -106,13 +107,18 @@ export async function patchProfile(request: NextRequest, target: Target) {
   if (input.bio !== undefined) patch.bio = input.bio || null;
 
   // Unit and owner/renter are the directory managers' to change.
-  if (input.unit !== undefined || input.role !== undefined) {
-    if (!admin) return problem("Only the Board Secretary and admins can change a unit or role", 403, "Forbidden");
+  if (input.unit !== undefined || input.role !== undefined || input.resident !== undefined) {
+    if (!admin) return problem("Only the Board Secretary and admins can change a unit, role, or where someone lives", 403, "Forbidden");
+    if (input.resident !== undefined && input.resident !== (person.resident !== false)) patch.resident = input.resident;
     if (input.unit !== undefined && input.unit !== person.unit) patch.unit = input.unit;
     if (input.role !== undefined && input.role !== person.role) patch.role = input.role;
   }
 
   await updateProfile(person.id, patch);
+  if (patch.resident !== undefined) {
+    // A combined profile lives on site if any of its entries does, so mark them all.
+    for (const entry of entriesOf(directory, person.id).slice(1)) await updateProfile(entry, { resident: patch.resident });
+  }
   if (patch.firstName !== undefined) {
     await renameUserForPerson(person.id, `${patch.firstName} ${patch.lastName ?? ""}`.trim());
   }

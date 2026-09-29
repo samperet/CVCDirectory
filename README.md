@@ -143,8 +143,8 @@ Authors always come from the signed-in session, never from the request body.
   their phone numbers, email, birthday, bio, circles, and household. Served by `GET /api/directory`
   to signed-in residents only (the route confirms the account server-side).
 - **Managing the directory** – the Board Secretary (whoever holds that seat on the Board) and
-  admins can add people ("Add a person"), edit anyone's entry including unit and owner/renter (and
-  reset phone numbers), and remove people. Removing someone takes them out of their circles,
+  admins can add people ("Add a person"), edit anyone's entry including unit, owner/renter, and
+  whether they live on site (and reset phone numbers), and remove people. Removing someone takes them out of their circles,
   closes their account (ending any session, so they can't sign in), and deletes their profile,
   photo, and notifications; what they posted stays under their name. Additions and removals live
   in `directory/people.json`, layered over the import, so a re-import doesn't undo them.
@@ -152,7 +152,8 @@ Authors always come from the signed-in session, never from the request body.
   parents live apart) has a single profile listed under each unit. Entries with the same name are
   combined automatically; directory managers can split a combined profile back into separate
   entries ("Split entries", for different people who share a name) or combine entries whose names
-  differ ("Same person listed elsewhere?"). Links to a combined entry open the one profile.
+  differ ("Same person listed elsewhere?"). "Remove from unit N" takes someone out of one of their
+  households and keeps them in the others. Links to a combined entry open the one profile.
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.
@@ -283,6 +284,10 @@ from then on, so re-importing the directory never overwrites circle changes.
 document. It requires `Authorization: Bearer $ADMIN_TOKEN` (disabled when `ADMIN_TOKEN` is unset),
 writes to R2 only — never to the ephemeral fallback — and responds with counts only. The directory
 holds residents' contact details, so exports are gitignored and only signed-in residents can read it.
+
+`POST /api/admin/directory/people` (same bearer token) makes the directory managers' changes in
+bulk: `{"residents": [{"personId", "resident"}], "leaveUnit": [{"personId", "unit"}], "remove":
+[personId]}`, applied in that order. It responds with names and outcomes only.
 
 ## Deployment
 

@@ -20,6 +20,7 @@ export interface ProfileOverride {
   /** Set by directory managers only. */
   unit?: number;
   role?: PersonRole;
+  resident?: boolean | null;
   updatedAt: string;
 }
 
@@ -68,6 +69,7 @@ export function applyProfile(person: Person, override: ProfileOverride | undefin
     displayName: `${firstName} ${lastName}`.trim(),
     unit: has(override, "unit") ? override.unit! : person.unit,
     role: has(override, "role") ? override.role! : person.role,
+    resident: has(override, "resident") ? override.resident ?? null : person.resident,
     email: has(override, "email") ? override.email ?? null : person.email,
     phone: has(override, "phone") ? override.phone ?? null : person.phone,
     landline: has(override, "landline") ? override.landline ?? null : person.landline,

@@ -24,6 +24,7 @@ function splitBirthday(value: string | null) {
 interface FormState {
   unit: string;
   role: string;
+  resident: boolean;
   firstName: string;
   lastName: string;
   email: string;
@@ -39,6 +40,7 @@ function toForm(profile: Person): FormState {
   return {
     unit: String(profile.unit),
     role: profile.role,
+    resident: profile.resident !== false,
     firstName: profile.firstName,
     lastName: profile.lastName,
     email: profile.email ?? "",
@@ -86,7 +88,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
   };
 
   const save = useMutation({
-    mutationFn: (body: Record<string, string>) =>
+    mutationFn: (body: Record<string, string | boolean>) =>
       apiFetch<{ profile: Person }>(base, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: (response) => {
       queryClient.setQueryData(queryKey, response);
@@ -130,7 +132,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    const body: Record<string, string> = {
+    const body: Record<string, string | boolean> = {
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
@@ -145,6 +147,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
     if (isManager) {
       body.unit = form.unit;
       body.role = form.role;
+      body.resident = form.resident;
     }
     save.mutate(body);
   };
@@ -208,6 +211,16 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
                   <option value="renter">Renter</option>
                   <option value="household">Household member</option>
                 </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.resident}
+                  onChange={(event) => setForm({ ...form, resident: event.target.checked })}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                Lives on site
+                <span className="font-normal text-muted">— untick for family or friends who live elsewhere</span>
               </label>
             </div>
           ) : null}

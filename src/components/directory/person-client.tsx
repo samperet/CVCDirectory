@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Cake, Eye, Home, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
+import { ArrowLeft, Cake, Eye, Home, LogOut, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession, useViewAs } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
@@ -53,6 +53,14 @@ export function PersonClient({ personId: requested }: { personId: string }) {
       toast({ title: "Combined into one profile", description: "They're listed under each unit." });
     },
     onError: (err: Error) => toast({ title: "Could not combine", description: err.message, variant: "destructive" }),
+  });
+  const leave = useMutation({
+    mutationFn: (unit: number) => apiFetch(`/api/directory/people/${personId}/units/${unit}`, { method: "DELETE" }),
+    onSuccess: (_data, unit) => {
+      refresh();
+      toast({ title: `${person?.displayName ?? "They"} no longer listed in unit ${unit}` });
+    },
+    onError: (err: Error) => toast({ title: "Could not update", description: err.message, variant: "destructive" }),
   });
 
   const remove = useMutation({
@@ -191,6 +199,22 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                 <Split className="h-4 w-4" /> Split entries
               </Button>
             ) : null}
+            {canManage && units.length > 1
+              ? units.map((unit) => (
+                  <Button
+                    key={unit}
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={leave.isPending}
+                    onClick={() => {
+                      if (window.confirm(`Take ${person.displayName} out of unit ${unit}? They'll stay listed in the other${units.length > 2 ? "s" : ""}.`)) leave.mutate(unit);
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" /> Remove from unit {unit}
+                  </Button>
+                ))
+              : null}
             {canManage && !isMe ? (
               <Button
                 size="sm"
