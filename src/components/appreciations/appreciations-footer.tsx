@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Heart, Pause, Play, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
 
 const ROTATE_MS = 7000;
 
@@ -33,6 +32,23 @@ export function AppreciationsFooter() {
   const [composing, setComposing] = useState(false);
   const [to, setTo] = useState("");
   const [message, setMessage] = useState("");
+  const messageInput = useRef<HTMLTextAreaElement>(null);
+
+  // The form opens as a dialog in the middle of the page: focus it, close on Escape, and hold the page still behind it.
+  useEffect(() => {
+    if (!composing) return;
+    messageInput.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setComposing(false);
+    };
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [composing]);
 
   // Respect a reduced-motion preference by not auto-advancing.
   useEffect(() => {
@@ -92,11 +108,6 @@ export function AppreciationsFooter() {
           onFocus={() => setHovering(true)}
           onBlur={() => setHovering(false)}
         >
-          <p className="flex shrink-0 items-center gap-2 text-sm font-semibold text-foreground">
-            <Heart className="h-4 w-4 text-sun" aria-hidden />
-            Appreciations
-          </p>
-
           <div className="min-h-[3rem] flex-1" aria-roledescription="carousel" aria-label="Community appreciations">
             {current ? (
               <figure key={current.id} className="animate-in fade-in duration-500 motion-reduce:animate-none">
@@ -148,9 +159,8 @@ export function AppreciationsFooter() {
               </>
             ) : null}
             {user ? (
-              <Button size="sm" variant={composing ? "outline" : "default"} className="ml-1 gap-1" onClick={() => setComposing((v) => !v)}>
-                {composing ? <X className="h-4 w-4" /> : <Heart className="h-4 w-4" />}
-                {composing ? "Cancel" : "Share one"}
+              <Button size="sm" className="ml-1 gap-1" onClick={() => setComposing(true)}>
+                <Heart className="h-4 w-4" /> Share an Appreciation
               </Button>
             ) : (
               <Button asChild size="sm" variant="outline" className="ml-1">
@@ -161,35 +171,55 @@ export function AppreciationsFooter() {
         </div>
 
         {composing && user ? (
-          <form
-            className={cn("flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3")}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (message.trim().length >= 3) submit.mutate();
-            }}
-          >
-            <Input
-              placeholder="Who are you thanking? (optional)"
-              value={to}
-              maxLength={80}
-              onChange={(event) => setTo(event.target.value)}
-              className="bg-white md:max-w-sm"
-            />
-            <Textarea
-              rows={2}
-              placeholder="Thank you for…"
-              value={message}
-              maxLength={500}
-              onChange={(event) => setMessage(event.target.value)}
-              className="bg-white"
-            />
-            <div className="flex items-center gap-2">
-              <Button type="submit" size="sm" disabled={submit.isPending || message.trim().length < 3}>
-                {submit.isPending ? "Sharing…" : "Share appreciation"}
-              </Button>
-              <span className="text-xs text-muted">Shared publicly as {user.name}.</span>
-            </div>
-          </form>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setComposing(false)}>
+            <form
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="share-appreciation-title"
+              className="flex w-full max-w-lg flex-col gap-3 rounded-card border border-border bg-surface p-5 shadow-elev"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (message.trim().length >= 3) submit.mutate();
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="share-appreciation-title" className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Heart className="h-5 w-5 text-sun" aria-hidden /> Share an Appreciation
+                </h2>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setComposing(false)} aria-label="Close">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <Input
+                placeholder="Who are you thanking? (optional)"
+                value={to}
+                maxLength={80}
+                onChange={(event) => setTo(event.target.value)}
+                className="bg-white"
+              />
+              <Textarea
+                ref={messageInput}
+                rows={4}
+                placeholder="Thank you for…"
+                value={message}
+                maxLength={500}
+                onChange={(event) => setMessage(event.target.value)}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-muted">Shared with all residents as {user.name}.</span>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setComposing(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={submit.isPending || message.trim().length < 3}>
+                    {submit.isPending ? "Sharing…" : "Share"}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
         ) : null}
       </div>
     </footer>
