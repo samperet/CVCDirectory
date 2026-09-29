@@ -137,8 +137,9 @@ Authors always come from the signed-in session, never from the request body.
 
 ## Directory & Skills
 
-- **Directory** (`/directory`) – a list of units, each with its residents (and their circle
-  badges), plus carshed allocations. Each name opens the resident's page (`/directory/<id>`) with
+- **Directory** (`/directory`) – a list of units, each with its residents stacked beneath (and
+  their circle badges), plus carshed allocations. People listed as not living on site are hidden
+  unless "Show non-residents" is on. Each name opens the resident's page (`/directory/<id>`) with
   their phone numbers, email, birthday, bio, circles, and household. Served by `GET /api/directory`
   to signed-in residents only (the route confirms the account server-side).
 - **Managing the directory** – the Board Secretary (whoever holds that seat on the Board) and

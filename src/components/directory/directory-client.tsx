@@ -209,16 +209,20 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
   const { user } = useSession();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
+  // People listed as not living on site (e.g. owners who rent their unit out) are hidden unless asked for.
+  const [showNonResidents, setShowNonResidents] = useState(false);
   const membershipsOf = useMemo(() => membershipsByPerson(circles), [circles]);
+  const nonResidents = people.filter((person) => person.resident === false).length;
+  const listed = useMemo(() => people.filter((person) => showNonResidents || person.resident !== false), [people, showNonResidents]);
   const units = useMemo(() => {
     const byUnit = new Map<number, Person[]>();
-    for (const person of people.filter((p) => matches(p, query))) {
+    for (const person of listed.filter((p) => matches(p, query))) {
       byUnit.set(person.unit, [...(byUnit.get(person.unit) ?? []), person]);
     }
     return Array.from(byUnit.entries())
       .sort(([a], [b]) => a - b)
       .map(([unit, members]) => [unit, members.sort((a, b) => a.displayName.localeCompare(b.displayName))] as const);
-  }, [people, query]);
+  }, [listed, query]);
   const shown = units.reduce((total, [, members]) => total + members.length, 0);
 
   return (
@@ -241,22 +245,42 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
         ) : null}
       </div>
       {adding ? <AddPerson onDone={() => setAdding(false)} /> : null}
-      <p className="text-sm text-muted">
-        {query ? `${shown} of ${people.length} residents` : `${people.length} residents across ${units.length} units`}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="text-sm text-muted">
+          {query
+            ? `${shown} of ${listed.length} ${showNonResidents ? "people" : "residents"}`
+            : `${listed.length} ${showNonResidents ? "people" : "residents"} across ${units.length} units`}
+        </p>
+        {nonResidents ? (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+            <input type="checkbox" className="peer sr-only" checked={showNonResidents} onChange={(event) => setShowNonResidents(event.target.checked)} />
+            <span
+              aria-hidden
+              className={cn(
+                "relative h-5 w-9 shrink-0 rounded-full transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
+                showNonResidents ? "bg-primary" : "bg-border"
+              )}
+            >
+              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", showNonResidents ? "left-[1.125rem]" : "left-0.5")} />
+            </span>
+            Show non-residents <span className="text-muted">({nonResidents})</span>
+          </label>
+        ) : null}
+      </div>
       {units.length ? (
         <Card className="p-0">
           <ul className="divide-y divide-border">
             {units.map(([unit, members]) => (
-              <li key={unit} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
-                <span className="w-20 shrink-0 text-sm font-semibold text-muted">Unit {unit}</span>
-                <ul className="flex flex-wrap gap-x-5 gap-y-2">
+              <li key={unit} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5">
+                <span className="w-20 shrink-0 text-sm font-semibold text-muted sm:pt-1">Unit {unit}</span>
+                <ul className="flex flex-col gap-2">
                   {members.map((person) => (
                     <li key={person.id} className="flex items-center gap-1.5">
                       <Link href={`/directory/${person.id}`} className="group flex items-center gap-2 rounded-full pr-1 hover:text-foreground">
                         <Avatar name={person.displayName} photoUrl={person.photoUrl} size={28} />
                         <span className="font-medium text-foreground underline-offset-4 group-hover:underline">{person.displayName}</span>
                         {person.id === user?.personId ? <span className="text-xs text-muted">(you)</span> : null}
+                        {person.resident === false ? <span className="text-xs text-muted">· not living on site</span> : null}
                       </Link>
                       <CircleBadges memberships={membershipsOf.get(person.id) ?? []} />
                     </li>
