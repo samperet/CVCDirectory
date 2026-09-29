@@ -5,7 +5,8 @@ import { deleteBinary, readBinary } from "@/lib/storage";
 import { canManageDocument, canUploadTo, toListing } from "@/lib/documents/access";
 import { extractText, identifyDocument } from "@/lib/documents/files";
 import { addVersion, createDocument, documentDetailsSchema, getDocument, listDocuments, searchDocuments } from "@/lib/documents/store";
-import { DOCUMENT_TYPE_LABELS, DocumentRecord, documentDate } from "@/lib/documents/types";
+import { DocumentRecord, documentDate } from "@/lib/documents/types";
+import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
 import { notify } from "@/lib/push/notify";
 import { problem } from "@/lib/http";
@@ -16,7 +17,9 @@ export const maxDuration = 60;
 
 /**
  * List documents, newest first — or, with `q`, search their details and
- * contents, best match first. Filters: `circle`, `type`, `year`.
+ * contents, best match first. Filters: `circle`, and `type` (a type's name,
+ * since each circle names its own types). Also returns the type names in use,
+ * for the type filter.
  */
 export async function GET(request: NextRequest) {
   const context = await circleContext();
@@ -26,26 +29,24 @@ export async function GET(request: NextRequest) {
   const q = (params.get("q") ?? "").trim().slice(0, 200);
   const circle = params.get("circle");
   const type = params.get("type");
-  const year = params.get("year");
+  const types = await readTypeMap();
+  const label = (doc: DocumentRecord) => typeLabelFor(doc, types);
 
-  const documents = (await listDocuments()).filter(
-    (doc) =>
-      (!circle || doc.circleId === circle) &&
-      (!type || doc.type === type) &&
-      (!year || documentDate(doc).startsWith(year))
-  );
+  const inCircle = (await listDocuments()).filter((doc) => !circle || doc.circleId === circle);
+  const typeOptions = Array.from(new Set(inCircle.map(label))).sort((a, b) => a.localeCompare(b));
+  const documents = inCircle.filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase());
   const circleName = (doc: DocumentRecord) => directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "";
 
   if (q) {
-    const hits = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${DOCUMENT_TYPE_LABELS[doc.type]}`);
+    const hits = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${label(doc)}`);
     return NextResponse.json(
-      { documents: hits.slice(0, 100).map((hit) => toListing(hit.doc, user, directory, hit.snippet)), total: hits.length },
+      { documents: hits.slice(0, 100).map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)), total: hits.length, typeOptions },
       { headers: { "Cache-Control": "private, no-store" } }
     );
   }
   const sorted = [...documents].sort((a, b) => documentDate(b).localeCompare(documentDate(a)) || b.createdAt.localeCompare(a.createdAt));
   return NextResponse.json(
-    { documents: sorted.map((doc) => toListing(doc, user, directory)), total: sorted.length },
+    { documents: sorted.map((doc) => toListing(doc, user, directory, types)), total: sorted.length, typeOptions },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }
@@ -104,14 +105,17 @@ export async function POST(request: NextRequest) {
       await cleanUp();
       return problem("Only this circle's members, the Board, and admins can add its documents", 403, "Forbidden");
     }
-    result = await createDocument(grant.circleId, parsed.data.details, file, uploader);
+    const option = typesFor(grant.circleId, await readTypeMap()).find((entry) => entry.id === parsed.data.details!.type);
+    if (!option) return problem("Choose one of this circle's document types");
+    result = await createDocument(grant.circleId, { ...parsed.data.details, typeLabel: option.label }, file, uploader);
   }
   await cleanUp();
   if (!result.ok) return problem(result.reason === "full" ? "The document library is full" : "That document no longer exists", 409, "Conflict");
 
   const doc = result.value;
   const circleName = directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "the Board";
-  const kind = doc.type === "other" ? "document" : DOCUMENT_TYPE_LABELS[doc.type].toLowerCase();
+  const typeName = typeLabelFor(doc, await readTypeMap());
+  const kind = doc.type === "other" ? "document" : typeName.toLowerCase();
   await notify({
     topic: "documents",
     title: grant.replaces ? `Updated in ${circleName}: ${doc.title}` : `New ${kind} in ${circleName}: ${doc.title}`,
@@ -120,6 +124,6 @@ export async function POST(request: NextRequest) {
     tag: `document-${doc.id}`,
     exceptUserId: user.id,
   });
-  return NextResponse.json({ document: toListing(doc, user, directory) }, { status: grant.replaces ? 200 : 201 });
+  return NextResponse.json({ document: toListing(doc, user, directory, await readTypeMap()) }, { status: grant.replaces ? 200 : 201 });
 }
 

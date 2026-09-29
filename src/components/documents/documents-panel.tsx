@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
   Download,
   ExternalLink,
   File,
@@ -14,6 +16,7 @@ import {
   Pencil,
   Presentation,
   Search,
+  Tags,
   Trash2,
   Upload,
   X,
@@ -21,11 +24,10 @@ import {
 import { apiFetch } from "@/lib/api-client";
 import {
   ACCEPTED_EXTENSIONS,
-  DOCUMENT_TYPE_LABELS,
-  DOCUMENT_TYPES,
   DocumentListing,
-  DocumentType,
+  DocumentTypeOption,
   MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_TYPES,
   currentVersion,
   documentDate,
   formatBytes,
@@ -38,7 +40,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
-type ListResponse = { documents: DocumentListing[]; total: number };
+type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[] };
+
+/** A circle's document types (each circle edits its own). */
+function useCircleTypes(circleId: string) {
+  return useQuery({
+    queryKey: ["document-types", circleId],
+    queryFn: () => apiFetch<{ types: DocumentTypeOption[] }>(`/api/circles/${circleId}/document-types`),
+    staleTime: 5 * 60_000,
+  });
+}
 
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
   `/api/documents/${doc.id}/file?${new URLSearchParams({ ...(version ? { v: String(version) } : {}), ...(download ? { download: "1" } : {}) })}`;
@@ -132,12 +143,21 @@ function Progress({ sent, total, finishing }: { sent: number; total: number; fin
 
 interface DetailsForm {
   title: string;
-  type: DocumentType;
+  type: string;
   meetingDate: string;
   description: string;
 }
 
-function DetailsFields({ form, onChange }: { form: DetailsForm; onChange: (form: DetailsForm) => void }) {
+function DetailsFields({
+  form,
+  onChange,
+  types,
+}: {
+  form: DetailsForm;
+  onChange: (form: DetailsForm) => void;
+  /** The circle's types (plus, when editing, the document's current type if the circle has since removed it). */
+  types: DocumentTypeOption[];
+}) {
   const set = (key: keyof DetailsForm) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     onChange({ ...form, [key]: event.target.value });
   return (
@@ -150,9 +170,9 @@ function DetailsFields({ form, onChange }: { form: DetailsForm; onChange: (form:
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Type
           <select value={form.type} onChange={set("type")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
-            {DOCUMENT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {DOCUMENT_TYPE_LABELS[type]}
+            {types.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.label}
               </option>
             ))}
           </select>
@@ -177,8 +197,13 @@ function UploadCard({ circleId, onDone }: { circleId: string; onDone: () => void
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [form, setForm] = useState<DetailsForm>({ title: "", type: "minutes", meetingDate: "", description: "" });
+  const [form, setForm] = useState<DetailsForm>({ title: "", type: "", meetingDate: "", description: "" });
   const [progress, setProgress] = useState<{ sent: number; finishing: boolean } | null>(null);
+  const loadedTypes = useCircleTypes(circleId).data?.types;
+  const types = useMemo(() => loadedTypes ?? [], [loadedTypes]);
+  useEffect(() => {
+    if (!form.type && types.length) setForm((current) => ({ ...current, type: types[0].id }));
+  }, [types, form.type]);
 
   const choose = (chosen: File | undefined) => {
     if (!chosen) return;
@@ -269,10 +294,10 @@ function UploadCard({ circleId, onDone }: { circleId: string; onDone: () => void
           </>
         )}
       </button>
-      {file ? <DetailsFields form={form} onChange={setForm} /> : null}
+      {file ? <DetailsFields form={form} onChange={setForm} types={types} /> : null}
       {progress && file ? <Progress sent={progress.sent} total={file.size} finishing={progress.finishing} /> : null}
       <div className="flex gap-2">
-        <Button onClick={() => upload.mutate()} disabled={!file || !form.title.trim() || upload.isPending}>
+        <Button onClick={() => upload.mutate()} disabled={!file || !form.title.trim() || !form.type || upload.isPending}>
           {upload.isPending ? "Uploading…" : "Upload"}
         </Button>
         <Button variant="outline" onClick={onDone} disabled={upload.isPending}>
@@ -297,6 +322,8 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
   const [replacing, setReplacing] = useState<{ file: File; sent: number; finishing: boolean } | null>(null);
   const version = currentVersion(doc);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] });
+  const circleTypes = useCircleTypes(doc.circleId).data?.types ?? [];
+  const editTypes = circleTypes.some((type) => type.id === doc.type) ? circleTypes : [{ id: doc.type, label: doc.typeLabel }, ...circleTypes];
 
   const save = useMutation({
     mutationFn: () =>
@@ -338,7 +365,7 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
   if (mode === "edit") {
     return (
       <li className="flex flex-col gap-3 py-4">
-        <DetailsFields form={form} onChange={setForm} />
+        <DetailsFields form={form} onChange={setForm} types={editTypes} />
         <div className="flex gap-2">
           <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending || !form.title.trim()}>
             {save.isPending ? "Saving…" : "Save"}
@@ -365,7 +392,7 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
             <Highlighted text={doc.title} terms={terms} />
           </a>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-            <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{DOCUMENT_TYPE_LABELS[doc.type]}</span>
+            <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
             {showCircle ? (
               <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
                 {doc.circleName}
@@ -470,6 +497,120 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
   );
 }
 
+/** A circle's own list of document types: rename, reorder, add, or remove. */
+function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const loaded = useCircleTypes(circleId).data?.types;
+  const [rows, setRows] = useState<{ id: string | null; label: string; key: number }[] | null>(null);
+  const [adding, setAdding] = useState("");
+  const nextKey = useRef(0);
+
+  useEffect(() => {
+    if (loaded && !rows) setRows(loaded.map((type) => ({ id: type.id, label: type.label, key: nextKey.current++ })));
+  }, [loaded, rows]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      apiFetch<{ types: DocumentTypeOption[] }>(`/api/circles/${circleId}/document-types`, {
+        method: "PUT",
+        body: JSON.stringify({ types: (rows ?? []).map((row) => ({ id: row.id, label: row.label })) }),
+      }),
+    onSuccess: (response) => {
+      queryClient.setQueryData(["document-types", circleId], response);
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      toast({ title: "Document types saved" });
+      onDone();
+    },
+    onError: (err: Error) => toast({ title: "Could not save types", description: err.message, variant: "destructive" }),
+  });
+
+  if (!rows) return <p className="text-sm text-muted">Loading types…</p>;
+  const move = (index: number, delta: number) =>
+    setRows((current) => {
+      if (!current) return current;
+      const next = [...current];
+      const [row] = next.splice(index, 1);
+      next.splice(index + delta, 0, row);
+      return next;
+    });
+  const add = () => {
+    const label = adding.trim();
+    if (!label) return;
+    setRows((current) => [...(current ?? []), { id: null, label, key: nextKey.current++ }]);
+    setAdding("");
+  };
+  const labels = rows.map((row) => row.label.trim().toLowerCase());
+  const invalid = !rows.length || labels.some((label) => !label) || new Set(labels).size !== labels.length;
+
+  return (
+    <Card className="flex flex-col gap-3 p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-base font-semibold text-foreground">Document types</h3>
+        <Button variant="ghost" size="icon" onClick={onDone} disabled={save.isPending} aria-label="Cancel">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <p className="-mt-1 text-xs text-muted">
+        The choices this circle uses when adding documents. Renaming a type renames it on every document; removing one
+        leaves existing documents as they are.
+      </p>
+      <ul className="flex flex-col gap-2">
+        {rows.map((row, index) => (
+          <li key={row.key} className="flex items-center gap-1.5">
+            <Input
+              value={row.label}
+              maxLength={40}
+              onChange={(event) => setRows((current) => current!.map((entry) => (entry.key === row.key ? { ...entry, label: event.target.value } : entry)))}
+              className="bg-white"
+              aria-label={`Type ${index + 1}`}
+            />
+            <Button variant="ghost" size="icon" className="shrink-0" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${row.label} up`}>
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="shrink-0" disabled={index === rows.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${row.label} down`}>
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted hover:text-destructive"
+              disabled={rows.length <= 1}
+              onClick={() => setRows((current) => current!.filter((entry) => entry.key !== row.key))}
+              aria-label={`Remove ${row.label}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {rows.length < MAX_DOCUMENT_TYPES ? (
+        <form
+          className="flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            add();
+          }}
+        >
+          <Input placeholder="Add a type, e.g. Work plan" value={adding} maxLength={40} onChange={(event) => setAdding(event.target.value)} className="bg-white" />
+          <Button type="submit" variant="outline" disabled={!adding.trim()}>
+            Add
+          </Button>
+        </form>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <Button onClick={() => save.mutate()} disabled={invalid || save.isPending}>
+          {save.isPending ? "Saving…" : "Save types"}
+        </Button>
+        <Button variant="outline" onClick={onDone} disabled={save.isPending}>
+          Cancel
+        </Button>
+        {invalid ? <span className="text-xs text-muted">Each type needs a different, non-empty name.</span> : null}
+      </div>
+    </Card>
+  );
+}
+
 /**
  * Documents, searchable by their details and contents. On a circle's page it
  * lists that circle's documents (and its members can add more); on the
@@ -489,15 +630,15 @@ export function DocumentsPanel({
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState("");
   const [circle, setCircle] = useState("");
-  const [year, setYear] = useState("");
   const [adding, setAdding] = useState(false);
+  const [editingTypes, setEditingTypes] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 250);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filters = { q: debounced, circle: circleId ?? circle, type, year };
+  const filters = { q: debounced, circle: circleId ?? circle, type };
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["documents", filters],
     queryFn: () =>
@@ -505,11 +646,9 @@ export function DocumentsPanel({
     placeholderData: (previous) => previous,
   });
   const terms = useMemo(() => searchTerms(debounced), [debounced]);
-  const years = useMemo(() => {
-    const now = new Date().getFullYear();
-    return Array.from({ length: now - 2005 }, (_, index) => String(now - index));
-  }, []);
-  const filtered = !!(debounced || type || year || (!circleId && circle));
+  // Type names in use (each circle names its own), for the filter; kept while a type is chosen.
+  const typeOptions = useMemo(() => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(), [data, type]);
+  const filtered = !!(debounced || type || (!circleId && circle));
 
   return (
     <div className="flex flex-col gap-4">
@@ -537,20 +676,17 @@ export function DocumentsPanel({
         ) : null}
         <select value={type} onChange={(event) => setType(event.target.value)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Type">
           <option value="">All types</option>
-          {DOCUMENT_TYPES.map((entry) => (
-            <option key={entry} value={entry}>
-              {DOCUMENT_TYPE_LABELS[entry]}
-            </option>
-          ))}
-        </select>
-        <select value={year} onChange={(event) => setYear(event.target.value)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Year">
-          <option value="">Any year</option>
-          {years.map((entry) => (
+          {typeOptions.map((entry) => (
             <option key={entry} value={entry}>
               {entry}
             </option>
           ))}
         </select>
+        {canUpload && circleId && !editingTypes ? (
+          <Button variant="outline" className="gap-1.5" onClick={() => setEditingTypes(true)}>
+            <Tags className="h-4 w-4" /> Edit types
+          </Button>
+        ) : null}
         {canUpload && circleId && !adding ? (
           <Button className="gap-1.5" onClick={() => setAdding(true)}>
             <Upload className="h-4 w-4" /> Add a document
@@ -558,6 +694,7 @@ export function DocumentsPanel({
         ) : null}
       </div>
 
+      {editingTypes && circleId ? <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} /> : null}
       {adding && circleId ? <UploadCard circleId={circleId} onDone={() => setAdding(false)} /> : null}
 
       {isLoading ? (

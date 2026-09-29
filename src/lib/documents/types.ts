@@ -7,17 +7,23 @@
  * and text files — by their contents.
  */
 
-export const DOCUMENT_TYPES = ["minutes", "agenda", "policy", "budget", "report", "other"] as const;
-export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+/** One of a circle's document types. Each circle edits its own list. */
+export interface DocumentTypeOption {
+  id: string;
+  label: string;
+}
 
-export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  minutes: "Minutes",
-  agenda: "Agenda",
-  policy: "Policy",
-  budget: "Budget",
-  report: "Report",
-  other: "Other",
-};
+/** The types a circle starts with, until it edits them. */
+export const DEFAULT_DOCUMENT_TYPES: DocumentTypeOption[] = [
+  { id: "minutes", label: "Minutes" },
+  { id: "agenda", label: "Agenda" },
+  { id: "policy", label: "Policy" },
+  { id: "budget", label: "Budget" },
+  { id: "report", label: "Report" },
+  { id: "other", label: "Other" },
+];
+
+export const MAX_DOCUMENT_TYPES = 20;
 
 export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
 /** Uploads travel in pieces this size, under the hosting platform's per-request limit. */
@@ -52,7 +58,10 @@ export interface DocumentRecord {
   circleId: string;
   title: string;
   description: string | null;
-  type: DocumentType;
+  /** One of the circle's document types (its id). */
+  type: string;
+  /** The type's name when last set, shown if the circle later removes that type. */
+  typeLabel?: string;
   /** For minutes and agendas: the meeting's date (YYYY-MM-DD). */
   meetingDate: string | null;
   versions: DocumentVersion[];
@@ -63,6 +72,8 @@ export interface DocumentRecord {
 /** A document as listed or found by search, with what the viewer may do. */
 export interface DocumentListing extends DocumentRecord {
   circleName: string;
+  /** The type's current name. */
+  typeLabel: string;
   canManage: boolean;
   /** Search results only: the passage around the first match. */
   snippet?: string | null;

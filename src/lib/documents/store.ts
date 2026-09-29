@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteBinary, enqueue, readJson, writeBinary, writeJson } from "@/lib/storage";
 import {
-  DOCUMENT_TYPES,
   DocumentRecord,
   DocumentVersion,
   Uploader,
@@ -23,9 +22,12 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-09
 export const documentDetailsSchema = z.object({
   title: z.string().trim().min(1, "Give the document a title").max(160, "Keep the title to 160 characters"),
   description: z.string().trim().max(1000, "Keep the description to 1000 characters").nullable().optional().transform((value) => value || null),
-  type: z.enum(DOCUMENT_TYPES),
+  type: z.string().regex(/^[a-z0-9-]{1,40}$/, "Choose a type"),
   meetingDate: isoDate.nullable().optional().transform((value) => value || null),
 });
+/** Details as saved: the type's current name is kept alongside its id. */
+export type DocumentDetails = z.infer<typeof documentDetailsSchema> & { typeLabel?: string };
+
 export const documentUpdateSchema = documentDetailsSchema.partial().refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
 export const fileKey = (id: string, version: number) => `documents/files/${id}/v${version}`;
@@ -84,7 +86,7 @@ async function mutate<T>(
 
 export async function createDocument(
   circleId: string,
-  details: z.infer<typeof documentDetailsSchema>,
+  details: DocumentDetails,
   file: { bytes: Uint8Array; fileName: string; contentType: string; viewable: boolean; text: string },
   uploader: Uploader
 ) {
@@ -142,7 +144,7 @@ export async function addVersion(
   return result;
 }
 
-export function updateDocument(id: string, update: z.infer<typeof documentUpdateSchema>) {
+export function updateDocument(id: string, update: Partial<DocumentDetails>) {
   return mutate<DocumentRecord>((documents) => {
     const index = documents.findIndex((doc) => doc.id === id);
     if (index === -1) return "not_found";

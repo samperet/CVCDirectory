@@ -1,7 +1,8 @@
 import { isAdmin } from "@/lib/auth/admins";
 import { canManageCircle } from "@/lib/circles/icons";
 import type { DirectoryDocument } from "@/lib/directory/types";
-import type { DocumentListing, DocumentRecord } from "./types";
+import type { DocumentListing, DocumentRecord, DocumentTypeOption } from "./types";
+import { typeLabelFor } from "./type-store";
 
 /**
  * Every signed-in resident can see and search every document. A circle's
@@ -19,7 +20,19 @@ export function canManageDocument(user: Viewer, directory: DirectoryDocument, do
   return canUploadTo(user, directory, doc.circleId) || (!!user.personId && doc.versions[0]?.uploadedBy.personId === user.personId);
 }
 
-export function toListing(doc: DocumentRecord, user: Viewer, directory: DirectoryDocument, snippet?: string | null): DocumentListing {
+export function toListing(
+  doc: DocumentRecord,
+  user: Viewer,
+  directory: DirectoryDocument,
+  types: Record<string, DocumentTypeOption[]>,
+  snippet?: string | null
+): DocumentListing {
   const circleName = directory.circles.find((circle) => circle.id === doc.circleId)?.name ?? "Board";
-  return { ...doc, circleName, canManage: canManageDocument(user, directory, doc), ...(snippet !== undefined ? { snippet } : {}) };
+  return {
+    ...doc,
+    circleName,
+    typeLabel: typeLabelFor(doc, types),
+    canManage: canManageDocument(user, directory, doc),
+    ...(snippet !== undefined ? { snippet } : {}),
+  };
 }

@@ -162,14 +162,17 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 
 - Each circle's page has a **Documents** section; community-wide documents belong to the Board.
   The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,
-  or images, up to 50 MB) with a title, type (minutes, agenda, policy, budget, report, other), an
-  optional meeting date, and a description. Every signed-in resident can see and download every
+  or images, up to 50 MB) with a title, one of the circle's document types, an optional meeting date,
+  and a description. Each circle edits its own list of types ("Edit types": rename, reorder, add,
+  remove), starting from Minutes, Agenda, Policy, Budget, Report, and Other; renaming a type
+  relabels its documents, and removing one leaves existing documents with their old type. Stored in
+  `documents/types.json`. Every signed-in resident can see and download every
   document. Whoever uploaded one, the circle, the Board, and admins can edit its details, upload a
   new version (earlier versions are kept and downloadable), or delete it. If a circle is deleted,
   its documents move to the Board.
 - **Search** (`/documents`, and on each circle's page) matches every word of the query — or a
   "quoted phrase" — in titles, descriptions, and the documents' own text, best matches first, with
-  the matching passage shown. Text is read on upload from PDFs, Word, Excel, and PowerPoint files
+  the matching passage shown, and can be narrowed by circle and type. Text is read on upload from PDFs, Word, Excel, and PowerPoint files
   and text files; scanned PDFs, images, and older .doc/.xls/.ppt files are found by their details.
 - **Storage** – files live in R2 (`documents/files/<id>/v<n>`), details in `documents/index.json`,
   and the searchable text of each current version in `documents/text.json`. Uploads travel in 4 MB
