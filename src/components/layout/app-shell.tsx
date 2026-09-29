@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye } from "lucide-react";
+import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ const links = [
   { href: "/", label: "Dashboard", icon: Grid },
   { href: "/directory", label: "Directory", icon: BookUser },
   { href: "/circles", label: "Circles", icon: Layers },
+  { href: "/documents", label: "Documents", icon: FileText },
   { href: "/library", label: "Loan Library", icon: Share2 },
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/forum", label: "Forum", icon: MessagesSquare },
@@ -111,7 +112,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="hidden items-center gap-2 xl:flex">
             <nav className="flex gap-0.5">
-              {links.map((link) => (
+              {/* The logo leads to the dashboard, so the desktop bar leaves it out to fit every section. */}
+              {links.filter((link) => link.href !== "/").map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

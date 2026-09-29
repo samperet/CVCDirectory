@@ -419,3 +419,35 @@ export function enqueue<T>(key: string, task: () => Promise<T>): Promise<T> {
   mutationQueues.set(key, next);
   return next;
 }
+
+/**
+ * A short-lived link that downloads an object straight from R2, for files
+ * too large to pass through a serverless function. Returns null without R2
+ * (local development), where callers serve the bytes themselves.
+ */
+export async function presignedDownloadUrl(
+  key: string,
+  options: { fileName: string; contentType: string; inline: boolean; expiresInSeconds?: number }
+): Promise<string | null> {
+  if (!isPersistent()) return null;
+  const [{ GetObjectCommand }, { getSignedUrl }] = await Promise.all([
+    import("@aws-sdk/client-s3"),
+    import("@aws-sdk/s3-request-presigner"),
+  ]);
+  const config = r2Config()!;
+  const client = await getS3Client();
+  const command = new GetObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    ResponseContentType: options.contentType,
+    ResponseContentDisposition: contentDisposition(options.fileName, options.inline),
+    ResponseCacheControl: "private, no-store",
+  });
+  return getSignedUrl(client, command, { expiresIn: options.expiresInSeconds ?? 300 });
+}
+
+/** `attachment; filename="minutes.pdf"; filename*=UTF-8''minutes.pdf`, safe for any file name. */
+export function contentDisposition(fileName: string, inline: boolean) {
+  const ascii = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}

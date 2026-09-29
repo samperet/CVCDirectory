@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { moveCircleDocuments } from "@/lib/documents/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
-import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
+import { BOARD_ID, circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { iconKey, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary } from "@/lib/storage";
 import { problem } from "@/lib/http";
@@ -31,5 +32,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (!result.ok) return circleProblem(result.reason);
   await deleteBinary(iconKey(params.id));
   await setCircleIcon(params.id, null);
+  // Its documents are community records: they become the Board's rather than vanishing.
+  await moveCircleDocuments(params.id, BOARD_ID);
   return NextResponse.json({ ok: true });
 }

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { createViewAsValue, getRealSessionUser, viewAsCookieOptions } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/admins";
 import { VIEW_AS_COOKIE } from "@/lib/auth/secret";
-import { recordSignIn } from "@/lib/auth/sign-in-log";
 import { readDirectory } from "@/lib/directory/store";
 import { problem } from "@/lib/http";
 
@@ -12,8 +11,7 @@ export const dynamic = "force-dynamic";
 const schema = z.object({ personId: z.string().regex(/^[a-f0-9]{12}$/, "Choose a resident") });
 
 /**
- * Admins: see the app as another resident does, read-only, for an hour. The
- * view is recorded in the sign-in log.
+ * Admins: see the app as another resident does, read-only, for an hour.
  */
 export async function POST(request: NextRequest) {
   const admin = await getRealSessionUser();
@@ -26,7 +24,6 @@ export async function POST(request: NextRequest) {
   if (!person) return problem("That resident isn't in the directory", 404, "Not Found");
   if (person.id === admin.personId) return problem("That's you — choose someone else");
 
-  await recordSignIn(person, admin.name);
   const response = NextResponse.json({ viewingAs: person.displayName });
   const { name, ...options } = viewAsCookieOptions();
   response.cookies.set(name, createViewAsValue(admin.id, person.id), options);

@@ -11,5 +11,7 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to continue", 401, "Unauthorized");
   if (!isAdmin(user)) return problem("Only admins can view the sign-in log", 403, "Forbidden");
-  return NextResponse.json({ entries: await listSignIns() }, { headers: { "Cache-Control": "private, no-store" } });
+  // Only residents' own sign-ins; admins viewing as someone aren't shown (older entries included).
+  const entries = (await listSignIns()).filter((entry) => !entry.viewedBy);
+  return NextResponse.json({ entries }, { headers: { "Cache-Control": "private, no-store" } });
 }

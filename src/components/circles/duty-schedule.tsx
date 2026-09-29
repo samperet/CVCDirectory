@@ -177,18 +177,7 @@ function DayEditor({
  * legend of households (with members' phone numbers from the directory), and
  * the duty instructions for the current season.
  */
-export function DutyScheduleModule({
-  circleId,
-  people,
-  creating = false,
-  onCreated,
-}: {
-  circleId: string;
-  people: Map<string, Person>;
-  /** Show the editor to set up a schedule this circle doesn't have yet. */
-  creating?: boolean;
-  onCreated?: () => void;
-}) {
+export function DutyScheduleModule({ circleId, people }: { circleId: string; people: Map<string, Person> }) {
   const { user } = useSession();
   const today = todayIso();
   const [month, setMonth] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }));
@@ -216,9 +205,8 @@ export function DutyScheduleModule({
   }
   if (!data) return null;
 
-  if (!schedule) {
-    return creating && data.canEdit ? <ScheduleEditor circleId={circleId} schedule={null} people={people} onDone={() => onCreated?.()} /> : null;
-  }
+  // Duty rotations are specific to the circles that have one; others show nothing.
+  if (!schedule) return null;
   if (editing && data.canEdit) {
     return <ScheduleEditor circleId={circleId} schedule={schedule} people={people} onDone={() => setEditing(false)} />;
   }

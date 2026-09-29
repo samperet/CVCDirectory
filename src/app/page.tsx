@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera, Lightbulb } from "lucide-react";
+import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera, Lightbulb, FileText } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
 import { getUpcomingEvents } from "@/lib/calendar/events";
@@ -20,6 +20,12 @@ const cards = [
     title: "Circles",
     description: "Each circle, its purpose, and who serves on it.",
     icon: Layers,
+  },
+  {
+    href: "/documents",
+    title: "Documents",
+    description: "Minutes, agendas, and policies from every circle, searchable.",
+    icon: FileText,
   },
   {
     href: "/library",

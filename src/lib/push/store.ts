@@ -13,6 +13,7 @@ export const TOPICS = {
   photos: "New photos",
   resources: "New recommendations, and comments on yours",
   library: "New things to borrow in the loan library",
+  documents: "New and updated documents in circles",
 } as const;
 
 export type Topic = keyof typeof TOPICS;
@@ -25,6 +26,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   photos: true,
   resources: true,
   library: true,
+  documents: true,
 };
 
 export interface PushSubscriptionRecord {

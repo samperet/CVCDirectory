@@ -2,6 +2,8 @@
 const nextConfig = {
   experimental: {
     serverActions: true,
+    // The PDF text reader (pdf.js inside unpdf) breaks when bundled; load it as-is on the server.
+    serverComponentsExternalPackages: ["unpdf"],
   },
   // The service worker must never be served stale, or fixes to it would take days to reach phones.
   async headers() {

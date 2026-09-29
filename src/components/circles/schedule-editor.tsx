@@ -200,16 +200,6 @@ export function ScheduleEditor({
     onError: (err: Error) => toast({ title: "Could not save the schedule", description: err.message, variant: "destructive" }),
   });
 
-  const remove = useMutation({
-    mutationFn: () => apiFetch(`/api/circles/${circleId}/schedule`, { method: "DELETE" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["circle-schedule", circleId] });
-      toast({ title: "Schedule removed" });
-      onDone();
-    },
-    onError: (err: Error) => toast({ title: "Could not remove the schedule", description: err.message, variant: "destructive" }),
-  });
-
   const nameOf = (id: string) => draft.households.find((household) => household.id === id)?.name || "Unnamed household";
   const unnamed = draft.households.some((household) => !household.name.trim());
 
@@ -379,18 +369,6 @@ export function ScheduleEditor({
           Cancel
         </Button>
         {unnamed ? <span className="text-xs text-muted">Name every household to save.</span> : null}
-        {schedule ? (
-          <Button
-            variant="ghost"
-            className="ml-auto gap-1.5 text-muted hover:text-destructive"
-            disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm("Remove this duty schedule, including its swaps and cover? This can't be undone.")) remove.mutate();
-            }}
-          >
-            <Trash2 className="h-4 w-4" /> Remove schedule
-          </Button>
-        ) : null}
       </div>
     </Card>
   );

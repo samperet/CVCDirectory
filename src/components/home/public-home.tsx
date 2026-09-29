@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowDown, Home, LogIn, Mail, MapPin, Sun, Trees } from "lucide-react";
+import { Home, Mail, MapPin, Sun, Trees } from "lucide-react";
 
 /**
  * The public front page for CVC, shown at "/" to
@@ -32,7 +32,6 @@ function SignInButton({ className = "", compact = false }: { className?: string;
       href="/login"
       className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}
     >
-      <LogIn className="h-4 w-4" aria-hidden />
       {compact ? (
         <>
           <span className="sm:hidden">Sign in</span>
@@ -107,15 +106,6 @@ export function PublicHome() {
               green, enabling little ones to enjoy safe independence and allowing all neighbors to enjoy spontaneous and
               meaningful social interaction.
             </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <a
-                href="#about"
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground shadow-soft transition hover:bg-accent"
-              >
-                More about us <ArrowDown className="h-4 w-4" aria-hidden />
-              </a>
-              <SignInButton />
-            </div>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border shadow-elev">
             <Image
@@ -171,7 +161,7 @@ export function PublicHome() {
 
         {/* Contact */}
         <section id="contact" className="scroll-mt-20 border-t border-border bg-surface">
-          <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-14 md:flex-row md:items-center md:justify-between md:px-6">
+          <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
             <div className="flex max-w-2xl flex-col gap-2">
               <h2 className="text-2xl font-semibold text-foreground">Get in touch</h2>
               <p className="text-foreground-light">Curious about cohousing or our community? We&apos;d love to hear from you.</p>
@@ -181,11 +171,6 @@ export function PublicHome() {
               >
                 <Mail className="h-4 w-4 shrink-0" aria-hidden /> {CONTACT_EMAIL}
               </a>
-            </div>
-            <div className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-background p-5 shadow-soft">
-              <p className="font-semibold text-foreground">Live here?</p>
-              <p className="text-sm text-muted">Sign in for the resident directory, circles, forum, and more.</p>
-              <SignInButton className="mt-1" />
             </div>
           </div>
         </section>

@@ -4,14 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarPlus, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle, CircleSeat, DirectoryDocument, Person } from "@/lib/directory/types";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
-import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
+import { DutyScheduleModule } from "@/components/circles/duty-schedule";
+import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -206,8 +207,6 @@ export function CircleDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const { user } = useSession();
   const [editingDetails, setEditingDetails] = useState(false);
-  const [creatingSchedule, setCreatingSchedule] = useState(false);
-  const scheduleQuery = useCircleSchedule(id);
   const { data, isLoading, error } = useQuery({
     queryKey: ["directory"],
     queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
@@ -276,11 +275,6 @@ export function CircleDetailClient({ id }: { id: string }) {
                 <Pencil className="h-4 w-4" /> Edit details
               </Button>
               <IconControls circle={circle} />
-              {scheduleQuery.data && !scheduleQuery.data.schedule && !creatingSchedule ? (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCreatingSchedule(true)}>
-                  <CalendarPlus className="h-4 w-4" /> Add a duty schedule
-                </Button>
-              ) : null}
               {onBoard && circle.id !== "board" ? (
                 <Button
                   size="sm"
@@ -299,7 +293,19 @@ export function CircleDetailClient({ id }: { id: string }) {
         </div>
       </Card>
 
-      <DutyScheduleModule circleId={id} people={people} creating={creatingSchedule} onCreated={() => setCreatingSchedule(false)} />
+      {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
+      <DutyScheduleModule circleId={id} people={people} />
+
+      <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Documents</h2>
+          <p className="text-sm text-muted">
+            {id === "board" ? "The Board's documents, and community-wide ones." : "This circle's minutes, agendas, and other documents."}
+            {canManage ? "" : " Its members and the Board can add documents."}
+          </p>
+        </div>
+        <DocumentsPanel circleId={id} canUpload={canManage} />
+      </Card>
 
       <Card className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold text-foreground">

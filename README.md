@@ -15,6 +15,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
+- 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included.
 - 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -112,7 +113,7 @@ Admin status is checked server-side on every request, and the user menu shows an
   own posts. It's read-only — while it's on, the middleware refuses every change, so an admin can
   never post or edit in someone's name — lasts at most an hour, and shows a banner with a way
   back. The view is a separate signed cookie tied to the admin's own session (useless to anyone
-  else), and each view is recorded in the sign-in log.
+  else). Views don't appear in the sign-in log.
 - **Sign-in log** – "Sign-in log" in the user menu (`/admin/sign-ins`) lists every successful
   sign-in, newest first, by day or by resident (sign-in count and last sign-in). It records only
   who and when — no phone numbers or devices — keeps the latest 2,000 in `auth/sign-in-log.json`,
@@ -157,6 +158,24 @@ only) and returns 503 unless writes are actually reaching R2.
 To provision R2: create a bucket in the Cloudflare dashboard, generate an R2 API token with
 Object Read & Write scoped to that bucket, and set the four `R2_*` variables in Vercel.
 
+## Documents
+
+- Each circle's page has a **Documents** section; community-wide documents belong to the Board.
+  The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,
+  or images, up to 50 MB) with a title, type (minutes, agenda, policy, budget, report, other), an
+  optional meeting date, and a description. Every signed-in resident can see and download every
+  document. Whoever uploaded one, the circle, the Board, and admins can edit its details, upload a
+  new version (earlier versions are kept and downloadable), or delete it. If a circle is deleted,
+  its documents move to the Board.
+- **Search** (`/documents`, and on each circle's page) matches every word of the query — or a
+  "quoted phrase" — in titles, descriptions, and the documents' own text, best matches first, with
+  the matching passage shown. Text is read on upload from PDFs, Word, Excel, and PowerPoint files
+  and text files; scanned PDFs, images, and older .doc/.xls/.ppt files are found by their details.
+- **Storage** – files live in R2 (`documents/files/<id>/v<n>`), details in `documents/index.json`,
+  and the searchable text of each current version in `documents/text.json`. Uploads travel in 4 MB
+  pieces (under Vercel's request limit) and are reassembled and checked by their contents on the
+  server; downloads use five-minute signed R2 links, so size isn't limited. Nothing is public.
+
 ## Circles
 
 Circles are managed in the app (`circles/circles.json`). The store is seeded once from the imported
@@ -175,9 +194,10 @@ from then on, so re-importing the directory never overwrites circle changes.
   the directory), and the duty instructions for the current season. Each weekday belongs to one
   household, or to several that alternate week by week. Households on the rotation, the circle's
   members, the Board, and admins can record a swap or cover for any day (or flag that it needs
-  cover); the circle's members, the Board, and admins set up the rotation via "Add a duty
-  schedule" / "Edit rotation". Stored in `circles/schedules/<id>.json`. `GET/PUT
-  /api/admin/schedules` (with `ADMIN_TOKEN`) lists circles and seeds a schedule.
+  cover); the circle's members, the Board, and admins adjust it via "Edit rotation". Schedules are
+  specific to the circles that need one — today only the Chicken Tenders — so there's no button to
+  add one elsewhere; a new one is set up with `PUT /api/admin/schedules` (with `ADMIN_TOKEN`).
+  Stored in `circles/schedules/<id>.json`.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
