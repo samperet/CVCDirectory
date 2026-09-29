@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Home, Mail, MapPin, Sun, Trees } from "lucide-react";
+import { ArrowLeft, Home, Mail, MapPin, Sun, Trees } from "lucide-react";
 
 /**
  * The public front page for CVC, shown at "/" to
  * visitors who aren't signed in (residents see their dashboard there). The
  * text is the community's own, from its original website. Everything here is
- * public: no resident names or contact details.
+ * public: no resident names or contact details. Residents can see it too, at
+ * /welcome (`preview`), with a bar leading back to the app.
  */
 
 const CONTACT_EMAIL = "champlainvalleycohousinginfo@gmail.com";
@@ -70,9 +71,19 @@ function Section({
   );
 }
 
-export function PublicHome() {
+export function PublicHome({ preview = false }: { preview?: boolean }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {preview ? (
+        <div className="bg-foreground text-sm text-background">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 md:px-6">
+            <span>This is the public homepage, as visitors see it.</span>
+            <Link href="/" className="inline-flex shrink-0 items-center gap-1 font-medium underline underline-offset-4">
+              <ArrowLeft className="h-4 w-4" aria-hidden /> Back to CVC
+            </Link>
+          </div>
+        </div>
+      ) : null}
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-foreground">

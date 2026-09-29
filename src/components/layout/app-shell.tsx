@@ -35,8 +35,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const exitView = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
   const onLoginPage = pathname === "/login";
-  // Signed out, "/" is the public front page, which has its own header and footer.
-  const onPublicHome = pathname === "/";
+  // Signed out, "/" is the public front page, which has its own header and footer;
+  // "/welcome" is the same page for anyone, including residents previewing it.
+  const onWelcome = pathname === "/welcome";
+  const onPublicHome = pathname === "/" || onWelcome;
 
   // Register the service worker (installable app, notifications) and catch the install prompt.
   useEffect(() => setUpPwa(), []);
@@ -50,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [isLoading, user, onLoginPage, onPublicHome, pathname, router]);
 
   // Signed-out visitors see only the sign-in page: no navigation or footer.
-  if (!user && onPublicHome) return <>{children}</>;
+  if ((!user && onPublicHome) || onWelcome) return <>{children}</>;
 
   if (!user) {
     return (

@@ -89,6 +89,8 @@ contact details or unit numbers.
 - An account is created on a resident's first sign-in and linked to their directory entry.
 - Signed-out visitors see only the public front page and the sign-in page: middleware redirects every other page to `/login`
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
+- The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
+  the account menu to see what visitors see, with a bar leading back to the app.
 
 Phone numbers are not secret, so this keeps the barrier low rather than high. Session cookies are
 signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SECRET_ACCESS_KEY`

@@ -17,6 +17,7 @@ const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const PUBLIC_PATHS = new Set([
   "/", // the public front page (residents see their dashboard there)
+  "/welcome", // the public front page for anyone
   "/login",
   "/api/auth/login",
   "/api/auth/logout",
