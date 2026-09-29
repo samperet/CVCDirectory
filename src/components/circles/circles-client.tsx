@@ -21,13 +21,13 @@ function NewCircleForm({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", code: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "" });
 
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ circle: Circle }>("/api/circles", {
         method: "POST",
-        body: JSON.stringify({ name: form.name, code: form.code, description: form.description || undefined }),
+        body: JSON.stringify({ name: form.name, description: form.description || undefined }),
       }),
     onSuccess: ({ circle }) => {
       queryClient.invalidateQueries({ queryKey: ["directory"] });
@@ -39,22 +39,14 @@ function NewCircleForm({ onCancel }: { onCancel: () => void }) {
   return (
     <Card className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold text-foreground">Start a circle</h2>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          placeholder="Name, e.g. Welcome Circle"
-          value={form.name}
-          maxLength={80}
-          onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
-          className="bg-white"
-        />
-        <Input
-          placeholder="Short code, e.g. WC"
-          value={form.code}
-          maxLength={8}
-          onChange={(event) => setForm((f) => ({ ...f, code: event.target.value }))}
-          className="bg-white sm:max-w-[10rem]"
-        />
-      </div>
+      <Input
+        placeholder="Name, e.g. Welcome Circle"
+        value={form.name}
+        maxLength={80}
+        onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+        className="bg-white"
+        aria-label="Circle name"
+      />
       <Textarea
         rows={2}
         placeholder="What does this circle take care of? (optional)"
@@ -65,7 +57,7 @@ function NewCircleForm({ onCancel }: { onCancel: () => void }) {
       />
       <p className="text-xs text-muted">You&apos;ll be its first member, and can add others from its page.</p>
       <div className="flex gap-2">
-        <Button onClick={() => create.mutate()} disabled={create.isPending || form.name.trim().length < 2 || !form.code.trim()}>
+        <Button onClick={() => create.mutate()} disabled={create.isPending || form.name.trim().length < 2}>
           {create.isPending ? "Creating…" : "Create circle"}
         </Button>
         <Button variant="outline" onClick={onCancel}>
@@ -84,10 +76,7 @@ function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Pe
         <div className="flex items-start gap-4">
           <CircleIcon circle={circle} size={56} />
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-foreground">
-              {circle.name}
-              {circle.name !== circle.code ? <span className="ml-2 text-sm font-normal text-muted">{circle.code}</span> : null}
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
             <p className="text-xs text-muted">
               {members.length} {members.length === 1 ? "member" : "members"}
             </p>

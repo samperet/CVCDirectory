@@ -157,7 +157,7 @@ from then on, so re-importing the directory never overwrites circle changes.
 
 - `/circles` lists every circle with its members and roles; any resident can start a circle and
   becomes its first member.
-- `/circles/<id>` is each circle's page. Its members and the Board can edit its name, short code,
+- `/circles/<id>` is each circle's page. Its members and the Board can edit its name,
   and description, add residents, change a member's role or term, remove members, and upload an
   icon. Only the Board can delete a circle, the Board itself can't be deleted, and the Board always
   keeps at least one member.

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string } };
 
-/** Edit a circle's name, short code, or description (its members or the Board). */
+/** Edit a circle's name or description (its members or the Board). */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "member-or-board" });
   if ("error" in ctx) return ctx.error;

@@ -166,7 +166,7 @@ function AddMember({ circle, candidates }: { circle: Circle; candidates: NameOpt
 }
 
 function DetailsEditor({ circle, onDone }: { circle: Circle; onDone: () => void }) {
-  const [form, setForm] = useState({ name: circle.name, code: circle.code, description: circle.description ?? "" });
+  const [form, setForm] = useState({ name: circle.name, description: circle.description ?? "" });
   const save = useCircleMutation(
     () => apiFetch(`/api/circles/${circle.id}`, { method: "PATCH", body: JSON.stringify(form) }),
     "Could not save circle",
@@ -180,10 +180,7 @@ function DetailsEditor({ circle, onDone }: { circle: Circle; onDone: () => void 
         save.mutate(undefined);
       }}
     >
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Input value={form.name} maxLength={80} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="bg-white" aria-label="Circle name" />
-        <Input value={form.code} maxLength={8} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} className="bg-white sm:max-w-[9rem]" aria-label="Short code" />
-      </div>
+      <Input value={form.name} maxLength={80} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="bg-white" aria-label="Circle name" />
       <Textarea
         rows={3}
         placeholder="What does this circle take care of?"
@@ -194,7 +191,7 @@ function DetailsEditor({ circle, onDone }: { circle: Circle; onDone: () => void 
         aria-label="Description"
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={save.isPending || form.name.trim().length < 2 || !form.code.trim()}>
+        <Button type="submit" size="sm" disabled={save.isPending || form.name.trim().length < 2}>
           {save.isPending ? "Saving…" : "Save"}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={onDone}>
@@ -265,10 +262,7 @@ export function CircleDetailClient({ id }: { id: string }) {
             <DetailsEditor circle={circle} onDone={() => setEditingDetails(false)} />
           ) : (
             <>
-              <h1 className="text-2xl font-semibold text-foreground">
-                {circle.name}
-                {circle.name !== circle.code ? <span className="ml-2 text-base font-normal text-muted">{circle.code}</span> : null}
-              </h1>
+              <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
               {circle.description ? (
                 <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
               ) : canManage ? (

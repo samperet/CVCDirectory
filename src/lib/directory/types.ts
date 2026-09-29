@@ -28,7 +28,8 @@ export interface CircleSeat {
 
 export interface Circle {
   id: string;
-  code: string;
+  /** The spreadsheet's short code, kept from the import; no longer shown or asked for. */
+  code?: string;
   name: string;
   description?: string | null;
   seats: CircleSeat[];
@@ -57,6 +58,6 @@ export interface DirectorySummary {
   importedAt: string;
   people: number;
   units: number;
-  circles: { code: string; seats: number; filled: number }[];
+  circles: { name: string; seats: number; filled: number }[];
   carshedSlots: number;
 }

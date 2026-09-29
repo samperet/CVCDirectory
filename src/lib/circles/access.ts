@@ -13,7 +13,7 @@ export function circleProblem(reason: Failure) {
     case "not_found":
       return problem("That circle or member no longer exists", 404, "Not Found");
     case "exists":
-      return problem("A circle with that name or short code already exists", 409, "Conflict");
+      return problem("A circle with that name already exists", 409, "Conflict");
     case "duplicate_member":
       return problem("That resident is already in this circle", 409, "Conflict");
     case "last_board_member":

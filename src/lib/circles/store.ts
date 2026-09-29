@@ -18,9 +18,6 @@ const text = (max: number, label: string) =>
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),
-  code: text(8, "Short code")
-    .min(1, "Give the circle a short code, like LCC")
-    .regex(/^[A-Za-z0-9&+\- ]+$/, "Short code can use letters, numbers, &, +, and -"),
   description: text(1000, "Description").optional().transform((value) => value || null),
 });
 
@@ -86,9 +83,10 @@ async function mutate<T>(
   });
 }
 
-function slugFor(input: { code: string; name: string }, taken: Set<string>) {
+/** A new circle's address, from its name ("Chicken Tenders" → "chicken-tenders"). */
+function slugFor(input: { name: string }, taken: Set<string>) {
   const base =
-    input.code
+    input.name
       .toLowerCase()
       .replace(/&/g, "")
       .replace(/[^a-z0-9]+/g, "-")
@@ -101,16 +99,15 @@ function slugFor(input: { code: string; name: string }, taken: Set<string>) {
 
 export function createCircle(
   imported: Circle[],
-  input: { name: string; code: string; description: string | null },
+  input: { name: string; description: string | null },
   founder: { personId: string; name: string }
 ) {
   return mutate(imported, (circles) => {
-    if (circles.some((circle) => circle.code.toLowerCase() === input.code.toLowerCase() || circle.name.toLowerCase() === input.name.toLowerCase())) {
+    if (circles.some((circle) => circle.name.toLowerCase() === input.name.toLowerCase())) {
       return "exists";
     }
     const circle: Circle = {
       id: slugFor(input, new Set(circles.map((c) => c.id))),
-      code: input.code,
       name: input.name,
       description: input.description,
       seats: [{ id: randomUUID(), personId: founder.personId, name: founder.name, position: "Member", termEnds: null }],
@@ -119,15 +116,15 @@ export function createCircle(
   });
 }
 
-export function updateCircle(imported: Circle[], id: string, update: Partial<{ name: string; code: string; description: string | null }>) {
+export function updateCircle(imported: Circle[], id: string, update: Partial<{ name: string; description: string | null }>) {
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
     if (index === -1) return "not_found";
     const clash = circles.some(
       (circle) =>
         circle.id !== id &&
-        ((update.code && circle.code.toLowerCase() === update.code.toLowerCase()) ||
-          (update.name && circle.name.toLowerCase() === update.name.toLowerCase()))
+        !!update.name &&
+        circle.name.toLowerCase() === update.name.toLowerCase()
     );
     if (clash) return "exists";
     const next = [...circles];

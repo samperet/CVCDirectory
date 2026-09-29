@@ -43,7 +43,7 @@ export function summarize(doc: DirectoryDocument): DirectorySummary {
     people: doc.people.length,
     units: new Set(doc.people.map((p) => p.unit)).size,
     circles: doc.circles.map((c) => ({
-      code: c.code,
+      name: c.name,
       seats: c.seats.length,
       filled: c.seats.filter((s) => s.name).length,
     })),
