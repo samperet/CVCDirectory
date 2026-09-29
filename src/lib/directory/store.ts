@@ -3,6 +3,7 @@ import { applyProfile, readProfiles } from "@/lib/profiles/store";
 import { applyCircleIcon, readCircleIcons } from "@/lib/circles/icons";
 import { readCircles } from "@/lib/circles/store";
 import { applyPeopleChanges, readPeopleChanges } from "./people-store";
+import { combineDuplicates } from "./households";
 import { DirectoryDocument, DirectorySummary } from "./types";
 
 /**
@@ -20,17 +21,27 @@ export async function readImportedDirectory(): Promise<DirectoryDocument | null>
 
 /**
  * The directory as residents see it: people added or removed in the app,
- * their own profile edits and photos applied, and the circles as managed in
- * the app (with icons) in place of the imported ones.
+ * their own profile edits and photos applied, anyone listed in several
+ * households combined into one profile, and the circles as managed in the
+ * app (with icons) in place of the imported ones.
  */
 export async function readDirectory(): Promise<DirectoryDocument | null> {
   const [doc, profiles, icons, changes] = await Promise.all([readImportedDirectory(), readProfiles(), readCircleIcons(), readPeopleChanges()]);
   if (!doc) return null;
   const circles = await readCircles(doc.circles);
+  const { people, aliases } = combineDuplicates(
+    applyPeopleChanges(doc.people, changes).map((person) => applyProfile(person, profiles[person.id])),
+    changes
+  );
+  const alias = (personId: string | null) => (personId && aliases[personId]) || personId;
   return {
     ...doc,
-    people: applyPeopleChanges(doc.people, changes).map((person) => applyProfile(person, profiles[person.id])),
-    circles: circles.map((circle) => applyCircleIcon(circle, icons[circle.id])),
+    people,
+    aliases,
+    circles: circles.map((circle) =>
+      applyCircleIcon({ ...circle, seats: circle.seats.map((seat) => ({ ...seat, personId: alias(seat.personId) })) }, icons[circle.id])
+    ),
+    carsheds: doc.carsheds.map((slot) => ({ ...slot, occupants: slot.occupants.map((occupant) => ({ ...occupant, personId: alias(occupant.personId) })) })),
   };
 }
 

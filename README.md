@@ -148,6 +148,11 @@ Authors always come from the signed-in session, never from the request body.
   closes their account (ending any session, so they can't sign in), and deletes their profile,
   photo, and notifications; what they posted stays under their name. Additions and removals live
   in `directory/people.json`, layered over the import, so a re-import doesn't undo them.
+- **One profile, several households** – someone listed in more than one unit (e.g. a child whose
+  parents live apart) has a single profile listed under each unit. Entries with the same name are
+  combined automatically; directory managers can split a combined profile back into separate
+  entries ("Split entries", for different people who share a name) or combine entries whose names
+  differ ("Same person listed elsewhere?"). Links to a combined entry open the one profile.
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.

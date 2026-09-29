@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Cake, Eye, Home, Mail, Pencil, Phone, Trash2 } from "lucide-react";
+import { ArrowLeft, Cake, Eye, Home, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession, useViewAs } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
+import { unitsOf } from "@/lib/directory/households";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { RoleTag, digits, membershipsByPerson } from "@/components/directory/directory-client";
 import { Avatar } from "@/components/profile/avatar";
@@ -18,16 +19,41 @@ import { useToast } from "@/components/ui/use-toast";
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** One resident's page: contact details, birthday, bio, and circles — and, for directory managers, editing and removal. */
-export function PersonClient({ personId }: { personId: string }) {
+export function PersonClient({ personId: requested }: { personId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
   const viewAs = useViewAs();
+  const [combining, setCombining] = useState("");
   const { data, isLoading, error } = useQuery({ queryKey: ["directory"], queryFn: () => apiFetch<DirectoryDocument>("/api/directory") });
+  // An old link to an entry that's since been combined into one profile opens that profile.
+  const personId = data?.aliases?.[requested] ?? requested;
   const person = data?.people.find((entry) => entry.id === personId);
   const memberships = useMemo(() => (data ? membershipsByPerson(data.circles).get(personId) ?? [] : []), [data, personId]);
-  const household = data && person ? data.people.filter((entry) => entry.unit === person.unit && entry.id !== person.id) : [];
+  const units = person ? unitsOf(person) : [];
+  const combinedFrom = data ? Object.values(data.aliases ?? {}).filter((to) => to === personId).length + 1 : 1;
+  const households = data && person
+    ? units.map((unit) => ({ unit, people: data.people.filter((entry) => entry.id !== person.id && unitsOf(entry).includes(unit)) }))
+    : [];
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["directory"] });
+  const split = useMutation({
+    mutationFn: () => apiFetch(`/api/directory/people/${personId}/entries`, { method: "DELETE" }),
+    onSuccess: () => {
+      refresh();
+      toast({ title: "Split into separate entries" });
+    },
+    onError: (err: Error) => toast({ title: "Could not split", description: err.message, variant: "destructive" }),
+  });
+  const combine = useMutation({
+    mutationFn: (otherId: string) => apiFetch(`/api/directory/people/${personId}/entries`, { method: "POST", body: JSON.stringify({ otherId }) }),
+    onSuccess: () => {
+      setCombining("");
+      refresh();
+      toast({ title: "Combined into one profile", description: "They're listed under each unit." });
+    },
+    onError: (err: Error) => toast({ title: "Could not combine", description: err.message, variant: "destructive" }),
+  });
 
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/directory/people/${personId}`, { method: "DELETE" }),
@@ -66,7 +92,9 @@ export function PersonClient({ personId }: { personId: string }) {
           <Avatar name={person.displayName} photoUrl={person.photoUrl} size={96} />
           <div className="flex flex-col items-center gap-1.5 sm:items-start">
             <h1 className="text-2xl font-semibold text-foreground">{person.displayName}</h1>
-            <p className="text-sm text-muted">Unit {person.unit}</p>
+            <p className="text-sm text-muted">
+              {units.length > 1 ? `Units ${units.slice(0, -1).join(", ")} & ${units[units.length - 1]}` : `Unit ${person.unit}`}
+            </p>
             <RoleTag person={person} />
           </div>
         </div>
@@ -113,20 +141,22 @@ export function PersonClient({ personId }: { personId: string }) {
           </div>
         ) : null}
 
-        {household.length ? (
-          <div className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-foreground">Also in unit {person.unit}</h2>
-            <ul className="flex flex-wrap gap-x-4 gap-y-2">
-              {household.map((entry) => (
-                <li key={entry.id}>
-                  <Link href={`/directory/${entry.id}`} className="flex items-center gap-2 text-sm text-foreground-light hover:underline">
-                    <Avatar name={entry.displayName} photoUrl={entry.photoUrl} size={24} /> {entry.displayName}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        {households
+          .filter(({ people }) => people.length)
+          .map(({ unit, people }) => (
+            <div key={unit} className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold text-foreground">Also in unit {unit}</h2>
+              <ul className="flex flex-wrap gap-x-4 gap-y-2">
+                {people.map((entry) => (
+                  <li key={entry.id}>
+                    <Link href={`/directory/${entry.id}`} className="flex items-center gap-2 text-sm text-foreground-light hover:underline">
+                      <Avatar name={entry.displayName} photoUrl={entry.photoUrl} size={24} /> {entry.displayName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
         {isMe || canManage || user?.isAdmin ? (
           <div className="flex flex-wrap gap-2 border-t border-border pt-4">
@@ -146,6 +176,19 @@ export function PersonClient({ personId }: { personId: string }) {
             {user?.isAdmin && !isMe ? (
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => viewAs.mutate(person.id)} disabled={viewAs.isPending}>
                 <Eye className="h-4 w-4" /> {viewAs.isPending ? "Switching…" : "View as"}
+              </Button>
+            ) : null}
+            {canManage && combinedFrom > 1 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={split.isPending}
+                onClick={() => {
+                  if (window.confirm(`Split ${person.displayName} back into ${combinedFrom} separate entries, one per listing? Do this only if they're different people.`)) split.mutate();
+                }}
+              >
+                <Split className="h-4 w-4" /> Split entries
               </Button>
             ) : null}
             {canManage && !isMe ? (
@@ -168,6 +211,42 @@ export function PersonClient({ personId }: { personId: string }) {
               </Button>
             ) : null}
           </div>
+        ) : null}
+
+        {canManage && data ? (
+          <form
+            className="flex flex-col gap-2 rounded-lg border border-border bg-accent/40 p-3 sm:flex-row sm:items-center"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const other = data.people.find((entry) => entry.id === combining);
+              if (other && window.confirm(`Combine ${other.displayName} (unit ${unitsOf(other).join(" & ")}) into ${person.displayName}'s profile? They'll be listed under both units.`)) {
+                combine.mutate(combining);
+              }
+            }}
+          >
+            <span className="flex items-center gap-1.5 text-sm text-foreground-light">
+              <Merge className="h-4 w-4 text-muted" /> Same person listed elsewhere?
+            </span>
+            <select
+              value={combining}
+              onChange={(event) => setCombining(event.target.value)}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-white px-2 text-sm"
+              aria-label="Entry to combine"
+            >
+              <option value="">Choose their other entry…</option>
+              {data.people
+                .filter((entry) => entry.id !== person.id)
+                .sort((a, b) => a.displayName.localeCompare(b.displayName))
+                .map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.displayName} — unit {unitsOf(entry).join(" & ")}
+                  </option>
+                ))}
+            </select>
+            <Button type="submit" size="sm" variant="outline" disabled={!combining || combine.isPending}>
+              Combine
+            </Button>
+          </form>
         ) : null}
       </Card>
     </div>

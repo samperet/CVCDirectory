@@ -25,14 +25,18 @@ export async function DELETE(_request: Request, { params }: { params: { personId
   if (!directory || !imported) return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
   if (!canManageDirectory(user, directory)) return problem("Only the Board Secretary and admins can remove people", 403, "Forbidden");
   if (!isPersonId(params.personId)) return problem("Person not found", 404, "Not Found");
-  const person = directory.people.find((entry) => entry.id === params.personId);
+  const id = directory.aliases?.[params.personId] ?? params.personId;
+  const person = directory.people.find((entry) => entry.id === id);
   if (!person) return problem("Person not found", 404, "Not Found");
   if (person.id === user.personId) return problem("You can't remove yourself from the directory");
 
-  await removePerson(person.id);
-  await removePersonFromCircles(imported.circles, person.id);
-  const closed = await removeUsersForPerson(person.id);
-  await removeUserPush(closed);
-  if (await deleteProfile(person.id)) await deleteBinary(photoKey(person.id));
+  // A profile listed in several households is several entries: remove them all.
+  const entries = [person.id, ...Object.entries(directory.aliases ?? {}).filter(([, to]) => to === person.id).map(([from]) => from)];
+  for (const entry of entries) {
+    await removePerson(entry);
+    await removePersonFromCircles(imported.circles, entry);
+    await removeUserPush(await removeUsersForPerson(entry));
+    if (await deleteProfile(entry)) await deleteBinary(photoKey(entry));
+  }
   return NextResponse.json({ ok: true, removed: person.displayName });
 }

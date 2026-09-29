@@ -15,6 +15,11 @@ export interface Person {
   /** From the resident's own profile edits; not part of the import. */
   bio?: string | null;
   photoUrl?: string | null;
+  /**
+   * Every unit this person is listed in, when more than one — e.g. a child
+   * who lives in two households. `unit` is the first of them.
+   */
+  units?: number[];
 }
 
 export interface CircleSeat {
@@ -51,6 +56,8 @@ export interface DirectoryDocument {
   people: Person[];
   circles: Circle[];
   carsheds: CarshedSlot[];
+  /** Entries combined into one profile: each duplicate's id → the profile it's now part of. */
+  aliases?: Record<string, string>;
 }
 
 /** Counts only — safe to return from admin endpoints and logs. */

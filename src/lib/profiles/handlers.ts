@@ -24,10 +24,12 @@ type Target = string | null;
 async function resolve(target: Target) {
   const user = await getSessionUser();
   if (!user?.personId) return { error: problem("Sign in to view profiles", 401, "Unauthorized") } as const;
-  const personId = target ?? user.personId;
-  if (!isPersonId(personId)) return { error: problem("Profile not found", 404, "Not Found") } as const;
+  const requested = target ?? user.personId;
+  if (!isPersonId(requested)) return { error: problem("Profile not found", 404, "Not Found") } as const;
   const directory = await readDirectory();
   if (!directory) return { error: problem("Directory entry not found", 404, "Not Found") } as const;
+  // An entry combined into another profile (listed in two households) edits that profile.
+  const personId = directory.aliases?.[requested] ?? requested;
   // "admin" here: may edit anyone's entry, including unit, role, and phone numbers without the current one.
   const admin = canManageDirectory(user, directory);
   if (personId !== user.personId && !admin) {

@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Car, Search, UserPlus, Users2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
+import { unitsOf } from "@/lib/directory/households";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,8 +62,7 @@ function matches(person: Person, query: string) {
     person.displayName.toLowerCase().includes(q) ||
     `${person.lastName} ${person.firstName}`.toLowerCase().includes(q) ||
     (person.email ?? "").includes(q) ||
-    `unit ${person.unit}` === q ||
-    String(person.unit) === q ||
+    unitsOf(person).some((unit) => `unit ${unit}` === q || String(unit) === q) ||
     (qDigits.length >= 3 && (digits(person.phone).includes(qDigits) || digits(person.landline).includes(qDigits)))
   );
 }
@@ -216,14 +216,15 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
   const listed = useMemo(() => people.filter((person) => showNonResidents || person.resident !== false), [people, showNonResidents]);
   const units = useMemo(() => {
     const byUnit = new Map<number, Person[]>();
+    // Someone in two households (e.g. a child) is listed under both, with one profile.
     for (const person of listed.filter((p) => matches(p, query))) {
-      byUnit.set(person.unit, [...(byUnit.get(person.unit) ?? []), person]);
+      for (const unit of unitsOf(person)) byUnit.set(unit, [...(byUnit.get(unit) ?? []), person]);
     }
     return Array.from(byUnit.entries())
       .sort(([a], [b]) => a - b)
       .map(([unit, members]) => [unit, members.sort((a, b) => a.displayName.localeCompare(b.displayName))] as const);
   }, [listed, query]);
-  const shown = units.reduce((total, [, members]) => total + members.length, 0);
+  const shown = new Set(units.flatMap(([, members]) => members.map((person) => person.id))).size;
 
   return (
     <div className="flex flex-col gap-4">
