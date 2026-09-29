@@ -16,6 +16,7 @@ const VIEW_AS_WRITABLE = new Set(["/api/auth/view-as", "/api/auth/logout"]);
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const PUBLIC_PATHS = new Set([
+  "/", // the public front page (residents see their dashboard there)
   "/login",
   "/api/auth/login",
   "/api/auth/logout",
@@ -101,5 +102,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Everything except build assets and public files.
   // The manifest, service worker, and app icons are fetched without cookies, so they must stay public.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|robots.txt).*)"],
+  // The front page's images (home/) are public too; the image optimizer fetches them without cookies.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|home/|robots.txt).*)"],
 };

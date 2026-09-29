@@ -3,6 +3,8 @@ import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camer
 import { NextEvent } from "@/components/calendar/next-event";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
 import { getUpcomingEvents } from "@/lib/calendar/events";
+import { getSessionUser } from "@/lib/auth/session";
+import { PublicHome } from "@/components/home/public-home";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +53,15 @@ const cards = [
   },
 ];
 
-export default async function DashboardPage() {
+export const metadata = {
+  title: "Champlain Valley Cohousing · Charlotte, Vermont",
+  description:
+    "A self-managed, participatory cohousing community in Charlotte, Vermont, stewarding 115 acres of conserved farmland and wildlife habitat.",
+};
+
+/** The public front page for visitors; the dashboard for signed-in residents. */
+export default async function HomePage() {
+  if (!(await getSessionUser())) return <PublicHome />;
   const [nextEvent] = await getUpcomingEvents(1);
   return (
     <div className="flex flex-col gap-6">

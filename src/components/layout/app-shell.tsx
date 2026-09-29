@@ -34,6 +34,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const exitView = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
   const onLoginPage = pathname === "/login";
+  // Signed out, "/" is the public front page, which has its own header and footer.
+  const onPublicHome = pathname === "/";
 
   // Register the service worker (installable app, notifications) and catch the install prompt.
   useEffect(() => setUpPwa(), []);
@@ -41,21 +43,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // The middleware only checks the cookie's signature; if the account behind
   // it doesn't exist, send the visitor to sign in rather than show an empty app.
   useEffect(() => {
-    if (!isLoading && !user && !onLoginPage) {
+    if (!isLoading && !user && !onLoginPage && !onPublicHome) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [isLoading, user, onLoginPage, pathname, router]);
+  }, [isLoading, user, onLoginPage, onPublicHome, pathname, router]);
 
   // Signed-out visitors see only the sign-in page: no navigation or footer.
+  if (!user && onPublicHome) return <>{children}</>;
+
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <header className="border-b border-border bg-background/90">
           <div className="mx-auto flex max-w-6xl items-center px-4 py-3 md:px-6">
-            <span className="flex items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
+            <Link href="/" className="flex items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
               <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
               CVC Directory
-            </span>
+            </Link>
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">

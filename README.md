@@ -66,6 +66,14 @@ Visit [http://localhost:3000](http://localhost:3000) to view the application.
 npm run lint
 ```
 
+## Public Front Page
+
+Signed-out visitors to `/` see a public page about Champlain Valley Cohousing — the community, its
+land, how it governs itself, and how to get in touch — with **Resident sign-in** buttons; signed-in
+residents see their dashboard at `/` instead (`src/components/home/public-home.tsx`). It contains
+no resident information. Its hero photo lives in `public/home/`, which (like the manifest and icons)
+is served without sign-in; every other page and API still requires it.
+
 ## Signing In
 
 Residents sign in at `/login` by choosing their name from a searchable dropdown and entering
@@ -78,7 +86,7 @@ contact details or unit numbers.
 - Five wrong attempts lock that name for 15 minutes. Failures are tracked in the shared store, so
   the limit holds across serverless instances.
 - An account is created on a resident's first sign-in and linked to their directory entry.
-- Signed-out visitors see only the sign-in page: middleware redirects every other page to `/login`
+- Signed-out visitors see only the public front page and the sign-in page: middleware redirects every other page to `/login`
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
 
 Phone numbers are not secret, so this keeps the barrier low rather than high. Session cookies are
