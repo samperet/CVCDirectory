@@ -21,6 +21,8 @@ export interface PublicUser {
   personId: string | null;
   photoUrl?: string | null;
   isAdmin?: boolean;
+  /** An admin or the Board Secretary: may add, edit, and remove people in the directory. */
+  canManageDirectory?: boolean;
 }
 
 const USERS_KEY = "auth/users.json";
@@ -89,6 +91,14 @@ export async function userForPerson(person: { id: string; displayName: string })
     };
     return { users: [...users, user], result: user };
   });
+}
+
+/** Close a resident's account (when they leave the directory), ending their sessions. Returns the removed account ids. */
+export async function removeUsersForPerson(personId: string): Promise<string[]> {
+  return mutateUsers<string[]>((users) => ({
+    users: users.filter((user) => user.personId !== personId),
+    result: users.filter((user) => user.personId === personId).map((user) => user.id),
+  }));
 }
 
 /** Keep the account name in step with the resident's edited display name. */

@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Cake, Car, Home, Mail, Phone, Search, Users2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Car, Search, UserPlus, Users2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { MONTHS } from "@/lib/profiles/months";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/profile/avatar";
-import { useSession, useViewAs } from "@/lib/auth/client";
+import { useSession } from "@/lib/auth/client";
 
 type Tab = "residents" | "carsheds";
 
@@ -20,7 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "carsheds", label: "Carsheds" },
 ];
 
-interface Membership {
+export interface Membership {
   circle: Circle;
   position: string | null;
 }
@@ -28,7 +33,7 @@ interface Membership {
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Each circle's icon as a small badge, labelled with the circle and the resident's role in it. */
-function CircleBadges({ memberships }: { memberships: Membership[] }) {
+export function CircleBadges({ memberships }: { memberships: Membership[] }) {
   if (!memberships.length) return null;
   return (
     <span className="flex flex-wrap items-center gap-1">
@@ -44,7 +49,7 @@ function CircleBadges({ memberships }: { memberships: Membership[] }) {
   );
 }
 
-function digits(value: string | null) {
+export function digits(value: string | null) {
   return (value ?? "").replace(/\D/g, "");
 }
 
@@ -62,7 +67,7 @@ function matches(person: Person, query: string) {
   );
 }
 
-function RoleTag({ person }: { person: Person }) {
+export function RoleTag({ person }: { person: Person }) {
   return (
     <span className="flex flex-wrap gap-1">
       {person.role !== "household" ? (
@@ -77,140 +82,190 @@ function RoleTag({ person }: { person: Person }) {
   );
 }
 
-/** Admins: see the app as this resident does (read-only). */
-function ViewAsButton({ personId }: { personId: string }) {
-  const view = useViewAs();
+/** Each resident's circles, for badges and their page. */
+export function membershipsByPerson(circles: Circle[]) {
+  const map = new Map<string, Membership[]>();
+  for (const circle of circles) {
+    for (const seat of circle.seats) {
+      if (!seat.personId) continue;
+      map.set(seat.personId, [...(map.get(seat.personId) ?? []), { circle, position: seat.position }]);
+    }
+  }
+  return map;
+}
+
+/** The Board Secretary and admins: add someone to the directory. */
+function AddPerson({ onDone }: { onDone: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const [form, setForm] = useState({ firstName: "", lastName: "", unit: "", role: "household", phone: "", landline: "", email: "", month: "", day: "", bio: "" });
+  const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((current) => ({ ...current, [key]: event.target.value }));
+  const add = useMutation({
+    mutationFn: () =>
+      apiFetch<{ person: Person }>("/api/directory/people", {
+        method: "POST",
+        body: JSON.stringify({
+          ...form,
+          birthday: form.month && form.day ? `${form.month} ${form.day}` : "",
+          month: undefined,
+          day: undefined,
+        }),
+      }),
+    onSuccess: ({ person }) => {
+      queryClient.invalidateQueries({ queryKey: ["directory"] });
+      toast({ title: `${person.displayName} added`, description: person.phone || person.landline ? "They can sign in with their phone number." : "Add a phone number so they can sign in." });
+      onDone();
+      router.push(`/directory/${person.id}`);
+    },
+    onError: (err: Error) => toast({ title: "Could not add", description: err.message, variant: "destructive" }),
+  });
+  const field = "flex flex-col gap-1 text-sm font-medium text-foreground";
   return (
-    <button
-      type="button"
-      onClick={() => view.mutate(personId)}
-      disabled={view.isPending}
-      className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline"
-    >
-      {view.isPending ? "Switching…" : "View as"}
-    </button>
+    <Card className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold text-foreground">Add a person</h2>
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          add.mutate();
+        }}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className={field}>
+            First name
+            <Input value={form.firstName} maxLength={50} onChange={set("firstName")} className="bg-white" required />
+          </label>
+          <label className={field}>
+            Last name
+            <Input value={form.lastName} maxLength={50} onChange={set("lastName")} className="bg-white" />
+          </label>
+          <label className={field}>
+            Unit
+            <Input type="number" min={1} max={999} value={form.unit} onChange={set("unit")} className="bg-white" required />
+          </label>
+          <label className={field}>
+            Role
+            <select value={form.role} onChange={set("role")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
+              <option value="owner">Owner</option>
+              <option value="renter">Renter</option>
+              <option value="household">Household member</option>
+            </select>
+          </label>
+          <label className={field}>
+            Mobile phone <span className="text-xs font-normal text-muted">(how they sign in)</span>
+            <Input type="tel" value={form.phone} maxLength={40} onChange={set("phone")} className="bg-white" />
+          </label>
+          <label className={field}>
+            Landline
+            <Input type="tel" value={form.landline} maxLength={40} onChange={set("landline")} className="bg-white" />
+          </label>
+          <label className={field}>
+            Email
+            <Input type="email" value={form.email} maxLength={254} onChange={set("email")} className="bg-white" />
+          </label>
+          <fieldset className={field}>
+            <legend className="mb-1">Birthday</legend>
+            <div className="flex gap-2">
+              <select value={form.month} onChange={set("month")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Birthday month">
+                <option value="">Month</option>
+                {MONTHS.map((month) => (
+                  <option key={month} value={month}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+              <select value={form.day} onChange={set("day")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Birthday day">
+                <option value="">Day</option>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </fieldset>
+        </div>
+        <label className={field}>
+          About <span className="text-xs font-normal text-muted">(optional)</span>
+          <Textarea rows={2} value={form.bio} maxLength={500} onChange={set("bio")} className="bg-white" />
+        </label>
+        <div className="flex gap-2">
+          <Button type="submit" disabled={add.isPending || !form.firstName.trim() || !form.unit}>
+            {add.isPending ? "Adding…" : "Add to directory"}
+          </Button>
+          <Button type="button" variant="outline" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 
-function PersonRow({
-  person,
-  isMe,
-  isAdmin,
-  memberships,
-}: {
-  person: Person;
-  isMe: boolean;
-  isAdmin: boolean;
-  memberships: Membership[];
-}) {
-  return (
-    <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
-      <Avatar name={person.displayName} photoUrl={person.photoUrl} size={40} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-foreground">{person.displayName}</span>
-        <CircleBadges memberships={memberships} />
-        <RoleTag person={person} />
-        {isMe ? (
-          <Link href="/profile" className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline">
-            Edit your profile
-          </Link>
-        ) : isAdmin ? (
-          <>
-            <Link
-              href={`/profile/${person.id}`}
-              className="text-xs font-medium text-secondary-foreground underline-offset-4 hover:underline"
-            >
-              Edit
-            </Link>
-            <ViewAsButton personId={person.id} />
-          </>
-        ) : null}
-      </div>
-      {person.bio ? <p className="whitespace-pre-wrap text-sm text-foreground-light">{person.bio}</p> : null}
-      <div className="flex flex-col gap-0.5 text-sm">
-        {person.phone ? (
-          <a href={`tel:${digits(person.phone)}`} className="inline-flex w-fit items-center gap-1.5 text-foreground-light hover:underline">
-            <Phone className="h-3.5 w-3.5 text-muted" /> {person.phone}
-          </a>
-        ) : null}
-        {person.landline ? (
-          <a href={`tel:${digits(person.landline)}`} className="inline-flex w-fit items-center gap-1.5 text-foreground-light hover:underline">
-            <Home className="h-3.5 w-3.5 text-muted" /> {person.landline} <span className="text-muted">(landline)</span>
-          </a>
-        ) : null}
-        {person.email ? (
-          <a href={`mailto:${person.email}`} className="inline-flex w-fit items-center gap-1.5 break-all text-foreground-light hover:underline">
-            <Mail className="h-3.5 w-3.5 shrink-0 text-muted" /> {person.email}
-          </a>
-        ) : null}
-        {person.birthday ? (
-          <span className="inline-flex items-center gap-1.5 text-muted">
-            <Cake className="h-3.5 w-3.5" /> {person.birthday}
-          </span>
-        ) : null}
-      </div>
-      </div>
-    </li>
-  );
-}
-
+/** The directory as a list: each unit, then the people in it. Details (phone, email, birthday) are on each person's page. */
 function Residents({ people, circles }: { people: Person[]; circles: Circle[] }) {
   const { user } = useSession();
   const [query, setQuery] = useState("");
-  const membershipsOf = useMemo(() => {
-    const map = new Map<string, Membership[]>();
-    for (const circle of circles) {
-      for (const seat of circle.seats) {
-        if (!seat.personId) continue;
-        map.set(seat.personId, [...(map.get(seat.personId) ?? []), { circle, position: seat.position }]);
-      }
-    }
-    return map;
-  }, [circles]);
+  const [adding, setAdding] = useState(false);
+  const membershipsOf = useMemo(() => membershipsByPerson(circles), [circles]);
   const units = useMemo(() => {
     const byUnit = new Map<number, Person[]>();
     for (const person of people.filter((p) => matches(p, query))) {
       byUnit.set(person.unit, [...(byUnit.get(person.unit) ?? []), person]);
     }
-    return Array.from(byUnit.entries()).sort(([a], [b]) => a - b);
+    return Array.from(byUnit.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([unit, members]) => [unit, members.sort((a, b) => a.displayName.localeCompare(b.displayName))] as const);
   }, [people, query]);
   const shown = units.reduce((total, [, members]) => total + members.length, 0);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative md:max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <Input
-          placeholder="Search by name, unit, email, or phone"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="bg-white pl-9"
-          aria-label="Search residents"
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[14rem] flex-1 md:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Input
+            placeholder="Search by name, unit, email, or phone"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="bg-white pl-9"
+            aria-label="Search residents"
+          />
+        </div>
+        {user?.canManageDirectory && !adding ? (
+          <Button className="gap-1.5" onClick={() => setAdding(true)}>
+            <UserPlus className="h-4 w-4" /> Add a person
+          </Button>
+        ) : null}
       </div>
+      {adding ? <AddPerson onDone={() => setAdding(false)} /> : null}
       <p className="text-sm text-muted">
         {query ? `${shown} of ${people.length} residents` : `${people.length} residents across ${units.length} units`}
       </p>
       {units.length ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {units.map(([unit, members]) => (
-            <Card key={unit} className="flex flex-col gap-3 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Unit {unit}</h2>
-              <ul className="divide-y divide-border">
-                {members.map((person) => (
-                  <PersonRow
-                    key={person.id}
-                    person={person}
-                    isMe={person.id === user?.personId}
-                    isAdmin={!!user?.isAdmin}
-                    memberships={membershipsOf.get(person.id) ?? []}
-                  />
-                ))}
-              </ul>
-            </Card>
-          ))}
-        </div>
+        <Card className="p-0">
+          <ul className="divide-y divide-border">
+            {units.map(([unit, members]) => (
+              <li key={unit} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+                <span className="w-20 shrink-0 text-sm font-semibold text-muted">Unit {unit}</span>
+                <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                  {members.map((person) => (
+                    <li key={person.id} className="flex items-center gap-1.5">
+                      <Link href={`/directory/${person.id}`} className="group flex items-center gap-2 rounded-full pr-1 hover:text-foreground">
+                        <Avatar name={person.displayName} photoUrl={person.photoUrl} size={28} />
+                        <span className="font-medium text-foreground underline-offset-4 group-hover:underline">{person.displayName}</span>
+                        {person.id === user?.personId ? <span className="text-xs text-muted">(you)</span> : null}
+                      </Link>
+                      <CircleBadges memberships={membershipsOf.get(person.id) ?? []} />
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </Card>
       ) : (
         <Card>
           <p className="text-sm text-muted">No residents match &ldquo;{query}&rdquo;.</p>

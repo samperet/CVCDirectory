@@ -166,6 +166,19 @@ export function updateMember(imported: Circle[], id: string, memberId: string, u
   });
 }
 
+/** Take a resident out of every circle (when they leave the directory). */
+export function removePersonFromCircles(imported: Circle[], personId: string) {
+  return mutate<number>(imported, (circles) => {
+    let removed = 0;
+    const next = circles.map((circle) => {
+      const seats = circle.seats.filter((seat) => seat.personId !== personId);
+      removed += circle.seats.length - seats.length;
+      return seats.length === circle.seats.length ? circle : { ...circle, seats };
+    });
+    return { circles: next, value: removed };
+  });
+}
+
 export function removeMember(imported: Circle[], id: string, memberId: string) {
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);

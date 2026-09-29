@@ -78,6 +78,22 @@ export async function removeSubscriptions(endpoints: string[], userId?: string) 
   });
 }
 
+/** Forget every device and preference of these accounts (closed accounts get no more notifications). */
+export async function removeUserPush(userIds: string[]) {
+  if (!userIds.length) return;
+  const ids = new Set(userIds);
+  await enqueue(SUBSCRIPTIONS, async () => {
+    const list = normalizeSubscriptions(await readJson(SUBSCRIPTIONS));
+    const kept = list.filter((entry) => !ids.has(entry.userId));
+    if (kept.length !== list.length) await writeJson(SUBSCRIPTIONS, { subscriptions: kept });
+  });
+  await enqueue(PREFERENCES, async () => {
+    const map = await readPreferenceMap();
+    const kept = Object.fromEntries(Object.entries(map).filter(([userId]) => !ids.has(userId)));
+    if (Object.keys(kept).length !== Object.keys(map).length) await writeJson(PREFERENCES, { byUser: kept });
+  });
+}
+
 async function readPreferenceMap(): Promise<Record<string, Partial<Preferences>>> {
   const raw = (await readJson(PREFERENCES)) as { byUser?: Record<string, Partial<Preferences>> } | null;
   return raw?.byUser && typeof raw.byUser === "object" ? raw.byUser : {};

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/admins";
+import { canManageDirectory } from "@/lib/directory/access";
 import { renameUserForPerson } from "@/lib/auth/users";
 import { phoneMatches, phoneDigits } from "@/lib/auth/phone";
 import { readDirectory } from "@/lib/directory/store";
@@ -14,7 +14,8 @@ import { MAX_IMAGE_BYTES, sniffImageType } from "@/lib/images";
 /**
  * Shared handlers for the profile routes. `/api/profiles/me` acts on the
  * signed-in resident's own entry; `/api/profiles/<personId>` acts on any entry,
- * which only that resident or an admin may change.
+ * which only that resident or a directory manager (an admin, or the Board
+ * Secretary) may change.
  */
 
 /** Whose entry: null means the signed-in resident's own. */
@@ -23,15 +24,17 @@ type Target = string | null;
 async function resolve(target: Target) {
   const user = await getSessionUser();
   if (!user?.personId) return { error: problem("Sign in to view profiles", 401, "Unauthorized") } as const;
-  const admin = isAdmin(user);
   const personId = target ?? user.personId;
   if (!isPersonId(personId)) return { error: problem("Profile not found", 404, "Not Found") } as const;
+  const directory = await readDirectory();
+  if (!directory) return { error: problem("Directory entry not found", 404, "Not Found") } as const;
+  // "admin" here: may edit anyone's entry, including unit, role, and phone numbers without the current one.
+  const admin = canManageDirectory(user, directory);
   if (personId !== user.personId && !admin) {
     return { error: problem("You can only change your own profile", 403, "Forbidden") } as const;
   }
-  const directory = await readDirectory();
-  const person = directory?.people.find((entry) => entry.id === personId);
-  if (!directory || !person) return { error: problem("Directory entry not found", 404, "Not Found") } as const;
+  const person = directory.people.find((entry) => entry.id === personId);
+  if (!person) return { error: problem("Directory entry not found", 404, "Not Found") } as const;
   return { user, admin, directory, person } as const;
 }
 
@@ -42,8 +45,8 @@ export async function getProfile(target: Target) {
 }
 
 /**
- * Edit an entry. Unit and owner/renter stay as imported. Because phone numbers
- * are passwords, a resident changing one must give the current one (admins
+ * Edit an entry. Unit and owner/renter are for directory managers. Because phone numbers
+ * are passwords, a resident changing one must give the current one (directory managers
  * can reset them without it), and at least one must remain so they can still
  * sign in.
  */
@@ -99,6 +102,13 @@ export async function patchProfile(request: NextRequest, target: Target) {
   }
 
   if (input.bio !== undefined) patch.bio = input.bio || null;
+
+  // Unit and owner/renter are the directory managers' to change.
+  if (input.unit !== undefined || input.role !== undefined) {
+    if (!admin) return problem("Only the Board Secretary and admins can change a unit or role", 403, "Forbidden");
+    if (input.unit !== undefined && input.unit !== person.unit) patch.unit = input.unit;
+    if (input.role !== undefined && input.role !== person.role) patch.role = input.role;
+  }
 
   await updateProfile(person.id, patch);
   if (patch.firstName !== undefined) {

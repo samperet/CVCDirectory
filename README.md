@@ -137,9 +137,16 @@ Authors always come from the signed-in session, never from the request body.
 
 ## Directory & Skills
 
-- **Directory** (`/directory`) – residents grouped by unit with phone, landline, email, and
-  birthday; circles with their seats and open positions; and carshed allocations. Served by
-  `GET /api/directory` to signed-in residents only (the route confirms the account server-side).
+- **Directory** (`/directory`) – a list of units, each with its residents (and their circle
+  badges), plus carshed allocations. Each name opens the resident's page (`/directory/<id>`) with
+  their phone numbers, email, birthday, bio, circles, and household. Served by `GET /api/directory`
+  to signed-in residents only (the route confirms the account server-side).
+- **Managing the directory** – the Board Secretary (whoever holds that seat on the Board) and
+  admins can add people ("Add a person"), edit anyone's entry including unit and owner/renter (and
+  reset phone numbers), and remove people. Removing someone takes them out of their circles,
+  closes their account (ending any session, so they can't sign in), and deletes their profile,
+  photo, and notifications; what they posted stays under their name. Additions and removals live
+  in `directory/people.json`, layered over the import, so a re-import doesn't undo them.
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.

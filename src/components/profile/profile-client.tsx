@@ -22,6 +22,8 @@ function splitBirthday(value: string | null) {
 }
 
 interface FormState {
+  unit: string;
+  role: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -35,6 +37,8 @@ interface FormState {
 function toForm(profile: Person): FormState {
   const { month, day } = splitBirthday(profile.birthday);
   return {
+    unit: String(profile.unit),
+    role: profile.role,
     firstName: profile.firstName,
     lastName: profile.lastName,
     email: profile.email ?? "",
@@ -55,7 +59,8 @@ const digits = (value: string) => value.replace(/\D/g, "").replace(/^1(?=\d{10}$
 export function ProfileClient({ personId }: { personId?: string } = {}) {
   const { toast } = useToast();
   const { user } = useSession();
-  const isAdmin = !!user?.isAdmin;
+  // The Board Secretary and admins manage the directory: unit, role, and phone resets without the current number.
+  const isManager = !!user?.canManageDirectory;
   const own = !personId || personId === user?.personId;
   const base = own ? "/api/profiles/me" : `/api/profiles/${personId}`;
   const queryKey = ["profile", own ? "me" : personId];
@@ -118,7 +123,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
   }
 
   // Admins can reset phone numbers without knowing the current one.
-  const needsCurrentPhone = !isAdmin;
+  const needsCurrentPhone = !isManager;
   const phonesChanged = digits(form.phone) !== digits(profile.phone ?? "") || digits(form.landline) !== digits(profile.landline ?? "");
   const set = (key: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((current) => (current ? { ...current, [key]: event.target.value } : current));
@@ -137,6 +142,10 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
       body.landline = form.landline;
       if (needsCurrentPhone) body.currentPhone = currentPhone;
     }
+    if (isManager) {
+      body.unit = form.unit;
+      body.role = form.role;
+    }
     save.mutate(body);
   };
 
@@ -147,7 +156,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
         <p className="text-sm text-muted">
           {own
             ? "This is how neighbors see you in the directory."
-            : "You're editing this resident's directory entry as an admin."}
+            : "You're editing this resident's directory entry."}
         </p>
       </div>
 
@@ -186,6 +195,22 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
 
       <Card>
         <form className="flex flex-col gap-4" onSubmit={submit}>
+          {isManager ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                Unit
+                <Input type="number" min={1} max={999} value={form.unit} onChange={set("unit")} className="bg-white" required />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                Role
+                <select value={form.role} onChange={set("role")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
+                  <option value="owner">Owner</option>
+                  <option value="renter">Renter</option>
+                  <option value="household">Household member</option>
+                </select>
+              </label>
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
               First name

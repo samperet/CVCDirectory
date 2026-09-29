@@ -1,5 +1,5 @@
 import { enqueue, readJson, writeJson } from "@/lib/storage";
-import type { Person } from "@/lib/directory/types";
+import type { Person, PersonRole } from "@/lib/directory/types";
 
 /**
  * Residents' own edits to their directory entry, kept apart from the imported
@@ -17,6 +17,9 @@ export interface ProfileOverride {
   birthday?: string | null;
   bio?: string | null;
   photo?: { contentType: string; updatedAt: string } | null;
+  /** Set by directory managers only. */
+  unit?: number;
+  role?: PersonRole;
   updatedAt: string;
 }
 
@@ -63,6 +66,8 @@ export function applyProfile(person: Person, override: ProfileOverride | undefin
     firstName,
     lastName,
     displayName: `${firstName} ${lastName}`.trim(),
+    unit: has(override, "unit") ? override.unit! : person.unit,
+    role: has(override, "role") ? override.role! : person.role,
     email: has(override, "email") ? override.email ?? null : person.email,
     phone: has(override, "phone") ? override.phone ?? null : person.phone,
     landline: has(override, "landline") ? override.landline ?? null : person.landline,
@@ -70,4 +75,15 @@ export function applyProfile(person: Person, override: ProfileOverride | undefin
     bio: override.bio ?? null,
     photoUrl: override.photo ? `/api/profiles/${person.id}/photo?v=${encodeURIComponent(override.photo.updatedAt)}` : null,
   };
+}
+
+/** Forget a resident's profile edits (when they leave the directory); returns whether they had a photo. */
+export async function deleteProfile(personId: string): Promise<boolean> {
+  return enqueue(KEY, async () => {
+    const profiles = await readProfiles();
+    if (!profiles[personId]) return false;
+    const { [personId]: removed, ...rest } = profiles;
+    await writeJson(KEY, { profiles: rest });
+    return !!removed.photo;
+  });
 }
