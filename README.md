@@ -212,7 +212,8 @@ from then on, so re-importing the directory never overwrites circle changes.
 - `/photos` is a shared gallery. Any resident can add photos (several at once, each with an
   optional caption); they're downscaled to at most 2400 px and re-encoded as JPEG in the browser,
   which also strips embedded metadata such as GPS location, then verified server-side by their
-  bytes (up to 4 MB). Whoever added a photo — or an admin — can edit its caption or remove it.
+  bytes (up to 4 MB). Any resident can remove a photo; whoever added it — or an admin — can edit
+  its caption.
 - Images are stored in R2 (`photos/files/<id>`, details in `photos/index.json`) and served only to
   signed-in residents; photos are never committed to the (public) repository.
 - `POST /api/admin/photos?caption=…` seeds the gallery with the image as the raw body, using

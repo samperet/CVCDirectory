@@ -39,14 +39,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json({ photo: result });
 }
 
-/** Remove a photo: whoever added it, or an admin. */
+/** Remove a photo: any signed-in resident. */
 export async function DELETE(_request: Request, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to remove photos", 401, "Unauthorized");
   if (!isPhotoId(params.id)) return problem("Photo not found", 404, "Not Found");
 
-  const result = await removePhoto(params.id, { id: user.id, admin: isAdmin(user) });
-  if (result === "not_found") return problem("Photo not found", 404, "Not Found");
-  if (result === "forbidden") return problem("Only the person who added this photo can remove it", 403, "Forbidden");
+  if ((await removePhoto(params.id)) === "not_found") return problem("Photo not found", 404, "Not Found");
   return NextResponse.json({ ok: true });
 }

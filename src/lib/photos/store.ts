@@ -4,9 +4,10 @@ import { deleteBinary, enqueue, readJson, writeBinary, writeJson } from "@/lib/s
 
 /**
  * Community photos. Each image is a binary object (`photos/files/<id>`) with
- * its details in one index document. Residents add photos; the person who
- * added one (or an admin) can edit its caption or remove it. Photos seeded
- * through the admin API have no uploader, so only admins manage those.
+ * its details in one index document. Residents add photos, and any resident
+ * can remove one. Captions are edited by whoever added the photo, or an
+ * admin (photos seeded through the admin API have no uploader, so only
+ * admins edit theirs).
  */
 
 export interface Photo {
@@ -86,12 +87,12 @@ export async function updateCaption(id: string, actor: Actor, caption: string): 
   });
 }
 
-export async function removePhoto(id: string, actor: Actor): Promise<"removed" | "not_found" | "forbidden"> {
+/** Remove a photo. Any signed-in resident may. */
+export async function removePhoto(id: string): Promise<"removed" | "not_found"> {
   return enqueue(KEY, async () => {
     const photos = normalize(await readJson(KEY));
     const photo = photos.find((entry) => entry.id === id);
     if (!photo) return "not_found" as const;
-    if (!mayChange(photo, actor)) return "forbidden" as const;
     await writeJson(KEY, { photos: photos.filter((entry) => entry.id !== id) });
     await deleteBinary(photoFileKey(id));
     return "removed" as const;

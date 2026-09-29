@@ -122,7 +122,8 @@ function Viewer({
   const queryClient = useQueryClient();
   const { user } = useSession();
   const photo = photos[index];
-  const canManage = !!user && (user.isAdmin || (photo.uploaderId !== null && photo.uploaderId === user.id));
+  // Anyone can remove a photo; captions are for whoever added it, or an admin.
+  const canEditCaption = !!user && (user.isAdmin || (photo.uploaderId !== null && photo.uploaderId === user.id));
   const [editing, setEditing] = useState(false);
   const [caption, setCaption] = useState(photo.caption);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -260,22 +261,20 @@ function Viewer({
                 {photo.uploaderName ? `Added by ${photo.uploaderName} · ` : ""}
                 {added}
               </span>
-              {canManage ? (
-                <>
-                  <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 hover:text-white">
-                    <Pencil className="h-3.5 w-3.5" /> {photo.caption ? "Edit caption" : "Add caption"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm("Remove this photo?")) remove.mutate();
-                    }}
-                    disabled={remove.isPending}
-                    className="inline-flex items-center gap-1 hover:text-red-300"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> {remove.isPending ? "Removing…" : "Remove"}
-                  </button>
-                </>
+              {canEditCaption ? (
+                <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 hover:text-white">
+                  <Pencil className="h-3.5 w-3.5" /> {photo.caption ? "Edit caption" : "Add caption"}
+                </button>
               ) : null}
+              <button
+                onClick={() => {
+                  if (window.confirm("Remove this photo for everyone? This can't be undone.")) remove.mutate();
+                }}
+                disabled={remove.isPending}
+                className="inline-flex items-center gap-1 hover:text-red-300"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> {remove.isPending ? "Removing…" : "Remove"}
+              </button>
             </div>
           </>
         )}
