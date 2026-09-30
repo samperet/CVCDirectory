@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 export interface PollDraft {
   options: string[];
   multiple: boolean;
+  /** Voters may add options of their own. */
+  allowOther: boolean;
   /** A date (YYYY-MM-DD), or "" for no closing date. */
   closesOn: string;
 }
 
-export const emptyPollDraft = (): PollDraft => ({ options: ["", ""], multiple: false, closesOn: "" });
+export const emptyPollDraft = (): PollDraft => ({ options: ["", ""], multiple: false, allowOther: false, closesOn: "" });
 
 /** The filled-in options of a draft. */
 export const draftOptions = (draft: PollDraft) => draft.options.map((option) => option.trim()).filter(Boolean);
@@ -21,12 +23,13 @@ export const draftOptions = (draft: PollDraft) => draft.options.map((option) => 
 export const pollPayload = (draft: PollDraft) => ({
   options: draftOptions(draft),
   multiple: draft.multiple,
+  allowOther: draft.allowOther,
   closesAt: draft.closesOn ? new Date(`${draft.closesOn}T23:59:59`).toISOString() : null,
 });
 
-/** A poll's options (2–10), whether several can be chosen, and an optional closing date. */
+/** A poll's options (2–10), whether several can be chosen, whether voters can add their own, and an optional closing date. */
 export function PollFields({ draft, onChange }: { draft: PollDraft; onChange: (draft: PollDraft) => void }) {
-  const { options, multiple, closesOn } = draft;
+  const { options, multiple, allowOther, closesOn } = draft;
   const setOptions = (update: (current: string[]) => string[]) => onChange({ ...draft, options: update(options) });
   const setMultiple = (value: boolean) => onChange({ ...draft, multiple: value });
   const setClosesOn = (value: string) => onChange({ ...draft, closesOn: value });
@@ -66,6 +69,10 @@ export function PollFields({ draft, onChange }: { draft: PollDraft; onChange: (d
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} className="h-4 w-4 accent-primary" />
           Allow more than one choice
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={allowOther} onChange={(e) => onChange({ ...draft, allowOther: e.target.checked })} className="h-4 w-4 accent-primary" />
+          Let people add their own options
         </label>
         <label className="flex items-center gap-2">
           Closes on

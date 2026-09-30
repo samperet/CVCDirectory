@@ -14,7 +14,7 @@ import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule } from "@/components/circles/duty-schedule";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
-import { CommunityPolls } from "@/components/polls/community-polls";
+import { CirclePolls } from "@/components/polls/circle-polls";
 import { WikiSection } from "@/components/wiki/wiki-client";
 import { TasksSection } from "@/components/tasks/task-board";
 import { featureEnabled } from "@/lib/circles/features";
@@ -183,6 +183,7 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
   const [club, setClub] = useState(circle.kind === "club");
   const kindChanged = club !== (circle.kind === "club");
   const [features, setFeatures] = useState({
+    polls: featureEnabled(circle, "polls"),
     tasks: featureEnabled(circle, "tasks"),
     wiki: featureEnabled(circle, "wiki"),
     documents: featureEnabled(circle, "documents"),
@@ -218,6 +219,7 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         <legend className="mb-1 text-xs font-medium text-muted">Sections on this page</legend>
         {(
           [
+            ["polls", "Polls"],
             ["tasks", "Tasks"],
             ["wiki", "Wiki"],
             ["documents", "Documents"],
@@ -594,9 +596,9 @@ export function CircleDetailClient({ id }: { id: string }) {
           {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
           <DutyScheduleModule circleId={id} people={people} />
 
-          {community ? (
+          {featureEnabled(circle, "polls") ? (
             <Card id="polls" className="scroll-mt-24">
-              <CommunityPolls />
+              <CirclePolls circle={circle} />
             </Card>
           ) : null}
 

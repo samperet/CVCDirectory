@@ -14,8 +14,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to vote", 401, "Unauthorized");
   const parsed = voteSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem("Choose one of the poll's options");
-  const result = await vote(params.id, { id: user.id, name: user.name }, parsed.data.optionIds);
+  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const result = await vote(params.id, { id: user.id, name: user.name }, parsed.data.optionIds, parsed.data.newOption);
   return result.ok ? NextResponse.json(result.doc) : forumProblem(result.reason);
 }
 

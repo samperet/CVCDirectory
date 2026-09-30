@@ -430,7 +430,7 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
           id={thread.id}
           poll={thread.poll}
           canClose={mine}
-          onVote={(optionIds) => pollRequest("POST", { optionIds })}
+          onVote={(optionIds, newOption) => pollRequest("POST", { optionIds, newOption })}
           onSetClosed={(closed) => pollRequest("PATCH", { closed })}
         />
       ) : null}

@@ -4,6 +4,7 @@ import { deleteWiki } from "@/lib/wiki/store";
 import { deleteCircleComments } from "@/lib/wiki/comments";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
+import { deleteCirclePolls } from "@/lib/polls/circle";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { BOARD_ID, circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -55,5 +56,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   await deleteCircleComments(params.id);
   await deleteCircleTasks(params.id);
   await deleteCircleTaskComments(params.id);
+  await deleteCirclePolls(params.id);
   return NextResponse.json({ ok: true });
 }

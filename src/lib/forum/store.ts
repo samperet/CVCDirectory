@@ -199,7 +199,7 @@ export async function createThread(
   return doc;
 }
 
-type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post" | "poll_closed" | "invalid_vote";
+type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post" | "poll_closed" | "invalid_vote" | "no_new_options" | "options_full";
 export type ThreadResult = { ok: true; doc: ForumThreadDocument } | { ok: false; reason: Failure };
 
 /**
@@ -339,12 +339,12 @@ export function setLike(threadId: string, replyId: string | null, user: { id: st
  * Vote in a discussion's poll, replacing any earlier vote; no options takes
  * the vote back. One option unless the poll allows several.
  */
-export function vote(threadId: string, user: { id: string; name: string }, optionIds: string[]) {
+export function vote(threadId: string, user: { id: string; name: string }, optionIds: string[], newOption?: string) {
   return mutateThread(
     threadId,
     (doc) => {
       if (!doc.thread.poll) return "not_found";
-      const poll = castVote(doc.thread.poll, user, optionIds);
+      const poll = castVote(doc.thread.poll, user, optionIds, newOption);
       return typeof poll === "string" ? poll : { ...doc, thread: { ...doc.thread, poll } };
     },
     { sync: false }

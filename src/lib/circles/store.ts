@@ -37,7 +37,7 @@ export const circleUpdateSchema = circleInputSchema
   .extend({
     joinPolicy: z.enum(["open", "apply"]),
     kind,
-    features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional(), tasks: z.boolean().optional() }),
+    features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional(), tasks: z.boolean().optional(), polls: z.boolean().optional() }),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -154,7 +154,7 @@ export function updateCircle(
     description: string | null;
     joinPolicy: "open" | "apply";
     kind: "circle" | "club";
-    features: { documents?: boolean; wiki?: boolean; tasks?: boolean };
+    features: { documents?: boolean; wiki?: boolean; tasks?: boolean; polls?: boolean };
   }>
 ) {
   return mutate(imported, (circles) => {

@@ -60,7 +60,7 @@ export interface Circle {
   /** "club" for a social club; unset for an official, sociocratically formed circle. */
   kind?: CircleKind;
   /** Which of its pages' sections the circle uses; each is on unless set to false. */
-  features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
+  features?: { documents?: boolean; wiki?: boolean; tasks?: boolean; polls?: boolean };
   /** Pending applications; only the circle's members, the Board, and admins see them. */
   applications?: CircleApplication[];
 }

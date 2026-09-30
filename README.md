@@ -157,7 +157,10 @@ Admin status is checked server-side on every request, and the user menu shows an
   question, the post is optional context, and it has 2–10 options, one choice or several, and an
   optional closing date. Residents vote, change their vote, or take it back while it's open; results
   (counts, percentages, and who chose what) show once you've voted, when it's closed, or on "See
-  results". The poll's author or an admin can close and reopen it; options are fixed once posted.
+  results". The poll's author or an admin can close and reopen it. The author's options are fixed
+  once posted, but a poll can **let people add their own options**: a voter types one in and votes
+  for it (it's marked "added by …"; typing one that's already there just votes for it), up to 30
+  options in all.
   Votes are stored with the thread (`POST /api/forum/threads/<id>/poll` votes, `PATCH` closes).
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
   to someone. One at a time rotates through the footer of every page, large and centered (pausing
@@ -286,10 +289,17 @@ from then on, so re-importing the directory never overwrites circle changes.
 - **Community circle** – a built-in circle (`community`) for everyone at CVC, shown across the top
   of `/circles` at double width. It has no member list and can't be joined, left, or deleted; any
   resident can add its documents, and its page has **Polls**: any resident asks everyone a
-  question (2–10 options, one choice or several, optional closing date), votes, and sees results as
-  in forum polls; a poll's author or an admin can close, reopen, or delete it. New polls notify
-  residents (the "polls" notification setting). Stored in `community/polls.json`
-  (`/api/community/polls`). The Board and admins edit the circle's details and icon.
+  question. The Board and admins edit the circle's details and icon.
+- **Circle polls** – *Polls* is a section any circle can turn on (under **Edit details**; off by
+  default, except on the Community page). A poll has a question, optional context, 2–10 options,
+  one choice or several, an optional closing date, and optionally lets voters add their own
+  options; results show as in forum polls. On the Community page any resident asks; elsewhere the
+  circle's members, the Board, and admins do, and can make a poll **members only** (only the
+  circle's members vote; everyone sees the results). A poll's author, admins, and — outside
+  Community — the circle's members close, reopen, or delete it. New polls notify residents (just
+  the circle's members, for a members-only poll; the "polls" notification setting). Stored in
+  `circle-polls/<circleId>.json` (the Community page's in `community/polls.json`), served at
+  `/api/circles/<id>/polls`.
 - `/circles` lists the Community circle, then **Circles** (the official, sociocratically formed
   ones), then **Social Clubs** (e.g. the Chicken Tenders), each with name, member count, and
   description. Any resident can start a social club and becomes its first member; the Board and
