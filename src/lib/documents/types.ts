@@ -67,6 +67,26 @@ export interface DocumentRecord {
   versions: DocumentVersion[];
   createdAt: string;
   updatedAt: string;
+  /** The circle's consent, recorded by its Secretary: to one version of the document. */
+  consent?: DocumentConsent | null;
+}
+
+export interface DocumentConsent {
+  /** The version consented to; a later version isn't consented until the Secretary says so. */
+  version: number;
+  /** The day the circle consented (YYYY-MM-DD). */
+  date: string;
+  recordedBy: { personId: string | null; name: string };
+  recordedAt: string;
+}
+
+/**
+ * "consented" while the consented version is current; "changed" once a newer
+ * version has replaced it; null if the circle hasn't consented.
+ */
+export function consentState(doc: Pick<DocumentRecord, "consent" | "versions">): "consented" | "changed" | null {
+  if (!doc.consent) return null;
+  return doc.consent.version === doc.versions[doc.versions.length - 1]?.number ? "consented" : "changed";
 }
 
 /** A document as listed or found by search, with what the viewer may do. */
@@ -75,6 +95,8 @@ export interface DocumentListing extends DocumentRecord {
   /** The type's current name. */
   typeLabel: string;
   canManage: boolean;
+  /** Whether you can record (or withdraw) the circle's consent: its Secretary, the Board Secretary, admins. */
+  canConsent: boolean;
   /** Search results only: the passage around the first match. */
   snippet?: string | null;
 }

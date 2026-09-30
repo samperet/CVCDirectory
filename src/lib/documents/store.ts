@@ -3,6 +3,7 @@ import { z } from "zod";
 import { deleteBinary, enqueue, readJson, writeBinary, writeJson } from "@/lib/storage";
 import { occurrences, snippetFor } from "@/lib/search";
 import {
+  DocumentConsent,
   DocumentRecord,
   DocumentVersion,
   Uploader,
@@ -151,6 +152,18 @@ export function updateDocument(id: string, update: Partial<DocumentDetails>) {
     if (index === -1) return "not_found";
     const next = [...documents];
     next[index] = { ...documents[index], ...update, updatedAt: new Date().toISOString() };
+    return { documents: next, value: next[index] };
+  });
+}
+
+/** Record the circle's consent to a document (to its current version), or withdraw it (null). */
+export function setConsent(id: string, consent: Omit<DocumentConsent, "version"> | null) {
+  return mutate<DocumentRecord>((documents) => {
+    const index = documents.findIndex((doc) => doc.id === id);
+    if (index === -1) return "not_found";
+    const doc = documents[index];
+    const next = [...documents];
+    next[index] = { ...doc, consent: consent ? { ...consent, version: doc.versions[doc.versions.length - 1].number } : null };
     return { documents: next, value: next[index] };
   });
 }

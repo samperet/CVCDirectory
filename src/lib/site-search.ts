@@ -2,7 +2,7 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { featureEnabled } from "@/lib/circles/features";
 import { listDocuments, searchDocuments } from "@/lib/documents/store";
 import { readTypeMap, typeLabelFor } from "@/lib/documents/type-store";
-import { searchTerms } from "@/lib/documents/types";
+import { consentState, searchTerms, type DocumentRecord } from "@/lib/documents/types";
 import { searchForum } from "@/lib/forum/search";
 import { listLoanItems } from "@/lib/library/store";
 import { listRecommendations } from "@/lib/resources/store";
@@ -174,12 +174,13 @@ export async function searchSite(query: string, directory: DirectoryDocument, pe
     body: item.description || undefined,
   }));
 
-  const documentHits = await searchDocuments(documents, query, (doc) => `${circleName(doc.circleId)} ${typeLabelFor(doc, types)}`);
+  const consented = (doc: DocumentRecord) => consentState(doc) === "consented";
+  const documentHits = await searchDocuments(documents, query, (doc) => `${circleName(doc.circleId)} ${typeLabelFor(doc, types)}${consented(doc) ? " consented" : ""}`);
   const documentResults: SearchResult[] = documentHits.map((hit) => ({
     title: hit.doc.title,
     href: `/api/documents/${hit.doc.id}/file`,
     external: true,
-    meta: [circleName(hit.doc.circleId), typeLabelFor(hit.doc, types), hit.doc.meetingDate].filter(Boolean).join(" · "),
+    meta: [circleName(hit.doc.circleId), typeLabelFor(hit.doc, types), consented(hit.doc) ? "Consented" : null, hit.doc.meetingDate].filter(Boolean).join(" · "),
     snippet: hit.snippet ?? hit.doc.description ?? null,
     score: hit.score,
   }));

@@ -229,6 +229,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   Each document is one line: its title (opening the file), type, circle where the list spans
   circles, and date; Download, versions, and — for its managers — Edit, New version, and Delete are
   icons that appear on hover (always, on touch screens). A description shows as a second line.
+- **Consent** – a circle's Secretary (and the Board Secretary, and admins) marks a document
+  consented, with the date the circle consented (the meeting date by default). It then carries a
+  **Consented** badge (its tooltip says when, and who recorded it). Consent belongs to the version
+  consented: a newer version shows **Changed since consent** until the Secretary consents again,
+  and the version history marks the consented one. **Consented only** filters the list; search
+  finds consented documents by the word "consented". The Secretary can withdraw a record of consent.
+  (`PUT`/`DELETE /api/documents/<id>/consent`; stored with the document as `consent`.)
 - **Wiki** – each circle also has its own wiki (`/circles/<id>/wiki`, with a page finder). Pages are
   Markdown, edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), open source, on
   Lexical): a toolbar for headings, bold/italic/strikethrough, lists and checklists, links, tables,

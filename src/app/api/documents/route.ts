@@ -5,7 +5,7 @@ import { deleteBinary, readBinary } from "@/lib/storage";
 import { canManageDocument, canUploadTo, toListing } from "@/lib/documents/access";
 import { extractText, identifyDocument } from "@/lib/documents/files";
 import { addVersion, createDocument, documentDetailsSchema, getDocument, listDocuments, searchDocuments } from "@/lib/documents/store";
-import { DocumentRecord, documentDate } from "@/lib/documents/types";
+import { DocumentRecord, consentState, documentDate } from "@/lib/documents/types";
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
 import { notify } from "@/lib/push/notify";
@@ -17,8 +17,9 @@ export const maxDuration = 60;
 
 /**
  * List documents, newest first — or, with `q`, search their details and
- * contents, best match first. Filters: `circle`, and `type` (a type's name,
- * since each circle names its own types). Also returns the type names in use,
+ * contents, best match first. Filters: `circle`, `type` (a type's name,
+ * since each circle names its own types), and `consented=1` (only documents
+ * whose current version the circle has consented to). Also returns the type names in use,
  * for the type filter.
  */
 export async function GET(request: NextRequest) {
@@ -29,16 +30,19 @@ export async function GET(request: NextRequest) {
   const q = (params.get("q") ?? "").trim().slice(0, 200);
   const circle = params.get("circle");
   const type = params.get("type");
+  const consentedOnly = params.get("consented") === "1";
   const types = await readTypeMap();
   const label = (doc: DocumentRecord) => typeLabelFor(doc, types);
 
   const inCircle = (await listDocuments()).filter((doc) => !circle || doc.circleId === circle);
   const typeOptions = Array.from(new Set(inCircle.map(label))).sort((a, b) => a.localeCompare(b));
-  const documents = inCircle.filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase());
+  const documents = inCircle
+    .filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase())
+    .filter((doc) => !consentedOnly || consentState(doc) === "consented");
   const circleName = (doc: DocumentRecord) => directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "";
 
   if (q) {
-    const hits = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${label(doc)}`);
+    const hits = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${label(doc)}${consentState(doc) === "consented" ? " consented" : ""}`);
     return NextResponse.json(
       { documents: hits.slice(0, 100).map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)), total: hits.length, typeOptions },
       { headers: { "Cache-Control": "private, no-store" } }

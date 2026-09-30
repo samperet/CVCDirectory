@@ -1,5 +1,6 @@
 import { isAdmin } from "@/lib/auth/admins";
 import { BOARD_ID } from "@/lib/circles/store";
+import { holdsSeat } from "@/lib/circles/icons";
 import type { DirectoryDocument } from "./types";
 
 /**
@@ -9,7 +10,5 @@ import type { DirectoryDocument } from "./types";
  */
 export function canManageDirectory(user: { personId?: string | null }, directory: DirectoryDocument) {
   if (isAdmin(user)) return true;
-  if (!user.personId) return false;
-  const board = directory.circles.find((circle) => circle.id === BOARD_ID);
-  return !!board?.seats.some((seat) => seat.personId === user.personId && /secretary/i.test(seat.position ?? ""));
+  return !!user.personId && holdsSeat(directory, BOARD_ID, user.personId, /secretary/i);
 }

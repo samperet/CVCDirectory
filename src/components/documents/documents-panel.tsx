@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
+  BadgeCheck,
   Download,
   FileText,
   History,
@@ -25,6 +26,7 @@ import {
   DocumentListing,
   DocumentTypeOption,
   MAX_DOCUMENT_TYPES,
+  consentState,
   currentVersion,
   documentDate,
   formatBytes,
@@ -244,6 +246,33 @@ function UploadCard({ circleId, onDone }: { circleId: string; onDone: () => void
   );
 }
 
+/** "Consented" while the consented version is current; "Changed since consent" after a newer version. */
+function ConsentBadge({ doc }: { doc: DocumentListing }) {
+  const state = consentState(doc);
+  if (!state || !doc.consent) return null;
+  const when = shortDate(doc.consent.date);
+  if (state === "consented") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-pine/10 px-2 py-0.5 font-semibold text-pine"
+        title={`Consented ${when} · recorded by ${doc.consent.recordedBy.name}`}
+      >
+        <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/15 px-2 py-0.5 font-medium text-[#7a5200]"
+      title={`Version ${doc.consent.version} was consented ${when}; the current version hasn't been`}
+    >
+      {/* Short on phones, where the row is narrow; the tooltip says the rest. */}
+      <span className="sm:hidden">Changed</span>
+      <span className="hidden sm:inline">Changed since consent</span>
+    </span>
+  );
+}
+
 function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: string[]; showCircle: boolean }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -257,6 +286,10 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
   });
   const [replacing, setReplacing] = useState<{ file: File; sent: number; finishing: boolean } | null>(null);
   const version = currentVersion(doc);
+  const consent = consentState(doc);
+  const today = new Date().toLocaleDateString("en-CA");
+  const [consenting, setConsenting] = useState(false);
+  const [consentDate, setConsentDate] = useState(doc.meetingDate && doc.meetingDate <= today ? doc.meetingDate : today);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] });
   const circleTypes = useCircleTypes(doc.circleId).data?.types ?? [];
   const editTypes = circleTypes.some((type) => type.id === doc.type) ? circleTypes : [{ id: doc.type, label: doc.typeLabel }, ...circleTypes];
@@ -272,6 +305,24 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
       refresh();
     },
     onError: (err: Error) => toast({ title: "Could not save", description: err.message, variant: "destructive" }),
+  });
+
+  const markConsented = useMutation({
+    mutationFn: () => apiFetch(`/api/documents/${doc.id}/consent`, { method: "PUT", body: JSON.stringify({ date: consentDate }) }),
+    onSuccess: () => {
+      setConsenting(false);
+      toast({ title: "Marked consented" });
+      refresh();
+    },
+    onError: (err: Error) => toast({ title: "Could not record consent", description: err.message, variant: "destructive" }),
+  });
+  const withdraw = useMutation({
+    mutationFn: () => apiFetch(`/api/documents/${doc.id}/consent`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast({ title: "Consent withdrawn" });
+      refresh();
+    },
+    onError: (err: Error) => toast({ title: "Could not withdraw consent", description: err.message, variant: "destructive" }),
   });
 
   const remove = useMutation({
@@ -331,6 +382,7 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
           </a>
           <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted [grid-area:meta] sm:shrink-0 sm:flex-nowrap">
             <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
+            <ConsentBadge doc={doc} />
             {showCircle ? (
               <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
                 {doc.circleName}
@@ -339,7 +391,7 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
             <span className="whitespace-nowrap">{doc.meetingDate ? `Meeting ${shortDate(doc.meetingDate)}` : shortDate(documentDate(doc))}</span>
           </p>
 
-        <div className={cn("flex shrink-0 items-center [grid-area:act] sm:ml-auto", mode === "view" && !replacing && ON_HOVER)}>
+        <div className={cn("flex shrink-0 items-center [grid-area:act] sm:ml-auto", mode === "view" && !replacing && !consenting && ON_HOVER)}>
           <a href={fileUrl(doc, undefined, true)} className={action} aria-label={`Download ${doc.title}`} title="Download">
             <Download className="h-4 w-4" />
           </a>
@@ -355,6 +407,33 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
               <History className="h-4 w-4" />
               <span className="text-xs tabular-nums">{doc.versions.length}</span>
             </button>
+          ) : null}
+          {doc.canConsent ? (
+            consent === "consented" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Withdraw the record that ${doc.circleName || "the circle"} consented to “${doc.title}”?`)) withdraw.mutate();
+                }}
+                disabled={withdraw.isPending}
+                className={cn(action, "text-pine")}
+                aria-label="Withdraw consent"
+                title="Withdraw consent"
+              >
+                <BadgeCheck className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConsenting((open) => !open)}
+                className={cn(action, consenting && "bg-accent text-foreground")}
+                aria-label="Mark consented"
+                aria-expanded={consenting}
+                title={consent === "changed" ? "Mark this version consented" : "Mark consented"}
+              >
+                <BadgeCheck className="h-4 w-4" />
+              </button>
+            )
           ) : null}
           {doc.canManage ? (
             <>
@@ -402,6 +481,26 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
         </div>
       </div>
 
+      {consenting ? (
+        <form
+          className="ml-8 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-accent/50 px-3 py-2 text-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            markConsented.mutate();
+          }}
+        >
+          <label className="flex items-center gap-2 text-foreground">
+            {doc.circleName ? `${doc.circleName} consented on` : "Consented on"}
+            <Input type="date" value={consentDate} max={today} onChange={(event) => setConsentDate(event.target.value)} className="h-8 w-auto bg-white" required />
+          </label>
+          <Button type="submit" size="sm" disabled={!consentDate || markConsented.isPending}>
+            {markConsented.isPending ? "Saving…" : consent === "changed" ? `Mark version ${version.number} consented` : "Mark consented"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setConsenting(false)}>
+            Cancel
+          </Button>
+        </form>
+      ) : null}
       {doc.description ? (
         <p className="truncate pl-8 text-sm text-foreground-light" title={doc.description}>
           <Highlighted text={doc.description} terms={terms} />
@@ -426,6 +525,7 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
               <span className="text-foreground-light">
                 <strong className="text-foreground">Version {entry.number}</strong>
                 {entry.number === version.number ? " (current)" : ""} · {entry.fileName} · {shortDate(entry.uploadedAt)}
+                {doc.consent?.version === entry.number ? <span className="font-medium text-pine"> · consented {shortDate(doc.consent.date)}</span> : null}
               </span>
               <a href={fileUrl(doc, entry.number, true)} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground" aria-label={`Download version ${entry.number}`} title="Download">
                 <Download className="h-4 w-4" />
@@ -606,6 +706,7 @@ export function DocumentsPanel({
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState("");
+  const [consentedOnly, setConsentedOnly] = useState(false);
   const [circle, setCircle] = useState("");
   const [adding, setAdding] = useState(false);
   const [editingTypes, setEditingTypes] = useState(false);
@@ -616,7 +717,7 @@ export function DocumentsPanel({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filters = { q: debounced, circle: circleId ?? circle, type };
+  const filters = { q: debounced, circle: circleId ?? circle, type, consented: consentedOnly ? "1" : "" };
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["documents", filters],
     queryFn: () =>
@@ -634,7 +735,7 @@ export function DocumentsPanel({
   });
   // Type names in use (each circle names its own), for the filter; kept while a type is chosen.
   const typeOptions = useMemo(() => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(), [data, type]);
-  const filtered = !!(debounced || type || (!circleId && circle));
+  const filtered = !!(debounced || type || consentedOnly || (!circleId && circle));
 
   return (
     <div className="flex flex-col gap-4">
@@ -668,6 +769,16 @@ export function DocumentsPanel({
             </option>
           ))}
         </select>
+        <label
+          className={cn(
+            "flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-sm transition",
+            consentedOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-white text-foreground/80 hover:bg-accent"
+          )}
+          title="Only documents the circle has consented to"
+        >
+          <input type="checkbox" checked={consentedOnly} onChange={(event) => setConsentedOnly(event.target.checked)} className="sr-only" />
+          <BadgeCheck className={cn("h-4 w-4", consentedOnly ? "text-pine" : "text-muted")} aria-hidden /> Consented only
+        </label>
         {canEditTypes && circleId && !editingTypes ? (
           <Button variant="outline" className="gap-1.5" onClick={() => setEditingTypes(true)}>
             <Tags className="h-4 w-4" /> Edit types
