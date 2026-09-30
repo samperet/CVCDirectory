@@ -52,21 +52,27 @@ function Section({
   title,
   children,
   tinted = false,
+  aside,
 }: {
   id: string;
   icon: typeof Trees;
   title: string;
   children: React.ReactNode;
   tinted?: boolean;
+  /** A picture beside the text on wider screens. */
+  aside?: React.ReactNode;
 }) {
   return (
     <section id={id} className={`scroll-mt-20 ${tinted ? "bg-accent/60" : ""}`}>
-      <div className="mx-auto flex max-w-6xl gap-5 px-4 py-12 md:px-6 md:py-14">
-        <Icon className="mt-1 hidden h-8 w-8 shrink-0 text-primary sm:block" aria-hidden />
-        <div className="flex max-w-3xl flex-col gap-3">
-          <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-          <p className="text-lg leading-relaxed text-foreground-light">{children}</p>
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 md:px-6 md:py-16 lg:flex-row lg:items-center">
+        <div className="flex max-w-3xl flex-1 gap-5">
+          <Icon className="mt-1.5 hidden h-8 w-8 shrink-0 text-primary sm:block" aria-hidden />
+          <div className="flex flex-col gap-3">
+            <h2 className="text-3xl font-semibold text-foreground">{title}</h2>
+            <p className="text-lg leading-relaxed text-foreground-light">{children}</p>
+          </div>
         </div>
+        {aside ? <div className="lg:w-[42%] lg:shrink-0">{aside}</div> : null}
       </div>
     </section>
   );
@@ -77,7 +83,7 @@ function HomesForSale({ homes }: { homes: HomeListing[] }) {
   return (
     <section id="homes-for-sale" className="scroll-mt-20 border-t border-border">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 md:px-6 md:py-14">
-        <h2 className="text-2xl font-semibold text-foreground">Homes for sale</h2>
+        <h2 className="text-3xl font-semibold text-foreground">Homes for sale</h2>
         <div className="grid gap-5 md:grid-cols-2">
           {homes.map((home) => {
             const photo = homePhotoUrl(home);
@@ -147,7 +153,7 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2 text-foreground">
             <Image src="/CVC.png" alt="" width={36} height={36} priority className="h-9 w-9 shrink-0" />
-            <span className="text-lg font-semibold">CVC</span>
+            <span className="font-display text-xl font-semibold">CVC</span>
           </Link>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Sections">
             {[...sections, ...(homes.length ? [{ href: "#homes-for-sale", label: "Homes for sale" }] : [])].map((section) => (
@@ -165,39 +171,55 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
       </header>
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pb-10 pt-12 md:px-6 md:pt-16">
-          <div className="flex max-w-3xl flex-col gap-4">
-            <p className="text-sm font-semibold uppercase tracking-wider text-muted">CVC · Charlotte, Vermont</p>
-            <h1 className="text-4xl font-bold leading-tight text-foreground md:text-5xl">Do you seek community?</h1>
-            <p className="text-lg leading-relaxed text-foreground-light">
+        {/* Hero: deep green, with the oak leaf rising up the right side */}
+        <section className="relative overflow-hidden bg-forest text-white">
+          <Image
+            src="/home/leaf.webp"
+            alt=""
+            aria-hidden
+            width={591}
+            height={1000}
+            priority
+            className="pointer-events-none absolute -right-16 top-0 h-full w-auto max-w-none select-none opacity-70 sm:-right-6 sm:opacity-100"
+          />
+          <div className="relative mx-auto flex max-w-6xl flex-col gap-5 px-4 pb-36 pt-14 md:px-6 md:pb-44 md:pt-20">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sun">CVC · Charlotte, Vermont</p>
+            <h1 className="max-w-3xl text-5xl font-semibold leading-[1.05] md:text-7xl">Do you seek community?</h1>
+            <p className="max-w-2xl text-lg leading-relaxed text-white/85 md:text-xl">
               As a community, we are dedicated to knowing each other in a meaningful way. We help each other with
               childcare, meals, and all sorts of projects. Our energy-efficient homes are clustered around a central
               green, enabling little ones to enjoy safe independence and allowing all neighbors to enjoy spontaneous and
               meaningful social interaction.
             </p>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-border shadow-elev">
-            <Image
-              src="/home/neighborhood.jpg"
-              alt="CVC's homes — red, green, blue, and yellow farmhouse-style houses with solar panels — across a green meadow in spring"
-              width={900}
-              height={200}
-              priority
-              sizes="(min-width: 1152px) 1104px, 100vw"
-              className="h-44 w-full object-cover sm:h-auto"
-            />
-          </div>
         </section>
 
+        {/* The neighborhood from above, overlapping the green */}
+        <figure className="relative z-10 mx-auto -mt-28 max-w-6xl px-4 md:-mt-36 md:px-6">
+          <div className="overflow-hidden rounded-3xl bg-background p-2 shadow-elev">
+            <Image
+              src="/home/aerial.jpg"
+              alt="CVC from above: colorful farmhouse-style homes with solar panels around a green, the yurt and garden in front, woods and fields beyond, and Lake Champlain and the Adirondacks on the horizon"
+              width={1500}
+              height={1125}
+              priority
+              sizes="(min-width: 1152px) 1104px, 100vw"
+              className="aspect-[4/3] w-full rounded-2xl object-cover sm:aspect-[16/9] lg:aspect-[21/10]"
+            />
+          </div>
+          <figcaption className="mt-3 text-center text-sm italic text-muted">
+            The neighborhood from above, looking west across Lake Champlain to the Adirondacks.
+          </figcaption>
+        </figure>
+
         {/* Facts */}
-        <section className="border-y border-border bg-surface">
+        <section className="mt-10 border-y border-border bg-surface">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-10 sm:grid-cols-2 md:px-6 lg:grid-cols-4">
             {facts.map((fact) => (
               <div key={fact.value} className="flex items-start gap-3">
                 <fact.icon className="mt-1 h-6 w-6 shrink-0 text-primary" aria-hidden />
                 <div>
-                  <p className="text-xl font-semibold text-foreground">{fact.value}</p>
+                  <p className="font-display text-2xl font-semibold text-foreground">{fact.value}</p>
                   <p className="text-sm text-muted">{fact.label}</p>
                 </div>
               </div>
@@ -217,7 +239,21 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
           Mountain, Mt Philo, and a glimpse of the Adirondack peaks, we are a rural, pedestrian-centered community.
         </Section>
 
-        <Section id="homes" icon={Home} title="Our homes">
+        <Section
+          id="homes"
+          icon={Home}
+          title="Our homes"
+          aside={
+            <Image
+              src="/home/neighborhood.jpg"
+              alt="CVC's homes — red, green, blue, and yellow farmhouse-style houses with solar panels — across a green meadow in spring"
+              width={900}
+              height={200}
+              sizes="(min-width: 1024px) 460px, 100vw"
+              className="h-48 w-full rounded-2xl object-cover shadow-elev lg:h-56"
+            />
+          }
+        >
           We privately own our own modest, energy efficient homes, which are nestled around an extensive central green.
           We share the trails, organic community garden, and yurt. We enjoy monthly potluck dinners, work together on
           keeping our community beautiful, and have lots of fun.
@@ -232,14 +268,22 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
         {homes.length ? <HomesForSale homes={homes} /> : null}
 
         {/* Contact */}
-        <section id="contact" className="scroll-mt-20 border-t border-border bg-surface">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
-            <div className="flex max-w-2xl flex-col gap-2">
-              <h2 className="text-2xl font-semibold text-foreground">Get in touch</h2>
-              <p className="text-foreground-light">Curious about cohousing or our community? We&apos;d love to hear from you.</p>
+        <section id="contact" className="relative scroll-mt-20 overflow-hidden bg-forest text-white">
+          <Image
+            src="/home/leaf.webp"
+            alt=""
+            aria-hidden
+            width={591}
+            height={1000}
+            className="pointer-events-none absolute -right-10 top-1/2 h-[160%] w-auto max-w-none -translate-y-1/3 select-none opacity-60"
+          />
+          <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-6">
+            <div className="flex max-w-2xl flex-col gap-3">
+              <h2 className="text-3xl font-semibold">Get in touch</h2>
+              <p className="text-white/85">Curious about cohousing or our community? We&apos;d love to hear from you.</p>
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="mt-1 inline-flex w-fit items-center gap-2 break-all font-medium text-secondary-foreground underline decoration-border underline-offset-4 hover:decoration-current"
+                className="mt-1 inline-flex w-fit items-center gap-2 break-all font-medium text-sun underline decoration-sun/40 underline-offset-4 hover:decoration-sun"
               >
                 <Mail className="h-4 w-4 shrink-0" aria-hidden /> {CONTACT_EMAIL}
               </a>

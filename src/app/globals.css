@@ -11,6 +11,13 @@ body {
   @apply bg-background text-foreground min-h-screen antialiased;
 }
 
+/* Page and section headings in the display serif, softened a touch. */
+h1,
+h2 {
+  @apply font-display tracking-[-0.01em];
+  font-variation-settings: "SOFT" 60;
+}
+
 * {
   @apply border-border;
 }

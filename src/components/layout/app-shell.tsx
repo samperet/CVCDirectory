@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen flex-col bg-background">
         <header className="border-b border-border bg-background/90">
           <div className="mx-auto flex max-w-6xl items-center px-4 py-3 md:px-6">
-            <Link href="/" className="flex items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
+            <Link href="/" className="flex items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground">
               <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
               CVC Directory
             </Link>
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         ) : null}
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-semibold text-foreground">
+          <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground">
             <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
             CVC Directory
           </Link>

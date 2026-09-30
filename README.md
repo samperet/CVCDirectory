@@ -99,7 +99,11 @@ contact details or unit numbers.
   `homes/listings.json`, photos in `homes/photos/<id>`; a listed home's photo is served publicly
   (`GET /api/homes/<id>/photo`), a sold one's isn't.
 - The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
-  the account menu to see what visitors see, with a bar leading back to the app.
+  the account menu to see what visitors see, with a bar leading back to the app. It opens on a
+  forest-green band with a white oak leaf on the right (`public/home/leaf.webp`) and the aerial photo
+  of the neighborhood (`public/home/aerial.jpg`) framed over its lower edge. Headings across the site
+  use the Fraunces serif (`font-display`), and the signed-in dashboard greets residents by first name
+  on the same green band.
 
 Phone numbers are not secret, so this keeps the barrier low rather than high. Session cookies are
 signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SECRET_ACCESS_KEY`

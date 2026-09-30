@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { ReactQueryProvider } from "@/components/layout/react-query-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/ui/use-toast";
 import { sessionPayload } from "@/lib/auth/me";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display", axes: ["SOFT", "opsz"] });
 
 export const metadata: Metadata = {
   title: "CVC Directory",
@@ -35,7 +36,7 @@ export default async function RootLayout({
   // Who's signed in, sent with the page so the first paint has the right layout.
   const session = await sessionPayload().catch(() => undefined);
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${fraunces.variable}`}>
       <body className="font-sans">
         <ReactQueryProvider session={session}>
           <ToastProvider>

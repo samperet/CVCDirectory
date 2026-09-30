@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera, Lightbulb, FileText } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
@@ -67,14 +68,35 @@ export const metadata = {
     "Do you seek community? CVC: energy-efficient homes clustered around a central green on 125 acres of farmland, woods, and ponds in Charlotte, Vermont.",
 };
 
+/** "Good morning", by the time of day in Vermont. */
+function greeting(now = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "America/New_York" }).format(now));
+  return hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+}
+
 /** The public front page for visitors; the dashboard for signed-in residents. */
 export default async function HomePage() {
-  if (!(await getSessionUser())) return <PublicHome homes={await publicHomes().catch(() => [])} />;
+  const user = await getSessionUser();
+  if (!user) return <PublicHome homes={await publicHomes().catch(() => [])} />;
   const [nextEvent] = await getUpcomingEvents(1);
+  const firstName = user.name.split(/\s+/)[0];
+  const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/New_York" }).format(new Date());
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">CVC</h1>
+      <section className="relative overflow-hidden rounded-2xl bg-forest px-6 py-7 text-white shadow-soft md:px-8 md:py-9">
+        <Image
+          src="/home/leaf.webp"
+          alt=""
+          aria-hidden
+          width={591}
+          height={1000}
+          priority
+          className="pointer-events-none absolute -right-8 -top-10 h-[190%] w-auto max-w-none select-none opacity-80"
+        />
+        <p className="relative text-sm font-medium text-sun">{today}</p>
+        <h1 className="relative mt-1 text-3xl font-semibold md:text-4xl">
+          {greeting()}, {firstName}
+        </h1>
       </section>
       <NotificationsNudge />
       <NextEvent event={nextEvent ?? null} />

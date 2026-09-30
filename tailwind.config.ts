@@ -38,12 +38,17 @@ const config: Config = {
         border: "#d1e7d8",
         ring: colors.leaf,
         sun: colors.sun,
+        pine: colors.pine,
+        forest: colors.forest,
+        moss: colors.moss,
         warning: "#fbbf24",
         destructive: "#ef4444",
         "destructive-foreground": "#fffaf8"
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui"],
+        // Headings: a warm serif, for a little character.
+        display: ["var(--font-display)", "Georgia", "serif"],
       },
       borderRadius: {
         card: "1rem",
