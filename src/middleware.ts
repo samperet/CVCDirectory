@@ -74,6 +74,8 @@ async function hasValidSession(value: string | undefined): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  // Photos of homes for sale are on the public homepage.
+  if (request.method === "GET" && /^\/api\/homes\/[0-9a-f-]{36}\/photo$/.test(pathname)) return NextResponse.next();
   if (await hasValidSession(request.cookies.get(SESSION_COOKIE)?.value)) {
     if (request.cookies.has(VIEW_AS_COOKIE) && !READ_METHODS.has(request.method) && !VIEW_AS_WRITABLE.has(pathname)) {
       return NextResponse.json(

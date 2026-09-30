@@ -23,6 +23,8 @@ export interface PublicUser {
   isAdmin?: boolean;
   /** An admin or the Board Secretary: may add, edit, and remove people in the directory. */
   canManageDirectory?: boolean;
+  /** An admin or on the Board: may list homes for sale. */
+  canManageHomes?: boolean;
 }
 
 const USERS_KEY = "auth/users.json";

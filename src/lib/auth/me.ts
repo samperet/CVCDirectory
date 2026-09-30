@@ -4,9 +4,10 @@ import { readProfiles } from "@/lib/profiles/store";
 import { isAdmin } from "@/lib/auth/admins";
 import { canManageDirectory } from "@/lib/directory/access";
 import { readDirectory } from "@/lib/directory/store";
+import { canManageHomes } from "@/lib/homes/access";
 
 export interface SessionPayload {
-  user: (PublicUser & { photoUrl: string | null; isAdmin: boolean; canManageDirectory: boolean }) | null;
+  user: (PublicUser & { photoUrl: string | null; isAdmin: boolean; canManageDirectory: boolean; canManageHomes: boolean }) | null;
   /** While an admin views as this resident: who is really signed in. */
   viewAs: { by: string } | null;
 }
@@ -24,7 +25,13 @@ export async function sessionPayload(): Promise<SessionPayload> {
   const photo = user.personId ? profiles[user.personId]?.photo : null;
   const photoUrl = photo && user.personId ? `/api/profiles/${user.personId}/photo?v=${encodeURIComponent(photo.updatedAt)}` : null;
   return {
-    user: { ...toPublicUser(user), photoUrl, isAdmin: isAdmin(user), canManageDirectory: directory ? canManageDirectory(user, directory) : false },
+    user: {
+      ...toPublicUser(user),
+      photoUrl,
+      isAdmin: isAdmin(user),
+      canManageDirectory: directory ? canManageDirectory(user, directory) : false,
+      canManageHomes: canManageHomes(user, directory),
+    },
     viewAs: viewAs ? { by: viewAs.admin.name } : null,
   };
 }

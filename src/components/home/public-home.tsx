@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Home, Mail, MapPin, Sun, Trees } from "lucide-react";
+import { ArrowLeft, ExternalLink, Home, Mail, MapPin, Phone, Sun, Trees } from "lucide-react";
+import { type HomeListing, homePhotoUrl } from "@/lib/homes/store";
 
 /**
  * The public front page for CVC, shown at "/" to
@@ -71,7 +72,65 @@ function Section({
   );
 }
 
-export function PublicHome({ preview = false }: { preview?: boolean }) {
+/** Homes for sale at CVC, with who to contact (listed by admins and the Board). */
+function HomesForSale({ homes }: { homes: HomeListing[] }) {
+  return (
+    <section id="homes-for-sale" className="scroll-mt-20 border-t border-border">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 md:px-6 md:py-14">
+        <h2 className="text-2xl font-semibold text-foreground">Homes for sale</h2>
+        <div className="grid gap-5 md:grid-cols-2">
+          {homes.map((home) => {
+            const photo = homePhotoUrl(home);
+            return (
+              <article key={home.id} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-soft">
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- stored listing photo
+                  <img src={photo} alt={`${home.title}`} className="h-56 w-full object-cover" />
+                ) : null}
+                <div className="flex flex-1 flex-col gap-2 p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">{home.title}</h3>
+                    {home.status === "pending" ? (
+                      <span className="rounded-full bg-sun/30 px-2 py-0.5 text-xs font-medium text-foreground">Sale pending</span>
+                    ) : null}
+                  </div>
+                  {home.price || home.details || home.unit ? (
+                    <p className="text-sm font-medium text-foreground-light">
+                      {[home.price, home.details, home.unit ? `Unit ${home.unit}` : null].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
+                  {home.description ? <p className="whitespace-pre-wrap text-foreground-light">{home.description}</p> : null}
+                  <div className="mt-auto flex flex-col gap-1 border-t border-border pt-3 text-sm">
+                    <p className="font-medium text-foreground">Contact {home.contactName}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {home.contactEmail ? (
+                        <a href={`mailto:${home.contactEmail}?subject=${encodeURIComponent(`CVC: ${home.title}`)}`} className="inline-flex items-center gap-1.5 break-all text-secondary-foreground underline decoration-border underline-offset-4 hover:decoration-current">
+                          <Mail className="h-4 w-4 shrink-0" aria-hidden /> {home.contactEmail}
+                        </a>
+                      ) : null}
+                      {home.contactPhone ? (
+                        <a href={`tel:${home.contactPhone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1.5 text-secondary-foreground underline decoration-border underline-offset-4 hover:decoration-current">
+                          <Phone className="h-4 w-4 shrink-0" aria-hidden /> {home.contactPhone}
+                        </a>
+                      ) : null}
+                      {home.link ? (
+                        <a href={home.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-secondary-foreground underline decoration-border underline-offset-4 hover:decoration-current">
+                          <ExternalLink className="h-4 w-4 shrink-0" aria-hidden /> Full listing
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function PublicHome({ preview = false, homes = [] }: { preview?: boolean; homes?: HomeListing[] }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {preview ? (
@@ -91,7 +150,7 @@ export function PublicHome({ preview = false }: { preview?: boolean }) {
             <span className="text-lg font-semibold">CVC</span>
           </Link>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Sections">
-            {sections.map((section) => (
+            {[...sections, ...(homes.length ? [{ href: "#homes-for-sale", label: "Homes for sale" }] : [])].map((section) => (
               <a
                 key={section.href}
                 href={section.href}
@@ -169,6 +228,8 @@ export function PublicHome({ preview = false }: { preview?: boolean }) {
           relationships. More than 50% of our homes have some form of solar energy. While most of us own cars, we carpool
           often and park on the periphery of our neighborhood, making it safe for little ones and pedestrian-centric.
         </Section>
+
+        {homes.length ? <HomesForSale homes={homes} /> : null}
 
         {/* Contact */}
         <section id="contact" className="scroll-mt-20 border-t border-border bg-surface">

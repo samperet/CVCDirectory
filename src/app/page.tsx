@@ -5,6 +5,7 @@ import { NotificationsNudge } from "@/components/notifications/notifications-nud
 import { getUpcomingEvents } from "@/lib/calendar/events";
 import { getSessionUser } from "@/lib/auth/session";
 import { PublicHome } from "@/components/home/public-home";
+import { publicHomes } from "@/lib/homes/store";
 import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +69,7 @@ export const metadata = {
 
 /** The public front page for visitors; the dashboard for signed-in residents. */
 export default async function HomePage() {
-  if (!(await getSessionUser())) return <PublicHome />;
+  if (!(await getSessionUser())) return <PublicHome homes={await publicHomes().catch(() => [])} />;
   const [nextEvent] = await getUpcomingEvents(1);
   return (
     <div className="flex flex-col gap-6">

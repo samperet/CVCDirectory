@@ -9,6 +9,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth, and polls.
+- 🏡 **Homes for sale** – Admins and the Board list homes for sale, shown with contact details on the public front page.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page, all listed on their own page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
@@ -90,6 +91,13 @@ contact details or unit numbers.
 - An account is created on a resident's first sign-in and linked to their directory entry.
 - Signed-out visitors see only the public front page and the sign-in page: middleware redirects every other page to `/login`
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
+- **Homes for sale** – admins and Board members list homes for sale at `/homes-for-sale` (linked
+  from the account menu): title, unit, price, details, description, an optional photo, a listing
+  link, and the buyer contact (name plus email and/or phone), with a status of *For sale*, *Sale
+  pending*, or *Sold* (hidden). For-sale and pending homes appear, with their contact details, in a
+  **Homes for sale** section on the public front page (and its navigation). Stored in
+  `homes/listings.json`, photos in `homes/photos/<id>`; a listed home's photo is served publicly
+  (`GET /api/homes/<id>/photo`), a sold one's isn't.
 - The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
   the account menu to see what visitors see, with a bar leading back to the app.
 

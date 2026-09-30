@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Bell, Eye, EyeOff, Globe, History, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { Bell, Eye, EyeOff, Globe, History, Home, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLogout, usePeople, useSession, useViewAs } from "@/lib/auth/client";
 import { NameCombobox } from "@/components/auth/name-combobox";
@@ -77,6 +77,13 @@ export function UserMenu() {
                 <Globe className="h-4 w-4" /> Public homepage
               </Link>
             </Button>
+            {user.canManageHomes ? (
+              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+                <Link href="/homes-for-sale" onClick={() => setOpen(false)}>
+                  <Home className="h-4 w-4" /> Homes for sale
+                </Link>
+              </Button>
+            ) : null}
             {user.isAdmin ? (
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/admin/sign-ins" onClick={() => setOpen(false)}>
