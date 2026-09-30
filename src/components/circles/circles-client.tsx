@@ -99,7 +99,7 @@ function CommunityCard({ circle }: { circle: Circle }) {
           <h2 className="text-xl font-semibold text-foreground">{circle.name}</h2>
           <p className="text-xs font-medium text-muted">Everyone at CVC</p>
           {circle.description ? <p className="mt-1 text-sm text-foreground-light">{circle.description}</p> : null}
-          <p className="mt-1 text-sm text-foreground-light">The Community Forum and documents for everyone.</p>
+          <p className="mt-1 text-sm text-foreground-light">Polls and documents for everyone.</p>
         </div>
       </Card>
     </Link>

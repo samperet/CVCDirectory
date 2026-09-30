@@ -14,7 +14,7 @@ import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule } from "@/components/circles/duty-schedule";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
-import { TopicClient } from "@/components/forum/topic-client";
+import { CommunityPolls } from "@/components/polls/community-polls";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -547,8 +547,8 @@ export function CircleDetailClient({ id }: { id: string }) {
           <DutyScheduleModule circleId={id} people={people} />
 
           {community ? (
-            <Card id="forum" className="scroll-mt-24">
-              <TopicClient topicId="community" embedded />
+            <Card id="polls" className="scroll-mt-24">
+              <CommunityPolls />
             </Card>
           ) : null}
 

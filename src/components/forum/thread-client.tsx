@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BarChart3, Check, ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { ForumLike, ForumPoll, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
-import { pollIsOpen } from "@/lib/forum/poll";
+import type { ForumLike, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { useTopics } from "@/components/forum/topic-client";
+import { PollView } from "@/components/polls/poll-view";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -324,132 +324,6 @@ function ReplyNode({
   );
 }
 
-/** "Sam Peret, Alex Kim and 3 others" — who chose an option. */
-function votersLabel(names: string[]) {
-  if (names.length <= 3) return names.join(", ").replace(/, ([^,]*)$/, " and $1");
-  return `${names.slice(0, 2).join(", ")} and ${names.length - 2} others`;
-}
-
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-
-/**
- * A discussion's poll: choose and vote (or change your vote) while it's
- * open; results — counts, bars, and who chose what — once you've voted, or
- * when it's closed. Its author or an admin can close and reopen it.
- */
-function PollCard({ threadId, poll, canClose }: { threadId: string; poll: ForumPoll; canClose: boolean }) {
-  const { user } = useSession();
-  const mine = poll.votes.find((entry) => entry.userId === user?.id)?.optionIds ?? [];
-  const open = pollIsOpen(poll);
-  const [choosing, setChoosing] = useState(false);
-  const [peeking, setPeeking] = useState(false);
-  const [selected, setSelected] = useState<string[]>(mine);
-  const showResults = !open || peeking || (mine.length > 0 && !choosing);
-  const voters = poll.votes.length;
-
-  const submit = useThreadMutation(
-    threadId,
-    (optionIds: string[]) =>
-      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/poll`, { method: "POST", body: JSON.stringify({ optionIds }) }),
-    "Could not save your vote"
-  );
-  const close = useThreadMutation(
-    threadId,
-    (closed: boolean) =>
-      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/poll`, { method: "PATCH", body: JSON.stringify({ closed }) }),
-    "Could not update the poll"
-  );
-  const toggle = (id: string) =>
-    setSelected((current) => (poll.multiple ? (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]) : [id]));
-
-  return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border bg-accent/40 p-4" aria-label="Poll">
-      <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-        <BarChart3 className="h-4 w-4 text-primary" />
-        {poll.multiple ? "Poll · choose any" : "Poll · choose one"}
-      </p>
-
-      {showResults ? (
-        <ul className="flex flex-col gap-2.5">
-          {poll.options.map((option) => {
-            const names = poll.votes.filter((entry) => entry.optionIds.includes(option.id)).map((entry) => (entry.userId === user?.id ? "You" : entry.name));
-            const share = voters ? Math.round((names.length / voters) * 100) : 0;
-            const chosen = mine.includes(option.id);
-            return (
-              <li key={option.id} className="flex flex-col gap-1">
-                <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className={cn("flex items-center gap-1 text-foreground", chosen && "font-semibold")}>
-                    {chosen ? <Check className="h-4 w-4 shrink-0 text-primary" aria-label="Your choice" /> : null}
-                    {option.text}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted">
-                    {names.length} · {share}%
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white">
-                  <div className={cn("h-full rounded-full transition-all", chosen ? "bg-primary" : "bg-primary/50")} style={{ width: `${share}%` }} />
-                </div>
-                {names.length ? <p className="text-xs text-muted">{votersLabel(names)}</p> : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="sr-only">{poll.multiple ? "Choose any options" : "Choose one option"}</legend>
-          {poll.options.map((option) => (
-            <label
-              key={option.id}
-              className={cn(
-                "flex cursor-pointer items-center gap-2.5 rounded-lg border bg-white px-3 py-2 text-sm text-foreground transition",
-                selected.includes(option.id) ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/60"
-              )}
-            >
-              <input
-                type={poll.multiple ? "checkbox" : "radio"}
-                name={`poll-${threadId}`}
-                checked={selected.includes(option.id)}
-                onChange={() => toggle(option.id)}
-                className="h-4 w-4 accent-primary"
-              />
-              {option.text}
-            </label>
-          ))}
-        </fieldset>
-      )}
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
-        {!showResults ? (
-          <Button
-            size="sm"
-            disabled={!selected.length || submit.isPending}
-            onClick={() => submit.mutate(selected, { onSuccess: () => setChoosing(false) })}
-          >
-            {submit.isPending ? "Saving…" : mine.length ? "Save vote" : "Vote"}
-          </Button>
-        ) : null}
-        {open && !showResults && choosing ? <ActionLink onClick={() => { setSelected(mine); setChoosing(false); }}>Cancel</ActionLink> : null}
-        {open && !showResults && !mine.length ? <ActionLink onClick={() => setPeeking(true)}>See results</ActionLink> : null}
-        {open && peeking && !mine.length ? <ActionLink onClick={() => setPeeking(false)}>Back to voting</ActionLink> : null}
-        {open && showResults && mine.length && !peeking ? (
-          <>
-            <ActionLink onClick={() => { setSelected(mine); setChoosing(true); }}>Change vote</ActionLink>
-            <ActionLink danger onClick={() => submit.mutate([], { onSuccess: () => setSelected([]) })}>Take back vote</ActionLink>
-          </>
-        ) : null}
-        <span className="text-muted">
-          {voters} {voters === 1 ? "person has" : "people have"} voted
-          {" · "}
-          {open ? (poll.closesAt ? `closes ${shortDate(poll.closesAt)}` : "open") : "closed"}
-        </span>
-        {canClose ? (
-          <ActionLink onClick={() => close.mutate(open)}>{close.isPending ? "Saving…" : open ? "Close poll" : "Reopen poll"}</ActionLink>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; currentUserId: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -462,19 +336,27 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(thread.title);
   const [body, setBody] = useState(thread.body);
-  const currentTopic = thread.topicId || "general";
-  const [topicId, setTopicId] = useState(currentTopic);
   const topics = useTopics().data?.topics ?? [];
+  // A discussion whose topic is gone counts as General.
+  const currentTopic = thread.topicId && topics.some((topic) => topic.id === thread.topicId) ? thread.topicId : "general";
+  // Only an explicit choice moves the discussion (the topics may load after the page).
+  const [topicChoice, setTopicChoice] = useState<string | null>(null);
+  const topicId = topicChoice ?? currentTopic;
 
   const save = useThreadMutation(
     thread.id,
     () =>
       apiFetch<ForumThreadDocument>(`/api/forum/threads/${thread.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title, body, ...(topicId !== currentTopic ? { topicId } : {}) }),
+        body: JSON.stringify({ title, body, ...(topicChoice && topicChoice !== currentTopic ? { topicId: topicChoice } : {}) }),
       }),
     "Could not save changes"
   );
+  // The discussion's poll: votes and closing return the updated discussion.
+  const pollRequest = async (method: "POST" | "PATCH", body: object) => {
+    const updated = await apiFetch<ForumThreadDocument>(`/api/forum/threads/${thread.id}/poll`, { method, body: JSON.stringify(body) });
+    queryClient.setQueryData(["forum", "thread", thread.id], updated);
+  };
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/forum/threads/${thread.id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -493,7 +375,7 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
         {topics.length > 1 ? (
           <label className="flex items-center gap-2 text-sm text-foreground">
             Topic
-            <select value={topicId} onChange={(event) => setTopicId(event.target.value)} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
+            <select value={topicId} onChange={(event) => setTopicChoice(event.target.value)} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
               {topics.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.name}
@@ -525,7 +407,7 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
             onClick={() => {
               setTitle(thread.title);
               setBody(thread.body);
-              setTopicId(currentTopic);
+              setTopicChoice(null);
               setEditing(false);
             }}
           >
@@ -543,7 +425,15 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
         <Byline name={thread.authorName} createdAt={thread.createdAt} editedAt={thread.editedAt} />
       </p>
       {thread.body ? <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p> : null}
-      {thread.poll ? <PollCard threadId={thread.id} poll={thread.poll} canClose={mine} /> : null}
+      {thread.poll ? (
+        <PollView
+          id={thread.id}
+          poll={thread.poll}
+          canClose={mine}
+          onVote={(optionIds) => pollRequest("POST", { optionIds })}
+          onSetClosed={(closed) => pollRequest("PATCH", { closed })}
+        />
+      ) : null}
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />
         {mine ? (
@@ -574,8 +464,10 @@ export function ThreadClient({ id }: { id: string }) {
     queryKey: ["forum", "thread", id],
     queryFn: () => apiFetch<ForumThreadDocument>(`/api/forum/threads/${id}`),
   });
-  const topicId = data?.thread.topicId || "general";
-  const topicName = useTopics().data?.topics.find((topic) => topic.id === topicId)?.name ?? "Forum";
+  const topics = useTopics().data?.topics;
+  // A discussion whose topic is gone shows under General.
+  const topicId = topics?.some((topic) => topic.id === data?.thread.topicId) ? data!.thread.topicId! : "general";
+  const topicName = topics?.find((topic) => topic.id === topicId)?.name ?? "Forum";
 
   // Group the flat reply list by parent; each level reads oldest-first.
   const childrenOf = useMemo(() => {

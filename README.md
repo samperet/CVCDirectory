@@ -125,8 +125,8 @@ Admin status is checked server-side on every request, and the user menu shows an
 - **Forum topics** – the forum's front page (`/forum`) lists its topics, each with its discussion
   count and latest discussion; each topic's page (`/forum/topics/<id>`) lists its discussions and
   is where new ones start. Admins add, rename, and remove topics (removing one moves its
-  discussions to **General**, which always exists and holds every discussion from before topics;
-  the **Community Forum** always exists too, and also appears on the Community circle's page).
+  discussions to **General**, which always exists and holds every discussion from before topics,
+  or whose topic is gone).
   A discussion's author or an admin can move it to another topic when editing it. Topics live in
   `forum/topics.json`; each discussion records its `topicId`.
 - **Forum** – signed-in members start discussions and reply to any post; replies nest
@@ -223,8 +223,11 @@ from then on, so re-importing the directory never overwrites circle changes.
 
 - **Community circle** – a built-in circle (`community`) for everyone at CVC, shown across the top
   of `/circles` at double width. It has no member list and can't be joined, left, or deleted; any
-  resident can add its documents, and its page shows the **Community Forum** (a built-in forum
-  topic, also listed on the forum's front page). The Board and admins edit its details and icon.
+  resident can add its documents, and its page has **Polls**: any resident asks everyone a
+  question (2–10 options, one choice or several, optional closing date), votes, and sees results as
+  in forum polls; a poll's author or an admin can close, reopen, or delete it. New polls notify
+  residents (the "polls" notification setting). Stored in `community/polls.json`
+  (`/api/community/polls`). The Board and admins edit the circle's details and icon.
 - `/circles` lists every circle (name, member count, description); any resident can start a circle
   and becomes its first member.
 - **Emailing a circle** – the envelope on each circle's card (and in its members panel) asks

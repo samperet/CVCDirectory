@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
-import { MAX_POLL_OPTIONS, pollIsOpen } from "./poll";
+import type { Poll } from "@/lib/polls/shared";
+import { PollInput, castVote, newPoll, pollInputSchema, pollUpdateSchema, voteSchema, withClosed } from "@/lib/polls/server";
 import { GENERAL_TOPIC_ID } from "./topics";
 
 /**
@@ -41,30 +42,8 @@ export interface ForumReply {
   likes?: ForumLike[];
 }
 
-export interface ForumPollOption {
-  id: string;
-  text: string;
-}
-
-/** One resident's vote (their account and name, and the options they chose). */
-export interface ForumPollVote {
-  userId: string;
-  name: string;
-  optionIds: string[];
-}
-
-/**
- * A poll on a discussion; the discussion's title is its question. Options
- * are fixed once it's posted. It closes at `closesAt`, if set, or when its
- * author (or an admin) closes it.
- */
-export interface ForumPoll {
-  options: ForumPollOption[];
-  multiple: boolean;
-  closesAt?: string | null;
-  closedAt?: string | null;
-  votes: ForumPollVote[];
-}
+/** A poll on a discussion; the discussion's title is its question. */
+export type ForumPoll = Poll;
 
 export interface ForumThread {
   id: string;
@@ -100,29 +79,19 @@ export interface ForumThreadSummary {
   topicId?: string;
 }
 
-/** A discussion's topic, counting discussions from before topics as General. */
-export const topicOf = (thread: { topicId?: string }) => thread.topicId || GENERAL_TOPIC_ID;
+/**
+ * A discussion's topic, counting discussions from before topics as General —
+ * and, given the topics that exist, those whose topic is gone.
+ */
+export const topicOf = (thread: { topicId?: string }, known?: Set<string>) => {
+  const id = thread.topicId || GENERAL_TOPIC_ID;
+  return known && !known.has(id) ? GENERAL_TOPIC_ID : id;
+};
 
 const title = z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer");
 // A discussion needs a post, unless it's a poll (whose title is the question).
 const postBody = z.string().trim().max(5000, "Post must be 5000 characters or fewer");
 const replyBody = z.string().trim().min(1, "Reply cannot be empty").max(3000, "Reply must be 3000 characters or fewer");
-
-const pollInputSchema = z.object({
-  options: z
-    .array(z.string().trim().min(1, "Poll options can't be empty").max(120, "Poll options must be 120 characters or fewer"))
-    .min(2, "A poll needs at least two options")
-    .max(MAX_POLL_OPTIONS, `A poll can have up to ${MAX_POLL_OPTIONS} options`)
-    .refine((options) => new Set(options.map((option) => option.toLowerCase())).size === options.length, "Poll options must be different"),
-  multiple: z.boolean().default(false),
-  closesAt: z
-    .string()
-    .datetime({ offset: true })
-    .nullable()
-    .optional()
-    .transform((value) => value ?? null)
-    .refine((value) => !value || Date.parse(value) > Date.now(), "Choose a closing time in the future"),
-});
 
 const topicId = z.string().regex(/^[a-z0-9-]{1,40}$/, "Choose a topic");
 
@@ -134,8 +103,7 @@ export const threadUpdateSchema = z
   .object({ title: title.optional(), body: postBody.optional(), topicId: topicId.optional() })
   .refine((value) => value.title !== undefined || value.body !== undefined || value.topicId !== undefined, "Nothing to update");
 
-export const voteSchema = z.object({ optionIds: z.array(z.string().uuid()).max(MAX_POLL_OPTIONS) });
-export const pollUpdateSchema = z.object({ closed: z.boolean() });
+export { pollUpdateSchema, voteSchema };
 
 export const replyInputSchema = z.object({
   parentId: z.string().uuid().nullable().optional().transform((value) => value ?? null),
@@ -199,7 +167,7 @@ async function syncSummary(doc: ForumThreadDocument) {
 
 export async function createThread(
   author: { id: string; name: string },
-  input: { title: string; body: string; topicId: string; poll?: { options: string[]; multiple: boolean; closesAt: string | null } }
+  input: { title: string; body: string; topicId: string; poll?: PollInput }
 ): Promise<ForumThreadDocument> {
   const now = new Date().toISOString();
   const thread: ForumThread = {
@@ -210,17 +178,7 @@ export async function createThread(
     authorName: author.name,
     createdAt: now,
     topicId: input.topicId,
-    ...(input.poll
-      ? {
-          poll: {
-            options: input.poll.options.map((text) => ({ id: randomUUID(), text })),
-            multiple: input.poll.multiple,
-            closesAt: input.poll.closesAt,
-            closedAt: null,
-            votes: [],
-          },
-        }
-      : {}),
+    ...(input.poll ? { poll: newPoll(input.poll) } : {}),
   };
   const doc: ForumThreadDocument = { thread, replies: [] };
   await enqueue(threadKey(thread.id), () => writeJson(threadKey(thread.id), doc));
@@ -385,15 +343,9 @@ export function vote(threadId: string, user: { id: string; name: string }, optio
   return mutateThread(
     threadId,
     (doc) => {
-      const poll = doc.thread.poll;
-      if (!poll) return "not_found";
-      if (!pollIsOpen(poll)) return "poll_closed";
-      const chosen = Array.from(new Set(optionIds));
-      if (chosen.some((id) => !poll.options.some((option) => option.id === id))) return "invalid_vote";
-      if (!poll.multiple && chosen.length > 1) return "invalid_vote";
-      const others = poll.votes.filter((entry) => entry.userId !== user.id);
-      const votes = chosen.length ? [...others, { userId: user.id, name: user.name, optionIds: chosen }] : others;
-      return { ...doc, thread: { ...doc.thread, poll: { ...poll, votes } } };
+      if (!doc.thread.poll) return "not_found";
+      const poll = castVote(doc.thread.poll, user, optionIds);
+      return typeof poll === "string" ? poll : { ...doc, thread: { ...doc.thread, poll } };
     },
     { sync: false }
   );
@@ -404,14 +356,9 @@ export function setPollClosed(threadId: string, actor: ForumActor, closed: boole
   return mutateThread(
     threadId,
     (doc) => {
-      const poll = doc.thread.poll;
-      if (!poll) return "not_found";
+      if (!doc.thread.poll) return "not_found";
       if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
-      const expired = !!poll.closesAt && Date.parse(poll.closesAt) <= Date.now();
-      const next: ForumPoll = closed
-        ? { ...poll, closedAt: poll.closedAt ?? new Date().toISOString() }
-        : { ...poll, closedAt: null, closesAt: expired ? null : poll.closesAt };
-      return { ...doc, thread: { ...doc.thread, poll: next } };
+      return { ...doc, thread: { ...doc.thread, poll: withClosed(doc.thread.poll, closed) } };
     },
     { sync: false }
   );

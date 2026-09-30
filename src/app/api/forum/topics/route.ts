@@ -11,9 +11,10 @@ export const dynamic = "force-dynamic";
 /** The forum's topics, each with how many discussions it holds and its most recent one. */
 export async function GET() {
   const [topics, threads] = await Promise.all([listTopics(), listThreads()]);
+  const known = new Set(topics.map((topic) => topic.id));
   return NextResponse.json({
     topics: topics.map((topic) => {
-      const inTopic = threads.filter((thread) => topicOf(thread) === topic.id);
+      const inTopic = threads.filter((thread) => topicOf(thread, known) === topic.id);
       const latest = inTopic[0] ?? null; // most recently active first
       return {
         ...topic,

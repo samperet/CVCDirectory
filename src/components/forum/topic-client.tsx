@@ -8,7 +8,6 @@ import { ArrowLeft, BarChart3, MessageSquare, Pencil, Plus, Trash2, X } from "lu
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumThreadDocument, ForumThreadSummary } from "@/lib/forum/store";
-import { MAX_POLL_OPTIONS } from "@/lib/forum/poll";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import type { ForumTopic } from "@/lib/forum/topics";
+import { PollFields, draftOptions, emptyPollDraft, pollPayload } from "@/components/polls/poll-fields";
 
 /** A topic, with how many discussions it holds and its most recently active one. */
 export type TopicSummary = ForumTopic & { threadCount: number; lastActivityAt: string | null; latest: { id: string; title: string } | null };
@@ -58,13 +58,8 @@ function TopicEditor({ topic, onDone }: { topic: ForumTopic; onDone: () => void 
   );
 }
 
-/**
- * One forum topic: its discussions, most recently active first, and starting
- * a new one. `embedded` shows it inside another page (the Community Forum on
- * the Community circle's page): a section heading linking to the topic, and
- * no topic management.
- */
-export function TopicClient({ topicId, embedded = false }: { topicId: string; embedded?: boolean }) {
+/** One forum topic: its discussions, most recently active first, and starting a new one. */
+export function TopicClient({ topicId }: { topicId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -86,11 +81,8 @@ export function TopicClient({ topicId, embedded = false }: { topicId: string; em
   const [body, setBody] = useState("");
   // An optional poll: the title is its question.
   const [polling, setPolling] = useState(false);
-  const [options, setOptions] = useState(["", ""]);
-  const [multiple, setMultiple] = useState(false);
-  const [closesOn, setClosesOn] = useState("");
-  const filled = options.map((option) => option.trim()).filter(Boolean);
-  const ready = title.trim().length >= 3 && (polling ? filled.length >= 2 : !!body.trim());
+  const [draft, setDraft] = useState(emptyPollDraft);
+  const ready = title.trim().length >= 3 && (polling ? draftOptions(draft).length >= 2 : !!body.trim());
 
   const { data, isLoading } = useQuery({
     queryKey: ["forum", "threads", topicId],
@@ -106,14 +98,7 @@ export function TopicClient({ topicId, embedded = false }: { topicId: string; em
           topicId,
           title,
           body,
-          poll: polling
-            ? {
-                options: filled,
-                multiple,
-                // The end of the chosen day, where the author is.
-                closesAt: closesOn ? new Date(`${closesOn}T23:59:59`).toISOString() : null,
-              }
-            : undefined,
+          poll: polling ? pollPayload(draft) : undefined,
         }),
       }),
     onSuccess: (doc) => router.push(`/forum/${doc.thread.id}`),
@@ -134,31 +119,21 @@ export function TopicClient({ topicId, embedded = false }: { topicId: string; em
   }
 
   return (
-    <div className={cn("flex flex-col", embedded ? "gap-4" : "gap-6")}>
-      {!embedded ? (
-        <Link href="/forum" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Forum
-        </Link>
-      ) : null}
+    <div className="flex flex-col gap-6">
+      <Link href="/forum" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Forum
+      </Link>
       {editingTopic ? <TopicEditor topic={topic} onDone={() => setEditingTopic(false)} /> : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className={cn("min-w-0", editingTopic && "hidden")}>
-          {embedded ? (
-            <h2 className="text-lg font-semibold text-foreground">
-              <Link href={`/forum/topics/${topic.id}`} className="hover:underline">
-                {topic.name}
-              </Link>
-            </h2>
-          ) : (
-            <h1 className="text-2xl font-semibold text-foreground">{topic.name}</h1>
-          )}
+          <h1 className="text-2xl font-semibold text-foreground">{topic.name}</h1>
           {topic.description ? <p className="text-sm text-muted">{topic.description}</p> : null}
-          {user?.isAdmin && !embedded ? (
+          {user?.isAdmin ? (
             <div className="mt-1 flex gap-3 text-xs">
               <button type="button" className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline" onClick={() => setEditingTopic(true)}>
                 <Pencil className="h-3.5 w-3.5" /> Edit topic
               </button>
-              {topic.id !== "general" && topic.id !== "community" ? (
+              {topic.id !== "general" ? (
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 font-medium text-muted hover:text-destructive hover:underline"
@@ -201,57 +176,7 @@ export function TopicClient({ topicId, embedded = false }: { topicId: string; em
             maxLength={5000}
             onChange={(e) => setBody(e.target.value)}
           />
-          {polling ? (
-            <fieldset className="flex flex-col gap-2 rounded-lg border border-border bg-accent/40 p-3">
-              <legend className="px-1 text-sm font-semibold text-foreground">Poll options</legend>
-              {options.map((option, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    value={option}
-                    maxLength={120}
-                    placeholder={`Option ${index + 1}`}
-                    onChange={(e) => setOptions((current) => current.map((entry, i) => (i === index ? e.target.value : entry)))}
-                    className="bg-white"
-                    aria-label={`Option ${index + 1}`}
-                  />
-                  {options.length > 2 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-muted"
-                      onClick={() => setOptions((current) => current.filter((_, i) => i !== index))}
-                      aria-label={`Remove option ${index + 1}`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                </div>
-              ))}
-              {options.length < MAX_POLL_OPTIONS ? (
-                <Button type="button" variant="outline" size="sm" className="w-fit gap-1" onClick={() => setOptions((current) => [...current, ""])}>
-                  <Plus className="h-4 w-4" /> Add option
-                </Button>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-sm text-foreground">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} className="h-4 w-4 accent-primary" />
-                  Allow more than one choice
-                </label>
-                <label className="flex items-center gap-2">
-                  Closes on
-                  <Input
-                    type="date"
-                    value={closesOn}
-                    min={new Date().toLocaleDateString("en-CA")}
-                    onChange={(e) => setClosesOn(e.target.value)}
-                    className="h-9 w-auto bg-white"
-                  />
-                  <span className="text-xs text-muted">(optional)</span>
-                </label>
-              </div>
-            </fieldset>
-          ) : null}
+          {polling ? <PollFields draft={draft} onChange={setDraft} /> : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => create.mutate()} disabled={create.isPending || !ready}>
               {create.isPending ? "Posting…" : polling ? "Post poll" : "Post discussion"}
