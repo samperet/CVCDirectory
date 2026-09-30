@@ -1,12 +1,16 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Illustrated icons for the sections that have one, by the section's path. */
+/**
+ * Illustrated icons for the sections that have one, by the section's path.
+ * A changed icon gets a new file name, so no browser or image cache can keep
+ * showing the old one.
+ */
 const ART: Record<string, string> = {
-  "/directory": "/sections/directory.webp",
+  "/directory": "/sections/directory-neighbors.webp",
   "/documents": "/sections/documents.webp",
   "/library": "/sections/library.webp",
-  "/resources": "/sections/resources.webp",
+  "/resources": "/sections/resources-map.webp",
   "/forum": "/sections/forum.webp",
   "/circles": "/sections/circles.webp",
   "/skills": "/sections/skills.webp",
