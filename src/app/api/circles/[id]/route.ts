@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { moveCircleDocuments } from "@/lib/documents/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { BOARD_ID, circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
+import { canManageCircle } from "@/lib/circles/icons";
+import { isAdmin } from "@/lib/auth/admins";
 import { iconKey, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary } from "@/lib/storage";
 import { problem } from "@/lib/http";
@@ -10,13 +12,23 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string } };
 
-/** Edit a circle's name or description (its members or the Board). */
+/**
+ * Edit a circle's name, description, or who can join (its members or the
+ * Board), or whether it's an official circle or a social club (the Board).
+ */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "member-or-board" });
   if ("error" in ctx) return ctx.error;
 
   const parsed = circleUpdateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+
+  if (parsed.data.kind !== undefined) {
+    if (params.id === BOARD_ID || params.id === "community") return problem("The Board and Community circles can't become social clubs");
+    if (!isAdmin(ctx.user) && !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)) {
+      return problem("Only the Board can change whether this is a circle or a social club", 403, "Forbidden");
+    }
+  }
 
   const result = await updateCircle(ctx.imported, params.id, parsed.data);
   return result.ok ? NextResponse.json({ circle: result.value }) : circleProblem(result.reason);

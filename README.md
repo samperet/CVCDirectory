@@ -228,8 +228,11 @@ from then on, so re-importing the directory never overwrites circle changes.
   in forum polls; a poll's author or an admin can close, reopen, or delete it. New polls notify
   residents (the "polls" notification setting). Stored in `community/polls.json`
   (`/api/community/polls`). The Board and admins edit the circle's details and icon.
-- `/circles` lists every circle (name, member count, description); any resident can start a circle
-  and becomes its first member.
+- `/circles` lists the Community circle, then **Circles** (the official, sociocratically formed
+  ones), then **Social Clubs** (e.g. the Chicken Tenders), each with name, member count, and
+  description. Any resident can start a social club and becomes its first member; the Board and
+  admins can also form official circles, and switch a circle between the two when editing its
+  details (`kind: "club"`; unset means an official circle).
 - **Emailing a circle** – the envelope on each circle's card (and in its members panel) asks
   whether to email the whole circle or only certain roles (op leader, secretary, …), then opens
   your mail app with their directory addresses (leaving you out), or copies them. Members with no
@@ -324,6 +327,9 @@ from then on, so re-importing the directory never overwrites circle changes.
 document. It requires `Authorization: Bearer $ADMIN_TOKEN` (disabled when `ADMIN_TOKEN` is unset),
 writes to R2 only — never to the ephemeral fallback — and responds with counts only. The directory
 holds residents' contact details, so exports are gitignored and only signed-in residents can read it.
+
+`/api/admin/circles` (same bearer token) lists circles (`GET`: id, name, kind, member count) and sets
+the kind of circles by name (`POST {"kind": "club" | "circle", "names": [...]}`).
 
 `/api/admin/circles/icons` (same bearer token) lists which circles have icons (`GET`), copies one
 circle's icon to another (`POST {"from", "to"}`), or sets one from an image body (`PUT ?circle=<id>`).

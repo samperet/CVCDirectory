@@ -24,13 +24,17 @@ export const isCommunity = (circleId: string) => circleId === COMMUNITY_ID;
 const text = (max: number, label: string) =>
   z.string().trim().max(max, `${label} must be ${max} characters or fewer`);
 
+const kind = z.enum(["circle", "club"]);
+
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),
   description: text(1000, "Description").optional().transform((value) => value || null),
+  kind: kind.default("club"),
 });
 
 export const circleUpdateSchema = circleInputSchema
-  .extend({ joinPolicy: z.enum(["open", "apply"]) })
+  .omit({ kind: true })
+  .extend({ joinPolicy: z.enum(["open", "apply"]), kind })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
@@ -120,7 +124,7 @@ function slugFor(input: { name: string }, taken: Set<string>) {
 
 export function createCircle(
   imported: Circle[],
-  input: { name: string; description: string | null },
+  input: { name: string; description: string | null; kind: "circle" | "club" },
   founder: { personId: string; name: string }
 ) {
   return mutate(imported, (circles) => {
@@ -131,6 +135,7 @@ export function createCircle(
       id: slugFor(input, new Set(circles.map((c) => c.id))),
       name: input.name,
       description: input.description,
+      ...(input.kind === "club" ? { kind: "club" as const } : {}),
       seats: [{ id: randomUUID(), personId: founder.personId, name: founder.name, position: "Member", termEnds: null }],
     };
     return { circles: [...circles, circle], value: circle };
@@ -140,7 +145,7 @@ export function createCircle(
 export function updateCircle(
   imported: Circle[],
   id: string,
-  update: Partial<{ name: string; description: string | null; joinPolicy: "open" | "apply" }>
+  update: Partial<{ name: string; description: string | null; joinPolicy: "open" | "apply"; kind: "circle" | "club" }>
 ) {
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);

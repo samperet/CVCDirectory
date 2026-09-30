@@ -40,6 +40,9 @@ export interface CircleApplication {
   createdAt: string;
 }
 
+/** An official sociocratic circle, or a social club (e.g. the Chicken Tenders). */
+export type CircleKind = "circle" | "club";
+
 /** Who can join a circle: anyone, with a Join button, or by applying for its members to approve. */
 export type JoinPolicy = "open" | "apply";
 
@@ -54,6 +57,8 @@ export interface Circle {
   iconUrl?: string | null;
   /** Unset means "apply": members approve who joins (as before joining existed). */
   joinPolicy?: JoinPolicy;
+  /** "club" for a social club; unset for an official, sociocratically formed circle. */
+  kind?: CircleKind;
   /** Pending applications; only the circle's members, the Board, and admins see them. */
   applications?: CircleApplication[];
 }

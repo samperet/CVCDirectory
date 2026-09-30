@@ -174,10 +174,17 @@ function AddMember({ circle, candidates }: { circle: Circle; candidates: NameOpt
   );
 }
 
-function DetailsEditor({ circle, onDone }: { circle: Circle; onDone: () => void }) {
+/** Edit a circle's name and description — and, for the Board and admins, whether it's an official circle or a social club. */
+function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetKind: boolean; onDone: () => void }) {
   const [form, setForm] = useState({ name: circle.name, description: circle.description ?? "" });
+  const [club, setClub] = useState(circle.kind === "club");
+  const kindChanged = club !== (circle.kind === "club");
   const save = useCircleMutation(
-    () => apiFetch(`/api/circles/${circle.id}`, { method: "PATCH", body: JSON.stringify(form) }),
+    () =>
+      apiFetch(`/api/circles/${circle.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...form, ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}) }),
+      }),
     "Could not save circle",
     onDone
   );
@@ -199,6 +206,12 @@ function DetailsEditor({ circle, onDone }: { circle: Circle; onDone: () => void 
         className="bg-white"
         aria-label="Description"
       />
+      {canSetKind ? (
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input type="checkbox" checked={club} onChange={(event) => setClub(event.target.checked)} className="h-4 w-4 accent-primary" />
+          Social club <span className="text-muted">— not an official sociocratic circle</span>
+        </label>
+      ) : null}
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={save.isPending || form.name.trim().length < 2}>
           {save.isPending ? "Saving…" : "Save"}
@@ -502,10 +515,17 @@ export function CircleDetailClient({ id }: { id: string }) {
             <CircleIcon circle={circle} size={96} />
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               {editingDetails ? (
-                <DetailsEditor circle={circle} onDone={() => setEditingDetails(false)} />
+                <DetailsEditor
+                  circle={circle}
+                  canSetKind={onBoard && circle.id !== "board" && !community}
+                  onDone={() => setEditingDetails(false)}
+                />
               ) : (
                 <>
                   <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
+                  {circle.kind === "club" ? (
+                    <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">Social club</span>
+                  ) : null}
                   {circle.description ? (
                     <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
                   ) : canManage ? (
