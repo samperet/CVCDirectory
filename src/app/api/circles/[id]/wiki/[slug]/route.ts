@@ -3,6 +3,7 @@ import { deletePage, getPage, isSlug, pageUpdateSchema, updatePage } from "@/lib
 import { deletePageComments } from "@/lib/wiki/comments";
 import { wikiContext, wikiProblem } from "@/lib/wiki/http";
 import { problem } from "@/lib/http";
+import { updateCircle } from "@/lib/circles/store";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export async function GET(_request: Request, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const page = isSlug(params.slug) ? await getPage(params.id, params.slug) : null;
   if (!page) return wikiProblem("not_found");
-  return NextResponse.json({ page, canEdit: ctx.canEdit }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ page, canEdit: ctx.canEdit, canPin: ctx.canPin }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 /** Save a new version (title and/or body). */
@@ -43,5 +44,9 @@ export async function DELETE(_request: Request, { params }: Params) {
   const result = await deletePage(params.id, params.slug);
   if (!result.ok) return wikiProblem(result.reason);
   if (page) await deletePageComments(params.id, page.id);
+  // A deleted page comes off the circle's page too.
+  if (ctx.circle.pinnedWiki?.includes(params.slug)) {
+    await updateCircle(ctx.imported, params.id, { pinnedWiki: ctx.circle.pinnedWiki.filter((slug) => slug !== params.slug) });
+  }
   return NextResponse.json({ ok: true });
 }

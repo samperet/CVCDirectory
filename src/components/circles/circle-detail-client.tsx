@@ -16,6 +16,7 @@ import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { CirclePolls } from "@/components/polls/circle-polls";
 import { WikiSection } from "@/components/wiki/wiki-client";
+import { PinnedNotes } from "@/components/wiki/pinned-notes";
 import { TasksSection } from "@/components/tasks/task-board";
 import { featureEnabled } from "@/lib/circles/features";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
@@ -593,6 +594,8 @@ export function CircleDetailClient({ id }: { id: string }) {
           </aside>
         )}
         <div className="flex min-w-0 flex-col gap-6 [grid-area:main]">
+          {featureEnabled(circle, "wiki") ? <PinnedNotes circle={circle} canPin={canManage} canEdit={canUpload} /> : null}
+
           {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
           <DutyScheduleModule circleId={id} people={people} />
 

@@ -245,6 +245,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   notifications (topic *tasks*): a task given to you, a task you added being done, and comments on
   tasks you own, added, or are replying in. Stored as `tasks/<circleId>.json` and
   `task-comments/<circleId>.json`.
+- **Pinned notes** – a circle's members, the Board, and admins can pin up to 3 of its wiki pages to
+  the top of the circle's page (**Pin to circle page** on the wiki page; unpin there or from the
+  note). Each shows in full as a note — a long one folds, with **Show all** — linking to the page,
+  with an edit shortcut for the wiki's editors. Stored on the circle (`pinnedWiki`, the pages'
+  addresses); deleting a page unpins it.
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors

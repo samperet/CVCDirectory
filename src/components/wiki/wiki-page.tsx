@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CornerDownRight, History, ListTree, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeft, CornerDownRight, History, Pin, PinOff, ListTree, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 
-type PageResponse = { page: WikiPage; canEdit: boolean };
+type PageResponse = { page: WikiPage; canEdit: boolean; canPin?: boolean };
+const MAX_PINS = 3;
 const NO_THREADS: never[] = [];
 
 /** A floating "Comment" button over selected text on the page. */
@@ -99,6 +100,17 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
       toast({ title: "Earlier version restored" });
     },
     onError: (err: Error) => toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
+  });
+  const pins = circle?.pinnedWiki ?? [];
+  const pinned = pins.includes(slug);
+  const pin = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/circles/${circleId}`, { method: "PATCH", body: JSON.stringify({ pinnedWiki: pinned ? pins.filter((entry) => entry !== slug) : [...pins, slug] }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["directory"] });
+      toast({ title: pinned ? "Unpinned" : `Pinned to the ${circle?.name ?? "circle"} page` });
+    },
+    onError: (err: Error) => toast({ title: pinned ? "Could not unpin it" : "Could not pin it", description: err.message, variant: "destructive" }),
   });
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/circles/${circleId}/wiki/${slug}`, { method: "DELETE" }),
@@ -186,6 +198,18 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
               {canEdit ? (
                 <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
                   <Pencil className="h-4 w-4" /> Edit
+                </Button>
+              ) : null}
+              {data?.canPin && wikiOn ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={pin.isPending || (!pinned && pins.length >= MAX_PINS)}
+                  title={!pinned && pins.length >= MAX_PINS ? `${circle?.name ?? "This circle"} has ${MAX_PINS} pinned pages; unpin one first` : undefined}
+                  onClick={() => pin.mutate()}
+                >
+                  {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />} {pinned ? "Unpin" : "Pin to circle page"}
                 </Button>
               ) : null}
               {page.history.length ? (
