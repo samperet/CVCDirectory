@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/lib/auth/client";
+import { MySkills } from "@/components/skills/person-skills";
 import { AppSettings } from "@/components/notifications/app-settings";
 
 function splitBirthday(value: string | null) {
@@ -310,6 +311,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
         </form>
       </Card>
 
+      {own ? <MySkills /> : null}
       {own ? <AppSettings /> : null}
     </div>
   );

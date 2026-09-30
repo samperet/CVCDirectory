@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Cake, Eye, Home, LogOut, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
+import { PersonSkills } from "@/components/skills/person-skills";
 import { apiFetch } from "@/lib/api-client";
 import { useSession, useViewAs } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
@@ -108,6 +109,7 @@ export function PersonClient({ personId: requested }: { personId: string }) {
         </div>
 
         {person.bio ? <p className="whitespace-pre-wrap text-foreground-light">{person.bio}</p> : null}
+        <PersonSkills personId={person.id} />
 
         <div className="flex flex-col gap-2 text-sm">
           {person.phone ? (

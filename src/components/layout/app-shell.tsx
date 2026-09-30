@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye, FileText } from "lucide-react";
+import { Menu, Search, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,23 @@ const links = [
   { href: "/resources", label: "Resources", icon: Lightbulb },
 ];
 
+/** The header's search button: the whole-site search. */
+function SearchButton({ active }: { active: boolean }) {
+  return (
+    <Link
+      href="/search"
+      aria-label="Search"
+      title="Search everything ( / )"
+      className={cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
+        active ? "bg-primary text-primary-foreground shadow-soft" : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
+      )}
+    >
+      <Search className="h-4 w-4" />
+    </Link>
+  );
+}
+
 /** A section is active on its own page and the pages under it (e.g. a circle, a forum thread). */
 const isActive = (pathname: string, href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
@@ -43,6 +60,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Register the service worker (installable app, notifications) and catch the install prompt.
   useEffect(() => setUpPwa(), []);
+
+  // "/" from anywhere that isn't a text box opens the whole-site search.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        router.push("/search");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [router]);
 
   // The middleware only checks the cookie's signature; if the account behind
   // it doesn't exist, send the visitor to sign in rather than show an empty app.
@@ -103,6 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             CVC Directory
           </Link>
           <div className="flex items-center gap-2 xl:hidden">
+            <SearchButton active={pathname === "/search"} />
             <UserMenu />
             <Button
               variant="outline"
@@ -131,6 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
             </nav>
+            <SearchButton active={pathname === "/search"} />
             <UserMenu />
           </div>
         </div>

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera, Lightbulb, FileText } from "lucide-react";
+import { ChevronRight, Layers, Share2, MessagesSquare, BookUser, Camera, Lightbulb } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { MyTasks } from "@/components/tasks/my-tasks";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
@@ -26,22 +26,10 @@ const cards = [
     icon: Layers,
   },
   {
-    href: "/documents",
-    title: "Documents",
-    description: "Minutes, agendas, and policies from every circle, searchable.",
-    icon: FileText,
-  },
-  {
     href: "/library",
     title: "Loan Library",
     description: "Tools, books, and gear neighbors are happy to lend.",
     icon: Share2,
-  },
-  {
-    href: "/skills",
-    title: "Skills",
-    description: "What neighbors can help with, and who to ask.",
-    icon: Sparkles,
   },
   {
     href: "/forum",

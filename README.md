@@ -192,6 +192,17 @@ Authors always come from the signed-in session, never from the request body.
   entries ("Split entries", for different people who share a name) or combine entries whose names
   differ ("Same person listed elsewhere?"). "Remove from unit N" takes someone out of one of their
   households and keeps them in the others. Links to a combined entry open the one profile.
+- **Search** (`/search`, the header's search button, or "/" anywhere) – one search across the site
+  for residents: people (by name, bio, and skills), circles, wiki pages, forum discussions,
+  documents (their details and text), tasks, resources, and the loan library. Every word must
+  match somewhere in a result; titles count most. Results come in groups, best first, with the
+  matching passage quoted and the words marked, and **See all** for a group
+  (`GET /api/search?q=…&kind=…`). The query stays in the address, so a search can be shared.
+- **Skills on profiles** – residents list their skills on their profile (**Your skills**); they
+  show as chips on their directory page (each searching for everyone with that skill) and are
+  searchable. They're the same skills as the Skills page, which still lists them all.
+- The dashboard's cards: Directory, Circles, Loan Library, Forum, Photos, and Resources (Documents
+  and Skills are in the menu, and in search).
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.
