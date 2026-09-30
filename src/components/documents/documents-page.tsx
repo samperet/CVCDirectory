@@ -15,8 +15,8 @@ export function DocumentsPage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Documents</h1>
         <p className="text-sm text-muted">
-          Minutes, agendas, policies, and more from every circle. Search finds words inside documents, too. Circles add
-          documents on their own pages; community-wide ones are the Board&apos;s.
+          Minutes, agendas, policies, and more from every circle. Search finds words inside documents, and in forum
+          discussions too. Circles add documents on their own pages; community-wide ones are the Board&apos;s.
         </p>
       </div>
       <Card>

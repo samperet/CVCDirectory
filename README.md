@@ -15,7 +15,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included.
+- 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
 - 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -190,6 +190,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   "quoted phrase" — in titles, descriptions, and the documents' own text, best matches first, with
   the matching passage shown, and can be narrowed by circle and type. Text is read on upload from PDFs, Word, Excel, and PowerPoint files
   and text files; scanned PDFs, images, and older .doc/.xls/.ppt files are found by their details.
+  On `/documents` (with no circle or type chosen) the search also covers the forum — discussion
+  titles, posts, and replies — listing matching discussions below the documents with the post that
+  matched; each opens at that reply (`GET /api/forum/search?q=`).
 - **Storage** – files live in R2 (`documents/files/<id>/v<n>`), details in `documents/index.json`,
   and the searchable text of each current version in `documents/text.json`. Uploads travel in 4 MB
   pieces (under Vercel's request limit) and are reassembled and checked by their contents on the

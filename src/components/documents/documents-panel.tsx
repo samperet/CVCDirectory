@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
   FileText,
   History,
+  MessagesSquare,
   Pencil,
   Presentation,
   Search,
@@ -33,6 +34,8 @@ import {
   formatBytes,
   searchTerms,
 } from "@/lib/documents/types";
+import type { ForumSearchHit } from "@/lib/forum/search";
+import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -611,10 +614,40 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
   );
 }
 
+/** A forum discussion found by the Documents page's search, quoting the post that matched. */
+function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
+  const href = `/forum/${hit.id}${hit.replyId ? `#reply-${hit.replyId}` : ""}`;
+  return (
+    <li className="flex items-start gap-3 py-4">
+      <MessagesSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <Link href={href} className="font-medium text-foreground underline-offset-4 hover:underline">
+          <Highlighted text={hit.title} terms={terms} />
+        </Link>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">Forum</span>
+          <span>started by {hit.authorName}</span>
+          <span>
+            {hit.replyCount} {hit.replyCount === 1 ? "reply" : "replies"}
+          </span>
+          <span>active {timeAgo(hit.lastActivityAt)}</span>
+        </p>
+        {hit.snippet ? (
+          <p className="mt-1 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">
+            <Highlighted text={hit.snippet} terms={terms} />
+            {hit.snippetBy ? <span className="text-muted"> — {hit.snippetBy}</span> : null}
+          </p>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 /**
  * Documents, searchable by their details and contents. On a circle's page it
  * lists that circle's documents (and its members can add more); on the
- * Documents page it covers every circle, with a circle filter.
+ * Documents page it covers every circle, with a circle filter, and its
+ * search takes in the forum too.
  */
 export function DocumentsPanel({
   circleId,
@@ -646,6 +679,14 @@ export function DocumentsPanel({
     placeholderData: (previous) => previous,
   });
   const terms = useMemo(() => searchTerms(debounced), [debounced]);
+  // The Documents page's search also covers the forum (which has no circles or document types to filter by).
+  const searchingForum = !circleId && !!debounced && !circle && !type;
+  const forum = useQuery({
+    queryKey: ["forum", "search", debounced],
+    queryFn: () => apiFetch<{ threads: ForumSearchHit[]; total: number }>(`/api/forum/search?${new URLSearchParams({ q: debounced })}`),
+    enabled: searchingForum,
+    placeholderData: (previous) => previous,
+  });
   // Type names in use (each circle names its own), for the filter; kept while a type is chosen.
   const typeOptions = useMemo(() => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(), [data, type]);
   const filtered = !!(debounced || type || (!circleId && circle));
@@ -657,7 +698,7 @@ export function DocumentsPanel({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
             type="search"
-            placeholder={circleId ? "Search this circle's documents" : "Search all documents — titles and contents"}
+            placeholder={circleId ? "Search this circle's documents" : "Search all documents and the forum"}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="bg-white pl-9"
@@ -721,6 +762,28 @@ export function DocumentsPanel({
           {filtered ? "No documents match." : circleId ? (canUpload ? "No documents yet — add the first one." : "No documents yet.") : "No documents yet."}
         </p>
       )}
+
+      {searchingForum && forum.data ? (
+        <section className="flex flex-col gap-1 border-t border-border pt-4" aria-label="Forum results">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <MessagesSquare className="h-4 w-4 text-primary" aria-hidden /> Forum
+          </h3>
+          <p className={cn("text-xs text-muted", forum.isFetching && "opacity-60")}>
+            {forum.data.total
+              ? `${forum.data.total} ${forum.data.total === 1 ? "discussion" : "discussions"} matching “${debounced}”${
+                  forum.data.total > forum.data.threads.length ? ` (showing the best ${forum.data.threads.length})` : ""
+                }`
+              : "No discussions match."}
+          </p>
+          {forum.data.threads.length ? (
+            <ul className={cn("divide-y divide-border", forum.isFetching && "opacity-60")}>
+              {forum.data.threads.map((hit) => (
+                <ForumResult key={hit.id} hit={hit} terms={terms} />
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

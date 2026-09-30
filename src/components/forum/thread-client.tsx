@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -244,7 +244,7 @@ function ReplyNode({
 
   return (
     <li className={cn(indent && "ml-3 border-l-2 border-border pl-3 md:ml-5 md:pl-4")}>
-      <div className="flex flex-col gap-1 py-2">
+      <div id={`reply-${reply.id}`} className="flex scroll-mt-24 flex-col gap-1 rounded-lg py-2 transition-colors duration-1000">
         {reply.deletedAt ? (
           <p className="text-sm italic text-muted">This comment was deleted.</p>
         ) : (
@@ -431,6 +431,18 @@ export function ThreadClient({ id }: { id: string }) {
     map.forEach((list) => list.sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
     return map;
   }, [data?.replies]);
+
+  // Arriving from a search result (#reply-<id>): bring that reply into view and highlight it briefly.
+  const loaded = !!data;
+  useEffect(() => {
+    if (!loaded || !window.location.hash.startsWith("#reply-")) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("bg-accent");
+    const timer = setTimeout(() => target.classList.remove("bg-accent"), 2500);
+    return () => clearTimeout(timer);
+  }, [loaded]);
 
   if (isLoading) return <p className="text-sm text-muted">Loading discussion…</p>;
   if (error || !data) {
