@@ -8,14 +8,10 @@ import {
   ArrowUp,
   Download,
   ExternalLink,
-  File,
-  FileImage,
-  FileSpreadsheet,
   FileText,
   History,
   MessagesSquare,
   Pencil,
-  Presentation,
   Search,
   Tags,
   Trash2,
@@ -23,11 +19,12 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { FileIcon, checkFile, sendFile, uploadDocument, useCircleTypes } from "@/components/documents/upload";
+import { BulkUpload } from "@/components/documents/bulk-upload";
 import {
   ACCEPTED_EXTENSIONS,
   DocumentListing,
   DocumentTypeOption,
-  MAX_DOCUMENT_BYTES,
   MAX_DOCUMENT_TYPES,
   currentVersion,
   documentDate,
@@ -45,33 +42,11 @@ import { cn } from "@/lib/utils";
 
 type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[] };
 
-/** A circle's document types (each circle edits its own). */
-function useCircleTypes(circleId: string) {
-  return useQuery({
-    queryKey: ["document-types", circleId],
-    queryFn: () => apiFetch<{ types: DocumentTypeOption[] }>(`/api/circles/${circleId}/document-types`),
-    staleTime: 5 * 60_000,
-  });
-}
-
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
   `/api/documents/${doc.id}/file?${new URLSearchParams({ ...(version ? { v: String(version) } : {}), ...(download ? { download: "1" } : {}) })}`;
 
 const shortDate = (iso: string) =>
   new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
-
-function FileIcon({ contentType, className }: { contentType: string; className?: string }) {
-  const Icon = contentType.startsWith("image/")
-    ? FileImage
-    : /sheet|excel|csv/.test(contentType)
-      ? FileSpreadsheet
-      : /presentation|powerpoint/.test(contentType)
-        ? Presentation
-        : /pdf|word|text/.test(contentType)
-          ? FileText
-          : File;
-  return <Icon className={className} aria-hidden />;
-}
 
 /** Wrap each search term in the text with <mark>. */
 function Highlighted({ text, terms }: { text: string; terms: string[] }) {
@@ -90,44 +65,6 @@ function Highlighted({ text, terms }: { text: string; terms: string[] }) {
       )}
     </>
   );
-}
-
-/**
- * Send a file in pieces (each under the hosting platform's request limit),
- * reporting progress, and return the token that finishes the upload.
- */
-async function sendFile(file: File, target: { circleId: string; replaces?: string }, onProgress: (sent: number) => void) {
-  const { token, chunkSize, chunks } = await apiFetch<{ token: string; chunkSize: number; chunks: number }>("/api/documents/uploads", {
-    method: "POST",
-    body: JSON.stringify({ circleId: target.circleId, fileName: file.name, size: file.size, replaces: target.replaces ?? null }),
-  });
-  for (let index = 0; index < chunks; index++) {
-    const piece = file.slice(index * chunkSize, Math.min(file.size, (index + 1) * chunkSize));
-    for (let attempt = 1; ; attempt++) {
-      const response = await fetch(`/api/documents/uploads/${index}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/octet-stream", "X-Upload-Token": token },
-        body: piece,
-      }).catch(() => null);
-      if (response?.ok) break;
-      if (attempt >= 3 || (response && response.status < 500 && response.status !== 429)) {
-        const detail = await response?.json().then((body) => body?.detail).catch(() => null);
-        throw new Error(detail ?? "The upload was interrupted — check your connection and try again.");
-      }
-      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-    }
-    onProgress(Math.min(file.size, (index + 1) * chunkSize));
-  }
-  return token;
-}
-
-function checkFile(file: File) {
-  if (!ACCEPTED_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
-    return "Upload a PDF, Word, Excel, PowerPoint, text, or image file.";
-  }
-  if (file.size > MAX_DOCUMENT_BYTES) return "Documents must be 50 MB or smaller.";
-  if (!file.size) return "That file is empty.";
-  return null;
 }
 
 function Progress({ sent, total, finishing }: { sent: number; total: number; finishing: boolean }) {
@@ -222,18 +159,14 @@ function UploadCard({ circleId, onDone }: { circleId: string; onDone: () => void
   const upload = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error("Choose a file");
-      setProgress({ sent: 0, finishing: false });
-      const token = await sendFile(file, { circleId }, (sent) => setProgress({ sent, finishing: false }));
-      setProgress({ sent: file.size, finishing: true });
-      return apiFetch<{ document: DocumentListing }>("/api/documents", {
-        method: "POST",
-        body: JSON.stringify({
-          token,
-          details: { title: form.title, type: form.type, meetingDate: form.meetingDate || null, description: form.description || null },
-        }),
-      });
+      return uploadDocument(
+        file,
+        circleId,
+        { title: form.title, type: form.type, meetingDate: form.meetingDate || null, description: form.description || null },
+        setProgress
+      );
     },
-    onSuccess: ({ document }) => {
+    onSuccess: (document) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast({
         title: "Document added",
@@ -653,11 +586,14 @@ export function DocumentsPanel({
   circleId,
   canUpload = false,
   circles,
+  uploadCircles = [],
 }: {
   circleId?: string;
   canUpload?: boolean;
   /** For the all-documents page: the circles to filter by. */
   circles?: { id: string; name: string }[];
+  /** For the all-documents page: the circles the resident can add documents to (bulk upload). */
+  uploadCircles?: { id: string; name: string }[];
 }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -665,6 +601,7 @@ export function DocumentsPanel({
   const [circle, setCircle] = useState("");
   const [adding, setAdding] = useState(false);
   const [editingTypes, setEditingTypes] = useState(false);
+  const [bulk, setBulk] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 250);
@@ -728,6 +665,11 @@ export function DocumentsPanel({
             <Tags className="h-4 w-4" /> Edit types
           </Button>
         ) : null}
+        {!circleId && uploadCircles.length && !bulk ? (
+          <Button className="gap-1.5" onClick={() => setBulk(true)}>
+            <Upload className="h-4 w-4" /> Upload documents
+          </Button>
+        ) : null}
         {canUpload && circleId && !adding ? (
           <Button className="gap-1.5" onClick={() => setAdding(true)}>
             <Upload className="h-4 w-4" /> Add a document
@@ -737,6 +679,7 @@ export function DocumentsPanel({
 
       {editingTypes && circleId ? <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} /> : null}
       {adding && circleId ? <UploadCard circleId={circleId} onDone={() => setAdding(false)} /> : null}
+      {bulk && !circleId ? <BulkUpload circles={uploadCircles} initialCircleId={circle || undefined} onDone={() => setBulk(false)} /> : null}
 
       {isLoading ? (
         <p className="text-sm text-muted">Loading documents…</p>

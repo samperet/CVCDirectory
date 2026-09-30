@@ -183,6 +183,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 ## Documents
 
 - Each circle's page has a **Documents** section; community-wide documents belong to the Board.
+- **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
+  chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
+  admins). Each file gets an editable title (from its name), type, and meeting date (filled in
+  when the name has one, like `2024-03-12`); they upload one after another, and failures can be retried.
   The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,
   or images, up to 50 MB) with a title, one of the circle's document types, an optional meeting date,
   and a description. Each circle edits its own list of types ("Edit types": rename, reorder, add,
