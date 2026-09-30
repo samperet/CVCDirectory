@@ -6,6 +6,7 @@ import { getDocument } from "@/lib/documents/store";
 import { ACCEPTED_EXTENSIONS, MAX_DOCUMENT_BYTES, UPLOAD_CHUNK_BYTES } from "@/lib/documents/types";
 import { chunkCount, createUploadToken } from "@/lib/documents/upload-token";
 import { problem } from "@/lib/http";
+import { featureEnabled } from "@/lib/circles/features";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ token, chunkSize: UPLOAD_CHUNK_BYTES, chunks: chunkCount(size) });
   }
 
-  if (!context.directory.circles.some((circle) => circle.id === circleId)) return problem("Circle not found", 404, "Not Found");
+  const circle = context.directory.circles.find((entry) => entry.id === circleId);
+  if (!circle) return problem("Circle not found", 404, "Not Found");
+  if (!featureEnabled(circle, "documents")) return problem(`${circle.name} has turned documents off`, 409, "Conflict");
   if (!canUploadTo(context.user, context.directory, circleId)) {
     return problem("Only this circle's members, the Board, and admins can add its documents", 403, "Forbidden");
   }

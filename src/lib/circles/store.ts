@@ -34,7 +34,11 @@ export const circleInputSchema = z.object({
 
 export const circleUpdateSchema = circleInputSchema
   .omit({ kind: true })
-  .extend({ joinPolicy: z.enum(["open", "apply"]), kind })
+  .extend({
+    joinPolicy: z.enum(["open", "apply"]),
+    kind,
+    features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional() }),
+  })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
@@ -145,7 +149,13 @@ export function createCircle(
 export function updateCircle(
   imported: Circle[],
   id: string,
-  update: Partial<{ name: string; description: string | null; joinPolicy: "open" | "apply"; kind: "circle" | "club" }>
+  update: Partial<{
+    name: string;
+    description: string | null;
+    joinPolicy: "open" | "apply";
+    kind: "circle" | "club";
+    features: { documents?: boolean; wiki?: boolean };
+  }>
 ) {
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
@@ -158,7 +168,11 @@ export function updateCircle(
     );
     if (clash) return "exists";
     const next = [...circles];
-    next[index] = { ...next[index], ...update };
+    next[index] = {
+      ...next[index],
+      ...update,
+      ...(update.features ? { features: { ...next[index].features, ...update.features } } : {}),
+    };
     return { circles: next, value: next[index] };
   });
 }

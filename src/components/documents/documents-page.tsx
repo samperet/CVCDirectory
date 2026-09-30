@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
+import { featureEnabled } from "@/lib/circles/features";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { Card } from "@/components/ui/card";
@@ -17,8 +18,10 @@ export function DocumentsPage() {
   const inCircle = (circleId: string) =>
     !!user?.personId && !!data?.circles.some((circle) => circle.id === circleId && circle.seats.some((seat) => seat.personId === user.personId));
   // Everyone is in the Community circle.
-  const uploadCircles =
-    user?.isAdmin || inCircle("board") ? circles : circles.filter((circle) => inCircle(circle.id) || (circle.id === "community" && !!user?.personId));
+  const documentsOn = new Set((data?.circles ?? []).filter((circle) => featureEnabled(circle, "documents")).map((circle) => circle.id));
+  const uploadCircles = (
+    user?.isAdmin || inCircle("board") ? circles : circles.filter((circle) => inCircle(circle.id) || (circle.id === "community" && !!user?.personId))
+  ).filter((circle) => documentsOn.has(circle.id));
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">

@@ -15,6 +15,8 @@ import { DutyScheduleModule } from "@/components/circles/duty-schedule";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { CommunityPolls } from "@/components/polls/community-polls";
+import { WikiSection } from "@/components/wiki/wiki-client";
+import { featureEnabled } from "@/lib/circles/features";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -179,11 +181,12 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
   const [form, setForm] = useState({ name: circle.name, description: circle.description ?? "" });
   const [club, setClub] = useState(circle.kind === "club");
   const kindChanged = club !== (circle.kind === "club");
+  const [features, setFeatures] = useState({ documents: featureEnabled(circle, "documents"), wiki: featureEnabled(circle, "wiki") });
   const save = useCircleMutation(
     () =>
       apiFetch(`/api/circles/${circle.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ ...form, ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}) }),
+        body: JSON.stringify({ ...form, features, ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}) }),
       }),
     "Could not save circle",
     onDone
@@ -206,6 +209,25 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         className="bg-white"
         aria-label="Description"
       />
+      <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground">
+        <legend className="mb-1 text-xs font-medium text-muted">Sections on this page</legend>
+        {(
+          [
+            ["documents", "Documents"],
+            ["wiki", "Wiki"],
+          ] as const
+        ).map(([feature, label]) => (
+          <label key={feature} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={features[feature]}
+              onChange={(event) => setFeatures((current) => ({ ...current, [feature]: event.target.checked }))}
+              className="h-4 w-4 accent-primary"
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
       {canSetKind ? (
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" checked={club} onChange={(event) => setClub(event.target.checked)} className="h-4 w-4 accent-primary" />
@@ -572,10 +594,18 @@ export function CircleDetailClient({ id }: { id: string }) {
             </Card>
           ) : null}
 
-          <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
-            <h2 className="text-lg font-semibold text-foreground">Documents</h2>
-            <DocumentsPanel circleId={id} canUpload={canUpload} canEditTypes={canManage} />
-          </Card>
+          {featureEnabled(circle, "wiki") ? (
+            <Card id="wiki" className="scroll-mt-24">
+              <WikiSection circleId={id} />
+            </Card>
+          ) : null}
+
+          {featureEnabled(circle, "documents") ? (
+            <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
+              <h2 className="text-lg font-semibold text-foreground">Documents</h2>
+              <DocumentsPanel circleId={id} canUpload={canUpload} canEditTypes={canManage} />
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

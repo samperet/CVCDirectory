@@ -59,6 +59,8 @@ export interface Circle {
   joinPolicy?: JoinPolicy;
   /** "club" for a social club; unset for an official, sociocratically formed circle. */
   kind?: CircleKind;
+  /** Which of its pages' sections the circle uses; each is on unless set to false. */
+  features?: { documents?: boolean; wiki?: boolean };
   /** Pending applications; only the circle's members, the Board, and admins see them. */
   applications?: CircleApplication[];
 }
