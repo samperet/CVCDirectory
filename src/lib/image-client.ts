@@ -57,3 +57,17 @@ export async function uploadImage(url: string, blob: Blob): Promise<void> {
     throw new Error(detail ?? "Upload failed");
   }
 }
+
+/**
+ * Add a photo to a circle's wiki; resolves to its address for the page. A
+ * small PNG (a screenshot, a diagram) goes as it is, keeping it crisp;
+ * anything else is downscaled and re-encoded as JPEG first.
+ */
+export async function uploadWikiImage(circleId: string, file: File): Promise<string> {
+  const keep = file.type === "image/png" && file.size <= 1.5 * 1024 * 1024;
+  const blob = keep ? file : await preparePhoto(file, 2000);
+  const res = await fetch(`/api/circles/${circleId}/wiki/images`, { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.url) throw new Error(body?.detail ?? "Upload failed");
+  return body.url as string;
+}

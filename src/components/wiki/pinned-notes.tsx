@@ -7,7 +7,6 @@ import { ChevronDown, ChevronUp, Pencil, Pin, PinOff } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle } from "@/lib/directory/types";
 import type { WikiPage } from "@/lib/wiki/store";
-import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { useToast } from "@/components/ui/use-toast";
@@ -51,11 +50,6 @@ function PinnedNote({ circle, slug, canPin, canEdit }: { circle: Circle; slug: s
               "…"
             )}
           </h2>
-          {page ? (
-            <p className="text-xs text-muted">
-              Pinned note · updated {timeAgo(page.updatedAt)} by {page.updatedBy.name}
-            </p>
-          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {canEdit && page ? (

@@ -2,12 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Code2, Eye, PenLine } from "lucide-react";
+import { AlertTriangle, Code2, Eye, ImagePlus, PenLine } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { LinkPicker } from "@/components/wiki/link-picker";
+import { uploadWikiImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -145,12 +146,31 @@ export function WikiEditor({
     return () => window.removeEventListener("keydown", onKey);
   }, [save]);
 
+  // Photos picked, pasted, or dropped into the Markdown: uploaded, then placed where the cursor is.
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(0);
+  const addPhotos = async (files: File[]) => {
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    if (!images.length) return false;
+    setUploading((count) => count + images.length);
+    for (const file of images) {
+      try {
+        insertLink(`![](${await uploadWikiImage(circleId, file)})`);
+      } catch (error) {
+        toast({ title: `Could not add “${file.name}”`, description: (error as Error).message, variant: "destructive" });
+      } finally {
+        setUploading((count) => count - 1);
+      }
+    }
+    return true;
+  };
+
   // Put a link where the cursor is in the Markdown.
   const insertLink = (text: string) => {
     const area = textarea.current;
     const start = area?.selectionStart ?? body.length;
     const end = area?.selectionEnd ?? body.length;
-    setBody(body.slice(0, start) + text + body.slice(end));
+    setBody((current) => current.slice(0, start) + text + current.slice(end));
     requestAnimationFrame(() => {
       area?.focus();
       area?.setSelectionRange(start + text.length, start + text.length);
@@ -245,9 +265,44 @@ export function WikiEditor({
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="flex flex-col gap-2">
-          <LinkPicker circleId={circleId} pageId={page.id} onPick={insertLink} className="w-fit" />
+          <div className="flex flex-wrap items-center gap-2">
+            <LinkPicker circleId={circleId} pageId={page.id} onPick={insertLink} />
+            <button
+              type="button"
+              onClick={() => photoInput.current?.click()}
+              disabled={uploading > 0}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-sm font-medium text-foreground transition hover:bg-accent disabled:opacity-60"
+            >
+              <ImagePlus className="h-4 w-4" aria-hidden /> {uploading ? "Adding photo…" : "Insert photo"}
+            </button>
+            <input
+              ref={photoInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+              multiple
+              hidden
+              onChange={(event) => {
+                void addPhotos(Array.from(event.target.files ?? []));
+                event.target.value = "";
+              }}
+            />
+          </div>
           <Textarea
             ref={textarea}
+            onPaste={(event) => {
+              const files = Array.from(event.clipboardData.files);
+              if (files.some((file) => file.type.startsWith("image/"))) {
+                event.preventDefault();
+                void addPhotos(files);
+              }
+            }}
+            onDrop={(event) => {
+              const files = Array.from(event.dataTransfer.files);
+              if (files.some((file) => file.type.startsWith("image/"))) {
+                event.preventDefault();
+                void addPhotos(files);
+              }
+            }}
             autoFocus
             value={body}
             maxLength={50_000}
@@ -267,7 +322,7 @@ export function WikiEditor({
       )}
 
       <p className="text-xs text-muted">
-        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page — <code>[[O&amp;M:Page title]]</code> for another circle&apos;s, <code>[[doc:Document title]]</code> for a document (or use <strong>Link page or doc</strong>). A collapsible section:{" "}
+        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page — <code>[[O&amp;M:Page title]]</code> for another circle&apos;s, <code>[[doc:Document title]]</code> for a document (or use <strong>Link page or doc</strong>). Add photos with the toolbar&apos;s picture button, or paste or drop them in. A collapsible section:{" "}
         <code>:::details{"{"}title=&quot;…&quot;{"}"}</code> … <code>:::</code> (or the toolbar&apos;s <strong>⇕</strong> button). Ctrl/⌘+S saves.
       </p>
       <div className="flex gap-2">

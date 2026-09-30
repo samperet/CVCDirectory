@@ -150,7 +150,19 @@ const components: Components = {
       </a>
     );
   },
-  img: ({ node: _node, alt }) => <span className="text-muted">[{alt || "image"}]</span>,
+  // Photos added to a wiki show on the page (opening full size); images from elsewhere show as their description.
+  img: ({ node: _node, src = "", alt }) =>
+    WIKI_IMAGE.test(src) ? (
+      <span className="my-1 block">
+        <a href={src} target="_blank" rel="noopener" className="block w-fit">
+          {/* eslint-disable-next-line @next/next/no-img-element -- private, already-sized photos */}
+          <img src={src} alt={alt ?? ""} loading="lazy" className="max-h-[32rem] w-auto max-w-full rounded-lg border border-border bg-accent/40" />
+        </a>
+        {alt ? <span className="mt-1 block text-xs text-muted">{alt}</span> : null}
+      </span>
+    ) : (
+      <span className="text-muted">[{alt || "image"}]</span>
+    ),
 };
 
 /** What a page's links need: the circles, the other wikis it links into, and (if it links any) the documents. */
@@ -170,7 +182,10 @@ function useLinkData(source: string, circleId: string, pages: WikiPageSummary[])
   return { circleId, circles, pages: byCircle, docs };
 }
 
-/** A wiki page's Markdown, as formatted text. Raw HTML isn't rendered, and images show as their description. */
+/** A photo uploaded to one of the circles' wikis. */
+const WIKI_IMAGE = /^\/api\/circles\/[a-z0-9-]+\/wiki\/images\/[0-9a-f-]{36}$/;
+
+/** A wiki page's Markdown, as formatted text. Raw HTML isn't rendered; photos added to a wiki show, other images as their description. */
 export function WikiMarkdown({ source, circleId, pages }: { source: string; circleId: string; pages: WikiPageSummary[] }) {
   const linkData = useLinkData(source, circleId, pages);
   if (!source.trim()) return <p className="text-sm text-muted">This page is empty.</p>;

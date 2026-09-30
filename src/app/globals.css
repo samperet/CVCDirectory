@@ -113,6 +113,43 @@ select {
   border: 1px solid theme("colors.border");
   padding: 0.25rem 0.5rem;
 }
+/*
+ * The wiki editor (and its dialogs, like adding a photo) in the site's greens
+ * rather than the editor's blues. `:root` outranks the editor's own stylesheet,
+ * which loads later.
+ */
+:root [class*="_editorRoot_"] {
+  --accentBase: #f6fef9;
+  --accentBgSubtle: #eef8f0;
+  --accentBg: #e8f5e9;
+  --accentBgHover: #dcefdf;
+  --accentBgActive: #cfe8d3;
+  --accentLine: #b1dd9e;
+  --accentBorder: #97cf8a;
+  --accentBorderHover: #7fbf73;
+  --accentSolid: #315a39;
+  --accentSolidHover: #264a2e;
+  --accentText: #315a39;
+  --accentTextContrast: #1e4620;
+}
+[class*="_dialogContent_"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-radius: 1rem;
+  font-family: var(--font-sans), system-ui;
+}
+[class*="_dialogContent_"] [class*="_primaryButton_"],
+[class*="_dialogContent_"] [class*="_secondaryButton_"] {
+  border-radius: 9999px;
+  padding: 0.4rem 1rem;
+  font-weight: 500;
+}
+:root [class*="_dialogContent_"] [class*="_secondaryButton_"] {
+  border-color: theme("colors.border");
+  background-color: #fff;
+  color: theme("colors.foreground");
+}
 .wiki-editor .wiki-toolbar {
   border-radius: 0.5rem 0.5rem 0 0;
   background: theme("colors.accent");

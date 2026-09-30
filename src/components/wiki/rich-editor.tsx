@@ -14,6 +14,7 @@ import {
   type DirectiveDescriptor,
   GenericDirectiveEditor,
   InsertCodeBlock,
+  InsertImage,
   InsertTable,
   InsertThematicBreak,
   ListsToggle,
@@ -28,6 +29,7 @@ import {
   diffSourcePlugin,
   directivesPlugin,
   headingsPlugin,
+  imagePlugin,
   linkDialogPlugin,
   linkPlugin,
   listsPlugin,
@@ -40,6 +42,8 @@ import {
 } from "@mdxeditor/editor";
 import { normalizeWikiLinks } from "@/lib/wiki/links";
 import { LinkPicker } from "@/components/wiki/link-picker";
+import { uploadWikiImage } from "@/lib/image-client";
+import { useToast } from "@/components/ui/use-toast";
 
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */
@@ -134,6 +138,16 @@ export const RichEditor = forwardRef<
   { markdown: string; savedMarkdown: string; circleId: string; pageId: string; onChange: (markdown: string) => void; onError: () => void }
 >(function RichEditor({ markdown, savedMarkdown, circleId, pageId, onChange, onError }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
+  const { toast } = useToast();
+  // Photos chosen from the toolbar, pasted, or dropped in go to the circle's wiki photos.
+  const uploadPhoto = async (file: File) => {
+    try {
+      return await uploadWikiImage(circleId, file);
+    } catch (error) {
+      toast({ title: "Could not add the photo", description: (error as Error).message, variant: "destructive" });
+      throw error;
+    }
+  };
   useImperativeHandle(ref, () => ({
     setMarkdown: (value) => editor.current?.setMarkdown(value),
     focus: () => editor.current?.focus(),
@@ -160,6 +174,7 @@ export const RichEditor = forwardRef<
         linkPlugin(),
         linkDialogPlugin(),
         tablePlugin(),
+        imagePlugin({ imageUploadHandler: uploadPhoto, disableImageResize: true, disableImageSettingsButton: true }),
         codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
         codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" }, autoLoadLanguageSupport: false }),
         markdownShortcutPlugin(),
@@ -181,6 +196,7 @@ export const RichEditor = forwardRef<
               <CreateLink />
               <LinkPicker compact circleId={circleId} pageId={pageId} onPick={insertLink} />
               <Separator />
+              <InsertImage />
               <InsertTable />
               <InsertThematicBreak />
               <InsertCodeBlock />

@@ -248,6 +248,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   notifications (topic *tasks*): a task given to you, a task you added being done, and comments on
   tasks you own, added, or are replying in. Stored as `tasks/<circleId>.json` and
   `task-comments/<circleId>.json`.
+- **Wiki photos** – a wiki's editors add photos to its pages: the visual editor's picture button,
+  pasting or dropping a photo into either editor, or **Insert photo** in Markdown mode. Photos are
+  downscaled in the browser (longest side 2000px, re-encoded as JPEG, which drops location data;
+  a small PNG such as a screenshot goes as it is), up to 3 MB, and stored privately
+  (`wiki-images/<circleId>/<id>`, served to signed-in residents at
+  `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
+  images from other websites show only as their description. A circle's photos go when it does.
 - **Pinned notes** – a circle's members, the Board, and admins can pin up to 3 of its wiki pages to
   the top of the circle's page (**Pin to circle page** on the wiki page; unpin there or from the
   note). Each shows in full as a note — a long one folds, with **Show all** — linking to the page,
