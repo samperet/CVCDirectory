@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { excerpt, notify } from "@/lib/push/notify";
-import { addAppreciation, appreciationInputSchema, listAppreciations } from "@/lib/appreciations/store";
+import { MAX_APPRECIATIONS, addAppreciation, appreciationInputSchema, listAppreciations } from "@/lib/appreciations/store";
 import { problem } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const limitParam = Number(request.nextUrl.searchParams.get("limit") ?? 50);
-  const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 1), 100) : 50;
+  const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 1), MAX_APPRECIATIONS) : 50;
   return NextResponse.json({ items: await listAppreciations(limit) });
 }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     topic: "appreciations",
     title: appreciation.to ? `${user.name} appreciates ${appreciation.to}` : `An appreciation from ${user.name}`,
     body: excerpt(appreciation.message),
-    url: "/",
+    url: "/appreciations",
     tag: "appreciations",
     exceptUserId: user.id,
   });

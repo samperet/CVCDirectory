@@ -9,7 +9,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions with replies nested to any depth, and polls.
-- 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
+- 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page, all listed on their own page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
@@ -107,7 +107,6 @@ Admin status is checked server-side on every request, and the user menu shows an
 - **Forum** – edit or delete any post, including a whole discussion after others have replied.
 - **Skills & Loan Library** – remove anyone's skills; mark anyone's items lent out or returned, or
   remove them.
-- **Appreciations** – remove any appreciation (authors can remove their own).
 - **Profiles** – edit any resident's entry and photo from the "Edit" link beside them in the
   directory (`/profile/<personId>`), including resetting a phone number without the current one.
 - **View as a resident** – "View as resident…" in the user menu, or "View as" beside anyone in the
@@ -137,8 +136,9 @@ Admin status is checked server-side on every request, and the user menu shows an
   results". The poll's author or an admin can close and reopen it; options are fixed once posted.
   Votes are stored with the thread (`POST /api/forum/threads/<id>/poll` votes, `PATCH` closes).
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
-  to someone. They rotate through the footer of every page (pausable, and not auto-advancing for
-  visitors who prefer reduced motion). Authors can remove their own. Stored in
+  to someone. One at a time rotates through the footer of every page, large and centered (pausing
+  while you hover, and not auto-advancing for visitors who prefer reduced motion); clicking it
+  opens `/appreciations`, which lists them all. Anyone signed in can remove one. Stored in
   `appreciations/index.json`, newest 500 kept.
 
 Authors always come from the signed-in session, never from the request body.

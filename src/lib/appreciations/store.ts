@@ -4,8 +4,9 @@ import { enqueue, readJson, writeJson } from "@/lib/storage";
 
 /**
  * Appreciations are short public thank-you notes that rotate through the
- * footer of every page. They live as one document in the shared store, capped
- * to the most recent entries so the document stays small.
+ * footer of every page, and are all listed at /appreciations. They live as one
+ * document in the shared store, capped to the most recent entries so the
+ * document stays small.
  */
 
 export interface Appreciation {
@@ -64,16 +65,13 @@ export async function addAppreciation(
   return appreciation;
 }
 
-/** Remove an appreciation: its author or an admin may. */
-export async function removeAppreciation(
-  id: string,
-  actor: { id: string; admin: boolean }
-): Promise<"removed" | "not_found" | "forbidden"> {
+export const MAX_APPRECIATIONS = MAX_STORED;
+
+/** Remove an appreciation: any resident may (the community tends them together). */
+export async function removeAppreciation(id: string): Promise<"removed" | "not_found"> {
   return enqueue(KEY, async () => {
     const items = normalize(await readJson(KEY));
-    const item = items.find((entry) => entry.id === id);
-    if (!item) return "not_found" as const;
-    if (!actor.admin && item.authorId !== actor.id) return "forbidden" as const;
+    if (!items.some((entry) => entry.id === id)) return "not_found" as const;
     await writeJson(KEY, { items: items.filter((entry) => entry.id !== id) });
     return "removed" as const;
   });
