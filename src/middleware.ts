@@ -105,5 +105,5 @@ export const config = {
   // Everything except build assets and public files.
   // The manifest, service worker, and app icons are fetched without cookies, so they must stay public.
   // The front page's images (home/) are public too; the image optimizer fetches them without cookies.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|home/|robots.txt).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|home/|sections/|robots.txt).*)"],
 };

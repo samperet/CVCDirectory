@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { SectionArt } from "@/components/layout/section-art";
 import { cn } from "@/lib/utils";
 import { categorySlug } from "@/lib/resources/slug";
 
@@ -484,9 +485,12 @@ export function ResourcesClient({ category: slug }: { category?: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Resources</h1>
-          <p className="text-sm text-muted">Local services neighbors recommend — and who to ask about them.</p>
+        <div className="flex items-center gap-3">
+          <SectionArt href="/resources" size={48} />
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Resources</h1>
+            <p className="text-sm text-muted">Local services neighbors recommend — and who to ask about them.</p>
+          </div>
         </div>
         {addButton}
       </div>

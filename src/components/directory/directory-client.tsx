@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Car, Search, UserPlus, Users2 } from "lucide-react";
+import { Car, Search, UserPlus } from "lucide-react";
+import { SectionArt } from "@/components/layout/section-art";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
 import { unitsOf } from "@/lib/directory/households";
@@ -353,11 +354,12 @@ export function DirectoryClient() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-          <Users2 className="h-6 w-6 text-primary" /> Directory
-        </h1>
-        <p className="text-sm text-muted">Neighbors and carshed allocations, with circle badges. For residents only — please keep it private.</p>
+      <div className="flex items-center gap-3">
+        <SectionArt href="/directory" size={48} />
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Directory</h1>
+          <p className="text-sm text-muted">Neighbors and carshed allocations, with circle badges. For residents only — please keep it private.</p>
+        </div>
       </div>
 
       <div role="tablist" aria-label="Directory sections" className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1">

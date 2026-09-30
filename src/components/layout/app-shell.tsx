@@ -11,6 +11,7 @@ import { UserMenu } from "@/components/auth/user-menu";
 import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
 import { useSession, useViewAs } from "@/lib/auth/client";
 import { setUpPwa } from "@/components/notifications/pwa";
+import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
 
 const links = [
   { href: "/", label: "Dashboard", icon: Grid },
@@ -148,7 +149,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   )}
                   onClick={() => setMenuOpen(false)}
                 >
-                  <link.icon className="h-4 w-4" />
+                  {hasSectionArt(link.href) ? (
+                    <SectionArt href={link.href} size={24} />
+                  ) : (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+                      <link.icon className="h-4 w-4" />
+                    </span>
+                  )}
                   {link.label}
                 </Link>
               ))}

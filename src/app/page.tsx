@@ -5,6 +5,7 @@ import { NotificationsNudge } from "@/components/notifications/notifications-nud
 import { getUpcomingEvents } from "@/lib/calendar/events";
 import { getSessionUser } from "@/lib/auth/session";
 import { PublicHome } from "@/components/home/public-home";
+import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,13 @@ export default async function HomePage() {
             href={card.href}
             className="group flex items-center gap-3 rounded-2xl border border-border bg-background p-6 shadow-soft transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent hover:shadow-elev focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-0 active:shadow-soft motion-reduce:transition-none motion-reduce:hover:translate-y-0"
           >
-            <card.icon className="h-8 w-8 shrink-0 text-primary" aria-hidden />
+            {hasSectionArt(card.href) ? (
+              <SectionArt href={card.href} size={56} />
+            ) : (
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center">
+                <card.icon className="h-8 w-8 text-primary" aria-hidden />
+              </span>
+            )}
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold text-foreground">{card.title}</h2>
               <p className="text-sm text-foreground/70">{card.description}</p>

@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { SectionArt } from "@/components/layout/section-art";
 
 export function ForumIndexClient() {
   const router = useRouter();
@@ -43,9 +44,12 @@ export function ForumIndexClient() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Forum</h1>
-          <p className="text-sm text-muted">Neighborhood discussions. Reply to any post to start a thread.</p>
+        <div className="flex items-center gap-3">
+          <SectionArt href="/forum" size={48} />
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Forum</h1>
+            <p className="text-sm text-muted">Neighborhood discussions. Reply to any post to start a thread.</p>
+          </div>
         </div>
         {user ? (
           <Button className="gap-1" onClick={() => setComposing((v) => !v)} variant={composing ? "outline" : "default"}>
