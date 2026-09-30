@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Search, Share2, Layers, Grid, Sparkles, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye, FileText } from "lucide-react";
+import { Menu, Search, Share2, Layers, Grid, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,7 @@ const links = [
   { href: "/", label: "Dashboard", icon: Grid },
   { href: "/directory", label: "Directory", icon: BookUser },
   { href: "/circles", label: "Circles", icon: Layers },
-  { href: "/documents", label: "Documents", icon: FileText },
   { href: "/library", label: "Loan Library", icon: Share2 },
-  { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/forum", label: "Forum", icon: MessagesSquare },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/photos", label: "Photos", icon: Camera },

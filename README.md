@@ -201,8 +201,10 @@ Authors always come from the signed-in session, never from the request body.
 - **Skills on profiles** – residents list their skills on their profile (**Your skills**); they
   show as chips on their directory page (each searching for everyone with that skill) and are
   searchable. They're the same skills as the Skills page, which still lists them all.
-- The dashboard's cards: Directory, Circles, Loan Library, Forum, Photos, and Resources (Documents
-  and Skills are in the menu, and in search).
+- The dashboard's cards and the header's sections: Directory, Circles, Loan Library, Forum, Photos,
+  and Resources (and Calendar, in the header). Documents and Skills aren't linked from either:
+  documents live on each circle's page and in search; skills on profiles and in search. Their pages
+  (`/documents`, `/skills`) still work.
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.
