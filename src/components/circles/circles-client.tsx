@@ -6,8 +6,9 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
+import { EmailCircleButton } from "@/components/circles/email-circle";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -65,24 +66,26 @@ function NewCircleForm({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-function CircleCard({ circle }: { circle: Circle }) {
+function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Person> }) {
   const members = circle.seats.filter((seat) => seat.personId || seat.name).length;
+  // The whole card opens the circle; the email button sits on top of it.
   return (
-    <Link href={`/circles/${circle.id}`} className="block rounded-2xl transition hover:ring-2 hover:ring-primary">
-      <Card className="flex h-full items-start gap-4 p-5">
-        <CircleIcon circle={circle} size={56} />
-        <div className="min-w-0 flex-1">
+    <Card className="relative flex h-full items-start gap-4 p-5 transition focus-within:ring-2 focus-within:ring-primary hover:ring-2 hover:ring-primary">
+      <CircleIcon circle={circle} size={56} />
+      <div className="min-w-0 flex-1 pr-8">
+        <Link href={`/circles/${circle.id}`} className="after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none">
           <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
-          <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-            <span>
-              {members} {members === 1 ? "member" : "members"}
-            </span>
-            {circle.joinPolicy === "open" ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">Open to join</span> : null}
-          </p>
-          {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
-        </div>
-      </Card>
-    </Link>
+        </Link>
+        <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+          <span>
+            {members} {members === 1 ? "member" : "members"}
+          </span>
+          {circle.joinPolicy === "open" ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">Open to join</span> : null}
+        </p>
+        {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
+      </div>
+      <EmailCircleButton circle={circle} people={people} className="absolute right-3 top-3 z-10" />
+    </Card>
   );
 }
 
@@ -102,6 +105,7 @@ export function CirclesClient() {
     );
   }
 
+  const people = new Map(data.people.map((person) => [person.id, person]));
   return (
     <div className="flex flex-col gap-4">
       {creating ? (
@@ -115,7 +119,7 @@ export function CirclesClient() {
       )}
       <div className="grid gap-4 md:grid-cols-2">
         {data.circles.map((circle) => (
-          <CircleCard key={circle.id} circle={circle} />
+          <CircleCard key={circle.id} circle={circle} people={people} />
         ))}
       </div>
     </div>

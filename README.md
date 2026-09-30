@@ -216,6 +216,10 @@ from then on, so re-importing the directory never overwrites circle changes.
 
 - `/circles` lists every circle (name, member count, description); any resident can start a circle
   and becomes its first member.
+- **Emailing a circle** – the envelope on each circle's card (and in its members panel) asks
+  whether to email the whole circle or only certain roles (op leader, secretary, …), then opens
+  your mail app with their directory addresses (leaving you out), or copies them. Members with no
+  email on file are named so they can be reached another way.
 - **Joining** – each circle chooses who can join: anyone (a **Join circle** button) or by
   application (**Apply to join**, with an optional note), which its members, the Board, or an admin
   approve or decline. Circles default to applications. Members are notified of new applications

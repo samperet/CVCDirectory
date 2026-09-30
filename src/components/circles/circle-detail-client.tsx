@@ -13,6 +13,7 @@ import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule } from "@/components/circles/duty-schedule";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
+import { EmailCircleButton } from "@/components/circles/email-circle";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -384,9 +385,12 @@ function MembersPanel({
   return (
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold text-foreground">
-          Members <span className="text-sm font-normal text-muted">({members.length})</span>
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-foreground">
+            Members <span className="text-sm font-normal text-muted">({members.length})</span>
+          </h2>
+          <EmailCircleButton circle={circle} people={people} className="-mr-2" />
+        </div>
         {!canManage ? (
           <p className="text-xs text-muted">{circle.joinPolicy === "open" ? "Anyone can join this circle." : "This circle's members approve new members."}</p>
         ) : null}
