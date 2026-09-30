@@ -21,13 +21,7 @@ export function DocumentsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <SectionArt href="/documents" size={48} />
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Documents</h1>
-          <p className="text-sm text-muted">
-            Minutes, agendas, policies, and more from every circle. Search finds words inside documents, and in forum
-            discussions too. Add documents here (several at once) or on a circle&apos;s page; community-wide ones are the Board&apos;s.
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold text-foreground">Documents</h1>
       </div>
       <Card>
         <DocumentsPanel circles={circles} uploadCircles={uploadCircles} />
