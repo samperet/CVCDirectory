@@ -76,11 +76,8 @@ function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Pe
         <Link href={`/circles/${circle.id}`} className="after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none">
           <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
         </Link>
-        <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-          <span>
-            {members} {members === 1 ? "member" : "members"}
-          </span>
-          {circle.joinPolicy === "open" ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">Open to join</span> : null}
+        <p className="text-xs text-muted">
+          {members} {members === 1 ? "member" : "members"}
         </p>
         {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
       </div>
