@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Heart, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import type { Appreciation } from "@/lib/appreciations/store";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
-const ROTATE_MS = 7000;
+const ROTATE_MS = 8000;
+/** The change: the old appreciation fades out moving down, a pause, then the new one fades in moving up. */
+const FADE_MS = 500;
+const PAUSE_MS = 1000;
 
 /** Dispatch this on `window` to open the share form from anywhere. */
 export const OPEN_EVENT = "cvc:share-appreciation";
@@ -69,6 +73,32 @@ export function AppreciationsFooter() {
     if (index >= items.length && items.length) setIndex(0);
   }, [items.length, index]);
 
+  // What's on screen trails `index` through the fade: out, pause, then in.
+  const [shown, setShown] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const shownRef = useRef(0);
+  const quick = useRef(false); // arrow clicks skip the pause
+  useEffect(() => {
+    if (index === shownRef.current) return;
+    const swap = () => {
+      shownRef.current = index;
+      setShown(index);
+    };
+    if (still) {
+      swap();
+      return;
+    }
+    setVisible(false);
+    const pause = quick.current ? 0 : PAUSE_MS;
+    quick.current = false;
+    const swapTimer = setTimeout(swap, FADE_MS);
+    const showTimer = setTimeout(() => setVisible(true), FADE_MS + pause);
+    return () => {
+      clearTimeout(swapTimer);
+      clearTimeout(showTimer);
+    };
+  }, [index, still]);
+
   const rotating = !still && !hovering && !composing && items.length > 1;
   useEffect(() => {
     if (!rotating) return;
@@ -94,14 +124,17 @@ export function AppreciationsFooter() {
       toast({ title: "Could not share appreciation", description: error.message, variant: "destructive" }),
   });
 
-  const current = items[index];
-  const step = (delta: number) => setIndex((i) => (i + delta + items.length) % items.length);
+  const current = items[shown] ?? items[0];
+  const step = (delta: number) => {
+    quick.current = true;
+    setIndex((i) => (i + delta + items.length) % items.length);
+  };
 
   return (
     <footer className="mt-12 border-t border-border bg-surface">
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 px-4 py-6 md:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-4 sm:flex-row md:px-6">
         <div
-          className="flex w-full items-center gap-2"
+          className="flex w-full min-w-0 flex-1 items-center gap-2"
           onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
           onFocus={() => setHovering(true)}
@@ -112,18 +145,21 @@ export function AppreciationsFooter() {
               <ChevronLeft className="h-5 w-5" />
             </Button>
           ) : null}
-          <div className="flex min-h-[4.5rem] flex-1 items-center justify-center" aria-roledescription="carousel" aria-label="Community appreciations">
+          <div className="flex min-h-[3.5rem] min-w-0 flex-1 items-center justify-center overflow-hidden" aria-roledescription="carousel" aria-label="Community appreciations">
             {current ? (
               <Link
-                key={current.id}
                 href="/appreciations"
-                className="group block rounded-lg px-2 py-1 text-center animate-in fade-in duration-500 motion-reduce:animate-none"
+                className={cn(
+                  "group block rounded-lg px-2 py-1 text-center transition-[opacity,transform] duration-500 ease-in-out motion-reduce:transition-none",
+                  visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+                )}
                 title="See every appreciation"
+                aria-live="polite"
               >
                 <blockquote className="text-lg font-medium leading-snug text-foreground group-hover:underline group-hover:decoration-border group-hover:underline-offset-4 md:text-xl">
                   &ldquo;{current.message}&rdquo;
                 </blockquote>
-                <p className="mt-1.5 text-sm text-muted">
+                <p className="mt-1 text-sm text-muted">
                   — {current.authorName}
                   {current.to ? ` to ${current.to}` : ""}
                 </p>
@@ -139,27 +175,15 @@ export function AppreciationsFooter() {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted">
-          {items.length > 1 ? (
-            <span className="tabular-nums" aria-live="polite">
-              {index + 1} / {items.length}
-            </span>
-          ) : null}
-          {items.length ? (
-            <Link href="/appreciations" className="font-medium hover:text-foreground hover:underline">
-              See all
-            </Link>
-          ) : null}
-          {user ? (
-            <Button size="sm" className="gap-1" onClick={() => setComposing(true)}>
-              <Heart className="h-4 w-4" /> Share an Appreciation
-            </Button>
-          ) : (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/login">Sign in to share</Link>
-            </Button>
-          )}
-        </div>
+        {user ? (
+          <Button size="sm" className="shrink-0 gap-1" onClick={() => setComposing(true)}>
+            <Heart className="h-4 w-4" /> Share an Appreciation
+          </Button>
+        ) : (
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <Link href="/login">Sign in to share</Link>
+          </Button>
+        )}
 
         {composing && user ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setComposing(false)}>
