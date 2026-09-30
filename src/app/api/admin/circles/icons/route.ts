@@ -10,13 +10,20 @@ export const dynamic = "force-dynamic";
 
 /**
  * Admin upkeep of circle icons, behind `Authorization: Bearer <ADMIN_TOKEN>`.
- * GET lists which circles have one; POST `{ from, to }` copies one circle's
+ * GET lists which circles have one (or, with `?circle=<id>`, returns that
+ * circle's icon image); POST `{ from, to }` copies one circle's
  * icon to another; PUT `?circle=<id>` with an image body (JPEG, PNG, WebP)
  * sets a circle's icon.
  */
 export async function GET(request: NextRequest) {
   const denied = authorize(request);
   if (denied) return denied;
+  const circle = request.nextUrl.searchParams.get("circle");
+  if (circle) {
+    const icon = isCircleId(circle) ? await readBinary(iconKey(circle)) : null;
+    if (!icon) return problem("Icon not found", 404, "Not Found");
+    return new NextResponse(icon.bytes as unknown as BodyInit, { headers: { "Content-Type": icon.contentType, "Cache-Control": "private, no-store" } });
+  }
   return NextResponse.json({ icons: await readCircleIcons() });
 }
 
