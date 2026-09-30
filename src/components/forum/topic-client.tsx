@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BarChart3, MessageSquare, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, BarChart3, Pencil, Plus, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumThreadDocument, ForumThreadSummary } from "@/lib/forum/store";
@@ -215,11 +215,7 @@ export function TopicClient({ topicId }: { topicId: string }) {
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <span>{thread.authorName}</span>
                   <span>started {timeAgo(thread.createdAt)}</span>
-                  <span className="inline-flex items-center gap-1">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    {thread.replyCount} {thread.replyCount === 1 ? "reply" : "replies"}
-                  </span>
-                  {thread.replyCount ? <span>last activity {timeAgo(thread.lastActivityAt)}</span> : null}
+                  {thread.replyCount ? <span>active {timeAgo(thread.lastActivityAt)}</span> : null}
                 </p>
               </Link>
             </li>

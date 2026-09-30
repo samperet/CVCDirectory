@@ -21,6 +21,17 @@ import { cn } from "@/lib/utils";
 /** Past this depth replies stop indenting further, so long chains stay readable on phones. */
 const MAX_INDENT_DEPTH = 5;
 
+/**
+ * A post's actions (like, reply, edit, delete) show when the post is hovered
+ * or has focus — or always, on touch screens, which can't hover.
+ */
+const ON_HOVER =
+  "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/post:opacity-100 [@media(hover:hover)]:group-focus-within/post:opacity-100";
+
+/** Byline, then text, then actions on touch screens; byline and actions side by side above the text where there's a pointer. */
+const HOVER_LAYOUT =
+  "[grid-template-areas:'by'_'body'_'act'] [@media(hover:hover)]:grid-cols-[minmax(0,1fr)_auto] [@media(hover:hover)]:[grid-template-areas:'by_act'_'body_body']";
+
 /** Mutations that return the updated thread write it straight into the cache. */
 function useThreadMutation<T>(threadId: string, request: (input: T) => Promise<ForumThreadDocument>, errorTitle: string) {
   const { toast } = useToast();
@@ -36,10 +47,10 @@ function useThreadMutation<T>(threadId: string, request: (input: T) => Promise<F
   });
 }
 
-function Byline({ name, createdAt, editedAt }: { name: string; createdAt: string; editedAt?: string | null }) {
+function Byline({ name, createdAt, editedAt }: { name?: string; createdAt: string; editedAt?: string | null }) {
   return (
     <>
-      <span className="font-medium text-foreground">{name}</span>
+      {name ? <span className="font-medium text-foreground">{name}</span> : null}
       <time dateTime={createdAt}>{timeAgo(createdAt)}</time>
       {editedAt ? <span title={`Edited ${new Date(editedAt).toLocaleString()}`}>(edited)</span> : null}
     </>
@@ -247,58 +258,67 @@ function ReplyNode({
 
   return (
     <li className={cn(indent && "ml-3 border-l-2 border-border pl-3 md:ml-5 md:pl-4")}>
-      <div id={`reply-${reply.id}`} className="flex scroll-mt-24 flex-col gap-1 rounded-lg py-2 transition-colors duration-1000">
+      <div id={`reply-${reply.id}`} className="group/post flex scroll-mt-24 flex-col gap-0.5 rounded-lg py-2 transition-colors duration-1000">
         {reply.deletedAt ? (
           <p className="text-sm italic text-muted">This comment was deleted.</p>
         ) : (
-          <>
-            <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+          // Where the pointer can hover, actions sit beside the byline; on touch screens, under the text.
+          <div className={cn("grid gap-x-3 gap-y-1", HOVER_LAYOUT)}>
+            <div className="flex min-h-[1.5rem] flex-wrap items-center gap-x-2 text-xs text-muted [grid-area:by]">
               <Byline name={reply.authorName} createdAt={reply.createdAt} editedAt={reply.editedAt} />
               {beyondIndent && parentName ? (
                 <span className="inline-flex items-center gap-1">
                   <CornerDownRight className="h-3 w-3" /> replying to {parentName}
                 </span>
               ) : null}
-            </p>
-            {mode === "edit" ? (
-              <EditReplyForm threadId={threadId} reply={reply} onDone={() => setMode("view")} />
-            ) : (
-              <p className="whitespace-pre-wrap break-words text-sm text-foreground">{reply.body}</p>
-            )}
-          </>
+            </div>
+            {mode !== "edit" ? (
+              <div className="flex items-center gap-3 text-xs [grid-area:act]">
+                {/* Likes stay in view once a post has some; the rest wait for a hover. */}
+                {reply.likes?.length ? (
+                  <span className="[@media(hover:hover)]:order-last">
+                    <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />
+                  </span>
+                ) : null}
+                <div className={cn("flex items-center gap-3", mode === "view" && ON_HOVER)}>
+                  {reply.likes?.length ? null : <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />}
+                  <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>Reply</ActionLink>
+                  {mine && mode === "view" ? (
+                    <>
+                      <ActionLink onClick={() => setMode("edit")}>Edit</ActionLink>
+                      <ActionLink
+                        danger
+                        onClick={() => {
+                          if (window.confirm("Delete this comment?")) remove.mutate(undefined);
+                        }}
+                      >
+                        {remove.isPending ? "Deleting…" : "Delete"}
+                      </ActionLink>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <div className="min-w-0 [grid-area:body]">
+              {mode === "edit" ? (
+                <EditReplyForm threadId={threadId} reply={reply} onDone={() => setMode("view")} />
+              ) : (
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{reply.body}</p>
+              )}
+            </div>
+          </div>
         )}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          {!reply.deletedAt && mode !== "edit" ? (
-            <>
-              <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />
-              <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>Reply</ActionLink>
-            </>
-          ) : null}
-          {mine && !reply.deletedAt && mode === "view" ? (
-            <>
-              <ActionLink onClick={() => setMode("edit")}>Edit</ActionLink>
-              <ActionLink
-                danger
-                onClick={() => {
-                  if (window.confirm("Delete this comment?")) remove.mutate(undefined);
-                }}
-              >
-                {remove.isPending ? "Deleting…" : "Delete"}
-              </ActionLink>
-            </>
-          ) : null}
-          {children.length ? (
-            <button
-              type="button"
-              className="inline-flex items-center gap-0.5 text-muted hover:text-foreground"
-              onClick={() => setCollapsed((v) => !v)}
-              aria-expanded={!collapsed}
-            >
-              {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {collapsed ? `Show ${children.length} ${children.length === 1 ? "reply" : "replies"}` : "Hide replies"}
-            </button>
-          ) : null}
-        </div>
+        {children.length ? (
+          <button
+            type="button"
+            className="inline-flex w-fit items-center gap-0.5 text-xs text-muted hover:text-foreground"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {collapsed ? `Show ${children.length} ${children.length === 1 ? "reply" : "replies"}` : "Hide replies"}
+          </button>
+        ) : null}
         {mode === "reply" ? (
           <div className="mt-1">
             <ReplyForm threadId={threadId} parentId={reply.id} autoFocus onDone={() => setMode("view")} />
@@ -419,11 +439,40 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
   }
 
   return (
-    <Card className="flex flex-col gap-3">
-      <h1 className="text-2xl font-semibold text-foreground">{thread.title}</h1>
-      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-        <Byline name={thread.authorName} createdAt={thread.createdAt} editedAt={thread.editedAt} />
-      </p>
+    <Card className="group/post flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-foreground">{thread.title}</h1>
+        <div className="flex min-h-[1.5rem] flex-wrap items-center gap-x-2 text-xs text-muted">
+          <Byline createdAt={thread.createdAt} editedAt={thread.editedAt} />
+          <div className="ml-auto flex items-center gap-3">
+            {thread.likes?.length ? (
+              <span className="[@media(hover:hover)]:order-last">
+                <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />
+              </span>
+            ) : null}
+            <div className={cn("flex items-center gap-3", ON_HOVER)}>
+              {thread.likes?.length ? null : <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />}
+              {mine ? (
+                <>
+                  <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
+                  <ActionLink
+                    danger
+                    onClick={() => {
+                      const warning =
+                        !author || othersReplied
+                          ? "Delete this discussion and all of its replies? This can't be undone."
+                          : "Delete this discussion?";
+                      if (window.confirm(warning)) remove.mutate();
+                    }}
+                  >
+                    {remove.isPending ? "Deleting…" : "Delete"}
+                  </ActionLink>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
       {thread.body ? <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p> : null}
       {thread.poll ? (
         <PollView
@@ -434,26 +483,6 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
           onSetClosed={(closed) => pollRequest("PATCH", { closed })}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />
-        {mine ? (
-          <>
-            <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
-            <ActionLink
-              danger
-              onClick={() => {
-                const warning =
-                  !author || othersReplied
-                    ? "Delete this discussion and all of its replies? This can't be undone."
-                    : "Delete this discussion?";
-                if (window.confirm(warning)) remove.mutate();
-              }}
-            >
-              {remove.isPending ? "Deleting…" : "Delete discussion"}
-            </ActionLink>
-          </>
-        ) : null}
-      </div>
     </Card>
   );
 }
@@ -506,7 +535,6 @@ export function ThreadClient({ id }: { id: string }) {
   }
 
   const topLevel = childrenOf.get(null) ?? [];
-  const count = data.replies.filter((reply) => !reply.deletedAt).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -517,9 +545,6 @@ export function ThreadClient({ id }: { id: string }) {
       <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />
 
       <Card className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          {count} {count === 1 ? "reply" : "replies"}
-        </h2>
         {topLevel.length ? (
           <ul className="divide-y divide-border">
             {topLevel.map((reply) => (
@@ -535,7 +560,7 @@ export function ThreadClient({ id }: { id: string }) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted">No replies yet. Start the conversation below.</p>
+          <p className="text-sm text-muted">No replies yet.</p>
         )}
         <div className="border-t border-border pt-4">
           <ReplyForm threadId={data.thread.id} parentId={null} />

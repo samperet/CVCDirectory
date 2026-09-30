@@ -151,7 +151,10 @@ Admin status is checked server-side on every request, and the user menu shows an
   branch can be collapsed. Authors can edit and delete their own posts; deleting a reply that
   others answered leaves a placeholder so the conversation below survives, and a discussion can be
   deleted by its author only while no one else has replied. Anyone can like the opening post or any reply (the heart
-  fills straight away; hovering shows who liked it). Each thread is one JSON document (`forum/threads/<id>.json`) with
+  fills straight away; hovering shows who liked it). A post's actions — like, reply, edit, delete —
+  appear beside its byline when it's hovered (always, under the text, on touch screens); a post's
+  like count stays in view once it has likes. The opening post shows when it was started, not who
+  by, and reply counts aren't shown. Each thread is one JSON document (`forum/threads/<id>.json`) with
   replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
 - **Polls** – a discussion can carry a poll ("Add a poll" when starting one): the title is the
   question, the post is optional context, and it has 2–10 options, one choice or several, and an
