@@ -1,6 +1,6 @@
 import { problem } from "@/lib/http";
 
-type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies";
+type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post" | "poll_closed" | "invalid_vote";
 
 /** Map a forum store failure to an HTTP problem response. */
 export function forumProblem(reason: Failure) {
@@ -15,5 +15,11 @@ export function forumProblem(reason: Failure) {
       return problem("This discussion has reached its reply limit", 409, "Conflict");
     case "has_replies":
       return problem("Others have replied, so this discussion can't be deleted — you can still edit your post", 409, "Conflict");
+    case "empty_post":
+      return problem("Write something in your post");
+    case "poll_closed":
+      return problem("This poll is closed", 409, "Conflict");
+    case "invalid_vote":
+      return problem("Choose one of the poll's options");
   }
 }

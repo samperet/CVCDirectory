@@ -29,8 +29,10 @@ export async function POST(request: NextRequest) {
   const doc = await createThread({ id: user.id, name: user.name }, parsed.data);
   await notify({
     topic: "discussions",
-    title: `New discussion: ${doc.thread.title}`,
-    body: `${user.name}: ${excerpt(doc.thread.body)}`,
+    title: `${doc.thread.poll ? "New poll" : "New discussion"}: ${doc.thread.title}`,
+    body: doc.thread.poll && !doc.thread.body
+      ? `${user.name} asks: ${doc.thread.poll.options.map((option) => option.text).join(" · ")}`
+      : `${user.name}: ${excerpt(doc.thread.body)}`,
     url: `/forum/${doc.thread.id}`,
     tag: `forum-${doc.thread.id}`,
     exceptUserId: user.id,

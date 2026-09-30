@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { MAX_POLL_OPTIONS, pollIsOpen } from "./poll";
 
 /**
  * Forum threads, one document per thread (the opening post plus every reply,
@@ -39,6 +40,31 @@ export interface ForumReply {
   likes?: ForumLike[];
 }
 
+export interface ForumPollOption {
+  id: string;
+  text: string;
+}
+
+/** One resident's vote (their account and name, and the options they chose). */
+export interface ForumPollVote {
+  userId: string;
+  name: string;
+  optionIds: string[];
+}
+
+/**
+ * A poll on a discussion; the discussion's title is its question. Options
+ * are fixed once it's posted. It closes at `closesAt`, if set, or when its
+ * author (or an admin) closes it.
+ */
+export interface ForumPoll {
+  options: ForumPollOption[];
+  multiple: boolean;
+  closesAt?: string | null;
+  closedAt?: string | null;
+  votes: ForumPollVote[];
+}
+
 export interface ForumThread {
   id: string;
   title: string;
@@ -48,7 +74,9 @@ export interface ForumThread {
   createdAt: string;
   editedAt?: string | null;
   likes?: ForumLike[];
+  poll?: ForumPoll;
 }
+
 
 export interface ForumThreadDocument {
   thread: ForumThread;
@@ -63,17 +91,41 @@ export interface ForumThreadSummary {
   createdAt: string;
   lastActivityAt: string;
   replyCount: number;
+  /** The discussion has a poll. */
+  poll?: boolean;
 }
 
 const title = z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer");
-const postBody = z.string().trim().min(1, "Write something to start the discussion").max(5000, "Post must be 5000 characters or fewer");
+// A discussion needs a post, unless it's a poll (whose title is the question).
+const postBody = z.string().trim().max(5000, "Post must be 5000 characters or fewer");
 const replyBody = z.string().trim().min(1, "Reply cannot be empty").max(3000, "Reply must be 3000 characters or fewer");
 
-export const threadInputSchema = z.object({ title, body: postBody });
+const pollInputSchema = z.object({
+  options: z
+    .array(z.string().trim().min(1, "Poll options can't be empty").max(120, "Poll options must be 120 characters or fewer"))
+    .min(2, "A poll needs at least two options")
+    .max(MAX_POLL_OPTIONS, `A poll can have up to ${MAX_POLL_OPTIONS} options`)
+    .refine((options) => new Set(options.map((option) => option.toLowerCase())).size === options.length, "Poll options must be different"),
+  multiple: z.boolean().default(false),
+  closesAt: z
+    .string()
+    .datetime({ offset: true })
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null)
+    .refine((value) => !value || Date.parse(value) > Date.now(), "Choose a closing time in the future"),
+});
+
+export const threadInputSchema = z
+  .object({ title, body: postBody.default(""), poll: pollInputSchema.optional() })
+  .refine((value) => value.body.length > 0 || value.poll, { message: "Write something to start the discussion", path: ["body"] });
 
 export const threadUpdateSchema = z
   .object({ title: title.optional(), body: postBody.optional() })
   .refine((value) => value.title !== undefined || value.body !== undefined, "Nothing to update");
+
+export const voteSchema = z.object({ optionIds: z.array(z.string().uuid()).max(MAX_POLL_OPTIONS) });
+export const pollUpdateSchema = z.object({ closed: z.boolean() });
 
 export const replyInputSchema = z.object({
   parentId: z.string().uuid().nullable().optional().transform((value) => value ?? null),
@@ -137,7 +189,7 @@ async function syncSummary(doc: ForumThreadDocument) {
 
 export async function createThread(
   author: { id: string; name: string },
-  input: { title: string; body: string }
+  input: { title: string; body: string; poll?: { options: string[]; multiple: boolean; closesAt: string | null } }
 ): Promise<ForumThreadDocument> {
   const now = new Date().toISOString();
   const thread: ForumThread = {
@@ -147,17 +199,37 @@ export async function createThread(
     authorId: author.id,
     authorName: author.name,
     createdAt: now,
+    ...(input.poll
+      ? {
+          poll: {
+            options: input.poll.options.map((text) => ({ id: randomUUID(), text })),
+            multiple: input.poll.multiple,
+            closesAt: input.poll.closesAt,
+            closedAt: null,
+            votes: [],
+          },
+        }
+      : {}),
   };
   const doc: ForumThreadDocument = { thread, replies: [] };
   await enqueue(threadKey(thread.id), () => writeJson(threadKey(thread.id), doc));
   await updateIndex((threads) => [
     ...threads,
-    { id: thread.id, title: thread.title, authorId: author.id, authorName: author.name, createdAt: now, lastActivityAt: now, replyCount: 0 },
+    {
+      id: thread.id,
+      title: thread.title,
+      authorId: author.id,
+      authorName: author.name,
+      createdAt: now,
+      lastActivityAt: now,
+      replyCount: 0,
+      ...(thread.poll ? { poll: true } : {}),
+    },
   ]);
   return doc;
 }
 
-type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies";
+type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post" | "poll_closed" | "invalid_vote";
 export type ThreadResult = { ok: true; doc: ForumThreadDocument } | { ok: false; reason: Failure };
 
 /**
@@ -240,6 +312,7 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
 export function editThread(threadId: string, actor: ForumActor, update: { title?: string; body?: string }) {
   return mutateThread(threadId, (doc) => {
     if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
+    if (update.body !== undefined && !update.body && !doc.thread.poll) return "empty_post";
     return { ...doc, thread: { ...doc.thread, ...update, editedAt: new Date().toISOString() } };
   });
 }
@@ -285,6 +358,46 @@ export function setLike(threadId: string, replyId: string | null, user: { id: st
         ...doc,
         replies: doc.replies.map((entry) => (entry.id === replyId ? { ...entry, likes: withLike(entry.likes, user, liked) } : entry)),
       };
+    },
+    { sync: false }
+  );
+}
+
+/**
+ * Vote in a discussion's poll, replacing any earlier vote; no options takes
+ * the vote back. One option unless the poll allows several.
+ */
+export function vote(threadId: string, user: { id: string; name: string }, optionIds: string[]) {
+  return mutateThread(
+    threadId,
+    (doc) => {
+      const poll = doc.thread.poll;
+      if (!poll) return "not_found";
+      if (!pollIsOpen(poll)) return "poll_closed";
+      const chosen = Array.from(new Set(optionIds));
+      if (chosen.some((id) => !poll.options.some((option) => option.id === id))) return "invalid_vote";
+      if (!poll.multiple && chosen.length > 1) return "invalid_vote";
+      const others = poll.votes.filter((entry) => entry.userId !== user.id);
+      const votes = chosen.length ? [...others, { userId: user.id, name: user.name, optionIds: chosen }] : others;
+      return { ...doc, thread: { ...doc.thread, poll: { ...poll, votes } } };
+    },
+    { sync: false }
+  );
+}
+
+/** Close a poll, or reopen it (clearing a closing time that has passed): its author or an admin. */
+export function setPollClosed(threadId: string, actor: ForumActor, closed: boolean) {
+  return mutateThread(
+    threadId,
+    (doc) => {
+      const poll = doc.thread.poll;
+      if (!poll) return "not_found";
+      if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
+      const expired = !!poll.closesAt && Date.parse(poll.closesAt) <= Date.now();
+      const next: ForumPoll = closed
+        ? { ...poll, closedAt: poll.closedAt ?? new Date().toISOString() }
+        : { ...poll, closedAt: null, closesAt: expired ? null : poll.closesAt };
+      return { ...doc, thread: { ...doc.thread, poll: next } };
     },
     { sync: false }
   );

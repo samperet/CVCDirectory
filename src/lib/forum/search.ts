@@ -42,7 +42,7 @@ export async function searchForum(query: string): Promise<ForumSearchHit[]> {
     const live = replies.filter((reply) => !reply.deletedAt);
     // Each post, opening post first, with what can match in it.
     const posts = [
-      { replyId: null, by: thread.authorName, body: thread.body },
+      { replyId: null, by: thread.authorName, body: [thread.body, ...(thread.poll?.options.map((option) => option.text) ?? [])].filter(Boolean).join("\n") },
       ...live.map((reply) => ({ replyId: reply.id, by: reply.authorName, body: reply.body })),
     ];
     const title = thread.title.toLowerCase();

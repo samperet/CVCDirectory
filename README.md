@@ -8,7 +8,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
 - 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
-- 💬 **Forum** – Neighborhood discussions with replies nested to any depth.
+- 💬 **Forum** – Neighborhood discussions with replies nested to any depth, and polls.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
@@ -130,6 +130,12 @@ Admin status is checked server-side on every request, and the user menu shows an
   deleted by its author only while no one else has replied. Anyone can like the opening post or any reply (the heart
   fills straight away; hovering shows who liked it). Each thread is one JSON document (`forum/threads/<id>.json`) with
   replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
+- **Polls** – a discussion can carry a poll ("Add a poll" when starting one): the title is the
+  question, the post is optional context, and it has 2–10 options, one choice or several, and an
+  optional closing date. Residents vote, change their vote, or take it back while it's open; results
+  (counts, percentages, and who chose what) show once you've voted, when it's closed, or on "See
+  results". The poll's author or an admin can close and reopen it; options are fixed once posted.
+  Votes are stored with the thread (`POST /api/forum/threads/<id>/poll` votes, `PATCH` closes).
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
   to someone. They rotate through the footer of every page (pausable, and not auto-advancing for
   visitors who prefer reduced motion). Authors can remove their own. Stored in
