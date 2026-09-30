@@ -226,9 +226,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 ## Documents
 
 - Each circle's page has a **Documents** section; documents for everyone belong to the Community circle.
-  Each document is one line: its title (opening the file), type, circle where the list spans
-  circles, and date; Download, versions, and — for its managers — Edit, New version, and Delete are
-  icons that appear on hover (always, on touch screens). A description shows as a second line.
+  Each document shows its full title, then a line with its type, badges (Consented), circle where
+  the list spans circles, date, and who uploaded the current version; Download, versions, and — for
+  its managers — Edit, New version, and Delete are icons at the end of that line that appear on
+  hover (always, on touch screens). A description shows below.
 - **Consent** – a circle's Secretary (and the Board Secretary, and admins) marks a document
   consented, with the date the circle consented (the meeting date by default). It then carries a
   **Consented** badge (its tooltip says when, and who recorded it). Consent belongs to the version

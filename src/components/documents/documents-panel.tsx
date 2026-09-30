@@ -368,30 +368,32 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
   const action = "inline-flex h-7 min-w-[1.75rem] items-center justify-center gap-0.5 rounded-md px-1 text-muted transition hover:bg-accent hover:text-foreground disabled:opacity-50";
   return (
     <li className="group/post flex flex-col gap-1 py-2.5">
-      {/* One line where there's room; on phones the title gets its own line, with the details and actions under it. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 [grid-template-areas:'icon_title_title'_'icon_meta_act'] sm:flex">
-        <FileIcon contentType={version.contentType} className="h-5 w-5 shrink-0 text-primary [grid-area:icon]" />
+      {/* The title on its own line, never cut off; its details and actions on the line below. */}
+      <div className="flex items-start gap-3">
+        <FileIcon contentType={version.contentType} className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <a
-            href={fileUrl(doc)}
-            target={version.viewable ? "_blank" : undefined}
-            rel="noopener noreferrer"
-            className="min-w-0 truncate font-medium text-foreground underline-offset-4 [grid-area:title] hover:underline"
-            title={doc.title}
-          >
-            <Highlighted text={doc.title} terms={terms} />
-          </a>
-          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted [grid-area:meta] sm:shrink-0 sm:flex-nowrap">
-            <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
-            <ConsentBadge doc={doc} />
-            {showCircle ? (
-              <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
-                {doc.circleName}
-              </Link>
-            ) : null}
-            <span className="whitespace-nowrap">{doc.meetingDate ? `Meeting ${shortDate(doc.meetingDate)}` : shortDate(documentDate(doc))}</span>
-          </p>
+          href={fileUrl(doc)}
+          target={version.viewable ? "_blank" : undefined}
+          rel="noopener noreferrer"
+          className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          <Highlighted text={doc.title} terms={terms} />
+        </a>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-8">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
+          <ConsentBadge doc={doc} />
+          {showCircle ? (
+            <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
+              {doc.circleName}
+            </Link>
+          ) : null}
+          <span className="whitespace-nowrap">{doc.meetingDate ? `Meeting ${shortDate(doc.meetingDate)}` : shortDate(documentDate(doc))}</span>
+          <span>by {version.uploadedBy.name}</span>
+        </p>
 
-        <div className={cn("flex shrink-0 items-center [grid-area:act] sm:ml-auto", mode === "view" && !replacing && !consenting && ON_HOVER)}>
+        <div className={cn("ml-auto flex shrink-0 items-center", mode === "view" && !replacing && !consenting && ON_HOVER)}>
           <a href={fileUrl(doc, undefined, true)} className={action} aria-label={`Download ${doc.title}`} title="Download">
             <Download className="h-4 w-4" />
           </a>
