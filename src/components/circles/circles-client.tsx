@@ -117,7 +117,6 @@ function CommunityCard({ circle }: { circle: Circle }) {
           <h2 className="text-xl font-semibold text-foreground">{circle.name}</h2>
           <p className="text-xs font-medium text-muted">Everyone at CVC</p>
           {circle.description ? <p className="mt-1 text-sm text-foreground-light">{circle.description}</p> : null}
-          <p className="mt-1 text-sm text-foreground-light">Polls and documents for everyone.</p>
         </div>
       </Card>
     </Link>
@@ -180,7 +179,6 @@ export function CirclesClient() {
           <h2 id="circles-heading" className="text-lg font-semibold text-foreground">
             Circles
           </h2>
-          <p className="text-sm text-muted">The official circles, formed sociocratically.</p>
         </div>
         <CircleGrid circles={circles} people={people} />
       </section>
@@ -190,7 +188,6 @@ export function CirclesClient() {
             <h2 id="clubs-heading" className="text-lg font-semibold text-foreground">
               Social Clubs
             </h2>
-            <p className="text-sm text-muted">Neighbors getting together around something they enjoy.</p>
           </div>
           <CircleGrid circles={clubs} people={people} />
         </section>

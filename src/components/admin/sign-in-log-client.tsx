@@ -78,10 +78,11 @@ export function SignInLogClient() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Sign-in log</h1>
-        <p className="text-sm text-muted">
-          Who has signed in, and when. Visible to admins only.
-          {total ? ` ${total} sign-in${total === 1 ? "" : "s"} by ${residents} resident${residents === 1 ? "" : "s"}.` : ""}
-        </p>
+        {total ? (
+          <p className="text-sm text-muted">
+            {total} sign-in{total === 1 ? "" : "s"} by {residents} resident{residents === 1 ? "" : "s"}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

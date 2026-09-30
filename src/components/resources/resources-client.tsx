@@ -489,7 +489,6 @@ export function ResourcesClient({ category: slug }: { category?: string }) {
           <SectionArt href="/resources" size={48} />
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Resources</h1>
-            <p className="text-sm text-muted">Local services neighbors recommend — and who to ask about them.</p>
           </div>
         </div>
         {addButton}

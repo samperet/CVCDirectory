@@ -126,7 +126,6 @@ export function CommunityPolls() {
           <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <BarChart3 className="h-5 w-5 text-primary" aria-hidden /> Polls
           </h2>
-          <p className="text-sm text-muted">Ask everyone at CVC a question.</p>
         </div>
         {user ? (
           <Button className="gap-1" variant={creating ? "outline" : "default"} onClick={() => setCreating((value) => !value)}>

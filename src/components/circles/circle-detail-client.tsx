@@ -573,17 +573,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           ) : null}
 
           <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Documents</h2>
-              <p className="text-sm text-muted">
-                {community
-                  ? "Documents for everyone at CVC. Anyone can add them."
-                  : id === "board"
-                    ? "The Board's documents."
-                    : "This circle's minutes, agendas, and other documents."}
-                {canUpload ? "" : " Its members and the Board can add documents."}
-              </p>
-            </div>
+            <h2 className="text-lg font-semibold text-foreground">Documents</h2>
             <DocumentsPanel circleId={id} canUpload={canUpload} canEditTypes={canManage} />
           </Card>
         </div>

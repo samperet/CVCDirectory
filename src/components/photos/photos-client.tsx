@@ -309,7 +309,6 @@ export function PhotosClient() {
           <SectionArt href="/photos" size={48} />
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Photos</h1>
-            <p className="text-sm text-muted">Snapshots of life at CVC.</p>
           </div>
         </div>
         <input

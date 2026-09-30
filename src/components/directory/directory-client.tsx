@@ -358,7 +358,6 @@ export function DirectoryClient() {
         <SectionArt href="/directory" size={48} />
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Directory</h1>
-          <p className="text-sm text-muted">Neighbors and carshed allocations, with circle badges. For residents only — please keep it private.</p>
         </div>
       </div>
 

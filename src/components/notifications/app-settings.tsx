@@ -56,10 +56,7 @@ export function AppSettings() {
 
   return (
     <Card id="app" className="flex scroll-mt-24 flex-col gap-5">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">App &amp; notifications</h2>
-        <p className="text-sm text-muted">Put CVC on your home screen, and hear about new posts as they happen.</p>
-      </div>
+      <h2 className="text-lg font-semibold text-foreground">App &amp; notifications</h2>
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold text-foreground">Install the app</h3>

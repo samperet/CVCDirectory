@@ -36,7 +36,6 @@ export function AppreciationsPage() {
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
             <Heart className="h-6 w-6 text-sun" aria-hidden /> Appreciations
           </h1>
-          <p className="text-sm text-muted">Thank-you notes from neighbors, newest first.</p>
         </div>
         <Button className="gap-1" onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}>
           <Heart className="h-4 w-4" /> Share an Appreciation

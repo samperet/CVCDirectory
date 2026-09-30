@@ -60,7 +60,6 @@ export function ForumIndexClient() {
           <SectionArt href="/forum" size={48} />
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Forum</h1>
-            <p className="text-sm text-muted">Neighborhood discussions, by topic.</p>
           </div>
         </div>
         {user?.isAdmin ? (

@@ -13,9 +13,6 @@ export default function SkillsPage() {
         <SectionArt href="/skills" size={48} />
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-foreground">Skills</h1>
-          <p className="text-sm text-foreground/70">
-            What neighbors can help with, and who to ask. Every skill is listed by the resident who offers it.
-          </p>
         </div>
       </div>
       <SkillsClient />
