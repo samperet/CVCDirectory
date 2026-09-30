@@ -50,3 +50,72 @@ select {
     animation: none;
   }
 }
+
+/* Wiki: the visual editor's text, formatted like a published page. */
+.wiki-prose {
+  color: theme("colors.foreground");
+  line-height: 1.65;
+}
+.wiki-prose > * + * {
+  margin-top: 0.75rem;
+}
+.wiki-prose h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+}
+.wiki-prose h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+}
+.wiki-prose h3 {
+  font-weight: 600;
+  margin-top: 1rem;
+}
+.wiki-prose ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.wiki-prose ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.wiki-prose blockquote {
+  border-left: 4px solid theme("colors.border");
+  padding-left: 1rem;
+  color: theme("colors.muted");
+}
+.wiki-prose code {
+  border-radius: 0.25rem;
+  background: theme("colors.accent");
+  padding: 0.1rem 0.3rem;
+  font-size: 0.9em;
+}
+.wiki-prose a {
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.wiki-prose table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.wiki-prose th,
+.wiki-prose td {
+  border: 1px solid theme("colors.border");
+  padding: 0.25rem 0.5rem;
+}
+.wiki-editor .wiki-toolbar {
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: theme("colors.accent");
+  flex-wrap: wrap;
+}
+
+/* A passage someone commented on (CSS Custom Highlight API; browsers without it just don't highlight). */
+::highlight(wiki-comment) {
+  background-color: rgb(250 204 21 / 0.35);
+}
+::highlight(wiki-comment-active) {
+  background-color: rgb(250 204 21 / 0.75);
+}

@@ -15,7 +15,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📚 **Circle wikis** – Each circle can keep its own wiki of Markdown pages, with history.
+- 📚 **Circle wikis** – Each circle keeps its own wiki: a visual editor, live Markdown preview, history, and comments on pages or passages.
 - 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -191,12 +191,24 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 ## Documents
 
 - Each circle's page has a **Documents** section; documents for everyone belong to the Community circle.
-- **Wiki** – each circle also has its own wiki (`/circles/<id>/wiki`): pages written in Markdown
-  (headings, bold, lists, tables, links; raw HTML isn't rendered and images show as their
-  description), with `[[Page title]]` linking another page in the same wiki (or offering to create
-  it). Every signed-in resident reads it; those who can add the circle's documents edit it. Each
-  page keeps its last 25 versions to view or restore, and its address stays the same when it's
-  renamed. Stored per circle in `wiki/<circleId>.json`; deleted with the circle.
+- **Wiki** – each circle also has its own wiki (`/circles/<id>/wiki`, with a page finder). Pages are
+  Markdown, edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), open source, on
+  Lexical): a toolbar for headings, bold/italic/strikethrough, lists and checklists, links, tables,
+  code blocks, and dividers; Markdown shortcuts as you type; a toggle to see the raw Markdown or
+  the **changes since the last save**; and a menu to link another page. Or edit as **Markdown beside
+  a live preview**. `[[Page title]]` links pages (missing ones offer to be created). Work in progress
+  is kept on the device until saved (and offered back after a crash or closed tab); Ctrl/⌘+S saves;
+  leaving with unsaved changes asks first; and a save that would overwrite someone else's newer
+  version stops and says who. Longer pages get **On this page** (from their headings). Raw HTML
+  isn't rendered and images show as their description. Every signed-in resident reads a wiki;
+  those who can add the circle's documents edit it. Each page keeps its last 25 versions to view
+  or restore, and its address when renamed. Stored per circle in `wiki/<circleId>.json`.
+- **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
+  that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
+  can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
+  edit and delete their own (admins any). The page's writers and the thread's participants are
+  notified (the "wiki" notification setting). Stored per circle in `wiki-comments/<circleId>.json`;
+  a page's comments go with it.
 - **Sections on a circle's page** – a circle's members, the Board, and admins turn its Documents
   and Wiki sections on or off under **Edit details** (both on unless turned off). With Documents
   off, no new documents can be added and the circle drops out of the bulk-upload list; its existing

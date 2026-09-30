@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { WikiPageClient } from "@/components/wiki/wiki-client";
+import { WikiPageClient } from "@/components/wiki/wiki-page";
 
 export const metadata = { title: "Wiki · CVC Directory" };
 

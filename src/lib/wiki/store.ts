@@ -44,7 +44,8 @@ const title = z.string().trim().min(1, "Give the page a title").max(120, "Titles
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
 export const pageInputSchema = z.object({ title, body: body.default("") });
 export const pageUpdateSchema = z
-  .object({ title: title.optional(), body: body.optional() })
+  /** `baseUpdatedAt`: when the page was last saved as the editor started, so a save can't silently undo someone else's. */
+  .object({ title: title.optional(), body: body.optional(), baseUpdatedAt: z.string().optional() })
   .refine((value) => value.title !== undefined || value.body !== undefined, "Nothing to update");
 export const restoreSchema = z.object({ index: z.number().int().min(0) });
 
@@ -69,7 +70,7 @@ export async function getPage(circleId: string, slug: string): Promise<WikiPage 
   return normalize(await readJson(key(circleId))).find((page) => page.slug === slug) ?? null;
 }
 
-type Failure = "not_found" | "exists" | "full" | "no_version";
+type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
 export type WikiResult = { ok: true; page: WikiPage | null } | { ok: false; reason: Failure };
 
 async function mutate(circleId: string, change: (pages: WikiPage[]) => { pages: WikiPage[]; page: WikiPage | null } | Failure): Promise<WikiResult> {
@@ -114,10 +115,11 @@ function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; 
   return { ...page, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, history: [...page.history, previous].slice(-MAX_HISTORY) };
 }
 
-export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string }) {
+export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; baseUpdatedAt?: string }) {
   return mutate(circleId, (pages) => {
     const page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
+    if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
     const next = { title: update.title ?? page.title, body: update.body ?? page.body };
     if (next.title.toLowerCase() !== page.title.toLowerCase() && pages.some((entry) => entry.id !== page.id && entry.title.toLowerCase() === next.title.toLowerCase())) {
       return "exists";

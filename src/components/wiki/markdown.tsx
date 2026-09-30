@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { Children, isValidElement, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { WikiPageSummary } from "@/lib/wiki/store";
+import { normalizeWikiLinks } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,10 +22,51 @@ function linkWikiPages(source: string, circleId: string, pages: WikiPageSummary[
   });
 }
 
+/** A heading's anchor, from its text: "Mowing & tools" → "mowing-tools". */
+export const headingSlug = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "section";
+
+function textOf(children: ReactNode): string {
+  return Children.toArray(children)
+    .map((child) => (typeof child === "string" || typeof child === "number" ? String(child) : isValidElement(child) ? textOf(child.props.children) : ""))
+    .join("");
+}
+
+/** The page's headings (levels 1–3, outside code blocks), for "On this page". */
+export function tableOfContents(markdown: string) {
+  const headings: { level: number; text: string; id: string }[] = [];
+  let inCode = false;
+  for (const line of normalizeWikiLinks(markdown).split("\n")) {
+    if (/^\s*(```|~~~)/.test(line)) inCode = !inCode;
+    const match = !inCode && line.match(/^(#{1,3})\s+(.+?)\s*#*\s*$/);
+    if (!match) continue;
+    const text = match[2]
+      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target)
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/[*_`~]/g, "")
+      .trim();
+    if (text) headings.push({ level: match[1].length, text, id: headingSlug(text) });
+  }
+  return headings;
+}
+
+const heading = (Tag: "h2" | "h3" | "h4", className: string): Components["h1"] =>
+  function Heading({ node: _node, children, ...props }) {
+    return (
+      <Tag id={headingSlug(textOf(children))} className={cn("scroll-mt-24", className)} {...props}>
+        {children}
+      </Tag>
+    );
+  };
+
 const components: Components = {
-  h1: ({ node: _node, ...props }) => <h2 className="mt-6 text-xl font-semibold text-foreground first:mt-0" {...props} />,
-  h2: ({ node: _node, ...props }) => <h3 className="mt-5 text-lg font-semibold text-foreground first:mt-0" {...props} />,
-  h3: ({ node: _node, ...props }) => <h4 className="mt-4 font-semibold text-foreground first:mt-0" {...props} />,
+  h1: heading("h2", "mt-6 text-xl font-semibold text-foreground first:mt-0"),
+  h2: heading("h3", "mt-5 text-lg font-semibold text-foreground first:mt-0"),
+  h3: heading("h4", "mt-4 font-semibold text-foreground first:mt-0"),
   p: ({ node: _node, ...props }) => <p className="leading-relaxed" {...props} />,
   ul: ({ node: _node, ...props }) => <ul className="list-disc space-y-1 pl-6" {...props} />,
   ol: ({ node: _node, ...props }) => <ol className="list-decimal space-y-1 pl-6" {...props} />,
@@ -63,7 +106,7 @@ export function WikiMarkdown({ source, circleId, pages }: { source: string; circ
   return (
     <div className="flex flex-col gap-3 break-words text-foreground">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {linkWikiPages(source, circleId, pages)}
+        {linkWikiPages(normalizeWikiLinks(source), circleId, pages)}
       </ReactMarkdown>
     </div>
   );
