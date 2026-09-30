@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LandMap } from "@/components/home/land-map";
 import { ArrowLeft, ExternalLink, Home, Mail, MapPin, Phone, Sun, Trees } from "lucide-react";
 import { type HomeListing, homePhotoUrl } from "@/lib/homes/store";
 
@@ -204,7 +205,7 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
               height={1125}
               priority
               sizes="(min-width: 1152px) 1104px, 100vw"
-              className="aspect-[4/3] w-full rounded-2xl object-cover sm:aspect-[16/9] lg:aspect-[21/10]"
+              className="h-auto w-full rounded-2xl"
             />
           </div>
           <figcaption className="mt-3 text-center text-sm italic text-muted">
@@ -227,13 +228,13 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
           </div>
         </section>
 
-        <Section id="about" icon={MapPin} title="Where we are">
+        <Section id="about" icon={MapPin} title="Where we are" aside={<LandMap view="street" className="h-72 lg:h-80" />}>
           Our land lies in the charming rural village of Charlotte, Vermont. We are 14 miles from the vibrant city of
           Burlington, which has a lively downtown pedestrian mall, several small colleges, the University of Vermont, a
           regional teaching hospital, and an international airport. Gorgeous Lake Champlain is just four miles away.
         </Section>
 
-        <Section id="land" icon={Trees} title="Our land" tinted>
+        <Section id="land" icon={Trees} title="Our land" tinted aside={<LandMap view="satellite" className="h-72 lg:h-80" />}>
           Our land consists of 125 acres of rolling farmland, wetlands, meadows, brooks, woods, hiking paths, and ponds.
           Some 115 acres are preserved forever for wildlife corridors and farming. Surrounded by distant views of Buck
           Mountain, Mt Philo, and a glimpse of the Adirondack peaks, we are a rural, pedestrian-centered community.
@@ -259,7 +260,22 @@ export function PublicHome({ preview = false, homes = [] }: { preview?: boolean;
           keeping our community beautiful, and have lots of fun.
         </Section>
 
-        <Section id="sustainability" icon={Sun} title="Living sustainably" tinted>
+        <Section
+          id="sustainability"
+          icon={Sun}
+          title="Living sustainably"
+          tinted
+          aside={
+            <Image
+              src="/home/solar.jpg"
+              alt="Solar panels covering the roofs of CVC's homes, with the green, the yurt, and wooded hills beyond"
+              width={952}
+              height={571}
+              sizes="(min-width: 1024px) 460px, 100vw"
+              className="h-auto w-full rounded-2xl shadow-elev"
+            />
+          }
+        >
           We are committed to living in a thoughtful way that promotes environmental sustainability and healthy community
           relationships. More than 50% of our homes have some form of solar energy. While most of us own cars, we carpool
           often and park on the periphery of our neighborhood, making it safe for little ones and pedestrian-centric.

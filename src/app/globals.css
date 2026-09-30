@@ -126,3 +126,19 @@ select {
 ::highlight(wiki-comment-active) {
   background-color: rgb(250 204 21 / 0.75);
 }
+
+/* The pin on the homepage maps: a sun-gold dot ringed in white. */
+.cvc-map-pin {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: theme("colors.sun");
+  border: 3px solid #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+.leaflet-tooltip.cvc-map-label {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  color: theme("colors.forest");
+}

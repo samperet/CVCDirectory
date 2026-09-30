@@ -101,7 +101,11 @@ contact details or unit numbers.
 - The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
   the account menu to see what visitors see, with a bar leading back to the app. It opens on a
   forest-green band with a white oak leaf on the right (`public/home/leaf.webp`) and the aerial photo
-  of the neighborhood (`public/home/aerial.jpg`) framed over its lower edge. Headings across the site
+  of the neighborhood (`public/home/aerial.jpg`, shown whole so the lake and mountains stay in view)
+  framed over its lower edge. **Where we are** has a street map (OpenStreetMap) and **Our land** a
+  satellite view (Esri World Imagery), both pinned on CVC at the end of Common Way (Leaflet,
+  `src/components/home/land-map.tsx`; they ignore the scroll wheel and, on phones, one-finger drags,
+  so the page scrolls past them); **Living sustainably** shows the solar roofs (`public/home/solar.jpg`). Headings across the site
   use the Fraunces serif (`font-display`), and the signed-in dashboard greets residents by first name
   on the same green band.
 
