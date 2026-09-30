@@ -9,18 +9,14 @@ import { apiFetch } from "@/lib/api-client";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
+import { wikiPagesQuery } from "@/components/wiki/link-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
-type PagesResponse = { pages: WikiPageSummary[]; canEdit: boolean };
-
 export function useWikiPages(circleId: string) {
-  return useQuery({
-    queryKey: ["wiki", circleId],
-    queryFn: () => apiFetch<PagesResponse>(`/api/circles/${circleId}/wiki`),
-  });
+  return useQuery(wikiPagesQuery(circleId));
 }
 
 function useCircle(circleId: string) {

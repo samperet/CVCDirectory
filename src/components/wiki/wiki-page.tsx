@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, History, ListTree, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeft, CornerDownRight, History, ListTree, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPage } from "@/lib/wiki/store";
+import type { Backlink } from "@/lib/wiki/backlinks";
 import { featureEnabled } from "@/lib/circles/features";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
@@ -273,6 +274,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
               <TocList toc={toc} />
             </nav>
           ) : null}
+          <LinkedFrom circleId={circleId} slug={slug} />
           <WikiComments
             circleId={circleId}
             slug={slug}
@@ -305,6 +307,32 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
         </button>
       ) : null}
     </div>
+  );
+}
+
+/** "Linked from": the pages, here and in other circles' wikis, that link to this one. */
+function LinkedFrom({ circleId, slug }: { circleId: string; slug: string }) {
+  const { data } = useQuery({
+    queryKey: ["wiki-backlinks", circleId, slug],
+    queryFn: () => apiFetch<{ backlinks: Backlink[] }>(`/api/circles/${circleId}/wiki/${slug}/backlinks`),
+  });
+  if (!data?.backlinks.length) return null;
+  return (
+    <nav className="rounded-lg border border-border bg-surface p-3 text-sm" aria-label="Linked from">
+      <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
+        <CornerDownRight className="h-3.5 w-3.5" /> Linked from
+      </p>
+      <ul className="flex flex-col gap-0.5">
+        {data.backlinks.map((link) => (
+          <li key={`${link.circleId}/${link.slug}`}>
+            <Link href={`/circles/${link.circleId}/wiki/${link.slug}`} className="text-foreground-light hover:text-foreground hover:underline">
+              {link.title}
+            </Link>
+            {link.circleId !== circleId ? <span className="text-xs text-muted"> · {link.circleName}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

@@ -1,26 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { Children, isValidElement, type ReactNode } from "react";
+import { Children, isValidElement, useMemo, type ReactNode } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { FileText } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import { remarkWikiDirectives } from "@/lib/wiki/directives";
 import type { WikiPageSummary } from "@/lib/wiki/store";
-import { normalizeWikiLinks } from "@/lib/wiki/links";
+import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleRef } from "@/lib/wiki/links";
+import { docFileUrl, findDoc, useCircles, useDocTitles, wikiPagesQuery, type DocRef } from "@/components/wiki/link-data";
 import { cn } from "@/lib/utils";
 
+type LinkData = {
+  circleId: string;
+  /** Undefined until the directory loads. */
+  circles: CircleRef[] | undefined;
+  /** Each circle's pages, once loaded. */
+  pages: Map<string, WikiPageSummary[]>;
+  /** Undefined until loaded (or when the page has no document links). */
+  docs: DocRef[] | undefined;
+};
+
+// Links carry what they are in their Markdown title, for the renderer below.
+const MARK = "wiki:";
+const mdTitle = (value: string) => ` "${MARK}${value.replace(/["\\]/g, "")}"`;
+
 /**
- * `[[Page title]]` (or `[[Page title|shown text]]`) links to that page in the
- * same circle's wiki — or, if there's no such page yet, to creating it.
+ * `[[Page title]]`, `[[Circle:Page title]]`, and `[[doc:Document title]]`
+ * (each optionally `|shown text`) as ordinary Markdown links: to the page (or,
+ * if there's no such page yet, to creating it), or to the document's file.
  */
-function linkWikiPages(source: string, circleId: string, pages: WikiPageSummary[]) {
-  return source.replace(/\[\[([^\]|\n]{1,120})(?:\|([^\]\n]{1,120}))?\]\]/g, (_match, target: string, label?: string) => {
-    const title = target.trim();
-    const page = pages.find((entry) => entry.title.toLowerCase() === title.toLowerCase());
-    const href = page ? `/circles/${circleId}/wiki/${page.slug}` : `/circles/${circleId}/wiki?new=${encodeURIComponent(title)}`;
-    const text = (label ?? title).trim().replace(/[[\]]/g, "");
-    return `[${text}](${href}${page ? "" : " \"missing\""})`;
+function linkWikiPages(source: string, { circleId, circles, pages, docs }: LinkData) {
+  return source.replace(WIKI_LINK, (_match, target: string, label?: string) => {
+    const clean = (text: string) => text.trim().replace(/[[\]]/g, "");
+    if (!circles) return `[${clean(label ?? target)}](#${mdTitle("pending")})`;
+    const link = parseWikiLink(target, circleId, circles);
+    const text = clean(label ?? link.title);
+    if (link.kind === "doc") {
+      if (!docs) return `[${text}](#${mdTitle("pending")})`;
+      const doc = findDoc(docs, link.title, link.circleId, circleId);
+      return doc ? `[${text}](${docFileUrl(doc.id)}${mdTitle(`doc:${doc.circleName}`)})` : `[${text}](#${mdTitle("doc-missing")})`;
+    }
+    const known = pages.get(link.circleId);
+    if (!known) return `[${text}](#${mdTitle("pending")})`;
+    const page = known.find((entry) => entry.title.toLowerCase() === link.title.toLowerCase());
+    const other = link.circleId !== circleId ? circles.find((circle) => circle.id === link.circleId)?.name : undefined;
+    if (!page) return `[${text}](/circles/${link.circleId}/wiki?new=${encodeURIComponent(link.title)}${mdTitle("missing")})`;
+    return `[${text}](/circles/${link.circleId}/wiki/${page.slug}${other ? mdTitle(`circle:${other}`) : ""})`;
   });
 }
 
@@ -88,11 +116,30 @@ const components: Components = {
   th: ({ node: _node, ...props }) => <th className="border border-border bg-accent/60 px-2 py-1 text-left font-semibold" {...props} />,
   td: ({ node: _node, ...props }) => <td className="border border-border px-2 py-1 align-top" {...props} />,
   a: ({ node: _node, href = "", title, children }) => {
-    const missing = title === "missing";
-    const className = cn("font-medium underline underline-offset-4", missing ? "text-destructive decoration-dotted" : "text-secondary-foreground");
+    const mark = title?.startsWith(MARK) ? title.slice(MARK.length) : null;
+    const base = "font-medium underline underline-offset-4";
+    if (mark === "pending") return <span className="text-foreground-light">{children}</span>;
+    if (mark === "doc-missing") {
+      return (
+        <span className={cn(base, "cursor-help text-destructive decoration-dotted")} title="No document with this title">
+          <FileText className="mr-0.5 inline h-[1em] w-[1em] align-[-0.125em]" aria-hidden />
+          {children}
+        </span>
+      );
+    }
+    if (mark?.startsWith("doc:")) {
+      return (
+        <a href={href} className={cn(base, "text-secondary-foreground")} target="_blank" rel="noopener" title={`Document · ${mark.slice(4)}`}>
+          <FileText className="mr-0.5 inline h-[1em] w-[1em] align-[-0.125em]" aria-hidden />
+          {children}
+        </a>
+      );
+    }
+    const missing = mark === "missing";
+    const className = cn(base, missing ? "text-destructive decoration-dotted" : "text-secondary-foreground");
     if (href.startsWith("/")) {
       return (
-        <Link href={href} className={className} title={missing ? "No page yet — create it" : undefined}>
+        <Link href={href} className={className} title={missing ? "No page yet — create it" : mark?.startsWith("circle:") ? `In the ${mark.slice(7)} wiki` : undefined}>
           {children}
         </Link>
       );
@@ -106,13 +153,31 @@ const components: Components = {
   img: ({ node: _node, alt }) => <span className="text-muted">[{alt || "image"}]</span>,
 };
 
+/** What a page's links need: the circles, the other wikis it links into, and (if it links any) the documents. */
+function useLinkData(source: string, circleId: string, pages: WikiPageSummary[]): LinkData {
+  const circles = useCircles();
+  const links = useMemo(() => (circles ? wikiLinksIn(source, circleId, circles) : []), [source, circleId, circles]);
+  const others = Array.from(new Set(links.flatMap((link) => (link.kind === "page" && link.circleId !== circleId ? [link.circleId] : []))));
+  const otherPages = useQueries({ queries: others.map((id) => wikiPagesQuery(id)) });
+  const docs = useDocTitles(links.some((link) => link.kind === "doc")).data;
+  const byCircle = new Map<string, WikiPageSummary[]>([[circleId, pages]]);
+  others.forEach((id, index) => {
+    const loaded = otherPages[index]?.data;
+    if (loaded) byCircle.set(id, loaded.pages);
+    // A wiki that can't be read (turned off, or gone) has no pages to link to.
+    else if (otherPages[index]?.isError) byCircle.set(id, []);
+  });
+  return { circleId, circles, pages: byCircle, docs };
+}
+
 /** A wiki page's Markdown, as formatted text. Raw HTML isn't rendered, and images show as their description. */
 export function WikiMarkdown({ source, circleId, pages }: { source: string; circleId: string; pages: WikiPageSummary[] }) {
+  const linkData = useLinkData(source, circleId, pages);
   if (!source.trim()) return <p className="text-sm text-muted">This page is empty.</p>;
   return (
     <div className="flex flex-col gap-3 break-words text-foreground">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
-        {linkWikiPages(normalizeWikiLinks(source), circleId, pages)}
+        {linkWikiPages(normalizeWikiLinks(source), linkData)}
       </ReactMarkdown>
     </div>
   );

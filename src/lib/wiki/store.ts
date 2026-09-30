@@ -66,6 +66,11 @@ export async function listPages(circleId: string): Promise<WikiPageSummary[]> {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+/** A circle's pages in full (for finding the links between them). */
+export async function readPages(circleId: string): Promise<WikiPage[]> {
+  return normalize(await readJson(key(circleId)));
+}
+
 export async function getPage(circleId: string, slug: string): Promise<WikiPage | null> {
   return normalize(await readJson(key(circleId))).find((page) => page.slug === slug) ?? null;
 }

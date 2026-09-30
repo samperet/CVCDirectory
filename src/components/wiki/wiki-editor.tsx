@@ -1,12 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Code2, Eye, PenLine } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
+import { LinkPicker } from "@/components/wiki/link-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +75,7 @@ export function WikiEditor({
   const [conflict, setConflict] = useState<WikiPage | null>(null);
   const [offerDraft, setOfferDraft] = useState<Draft | null>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const dirty = title !== page.title || body !== page.body;
 
   // A draft left from last time: offer it back.
@@ -143,7 +145,17 @@ export function WikiEditor({
     return () => window.removeEventListener("keydown", onKey);
   }, [save]);
 
-  const titles = pages.filter((entry) => entry.id !== page.id).map((entry) => entry.title).sort((a, b) => a.localeCompare(b));
+  // Put a link where the cursor is in the Markdown.
+  const insertLink = (text: string) => {
+    const area = textarea.current;
+    const start = area?.selectionStart ?? body.length;
+    const end = area?.selectionEnd ?? body.length;
+    setBody(body.slice(0, start) + text + body.slice(end));
+    requestAnimationFrame(() => {
+      area?.focus();
+      area?.setSelectionRange(start + text.length, start + text.length);
+    });
+  };
   const restoreDraft = (draft: Draft) => {
     setTitle(draft.title);
     setBody(draft.body);
@@ -222,7 +234,8 @@ export function WikiEditor({
           key={editorKey}
           markdown={body}
           savedMarkdown={page.body}
-          pageTitles={titles}
+          circleId={circleId}
+          pageId={page.id}
           onChange={setBody}
           onError={() => {
             setMode("markdown");
@@ -231,7 +244,10 @@ export function WikiEditor({
         />
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
+          <div className="flex flex-col gap-2">
+          <LinkPicker circleId={circleId} pageId={page.id} onPick={insertLink} className="w-fit" />
           <Textarea
+            ref={textarea}
             autoFocus
             value={body}
             maxLength={50_000}
@@ -240,6 +256,7 @@ export function WikiEditor({
             aria-label="Page text (Markdown)"
             placeholder={"# Heading\n\nSome **bold** text, a list:\n\n- one\n- two\n\nLink another page: [[Page title]]"}
           />
+          </div>
           <div className="min-h-[28rem] overflow-auto rounded-lg border border-border bg-white p-4" aria-label="Preview">
             <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
               <Eye className="h-3.5 w-3.5" /> Preview
@@ -250,7 +267,7 @@ export function WikiEditor({
       )}
 
       <p className="text-xs text-muted">
-        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page. A collapsible section:{" "}
+        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page — <code>[[O&amp;M:Page title]]</code> for another circle&apos;s, <code>[[doc:Document title]]</code> for a document (or use <strong>Link page or doc</strong>). A collapsible section:{" "}
         <code>:::details{"{"}title=&quot;…&quot;{"}"}</code> … <code>:::</code> (or the toolbar&apos;s <strong>⇕</strong> button). Ctrl/⌘+S saves.
       </p>
       <div className="flex gap-2">

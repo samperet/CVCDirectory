@@ -39,6 +39,7 @@ import {
   useMdastNodeUpdater,
 } from "@mdxeditor/editor";
 import { normalizeWikiLinks } from "@/lib/wiki/links";
+import { LinkPicker } from "@/components/wiki/link-picker";
 
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */
@@ -122,29 +123,6 @@ const otherDirectives: DirectiveDescriptor = {
   Editor: GenericDirectiveEditor,
 };
 
-/** Insert a `[[Page title]]` link to another page in this wiki. */
-function WikiLinkMenu({ pages, onPick }: { pages: string[]; onPick: (title: string) => void }) {
-  if (!pages.length) return null;
-  return (
-    <select
-      value=""
-      onChange={(event) => {
-        if (event.target.value) onPick(event.target.value);
-      }}
-      className="h-8 max-w-[11rem] rounded-md border border-border bg-white px-2 text-sm text-foreground"
-      aria-label="Link to a wiki page"
-      title="Link to another page in this wiki"
-    >
-      <option value="">Link a page…</option>
-      {pages.map((title) => (
-        <option key={title} value={title}>
-          {title}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 /**
  * The wiki's visual editor (MDXEditor): a formatting toolbar, tables, links,
  * code blocks, and Markdown shortcuts as you type (`#`, `-`, `**`), saving
@@ -153,13 +131,17 @@ function WikiLinkMenu({ pages, onPick }: { pages: string[]; onPick: (title: stri
  */
 export const RichEditor = forwardRef<
   RichEditorHandle,
-  { markdown: string; savedMarkdown: string; pageTitles: string[]; onChange: (markdown: string) => void; onError: () => void }
->(function RichEditor({ markdown, savedMarkdown, pageTitles, onChange, onError }, ref) {
+  { markdown: string; savedMarkdown: string; circleId: string; pageId: string; onChange: (markdown: string) => void; onError: () => void }
+>(function RichEditor({ markdown, savedMarkdown, circleId, pageId, onChange, onError }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
   useImperativeHandle(ref, () => ({
     setMarkdown: (value) => editor.current?.setMarkdown(value),
     focus: () => editor.current?.focus(),
   }));
+  // Put the link where the cursor was, and carry on typing after it.
+  const insertLink = (text: string) => {
+    editor.current?.focus(() => editor.current?.insertMarkdown(text), { preventScroll: true });
+  };
   return (
     <MDXEditor
       ref={editor}
@@ -197,7 +179,7 @@ export const RichEditor = forwardRef<
               <ListsToggle options={["bullet", "number", "check"]} />
               <Separator />
               <CreateLink />
-              <WikiLinkMenu pages={pageTitles} onPick={(title) => editor.current?.insertMarkdown(`[[${title}]]`)} />
+              <LinkPicker compact circleId={circleId} pageId={pageId} onPick={insertLink} />
               <Separator />
               <InsertTable />
               <InsertThematicBreak />

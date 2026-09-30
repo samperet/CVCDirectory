@@ -207,8 +207,14 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   Markdown, edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), open source, on
   Lexical): a toolbar for headings, bold/italic/strikethrough, lists and checklists, links, tables,
   code blocks, and dividers; Markdown shortcuts as you type; a toggle to see the raw Markdown or
-  the **changes since the last save**; and a menu to link another page. Or edit as **Markdown beside
-  a live preview**. `[[Page title]]` links pages (missing ones offer to be created). **Collapsible sections** use the Markdown
+  the **changes since the last save**; and **Link page or doc**, to pick a page (in any circle's wiki)
+  or a document to link. Or edit as **Markdown beside a live preview**. **Links**: `[[Page title]]`
+  links a page in the same wiki (a missing one shows red and offers to be created);
+  `[[O&M:Page title]]` a page in another circle's wiki (by the circle's name); and
+  `[[doc:Document title]]` a document, by title — this circle's first, then any circle's — opening its
+  file (`[[doc:O&M:Document title]]` for one circle's). Any of them takes `|shown text`. Each page lists
+  what's **Linked from** it — the pages, in any wiki that's turned on, linking to it
+  (`GET /api/circles/<id>/wiki/<slug>/backlinks`). **Collapsible sections** use the Markdown
   directive syntax — `:::details{title="Winter duty"}` … `:::` (or `:::details[Winter duty]`) — and
   the visual editor's toolbar inserts them as a block with an editable title. Work in progress
   is kept on the device until saved (and offered back after a crash or closed tab); Ctrl/⌘+S saves;
