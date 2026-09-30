@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumLike, ForumPoll, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { pollIsOpen } from "@/lib/forum/poll";
+import { useTopics } from "@/components/forum/topic-client";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,6 +30,7 @@ function useThreadMutation<T>(threadId: string, request: (input: T) => Promise<F
     onSuccess: (doc) => {
       queryClient.setQueryData(["forum", "thread", threadId], doc);
       queryClient.invalidateQueries({ queryKey: ["forum", "threads"] });
+      queryClient.invalidateQueries({ queryKey: ["forum", "topics"] });
     },
     onError: (error: Error) => toast({ title: errorTitle, description: error.message, variant: "destructive" }),
   });
@@ -460,13 +462,16 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(thread.title);
   const [body, setBody] = useState(thread.body);
+  const currentTopic = thread.topicId || "general";
+  const [topicId, setTopicId] = useState(currentTopic);
+  const topics = useTopics().data?.topics ?? [];
 
   const save = useThreadMutation(
     thread.id,
     () =>
       apiFetch<ForumThreadDocument>(`/api/forum/threads/${thread.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({ title, body, ...(topicId !== currentTopic ? { topicId } : {}) }),
       }),
     "Could not save changes"
   );
@@ -475,7 +480,8 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["forum", "threads"] });
       toast({ title: "Discussion deleted" });
-      router.replace("/forum");
+      queryClient.invalidateQueries({ queryKey: ["forum", "topics"] });
+      router.replace(`/forum/topics/${currentTopic}`);
     },
     onError: (error: Error) => toast({ title: "Could not delete discussion", description: error.message, variant: "destructive" }),
   });
@@ -484,6 +490,18 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
     return (
       <Card className="flex flex-col gap-3">
         <Input value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} className="bg-white text-lg font-semibold" aria-label="Title" />
+        {topics.length > 1 ? (
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            Topic
+            <select value={topicId} onChange={(event) => setTopicId(event.target.value)} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
+              {topics.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <Textarea
           rows={6}
           value={body}
@@ -507,6 +525,7 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
             onClick={() => {
               setTitle(thread.title);
               setBody(thread.body);
+              setTopicId(currentTopic);
               setEditing(false);
             }}
           >
@@ -555,6 +574,8 @@ export function ThreadClient({ id }: { id: string }) {
     queryKey: ["forum", "thread", id],
     queryFn: () => apiFetch<ForumThreadDocument>(`/api/forum/threads/${id}`),
   });
+  const topicId = data?.thread.topicId || "general";
+  const topicName = useTopics().data?.topics.find((topic) => topic.id === topicId)?.name ?? "Forum";
 
   // Group the flat reply list by parent; each level reads oldest-first.
   const childrenOf = useMemo(() => {
@@ -597,8 +618,8 @@ export function ThreadClient({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/forum" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> All discussions
+      <Link href={`/forum/topics/${topicId}`} className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> {topicName}
       </Link>
 
       <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />

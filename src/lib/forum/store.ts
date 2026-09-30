@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
 import { MAX_POLL_OPTIONS, pollIsOpen } from "./poll";
+import { GENERAL_TOPIC_ID } from "./topics";
 
 /**
  * Forum threads, one document per thread (the opening post plus every reply,
@@ -75,6 +76,8 @@ export interface ForumThread {
   editedAt?: string | null;
   likes?: ForumLike[];
   poll?: ForumPoll;
+  /** Its forum topic; unset means General. */
+  topicId?: string;
 }
 
 
@@ -93,7 +96,12 @@ export interface ForumThreadSummary {
   replyCount: number;
   /** The discussion has a poll. */
   poll?: boolean;
+  /** Its forum topic; unset means General. */
+  topicId?: string;
 }
+
+/** A discussion's topic, counting discussions from before topics as General. */
+export const topicOf = (thread: { topicId?: string }) => thread.topicId || GENERAL_TOPIC_ID;
 
 const title = z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer");
 // A discussion needs a post, unless it's a poll (whose title is the question).
@@ -116,13 +124,15 @@ const pollInputSchema = z.object({
     .refine((value) => !value || Date.parse(value) > Date.now(), "Choose a closing time in the future"),
 });
 
+const topicId = z.string().regex(/^[a-z0-9-]{1,40}$/, "Choose a topic");
+
 export const threadInputSchema = z
-  .object({ title, body: postBody.default(""), poll: pollInputSchema.optional() })
+  .object({ title, body: postBody.default(""), poll: pollInputSchema.optional(), topicId: topicId.default(GENERAL_TOPIC_ID) })
   .refine((value) => value.body.length > 0 || value.poll, { message: "Write something to start the discussion", path: ["body"] });
 
 export const threadUpdateSchema = z
-  .object({ title: title.optional(), body: postBody.optional() })
-  .refine((value) => value.title !== undefined || value.body !== undefined, "Nothing to update");
+  .object({ title: title.optional(), body: postBody.optional(), topicId: topicId.optional() })
+  .refine((value) => value.title !== undefined || value.body !== undefined || value.topicId !== undefined, "Nothing to update");
 
 export const voteSchema = z.object({ optionIds: z.array(z.string().uuid()).max(MAX_POLL_OPTIONS) });
 export const pollUpdateSchema = z.object({ closed: z.boolean() });
@@ -181,7 +191,7 @@ async function syncSummary(doc: ForumThreadDocument) {
   await updateIndex((threads) =>
     threads.map((summary) =>
       summary.id === doc.thread.id
-        ? { ...summary, title: doc.thread.title, replyCount: replies.length, lastActivityAt }
+        ? { ...summary, title: doc.thread.title, replyCount: replies.length, lastActivityAt, topicId: topicOf(doc.thread) }
         : summary
     )
   );
@@ -189,7 +199,7 @@ async function syncSummary(doc: ForumThreadDocument) {
 
 export async function createThread(
   author: { id: string; name: string },
-  input: { title: string; body: string; poll?: { options: string[]; multiple: boolean; closesAt: string | null } }
+  input: { title: string; body: string; topicId: string; poll?: { options: string[]; multiple: boolean; closesAt: string | null } }
 ): Promise<ForumThreadDocument> {
   const now = new Date().toISOString();
   const thread: ForumThread = {
@@ -199,6 +209,7 @@ export async function createThread(
     authorId: author.id,
     authorName: author.name,
     createdAt: now,
+    topicId: input.topicId,
     ...(input.poll
       ? {
           poll: {
@@ -223,6 +234,7 @@ export async function createThread(
       createdAt: now,
       lastActivityAt: now,
       replyCount: 0,
+      topicId: input.topicId,
       ...(thread.poll ? { poll: true } : {}),
     },
   ]);
@@ -309,11 +321,13 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
   });
 }
 
-export function editThread(threadId: string, actor: ForumActor, update: { title?: string; body?: string }) {
+export function editThread(threadId: string, actor: ForumActor, update: { title?: string; body?: string; topicId?: string }) {
   return mutateThread(threadId, (doc) => {
     if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
     if (update.body !== undefined && !update.body && !doc.thread.poll) return "empty_post";
-    return { ...doc, thread: { ...doc.thread, ...update, editedAt: new Date().toISOString() } };
+    // Moving a discussion to another topic isn't an edit of what was said.
+    const edited = update.title !== undefined || update.body !== undefined;
+    return { ...doc, thread: { ...doc.thread, ...update, ...(edited ? { editedAt: new Date().toISOString() } : {}) } };
   });
 }
 
@@ -401,4 +415,13 @@ export function setPollClosed(threadId: string, actor: ForumActor, closed: boole
     },
     { sync: false }
   );
+}
+
+/** Move every discussion in one topic to another (when a topic is removed). */
+export async function moveTopicThreads(fromTopicId: string, toTopicId: string) {
+  const threads = (await listThreads()).filter((summary) => topicOf(summary) === fromTopicId);
+  for (const summary of threads) {
+    await mutateThread(summary.id, (doc) => ({ ...doc, thread: { ...doc.thread, topicId: toTopicId } }));
+  }
+  return threads.length;
 }

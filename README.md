@@ -8,7 +8,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
 - 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
-- 💬 **Forum** – Neighborhood discussions with replies nested to any depth, and polls.
+- 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth, and polls.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page, all listed on their own page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
 - 📅 **Calendar** – The next community event on the dashboard, and the full Google Calendar on its own page.
@@ -122,7 +122,13 @@ Admin status is checked server-side on every request, and the user menu shows an
 
 ## Forum & Appreciations
 
-- **Forum** (`/forum`) – signed-in members start discussions and reply to any post; replies nest
+- **Forum topics** – the forum's front page (`/forum`) lists its topics, each with its discussion
+  count and latest discussion; each topic's page (`/forum/topics/<id>`) lists its discussions and
+  is where new ones start. Admins add, rename, and remove topics (removing one moves its
+  discussions to **General**, which always exists and holds every discussion from before topics).
+  A discussion's author or an admin can move it to another topic when editing it. Topics live in
+  `forum/topics.json`; each discussion records its `topicId`.
+- **Forum** – signed-in members start discussions and reply to any post; replies nest
   to any depth (indentation stops at five levels so long chains stay readable on phones) and any
   branch can be collapsed. Authors can edit and delete their own posts; deleting a reply that
   others answered leaves a placeholder so the conversation below survives, and a discussion can be
