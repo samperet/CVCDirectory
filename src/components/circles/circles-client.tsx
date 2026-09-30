@@ -6,16 +6,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
-import { Avatar } from "@/components/profile/avatar";
+import type { Circle, DirectoryDocument } from "@/lib/directory/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-
-const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 function NewCircleForm({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
@@ -68,43 +65,22 @@ function NewCircleForm({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Person> }) {
-  const members = circle.seats.filter((seat) => seat.personId || seat.name);
+function CircleCard({ circle }: { circle: Circle }) {
+  const members = circle.seats.filter((seat) => seat.personId || seat.name).length;
   return (
     <Link href={`/circles/${circle.id}`} className="block rounded-2xl transition hover:ring-2 hover:ring-primary">
-      <Card className="flex h-full flex-col gap-4 p-5">
-        <div className="flex items-start gap-4">
-          <CircleIcon circle={circle} size={56} />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
-            <p className="text-xs text-muted">
-              {members.length} {members.length === 1 ? "member" : "members"}
-            </p>
-            {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
-          </div>
+      <Card className="flex h-full items-start gap-4 p-5">
+        <CircleIcon circle={circle} size={56} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
+          <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+            <span>
+              {members} {members === 1 ? "member" : "members"}
+            </span>
+            {circle.joinPolicy === "open" ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">Open to join</span> : null}
+          </p>
+          {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
         </div>
-        {members.length ? (
-          <ul className="flex flex-col gap-2">
-            {members.map((seat, index) => {
-              const person = seat.personId ? people.get(seat.personId) : undefined;
-              const name = person?.displayName ?? seat.name ?? "";
-              return (
-                <li key={seat.id ?? index} className="flex items-center gap-3">
-                  <Avatar name={name} photoUrl={person?.photoUrl} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-foreground">{name}</p>
-                    <p className="text-xs text-muted">
-                      {sentence(seat.position ?? "Member")}
-                      {seat.termEnds ? ` · term ends ${seat.termEnds}` : ""}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">No members yet.</p>
-        )}
       </Card>
     </Link>
   );
@@ -126,7 +102,6 @@ export function CirclesClient() {
     );
   }
 
-  const people = new Map(data.people.map((person) => [person.id, person]));
   return (
     <div className="flex flex-col gap-4">
       {creating ? (
@@ -140,7 +115,7 @@ export function CirclesClient() {
       )}
       <div className="grid gap-4 md:grid-cols-2">
         {data.circles.map((circle) => (
-          <CircleCard key={circle.id} circle={circle} people={people} />
+          <CircleCard key={circle.id} circle={circle} />
         ))}
       </div>
     </div>

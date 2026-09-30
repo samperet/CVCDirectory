@@ -39,7 +39,14 @@ export async function readDirectory(): Promise<DirectoryDocument | null> {
     people,
     aliases,
     circles: circles.map((circle) =>
-      applyCircleIcon({ ...circle, seats: circle.seats.map((seat) => ({ ...seat, personId: alias(seat.personId) })) }, icons[circle.id])
+      applyCircleIcon(
+        {
+          ...circle,
+          seats: circle.seats.map((seat) => ({ ...seat, personId: alias(seat.personId) })),
+          applications: circle.applications?.map((application) => ({ ...application, personId: alias(application.personId)! })),
+        },
+        icons[circle.id]
+      )
     ),
     carsheds: doc.carsheds.map((slot) => ({ ...slot, occupants: slot.occupants.map((occupant) => ({ ...occupant, personId: alias(occupant.personId) })) })),
   };

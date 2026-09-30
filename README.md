@@ -16,7 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
 - 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
-- 🌀 **Circles** – Each circle has its own page where its members and the Board manage members, details, and an icon; icons show as badges in the directory.
+- 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
 
@@ -204,10 +204,17 @@ Circles are managed in the app (`circles/circles.json`). The store is seeded onc
 sheet — members only, dropping the sheet's empty placeholder seats — and is the source of truth
 from then on, so re-importing the directory never overwrites circle changes.
 
-- `/circles` lists every circle with its members and roles; any resident can start a circle and
-  becomes its first member.
-- `/circles/<id>` is each circle's page. Its members and the Board can edit its name,
-  and description, add residents, change a member's role or term, remove members, and upload an
+- `/circles` lists every circle (name, member count, description); any resident can start a circle
+  and becomes its first member.
+- **Joining** – each circle chooses who can join: anyone (a **Join circle** button) or by
+  application (**Apply to join**, with an optional note), which its members, the Board, or an admin
+  approve or decline. Circles default to applications. Members are notified of new applications
+  and applicants of the answer (the "circles" notification setting). Applications are visible only
+  to the circle's members, the Board, and admins (`GET /api/circles/<id>/applications`), and not
+  in `/api/directory`. Anyone can leave a circle or withdraw an application
+  (`POST`/`DELETE /api/circles/<id>/join`).
+- `/circles/<id>` is each circle's page, with its members in a side panel on the right (below the
+  header on phones). Its members and the Board can edit its name, description, and who can join, add residents, change a member's role or term, remove members, and upload an
   icon. Only the Board can delete a circle, the Board itself can't be deleted, and the Board always
   keeps at least one member.
 - **Duty schedules** – a circle can have a rotation (e.g. the Chicken Tenders' chicken and compost

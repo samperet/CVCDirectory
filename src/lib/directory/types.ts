@@ -31,6 +31,18 @@ export interface CircleSeat {
   name: string | null;
 }
 
+/** A resident asking to join a circle that approves its members. */
+export interface CircleApplication {
+  id: string;
+  personId: string;
+  name: string;
+  message: string | null;
+  createdAt: string;
+}
+
+/** Who can join a circle: anyone, with a Join button, or by applying for its members to approve. */
+export type JoinPolicy = "open" | "apply";
+
 export interface Circle {
   id: string;
   /** The spreadsheet's short code, kept from the import; no longer shown or asked for. */
@@ -40,6 +52,10 @@ export interface Circle {
   seats: CircleSeat[];
   /** Uploaded by the circle; not part of the import. */
   iconUrl?: string | null;
+  /** Unset means "apply": members approve who joins (as before joining existed). */
+  joinPolicy?: JoinPolicy;
+  /** Pending applications; only the circle's members, the Board, and admins see them. */
+  applications?: CircleApplication[];
 }
 
 export interface CarshedSlot {

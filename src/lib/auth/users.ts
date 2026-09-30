@@ -64,6 +64,12 @@ export async function getUserForPerson(personId: string): Promise<CommunityUser 
   return users.find((user) => user.personId === personId) ?? null;
 }
 
+/** The account ids of these residents (those who have signed in), e.g. to notify a circle's members. */
+export async function userIdsForPeople(personIds: (string | null)[]): Promise<string[]> {
+  const wanted = new Set(personIds.filter(Boolean));
+  return (await readUsers()).filter((user) => user.personId && wanted.has(user.personId)).map((user) => user.id);
+}
+
 /**
  * The account for a directory resident, created on first sign-in. A legacy
  * name-only account with the same name is claimed by the resident, since the

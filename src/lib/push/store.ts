@@ -14,6 +14,7 @@ export const TOPICS = {
   resources: "New recommendations, and comments on yours",
   library: "New things to borrow in the loan library",
   documents: "New and updated documents in circles",
+  circles: "Requests to join your circles, and answers to yours",
 } as const;
 
 export type Topic = keyof typeof TOPICS;
@@ -27,6 +28,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   resources: true,
   library: true,
   documents: true,
+  circles: true,
 };
 
 export interface PushSubscriptionRecord {

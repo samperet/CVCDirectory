@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { Circle, CircleSeat, DirectoryDocument, Person } from "@/lib/directory/types";
+import type { Circle, CircleApplication, CircleSeat, DirectoryDocument, JoinPolicy, Person } from "@/lib/directory/types";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
@@ -19,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { timeAgo } from "@/lib/time";
 
 const ROLES = ["Member", "Op leader", "Delegate", "Facilitator", "Secretary", "Treasurer", "President", "At-large"];
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -31,6 +32,7 @@ function useCircleMutation<T>(request: (input: T) => Promise<unknown>, errorTitl
     mutationFn: request,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["directory"] });
+      queryClient.invalidateQueries({ queryKey: ["circle-applications"] });
       onDone?.();
     },
     onError: (err: Error) => toast({ title: errorTitle, description: err.message, variant: "destructive" }),
@@ -40,8 +42,8 @@ function useCircleMutation<T>(request: (input: T) => Promise<unknown>, errorTitl
 function RoleInputs({ position, termEnds, onPosition, onTerm }: { position: string; termEnds: string; onPosition: (v: string) => void; onTerm: (v: string) => void }) {
   return (
     <>
-      <Input placeholder="Role" list="circle-roles" value={position} maxLength={40} onChange={(e) => onPosition(e.target.value)} className="bg-white sm:max-w-[11rem]" aria-label="Role" />
-      <Input placeholder="Term ends (optional)" value={termEnds} maxLength={30} onChange={(e) => onTerm(e.target.value)} className="bg-white sm:max-w-[12rem]" aria-label="Term ends" />
+      <Input placeholder="Role" list="circle-roles" value={position} maxLength={40} onChange={(e) => onPosition(e.target.value)} className="h-9 bg-white" aria-label="Role" />
+      <Input placeholder="Term ends (optional)" value={termEnds} maxLength={30} onChange={(e) => onTerm(e.target.value)} className="h-9 bg-white" aria-label="Term ends" />
     </>
   );
 }
@@ -60,20 +62,26 @@ function MemberRow({ circle, seat, person, canManage }: { circle: Circle; seat: 
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${circle.id}/members/${seat.id}`, { method: "DELETE" }), "Could not remove member");
 
   return (
-    <li className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-3">
-        <Avatar name={name} photoUrl={person?.photoUrl} size={40} />
+    <li className="flex flex-col gap-2 py-2.5">
+      <div className="flex items-center gap-2.5">
+        <Avatar name={name} photoUrl={person?.photoUrl} size={32} />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{name}</p>
+          {seat.personId ? (
+            <Link href={`/directory/${seat.personId}`} className="block truncate text-sm font-medium text-foreground hover:underline">
+              {name}
+            </Link>
+          ) : (
+            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+          )}
           {!editing ? (
-            <p className="text-sm text-muted">
+            <p className="truncate text-xs text-muted">
               {sentence(seat.position ?? "Member")}
               {seat.termEnds ? ` · term ends ${seat.termEnds}` : ""}
             </p>
           ) : null}
         </div>
         {canManage && seat.id && !editing ? (
-          <div className="flex gap-1">
+          <div className="flex shrink-0">
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)} aria-label={`Edit ${name}'s role`}>
               <Pencil className="h-4 w-4" />
             </Button>
@@ -94,7 +102,7 @@ function MemberRow({ circle, seat, person, canManage }: { circle: Circle; seat: 
       </div>
       {editing ? (
         <form
-          className="flex flex-col gap-2 pl-[52px] sm:flex-row"
+          className="flex flex-col gap-2 pl-[42px]"
           onSubmit={(event) => {
             event.preventDefault();
             save.mutate(undefined);
@@ -137,7 +145,7 @@ function AddMember({ circle, candidates }: { circle: Circle; candidates: NameOpt
 
   if (!open) {
     return (
-      <Button size="sm" className="w-fit gap-1" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="outline" className="w-fit gap-1" onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" /> Add member
       </Button>
     );
@@ -151,9 +159,7 @@ function AddMember({ circle, candidates }: { circle: Circle; candidates: NameOpt
       }}
     >
       <NameCombobox users={candidates} value={person} onChange={setPerson} placeholder="Search residents…" />
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <RoleInputs position={position} termEnds={termEnds} onPosition={setPosition} onTerm={setTermEnds} />
-      </div>
+      <RoleInputs position={position} termEnds={termEnds} onPosition={setPosition} onTerm={setTermEnds} />
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={!person || add.isPending}>
           {add.isPending ? "Adding…" : "Add to circle"}
@@ -203,6 +209,226 @@ function DetailsEditor({ circle, onDone }: { circle: Circle; onDone: () => void 
   );
 }
 
+type ApplicationsResponse = { applications: CircleApplication[]; mine: CircleApplication | null };
+
+/** Join, apply, withdraw, or leave — for the signed-in resident. */
+function JoinControls({ circle, isMember, mine }: { circle: Circle; isMember: boolean; mine: CircleApplication | null }) {
+  const { toast } = useToast();
+  const [applying, setApplying] = useState(false);
+  const [message, setMessage] = useState("");
+  const open = circle.joinPolicy === "open";
+  const join = useCircleMutation(
+    () => apiFetch<{ joined: boolean }>(`/api/circles/${circle.id}/join`, { method: "POST", body: JSON.stringify({ message: message || undefined }) }),
+    open ? "Could not join" : "Could not apply",
+    () => {
+      setApplying(false);
+      setMessage("");
+      toast(open ? { title: `You've joined ${circle.name}` } : { title: "Application sent", description: "The circle's members will let you know." });
+    }
+  );
+  const leave = useCircleMutation(
+    () => apiFetch(`/api/circles/${circle.id}/join`, { method: "DELETE" }),
+    mine ? "Could not withdraw" : "Could not leave",
+    () => toast({ title: mine ? "Application withdrawn" : `You've left ${circle.name}` })
+  );
+
+  if (isMember) {
+    return (
+      <Button
+        size="sm"
+        variant="ghost"
+        className="w-fit gap-1.5 text-muted hover:text-destructive"
+        disabled={leave.isPending}
+        onClick={() => {
+          if (window.confirm(`Leave ${circle.name}?`)) leave.mutate(undefined);
+        }}
+      >
+        <LogOut className="h-4 w-4" /> Leave circle
+      </Button>
+    );
+  }
+  if (mine) {
+    return (
+      <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-accent/40 p-3 text-sm">
+        <p className="font-medium text-foreground">Your application is waiting</p>
+        <p className="text-xs text-muted">Sent {timeAgo(mine.createdAt)}. A member will approve it.</p>
+        <Button size="sm" variant="ghost" className="w-fit px-0 text-muted hover:bg-transparent hover:text-foreground" disabled={leave.isPending} onClick={() => leave.mutate(undefined)}>
+          Withdraw
+        </Button>
+      </div>
+    );
+  }
+  if (open) {
+    return (
+      <Button className="w-full gap-1.5" disabled={join.isPending} onClick={() => join.mutate(undefined)}>
+        <UserPlus className="h-4 w-4" /> {join.isPending ? "Joining…" : "Join circle"}
+      </Button>
+    );
+  }
+  if (!applying) {
+    return (
+      <Button className="w-full gap-1.5" onClick={() => setApplying(true)}>
+        <UserPlus className="h-4 w-4" /> Apply to join
+      </Button>
+    );
+  }
+  return (
+    <form
+      className="flex flex-col gap-2 rounded-lg border border-border bg-accent/40 p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        join.mutate(undefined);
+      }}
+    >
+      <Textarea
+        rows={3}
+        autoFocus
+        placeholder="A note to the circle (optional) — why you'd like to join"
+        value={message}
+        maxLength={500}
+        onChange={(event) => setMessage(event.target.value)}
+        className="bg-white text-sm"
+      />
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={join.isPending}>
+          {join.isPending ? "Sending…" : "Send application"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setApplying(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Whether anyone can join, or members approve applications (the circle's members or the Board choose). */
+function JoinPolicySetting({ circle }: { circle: Circle }) {
+  const save = useCircleMutation(
+    (joinPolicy: JoinPolicy) => apiFetch(`/api/circles/${circle.id}`, { method: "PATCH", body: JSON.stringify({ joinPolicy }) }),
+    "Could not save"
+  );
+  return (
+    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+      Who can join
+      <select
+        value={circle.joinPolicy ?? "apply"}
+        onChange={(event) => save.mutate(event.target.value as JoinPolicy)}
+        disabled={save.isPending}
+        className="h-9 rounded-lg border border-border bg-white px-2 text-sm font-normal text-foreground"
+      >
+        <option value="open">Anyone can join</option>
+        <option value="apply">Members approve applications</option>
+      </select>
+    </label>
+  );
+}
+
+function ApplicationRow({ circle, application, person }: { circle: Circle; application: CircleApplication; person?: Person }) {
+  const decide = useCircleMutation(
+    (approve: boolean) =>
+      apiFetch(`/api/circles/${circle.id}/applications/${application.id}`, { method: "POST", body: JSON.stringify({ approve }) }),
+    "Could not answer the application"
+  );
+  return (
+    <li className="flex flex-col gap-2 py-2.5">
+      <div className="flex items-center gap-2.5">
+        <Avatar name={application.name} photoUrl={person?.photoUrl} size={32} />
+        <div className="min-w-0 flex-1">
+          <Link href={`/directory/${application.personId}`} className="block truncate text-sm font-medium text-foreground hover:underline">
+            {person?.displayName ?? application.name}
+          </Link>
+          <p className="text-xs text-muted">Applied {timeAgo(application.createdAt)}</p>
+        </div>
+      </div>
+      {application.message ? <p className="whitespace-pre-wrap rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">{application.message}</p> : null}
+      <div className="flex gap-2">
+        <Button size="sm" className="h-8 gap-1" disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+          <Check className="h-4 w-4" /> Approve
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8"
+          disabled={decide.isPending}
+          onClick={() => {
+            if (window.confirm(`Decline ${application.name}'s application?`)) decide.mutate(false);
+          }}
+        >
+          Decline
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+/** The side panel: joining, pending applications, and the members. */
+function MembersPanel({
+  circle,
+  people,
+  candidates,
+  canManage,
+  isMember,
+}: {
+  circle: Circle;
+  people: Map<string, Person>;
+  candidates: NameOption[];
+  canManage: boolean;
+  isMember: boolean;
+}) {
+  const members = circle.seats.filter((seat) => seat.personId || seat.name);
+  const { data } = useQuery({
+    queryKey: ["circle-applications", circle.id],
+    queryFn: () => apiFetch<ApplicationsResponse>(`/api/circles/${circle.id}/applications`),
+  });
+  const applications = data?.applications ?? [];
+  return (
+    <Card className="flex flex-col gap-4 p-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold text-foreground">
+          Members <span className="text-sm font-normal text-muted">({members.length})</span>
+        </h2>
+        {!canManage ? (
+          <p className="text-xs text-muted">{circle.joinPolicy === "open" ? "Anyone can join this circle." : "This circle's members approve new members."}</p>
+        ) : null}
+      </div>
+
+      {data && !isMember ? <JoinControls circle={circle} isMember={false} mine={data.mine} /> : null}
+      {canManage ? <JoinPolicySetting circle={circle} /> : null}
+
+      {canManage && applications.length ? (
+        <section className="flex flex-col gap-1 rounded-lg border border-primary/50 bg-accent/40 px-3 py-2">
+          <h3 className="text-sm font-semibold text-foreground">
+            {applications.length === 1 ? "1 person wants to join" : `${applications.length} people want to join`}
+          </h3>
+          <ul className="divide-y divide-border">
+            {applications.map((application) => (
+              <ApplicationRow key={application.id} circle={circle} application={application} person={people.get(application.personId)} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {members.length ? (
+        <ul className="-my-2.5 divide-y divide-border">
+          {members.map((seat, index) => (
+            <MemberRow
+              key={seat.id ?? index}
+              circle={circle}
+              seat={seat}
+              person={seat.personId ? people.get(seat.personId) : undefined}
+              canManage={canManage}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">No members yet.</p>
+      )}
+      {canManage ? <AddMember circle={circle} candidates={candidates} /> : null}
+      {isMember ? <JoinControls circle={circle} isMember mine={null} /> : null}
+    </Card>
+  );
+}
+
 export function CircleDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const { user } = useSession();
@@ -218,7 +444,8 @@ export function CircleDetailClient({ id }: { id: string }) {
     !!user?.personId && !!data?.circles.some((c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId));
   // Admins can manage every circle, as the Board can.
   const onBoard = inCircle("board") || !!user?.isAdmin;
-  const canManage = onBoard || inCircle(id);
+  const isMember = inCircle(id);
+  const canManage = onBoard || isMember;
 
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>
     router.replace("/circles")
@@ -254,81 +481,67 @@ export function CircleDetailClient({ id }: { id: string }) {
         <ArrowLeft className="h-4 w-4" /> All circles
       </Link>
 
-      <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <CircleIcon circle={circle} size={96} />
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {editingDetails ? (
-            <DetailsEditor circle={circle} onDone={() => setEditingDetails(false)} />
-          ) : (
-            <>
-              <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
-              {circle.description ? (
-                <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
-              ) : canManage ? (
-                <p className="text-sm text-muted">No description yet.</p>
-              ) : null}
-            </>
-          )}
-          {canManage && !editingDetails ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingDetails(true)}>
-                <Pencil className="h-4 w-4" /> Edit details
-              </Button>
-              <IconControls circle={circle} />
-              {onBoard && circle.id !== "board" ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gap-1.5 text-muted hover:text-destructive"
-                  onClick={() => {
-                    if (window.confirm(`Delete ${circle.name}? This can't be undone.`)) remove.mutate(undefined);
-                  }}
-                  disabled={remove.isPending}
-                >
-                  <X className="h-4 w-4" /> Delete circle
-                </Button>
+      {/* The members sit in a side panel on the right; on phones, just below the circle's header. */}
+      <div className="grid gap-6 [grid-template-areas:'header'_'members'_'main'] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'header_members'_'main_members']">
+        <div className="min-w-0 [grid-area:header]">
+          <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <CircleIcon circle={circle} size={96} />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              {editingDetails ? (
+                <DetailsEditor circle={circle} onDone={() => setEditingDetails(false)} />
+              ) : (
+                <>
+                  <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
+                  {circle.description ? (
+                    <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
+                  ) : canManage ? (
+                    <p className="text-sm text-muted">No description yet.</p>
+                  ) : null}
+                </>
+              )}
+              {canManage && !editingDetails ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingDetails(true)}>
+                    <Pencil className="h-4 w-4" /> Edit details
+                  </Button>
+                  <IconControls circle={circle} />
+                  {onBoard && circle.id !== "board" ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5 text-muted hover:text-destructive"
+                      onClick={() => {
+                        if (window.confirm(`Delete ${circle.name}? This can't be undone.`)) remove.mutate(undefined);
+                      }}
+                      disabled={remove.isPending}
+                    >
+                      <X className="h-4 w-4" /> Delete circle
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
-          ) : null}
+          </Card>
         </div>
-      </Card>
+        <aside className="[grid-area:members] lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+          <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} />
+        </aside>
+        <div className="flex min-w-0 flex-col gap-6 [grid-area:main]">
+          {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
+          <DutyScheduleModule circleId={id} people={people} />
 
-      {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
-      <DutyScheduleModule circleId={id} people={people} />
-
-      <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Documents</h2>
-          <p className="text-sm text-muted">
-            {id === "board" ? "The Board's documents, and community-wide ones." : "This circle's minutes, agendas, and other documents."}
-            {canManage ? "" : " Its members and the Board can add documents."}
-          </p>
+          <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Documents</h2>
+              <p className="text-sm text-muted">
+                {id === "board" ? "The Board's documents, and community-wide ones." : "This circle's minutes, agendas, and other documents."}
+                {canManage ? "" : " Its members and the Board can add documents."}
+              </p>
+            </div>
+            <DocumentsPanel circleId={id} canUpload={canManage} />
+          </Card>
         </div>
-        <DocumentsPanel circleId={id} canUpload={canManage} />
-      </Card>
-
-      <Card className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold text-foreground">
-          Members <span className="text-sm font-normal text-muted">({members.length})</span>
-        </h2>
-        {members.length ? (
-          <ul className="divide-y divide-border">
-            {members.map((seat, index) => (
-              <MemberRow
-                key={seat.id ?? index}
-                circle={circle}
-                seat={seat}
-                person={seat.personId ? people.get(seat.personId) : undefined}
-                canManage={canManage}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">No members yet.</p>
-        )}
-        {canManage ? <AddMember circle={circle} candidates={candidates} /> : null}
-        {!canManage ? <p className="text-xs text-muted">This circle&apos;s members and the Board can update its members.</p> : null}
-      </Card>
+      </div>
     </div>
   );
 }

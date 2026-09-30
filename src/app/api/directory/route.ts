@@ -19,5 +19,7 @@ export async function GET() {
   if (!directory) {
     return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
   }
-  return NextResponse.json(directory, { headers: { "Cache-Control": "private, no-store" } });
+  // Applications to join a circle are for that circle's members (GET /api/circles/<id>/applications).
+  const circles = directory.circles.map(({ applications: _applications, ...circle }) => circle);
+  return NextResponse.json({ ...directory, circles }, { headers: { "Cache-Control": "private, no-store" } });
 }
