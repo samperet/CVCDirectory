@@ -9,12 +9,18 @@ export const dynamic = "force-dynamic";
 /**
  * Seed a circle's duty schedule without a resident session. Requires
  * `Authorization: Bearer <ADMIN_TOKEN>`. GET lists circles (id and name) and
- * which have a schedule; PUT takes `{ circleId, setup, overrides? }` and
- * replaces that circle's schedule.
+ * which have a schedule — or, with `?circleId=`, returns that circle's whole
+ * schedule (so a change can start from what's live); PUT takes
+ * `{ circleId, setup, overrides? }` and replaces that circle's schedule.
  */
 export async function GET(request: NextRequest) {
   const denied = authorizeAdminToken(request);
   if (denied) return denied;
+  const circleId = request.nextUrl.searchParams.get("circleId");
+  if (circleId) {
+    const schedule = await readSchedule(circleId);
+    return schedule ? NextResponse.json({ circleId, schedule }) : problem("That circle has no schedule", 404, "Not Found");
+  }
   const directory = await readDirectory();
   const circles = await Promise.all(
     (directory?.circles ?? []).map(async (circle) => ({ id: circle.id, name: circle.name, schedule: !!(await readSchedule(circle.id)) }))
