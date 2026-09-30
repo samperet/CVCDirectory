@@ -587,9 +587,12 @@ export function DocumentsPanel({
   canUpload = false,
   circles,
   uploadCircles = [],
+  canEditTypes = canUpload,
 }: {
   circleId?: string;
   canUpload?: boolean;
+  /** Whether the resident can change the circle's document types (by default, whoever can upload). */
+  canEditTypes?: boolean;
   /** For the all-documents page: the circles to filter by. */
   circles?: { id: string; name: string }[];
   /** For the all-documents page: the circles the resident can add documents to (bulk upload). */
@@ -660,7 +663,7 @@ export function DocumentsPanel({
             </option>
           ))}
         </select>
-        {canUpload && circleId && !editingTypes ? (
+        {canEditTypes && circleId && !editingTypes ? (
           <Button variant="outline" className="gap-1.5" onClick={() => setEditingTypes(true)}>
             <Tags className="h-4 w-4" /> Edit types
           </Button>

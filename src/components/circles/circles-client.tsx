@@ -89,6 +89,23 @@ function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Pe
   );
 }
 
+/** The Community circle — everyone at CVC — across the top of the page at double width. */
+function CommunityCard({ circle }: { circle: Circle }) {
+  return (
+    <Link href={`/circles/${circle.id}`} className="block rounded-2xl transition hover:ring-2 hover:ring-primary md:col-span-2">
+      <Card className="flex h-full items-center gap-5 border-primary/40 bg-accent/60 p-6">
+        <CircleIcon circle={circle} size={88} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold text-foreground">{circle.name}</h2>
+          <p className="text-xs font-medium text-muted">Everyone at CVC</p>
+          {circle.description ? <p className="mt-1 text-sm text-foreground-light">{circle.description}</p> : null}
+          <p className="mt-1 text-sm text-foreground-light">The Community Forum and documents for everyone.</p>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
 export function CirclesClient() {
   const [creating, setCreating] = useState(false);
   const { data, isLoading, error } = useQuery({
@@ -106,6 +123,7 @@ export function CirclesClient() {
   }
 
   const people = new Map(data.people.map((person) => [person.id, person]));
+  const community = data.circles.find((circle) => circle.id === "community");
   return (
     <div className="flex flex-col gap-4">
       {creating ? (
@@ -118,9 +136,12 @@ export function CirclesClient() {
         </div>
       )}
       <div className="grid gap-4 md:grid-cols-2">
-        {data.circles.map((circle) => (
-          <CircleCard key={circle.id} circle={circle} people={people} />
-        ))}
+        {community ? <CommunityCard circle={community} /> : null}
+        {data.circles
+          .filter((circle) => circle.id !== "community")
+          .map((circle) => (
+            <CircleCard key={circle.id} circle={circle} people={people} />
+          ))}
       </div>
     </div>
   );

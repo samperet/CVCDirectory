@@ -27,6 +27,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "board" });
   if ("error" in ctx) return ctx.error;
   if (params.id === "board") return problem("The Board can't be deleted", 409, "Conflict");
+  if (params.id === "community") return problem("The Community circle can't be deleted", 409, "Conflict");
 
   const result = await deleteCircle(ctx.imported, params.id);
   if (!result.ok) return circleProblem(result.reason);

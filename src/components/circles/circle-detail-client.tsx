@@ -14,6 +14,7 @@ import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule } from "@/components/circles/duty-schedule";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
+import { TopicClient } from "@/components/forum/topic-client";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -450,6 +451,9 @@ export function CircleDetailClient({ id }: { id: string }) {
   const onBoard = inCircle("board") || !!user?.isAdmin;
   const isMember = inCircle(id);
   const canManage = onBoard || isMember;
+  // The Community circle is everyone: no member list, and any resident adds its documents.
+  const community = id === "community";
+  const canUpload = canManage || (community && !!user?.personId);
 
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>
     router.replace("/circles")
@@ -485,8 +489,14 @@ export function CircleDetailClient({ id }: { id: string }) {
         <ArrowLeft className="h-4 w-4" /> All circles
       </Link>
 
-      {/* The members sit in a side panel on the right; on phones, just below the circle's header. */}
-      <div className="grid gap-6 [grid-template-areas:'header'_'members'_'main'] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'header_members'_'main_members']">
+      {/* The members sit in a side panel on the right; on phones, just below the circle's header. The Community circle has none. */}
+      <div
+        className={
+          community
+            ? "flex flex-col gap-6"
+            : "grid gap-6 [grid-template-areas:'header'_'members'_'main'] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'header_members'_'main_members']"
+        }
+      >
         <div className="min-w-0 [grid-area:header]">
           <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <CircleIcon circle={circle} size={96} />
@@ -509,7 +519,7 @@ export function CircleDetailClient({ id }: { id: string }) {
                     <Pencil className="h-4 w-4" /> Edit details
                   </Button>
                   <IconControls circle={circle} />
-                  {onBoard && circle.id !== "board" ? (
+                  {onBoard && circle.id !== "board" && !community ? (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -527,22 +537,34 @@ export function CircleDetailClient({ id }: { id: string }) {
             </div>
           </Card>
         </div>
-        <aside className="[grid-area:members] lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
-          <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} />
-        </aside>
+        {community ? null : (
+          <aside className="[grid-area:members] lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+            <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} />
+          </aside>
+        )}
         <div className="flex min-w-0 flex-col gap-6 [grid-area:main]">
           {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
           <DutyScheduleModule circleId={id} people={people} />
+
+          {community ? (
+            <Card id="forum" className="scroll-mt-24">
+              <TopicClient topicId="community" embedded />
+            </Card>
+          ) : null}
 
           <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Documents</h2>
               <p className="text-sm text-muted">
-                {id === "board" ? "The Board's documents, and community-wide ones." : "This circle's minutes, agendas, and other documents."}
-                {canManage ? "" : " Its members and the Board can add documents."}
+                {community
+                  ? "Documents for everyone at CVC. Anyone can add them."
+                  : id === "board"
+                    ? "The Board's documents."
+                    : "This circle's minutes, agendas, and other documents."}
+                {canUpload ? "" : " Its members and the Board can add documents."}
               </p>
             </div>
-            <DocumentsPanel circleId={id} canUpload={canManage} />
+            <DocumentsPanel circleId={id} canUpload={canUpload} canEditTypes={canManage} />
           </Card>
         </div>
       </div>

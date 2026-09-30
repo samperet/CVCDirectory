@@ -12,6 +12,6 @@ export function topicProblem(reason: Failure) {
     case "full":
       return problem("The forum has as many topics as it can hold", 409, "Conflict");
     case "general":
-      return problem("General can't be removed — it holds discussions without another topic", 409, "Conflict");
+      return problem("The Community Forum and General can't be removed", 409, "Conflict");
   }
 }

@@ -125,7 +125,8 @@ Admin status is checked server-side on every request, and the user menu shows an
 - **Forum topics** – the forum's front page (`/forum`) lists its topics, each with its discussion
   count and latest discussion; each topic's page (`/forum/topics/<id>`) lists its discussions and
   is where new ones start. Admins add, rename, and remove topics (removing one moves its
-  discussions to **General**, which always exists and holds every discussion from before topics).
+  discussions to **General**, which always exists and holds every discussion from before topics;
+  the **Community Forum** always exists too, and also appears on the Community circle's page).
   A discussion's author or an admin can move it to another topic when editing it. Topics live in
   `forum/topics.json`; each discussion records its `topicId`.
 - **Forum** – signed-in members start discussions and reply to any post; replies nest
@@ -188,7 +189,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 
 ## Documents
 
-- Each circle's page has a **Documents** section; community-wide documents belong to the Board.
+- Each circle's page has a **Documents** section; documents for everyone belong to the Community circle.
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
   admins). Each file gets an editable title (from its name), type, and meeting date (filled in
@@ -220,6 +221,10 @@ Circles are managed in the app (`circles/circles.json`). The store is seeded onc
 sheet — members only, dropping the sheet's empty placeholder seats — and is the source of truth
 from then on, so re-importing the directory never overwrites circle changes.
 
+- **Community circle** – a built-in circle (`community`) for everyone at CVC, shown across the top
+  of `/circles` at double width. It has no member list and can't be joined, left, or deleted; any
+  resident can add its documents, and its page shows the **Community Forum** (a built-in forum
+  topic, also listed on the forum's front page). The Board and admins edit its details and icon.
 - `/circles` lists every circle (name, member count, description); any resident can start a circle
   and becomes its first member.
 - **Emailing a circle** – the envelope on each circle's card (and in its members panel) asks
@@ -316,6 +321,9 @@ from then on, so re-importing the directory never overwrites circle changes.
 document. It requires `Authorization: Bearer $ADMIN_TOKEN` (disabled when `ADMIN_TOKEN` is unset),
 writes to R2 only — never to the ephemeral fallback — and responds with counts only. The directory
 holds residents' contact details, so exports are gitignored and only signed-in residents can read it.
+
+`/api/admin/circles/icons` (same bearer token) lists which circles have icons (`GET`), copies one
+circle's icon to another (`POST {"from", "to"}`), or sets one from an image body (`PUT ?circle=<id>`).
 
 `POST /api/admin/directory/people` (same bearer token) makes the directory managers' changes in
 bulk: `{"residents": [{"personId", "resident"}], "leaveUnit": [{"personId", "unit"}], "remove":

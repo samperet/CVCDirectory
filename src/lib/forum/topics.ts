@@ -4,7 +4,9 @@ import { enqueue, readJson, writeJson } from "@/lib/storage";
 /**
  * Forum topics: the forum's front page lists them, and each holds its own
  * discussions. "General" always exists and holds any discussion without a
- * topic (including every discussion from before topics existed). Admins
+ * topic (including every discussion from before topics existed), and the
+ * "Community Forum" always exists too — it's also shown on the Community
+ * circle's page. Admins
  * add, rename, and remove topics; removing one moves its discussions to
  * General.
  */
@@ -23,6 +25,16 @@ const GENERAL: ForumTopic = {
   description: "Anything that doesn't fit another topic.",
   createdAt: "2024-01-01T00:00:00.000Z",
 };
+
+export const COMMUNITY_TOPIC_ID = "community";
+const COMMUNITY_FORUM: ForumTopic = {
+  id: COMMUNITY_TOPIC_ID,
+  name: "Community Forum",
+  description: "Conversations for everyone at CVC.",
+  createdAt: "2024-01-01T00:00:00.000Z",
+};
+/** Topics that always exist and can't be removed. */
+export const isBuiltInTopic = (id: string) => id === GENERAL_TOPIC_ID || id === COMMUNITY_TOPIC_ID;
 
 const KEY = "forum/topics.json";
 const MAX_TOPICS = 50;
@@ -43,10 +55,13 @@ export const isTopicId = (id: string) => /^[a-z0-9-]{1,40}$/.test(id);
 function normalize(raw: unknown): ForumTopic[] {
   const topics = (raw as { topics?: unknown } | null)?.topics;
   const list = Array.isArray(topics) ? (topics as ForumTopic[]) : [];
-  return list.some((topic) => topic.id === GENERAL_TOPIC_ID) ? list : [GENERAL, ...list];
+  // The Community Forum first, then General, then the rest in the order they were added.
+  const community = list.find((topic) => topic.id === COMMUNITY_TOPIC_ID) ?? COMMUNITY_FORUM;
+  const general = list.find((topic) => topic.id === GENERAL_TOPIC_ID) ?? GENERAL;
+  return [community, general, ...list.filter((topic) => !isBuiltInTopic(topic.id))];
 }
 
-/** Every topic, General first, then in the order they were added. */
+/** Every topic: the Community Forum, General, then the rest in the order they were added. */
 export async function listTopics(): Promise<ForumTopic[]> {
   return normalize(await readJson(KEY));
 }
@@ -96,7 +111,7 @@ export function updateTopic(id: string, update: { name?: string; description?: s
 /** Remove a topic (never General); the caller moves its discussions to General. */
 export function deleteTopic(id: string) {
   return mutate<null>((topics) => {
-    if (id === GENERAL_TOPIC_ID) return "general";
+    if (isBuiltInTopic(id)) return "general";
     if (!topics.some((topic) => topic.id === id)) return "not_found";
     return { topics: topics.filter((topic) => topic.id !== id), value: null };
   });

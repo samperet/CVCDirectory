@@ -16,7 +16,9 @@ export function DocumentsPage() {
   // Where this resident can add documents: their own circles — or every circle, for the Board and admins.
   const inCircle = (circleId: string) =>
     !!user?.personId && !!data?.circles.some((circle) => circle.id === circleId && circle.seats.some((seat) => seat.personId === user.personId));
-  const uploadCircles = user?.isAdmin || inCircle("board") ? circles : circles.filter((circle) => inCircle(circle.id));
+  // Everyone is in the Community circle.
+  const uploadCircles =
+    user?.isAdmin || inCircle("board") ? circles : circles.filter((circle) => inCircle(circle.id) || (circle.id === "community" && !!user?.personId));
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">

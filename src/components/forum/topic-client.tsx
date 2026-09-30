@@ -58,8 +58,13 @@ function TopicEditor({ topic, onDone }: { topic: ForumTopic; onDone: () => void 
   );
 }
 
-/** One forum topic: its discussions, most recently active first, and starting a new one. */
-export function TopicClient({ topicId }: { topicId: string }) {
+/**
+ * One forum topic: its discussions, most recently active first, and starting
+ * a new one. `embedded` shows it inside another page (the Community Forum on
+ * the Community circle's page): a section heading linking to the topic, and
+ * no topic management.
+ */
+export function TopicClient({ topicId, embedded = false }: { topicId: string; embedded?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -129,21 +134,31 @@ export function TopicClient({ topicId }: { topicId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link href="/forum" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Forum
-      </Link>
+    <div className={cn("flex flex-col", embedded ? "gap-4" : "gap-6")}>
+      {!embedded ? (
+        <Link href="/forum" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Forum
+        </Link>
+      ) : null}
       {editingTopic ? <TopicEditor topic={topic} onDone={() => setEditingTopic(false)} /> : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className={cn("min-w-0", editingTopic && "hidden")}>
-          <h1 className="text-2xl font-semibold text-foreground">{topic.name}</h1>
+          {embedded ? (
+            <h2 className="text-lg font-semibold text-foreground">
+              <Link href={`/forum/topics/${topic.id}`} className="hover:underline">
+                {topic.name}
+              </Link>
+            </h2>
+          ) : (
+            <h1 className="text-2xl font-semibold text-foreground">{topic.name}</h1>
+          )}
           {topic.description ? <p className="text-sm text-muted">{topic.description}</p> : null}
-          {user?.isAdmin ? (
+          {user?.isAdmin && !embedded ? (
             <div className="mt-1 flex gap-3 text-xs">
               <button type="button" className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline" onClick={() => setEditingTopic(true)}>
                 <Pencil className="h-3.5 w-3.5" /> Edit topic
               </button>
-              {topic.id !== "general" ? (
+              {topic.id !== "general" && topic.id !== "community" ? (
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 font-medium text-muted hover:text-destructive hover:underline"

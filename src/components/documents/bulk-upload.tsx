@@ -144,7 +144,7 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
           >
             {circles.map((circle) => (
               <option key={circle.id} value={circle.id}>
-                {circle.id === "board" ? `${circle.name} (community-wide)` : circle.name}
+                {circle.name}
               </option>
             ))}
           </select>

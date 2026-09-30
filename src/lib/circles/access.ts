@@ -5,7 +5,7 @@ import { BOARD_ID } from "./store";
 import { canManageCircle, isCircleId } from "./icons";
 import { isAdmin } from "@/lib/auth/admins";
 
-type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member" | "already_applied" | "not_member" | "full";
+type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member" | "already_applied" | "not_member" | "full" | "everyone";
 
 /** Map a circle store failure to an HTTP problem response. */
 export function circleProblem(reason: Failure) {
@@ -22,6 +22,8 @@ export function circleProblem(reason: Failure) {
       return problem("You've already applied to this circle", 409, "Conflict");
     case "not_member":
       return problem("You're not in this circle", 409, "Conflict");
+    case "everyone":
+      return problem("Everyone at CVC is already in the Community circle", 409, "Conflict");
     case "full":
       return problem("This circle has too many open applications — ask a member", 409, "Conflict");
   }

@@ -12,6 +12,14 @@ import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/type
 
 const KEY = "circles/circles.json";
 export const BOARD_ID = "board";
+/**
+ * The Community circle: everyone who lives at CVC, without a member list.
+ * It always exists, can't be deleted or joined, holds community documents
+ * (any resident can add them), and has the Community Forum.
+ */
+export const COMMUNITY_ID = "community";
+const COMMUNITY: Circle = { id: COMMUNITY_ID, name: "Community", description: "Everyone who lives at CVC.", seats: [] };
+export const isCommunity = (circleId: string) => circleId === COMMUNITY_ID;
 
 const text = (max: number, label: string) =>
   z.string().trim().max(max, `${label} must be ${max} characters or fewer`);
@@ -49,7 +57,9 @@ export const memberUpdateSchema = z
 
 function normalize(raw: unknown): Circle[] | null {
   const circles = (raw as { circles?: unknown } | null)?.circles;
-  return Array.isArray(circles) ? (circles as Circle[]) : null;
+  if (!Array.isArray(circles)) return null;
+  const list = circles as Circle[];
+  return list.some((circle) => circle.id === COMMUNITY_ID) ? list : [COMMUNITY, ...list];
 }
 
 function seedFrom(imported: Circle[]): Circle[] {
@@ -77,7 +87,7 @@ export async function readCircles(imported: Circle[]): Promise<Circle[]> {
   });
 }
 
-type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member" | "already_applied" | "not_member" | "full";
+type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member" | "already_applied" | "not_member" | "full" | "everyone";
 export type CircleResult<T = Circle> = { ok: true; value: T } | { ok: false; reason: Failure };
 
 async function mutate<T>(
@@ -163,6 +173,7 @@ export function addMember(
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
     if (index === -1) return "not_found";
+    if (isCommunity(id)) return "everyone";
     if (circles[index].seats.some((seat) => seat.personId === member.personId)) return "duplicate_member";
     const seat: CircleSeat = { id: randomUUID(), ...member };
     const next = [...circles];
@@ -226,6 +237,7 @@ export function requestToJoin(imported: Circle[], id: string, person: { personId
   return mutate<{ circle: Circle; joined: boolean; application: CircleApplication | null }>(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
     if (index === -1) return "not_found";
+    if (isCommunity(id)) return "everyone";
     const circle = circles[index];
     if (circle.seats.some((seat) => seat.personId === person.personId)) return "duplicate_member";
     const next = [...circles];
