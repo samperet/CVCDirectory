@@ -226,6 +226,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 ## Documents
 
 - Each circle's page has a **Documents** section; documents for everyone belong to the Community circle.
+  Each document is one line: its title (opening the file), type, circle where the list spans
+  circles, and date; Download, versions, and — for its managers — Edit, New version, and Delete are
+  icons that appear on hover (always, on touch screens). A description shows as a second line.
 - **Wiki** – each circle also has its own wiki (`/circles/<id>/wiki`, with a page finder). Pages are
   Markdown, edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), open source, on
   Lexical): a toolbar for headings, bold/italic/strikethrough, lists and checklists, links, tables,

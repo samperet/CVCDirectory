@@ -7,7 +7,6 @@ import {
   ArrowDown,
   ArrowUp,
   Download,
-  ExternalLink,
   FileText,
   History,
   MessagesSquare,
@@ -39,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { ON_HOVER } from "@/components/ui/hover";
 
 type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[] };
 
@@ -314,98 +314,104 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
     );
   }
 
+  const action = "inline-flex h-7 min-w-[1.75rem] items-center justify-center gap-0.5 rounded-md px-1 text-muted transition hover:bg-accent hover:text-foreground disabled:opacity-50";
   return (
-    <li className="flex flex-col gap-2 py-4">
-      <div className="flex items-start gap-3">
-        <FileIcon contentType={version.contentType} className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-        <div className="min-w-0 flex-1">
-          <a
+    <li className="group/post flex flex-col gap-1 py-2.5">
+      {/* One line where there's room; on phones the title gets its own line, with the details and actions under it. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 [grid-template-areas:'icon_title_title'_'icon_meta_act'] sm:flex">
+        <FileIcon contentType={version.contentType} className="h-5 w-5 shrink-0 text-primary [grid-area:icon]" />
+        <a
             href={fileUrl(doc)}
             target={version.viewable ? "_blank" : undefined}
             rel="noopener noreferrer"
-            className="font-medium text-foreground underline-offset-4 hover:underline"
+            className="min-w-0 truncate font-medium text-foreground underline-offset-4 [grid-area:title] hover:underline"
+            title={doc.title}
           >
             <Highlighted text={doc.title} terms={terms} />
           </a>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted [grid-area:meta] sm:shrink-0 sm:flex-nowrap">
             <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
             {showCircle ? (
               <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
                 {doc.circleName}
               </Link>
             ) : null}
-            <span>{doc.meetingDate ? `Meeting ${shortDate(doc.meetingDate)}` : shortDate(documentDate(doc))}</span>
-            <span>{formatBytes(version.size)}</span>
-            {doc.versions.length > 1 ? <span>version {version.number}</span> : null}
-            <span>by {version.uploadedBy.name}</span>
+            <span className="whitespace-nowrap">{doc.meetingDate ? `Meeting ${shortDate(doc.meetingDate)}` : shortDate(documentDate(doc))}</span>
           </p>
-          {doc.description ? (
-            <p className="mt-1 text-sm text-foreground-light">
-              <Highlighted text={doc.description} terms={terms} />
-            </p>
+
+        <div className={cn("flex shrink-0 items-center [grid-area:act] sm:ml-auto", mode === "view" && !replacing && ON_HOVER)}>
+          <a href={fileUrl(doc, undefined, true)} className={action} aria-label={`Download ${doc.title}`} title="Download">
+            <Download className="h-4 w-4" />
+          </a>
+          {doc.versions.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => setMode(mode === "history" ? "view" : "history")}
+              className={cn(action, mode === "history" && "bg-accent text-foreground")}
+              aria-label={`${doc.versions.length} versions`}
+              aria-expanded={mode === "history"}
+              title={`${doc.versions.length} versions`}
+            >
+              <History className="h-4 w-4" />
+              <span className="text-xs tabular-nums">{doc.versions.length}</span>
+            </button>
           ) : null}
-          {doc.snippet ? (
-            <p className="mt-1 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">
-              <Highlighted text={doc.snippet} terms={terms} />
-            </p>
+          {doc.canManage ? (
+            <>
+              <button type="button" onClick={() => setMode("edit")} className={action} aria-label="Edit details" title="Edit details">
+                <Pencil className="h-4 w-4" />
+              </button>
+              <input
+                ref={replaceInput}
+                type="file"
+                accept={ACCEPTED_EXTENSIONS.join(",")}
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  const problem = checkFile(file);
+                  if (problem) toast({ title: "Can't upload that file", description: problem, variant: "destructive" });
+                  else replace.mutate(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => replaceInput.current?.click()}
+                disabled={replace.isPending}
+                className={action}
+                aria-label="Upload a new version"
+                title="Upload a new version"
+              >
+                <Upload className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Delete “${doc.title}” and all ${doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"}? This can't be undone.`)) remove.mutate();
+                }}
+                disabled={remove.isPending}
+                className={cn(action, "hover:bg-destructive/10 hover:text-destructive")}
+                aria-label={`Delete ${doc.title}`}
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-8 text-xs">
-        {version.viewable ? (
-          <a href={fileUrl(doc)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline">
-            <ExternalLink className="h-3.5 w-3.5" /> Open
-          </a>
-        ) : null}
-        <a href={fileUrl(doc, undefined, true)} className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline">
-          <Download className="h-3.5 w-3.5" /> Download
-        </a>
-        {doc.versions.length > 1 ? (
-          <button type="button" onClick={() => setMode(mode === "history" ? "view" : "history")} className="inline-flex items-center gap-1 font-medium text-muted hover:text-foreground">
-            <History className="h-3.5 w-3.5" /> {doc.versions.length} versions
-          </button>
-        ) : null}
-        {doc.canManage ? (
-          <>
-            <button type="button" onClick={() => setMode("edit")} className="inline-flex items-center gap-1 font-medium text-muted hover:text-foreground">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            <input
-              ref={replaceInput}
-              type="file"
-              accept={ACCEPTED_EXTENSIONS.join(",")}
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (!file) return;
-                const problem = checkFile(file);
-                if (problem) toast({ title: "Can't upload that file", description: problem, variant: "destructive" });
-                else replace.mutate(file);
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => replaceInput.current?.click()}
-              disabled={replace.isPending}
-              className="inline-flex items-center gap-1 font-medium text-muted hover:text-foreground"
-            >
-              <Upload className="h-3.5 w-3.5" /> New version
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(`Delete “${doc.title}” and all ${doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"}? This can't be undone.`)) remove.mutate();
-              }}
-              disabled={remove.isPending}
-              className="inline-flex items-center gap-1 font-medium text-muted hover:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
-          </>
-        ) : null}
-      </div>
+      {doc.description ? (
+        <p className="truncate pl-8 text-sm text-foreground-light" title={doc.description}>
+          <Highlighted text={doc.description} terms={terms} />
+        </p>
+      ) : null}
+      {doc.snippet ? (
+        <p className="ml-8 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">
+          <Highlighted text={doc.snippet} terms={terms} />
+        </p>
+      ) : null}
 
       {replacing ? (
         <div className="pl-8">
@@ -419,11 +425,10 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
             <li key={entry.number} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
               <span className="text-foreground-light">
                 <strong className="text-foreground">Version {entry.number}</strong>
-                {entry.number === version.number ? " (current)" : ""} · {entry.fileName} · {formatBytes(entry.size)} · {entry.uploadedBy.name},{" "}
-                {shortDate(entry.uploadedAt)}
+                {entry.number === version.number ? " (current)" : ""} · {entry.fileName} · {shortDate(entry.uploadedAt)}
               </span>
-              <a href={fileUrl(doc, entry.number, true)} className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline">
-                <Download className="h-3.5 w-3.5" /> Download
+              <a href={fileUrl(doc, entry.number, true)} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground" aria-label={`Download version ${entry.number}`} title="Download">
+                <Download className="h-4 w-4" />
               </a>
             </li>
           ))}

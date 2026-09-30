@@ -17,16 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { ON_HOVER } from "@/components/ui/hover";
 
 /** Past this depth replies stop indenting further, so long chains stay readable on phones. */
 const MAX_INDENT_DEPTH = 5;
-
-/**
- * A post's actions (like, reply, edit, delete) show when the post is hovered
- * or has focus — or always, on touch screens, which can't hover.
- */
-const ON_HOVER =
-  "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/post:opacity-100 [@media(hover:hover)]:group-focus-within/post:opacity-100";
 
 /** Byline, then text, then actions on touch screens; byline and actions side by side above the text where there's a pointer. */
 const HOVER_LAYOUT =
