@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
  * `Authorization: Bearer <ADMIN_TOKEN>`. GET lists circles (id and name) and
  * which have a schedule — or, with `?circleId=`, returns that circle's whole
  * schedule (so a change can start from what's live); PUT takes
- * `{ circleId, setup, overrides? }` and replaces that circle's schedule.
+ * `{ circleId, setup, overrides? }` and replaces that circle's rotation — and
+ * its one-off changes only when `overrides` is given.
  */
 export async function GET(request: NextRequest) {
   const denied = authorizeAdminToken(request);
@@ -37,7 +38,8 @@ export async function PUT(request: NextRequest) {
   if (!directory?.circles.some((circle) => circle.id === circleId)) return problem("Circle not found", 404, "Not Found");
   const parsed = scheduleDocumentSchema.safeParse(body);
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  const schedule = await saveSchedule(circleId, parsed.data.setup, parsed.data.overrides ?? {});
+  // Without `overrides`, the one-off changes already recorded stay as they are.
+  const schedule = await saveSchedule(circleId, parsed.data.setup, parsed.data.overrides);
   return NextResponse.json({
     circleId,
     households: schedule.households.length,
