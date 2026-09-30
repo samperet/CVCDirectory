@@ -2,24 +2,31 @@
 
 import "@mdxeditor/editor/style.css";
 import { forwardRef, useImperativeHandle, useRef } from "react";
+import type { ContainerDirective, TextDirective } from "mdast-util-directive";
+import { ChevronDown, ChevronsUpDown } from "lucide-react";
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  ButtonWithTooltip,
   CodeToggle,
   CreateLink,
   DiffSourceToggleWrapper,
+  type DirectiveDescriptor,
+  GenericDirectiveEditor,
   InsertCodeBlock,
   InsertTable,
   InsertThematicBreak,
   ListsToggle,
   MDXEditor,
   type MDXEditorMethods,
+  NestedLexicalEditor,
   Separator,
   StrikeThroughSupSubToggles,
   UndoRedo,
   codeBlockPlugin,
   codeMirrorPlugin,
   diffSourcePlugin,
+  directivesPlugin,
   headingsPlugin,
   linkDialogPlugin,
   linkPlugin,
@@ -29,6 +36,7 @@ import {
   tablePlugin,
   thematicBreakPlugin,
   toolbarPlugin,
+  useMdastNodeUpdater,
 } from "@mdxeditor/editor";
 import { normalizeWikiLinks } from "@/lib/wiki/links";
 
@@ -37,6 +45,82 @@ export interface RichEditorHandle {
   setMarkdown: (markdown: string) => void;
   focus: () => void;
 }
+
+/** A collapsible section (`:::details{title="…"}`) in the editor: its title, and what it hides. */
+const isLabel = (child: ContainerDirective["children"][number]) => !!(child.data as { directiveLabel?: boolean } | undefined)?.directiveLabel;
+/** The text of an mdast node and everything in it. */
+function plainText(node: object): string {
+  const { value, children } = node as { value?: unknown; children?: object[] };
+  return (typeof value === "string" ? value : "") + (children ?? []).map(plainText).join("");
+}
+
+function DetailsEditor({ mdastNode }: { mdastNode: ContainerDirective }) {
+  const update = useMdastNodeUpdater<ContainerDirective>();
+  // The title is its `title` attribute — or, written as `:::details[Title]`, its label.
+  const label = mdastNode.children.find(isLabel);
+  const title = mdastNode.attributes?.title ?? (label ? plainText(label) : "");
+  return (
+    <div className="my-2 rounded-lg border border-border bg-surface">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-1.5" contentEditable={false}>
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+        <input
+          value={title}
+          onChange={(event) =>
+            update({ attributes: { ...mdastNode.attributes, title: event.target.value }, children: mdastNode.children.filter((child) => !isLabel(child)) })
+          }
+          onKeyDown={(event) => event.stopPropagation()}
+          placeholder="Section title (shown when collapsed)"
+          aria-label="Collapsible section title"
+          className="w-full bg-transparent text-sm font-semibold text-foreground outline-none placeholder:font-normal placeholder:text-muted"
+        />
+        <span className="shrink-0 text-xs text-muted">Collapsible</span>
+      </div>
+      <div className="px-3 py-1">
+        <NestedLexicalEditor<ContainerDirective>
+          block
+          getContent={(node) => node.children.filter((child) => !isLabel(child))}
+          getUpdatedMdastNode={(node, children) => ({
+            ...node,
+            children: [...node.children.filter(isLabel), ...(children as ContainerDirective["children"])],
+          })}
+        />
+      </div>
+    </div>
+  );
+}
+
+const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
+  name: "details",
+  type: "containerDirective",
+  testNode: (node) => node.type === "containerDirective" && node.name === "details",
+  attributes: ["title"],
+  hasChildren: true,
+  Editor: DetailsEditor,
+};
+
+/** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
+const textDirectives: DirectiveDescriptor<TextDirective> = {
+  name: ":text",
+  type: "textDirective",
+  testNode: (node) => node.type === "textDirective",
+  attributes: [],
+  hasChildren: false,
+  Editor: ({ mdastNode }) => (
+    <span contentEditable={false}>
+      :{mdastNode.name}
+      {mdastNode.children.length ? `[${mdastNode.children.map(plainText).join("")}]` : ""}
+    </span>
+  ),
+};
+
+/** Anything else that parses as a directive keeps its text rather than breaking the editor. */
+const otherDirectives: DirectiveDescriptor = {
+  name: "*",
+  testNode: () => true,
+  attributes: [],
+  hasChildren: true,
+  Editor: GenericDirectiveEditor,
+};
 
 /** Insert a `[[Page title]]` link to another page in this wiki. */
 function WikiLinkMenu({ pages, onPick }: { pages: string[]; onPick: (title: string) => void }) {
@@ -97,6 +181,7 @@ export const RichEditor = forwardRef<
         codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
         codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" }, autoLoadLanguageSupport: false }),
         markdownShortcutPlugin(),
+        directivesPlugin({ directiveDescriptors: [detailsDirective, textDirectives, otherDirectives] }),
         diffSourcePlugin({ diffMarkdown: savedMarkdown, viewMode: "rich-text" }),
         toolbarPlugin({
           toolbarClassName: "wiki-toolbar",
@@ -117,6 +202,12 @@ export const RichEditor = forwardRef<
               <InsertTable />
               <InsertThematicBreak />
               <InsertCodeBlock />
+              <ButtonWithTooltip
+                title="Collapsible section"
+                onClick={() => editor.current?.insertMarkdown(':::details{title="Details"}\nWhat this section hides.\n:::')}
+              >
+                <ChevronsUpDown className="h-5 w-5" />
+              </ButtonWithTooltip>
             </DiffSourceToggleWrapper>
           ),
         }),

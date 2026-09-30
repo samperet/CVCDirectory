@@ -204,7 +204,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   Lexical): a toolbar for headings, bold/italic/strikethrough, lists and checklists, links, tables,
   code blocks, and dividers; Markdown shortcuts as you type; a toggle to see the raw Markdown or
   the **changes since the last save**; and a menu to link another page. Or edit as **Markdown beside
-  a live preview**. `[[Page title]]` links pages (missing ones offer to be created). Work in progress
+  a live preview**. `[[Page title]]` links pages (missing ones offer to be created). **Collapsible sections** use the Markdown
+  directive syntax — `:::details{title="Winter duty"}` … `:::` (or `:::details[Winter duty]`) — and
+  the visual editor's toolbar inserts them as a block with an editable title. Work in progress
   is kept on the device until saved (and offered back after a crash or closed tab); Ctrl/⌘+S saves;
   leaving with unsaved changes asks first; and a save that would overwrite someone else's newer
   version stops and says who. Longer pages get **On this page** (from their headings). Raw HTML

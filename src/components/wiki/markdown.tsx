@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Children, isValidElement, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkDirective from "remark-directive";
+import { remarkWikiDirectives } from "@/lib/wiki/directives";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { normalizeWikiLinks } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
@@ -74,6 +76,10 @@ const components: Components = {
   code: ({ node: _node, className, ...props }) => <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />,
   pre: ({ node: _node, ...props }) => <pre className="overflow-x-auto rounded-lg bg-accent p-3 text-sm [&_code]:bg-transparent [&_code]:p-0" {...props} />,
   hr: () => <hr className="border-border" />,
+  details: ({ node: _node, ...props }) => <details className="wiki-details group rounded-lg border border-border bg-surface px-4 py-2 [&>*+*]:mt-3" {...props} />,
+  summary: ({ node: _node, ...props }) => (
+    <summary className="-mx-4 -my-2 cursor-pointer select-none rounded-lg px-4 py-2 font-semibold text-foreground hover:bg-accent/60 group-open:rounded-b-none group-open:border-b group-open:border-border" {...props} />
+  ),
   table: ({ node: _node, ...props }) => (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm" {...props} />
@@ -105,7 +111,7 @@ export function WikiMarkdown({ source, circleId, pages }: { source: string; circ
   if (!source.trim()) return <p className="text-sm text-muted">This page is empty.</p>;
   return (
     <div className="flex flex-col gap-3 break-words text-foreground">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
         {linkWikiPages(normalizeWikiLinks(source), circleId, pages)}
       </ReactMarkdown>
     </div>

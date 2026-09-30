@@ -250,7 +250,8 @@ export function WikiEditor({
       )}
 
       <p className="text-xs text-muted">
-        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page. Ctrl/⌘+S saves.
+        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page. A collapsible section:{" "}
+        <code>:::details{"{"}title=&quot;…&quot;{"}"}</code> … <code>:::</code> (or the toolbar&apos;s <strong>⇕</strong> button). Ctrl/⌘+S saves.
       </p>
       <div className="flex gap-2">
         <Button onClick={() => void save()} disabled={saving || !title.trim() || !dirty}>
