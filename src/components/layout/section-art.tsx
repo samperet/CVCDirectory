@@ -8,6 +8,9 @@ const ART: Record<string, string> = {
   "/library": "/sections/library.webp",
   "/resources": "/sections/resources.webp",
   "/forum": "/sections/forum.webp",
+  "/circles": "/sections/circles.webp",
+  "/skills": "/sections/skills.webp",
+  "/photos": "/sections/photos.webp",
 };
 
 export const hasSectionArt = (href: string) => href in ART;

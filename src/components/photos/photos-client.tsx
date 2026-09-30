@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { SectionArt } from "@/components/layout/section-art";
 
 const photoUrl = (photo: Photo) => `/api/photos/${photo.id}`;
 
@@ -304,9 +305,12 @@ export function PhotosClient() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Photos</h1>
-          <p className="text-sm text-muted">Snapshots of life at CVC.</p>
+        <div className="flex items-center gap-3">
+          <SectionArt href="/photos" size={48} />
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Photos</h1>
+            <p className="text-sm text-muted">Snapshots of life at CVC.</p>
+          </div>
         </div>
         <input
           ref={fileInput}
