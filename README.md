@@ -227,6 +227,21 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   isn't rendered and images show as their description. Every signed-in resident reads a wiki;
   those who can add the circle's documents edit it. Each page keeps its last 25 versions to view
   or restore, and its address when renamed. Stored per circle in `wiki/<circleId>.json`.
+- **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
+  on or off (with Wiki and Documents, under **Edit details**). A task has a title, Markdown details
+  (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
+  (anyone in the directory — the circle's members listed first), a due date, a priority, and a
+  checklist whose progress shows as a bar. The board has a column per status (stacked on phones):
+  drag a card to move it, or use its status menu; filter to *Mine* or *Unassigned*, or find one by
+  title or number. Each task has its own page (`/circles/<id>/tasks/<number>`) with a log of what's
+  happened to it and **nested comments** — reply to any comment, fold a conversation away, link to
+  one comment; a deleted comment with replies stays as "deleted" so the replies still make sense.
+  The circle's members, the Board, and admins (anyone, for Community) add and change tasks; a task's
+  owner moves it along (status and checklist) or hands it back; anyone can take on an unowned task
+  (**I'll take it**) and comment. The dashboard lists **Your tasks** across circles. Push
+  notifications (topic *tasks*): a task given to you, a task you added being done, and comments on
+  tasks you own, added, or are replying in. Stored as `tasks/<circleId>.json` and
+  `task-comments/<circleId>.json`.
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors

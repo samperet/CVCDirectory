@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight, Layers, Share2, Sparkles, MessagesSquare, BookUser, Camera, Lightbulb, FileText } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
+import { MyTasks } from "@/components/tasks/my-tasks";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 import { getSessionUser } from "@/lib/auth/session";
@@ -100,6 +101,7 @@ export default async function HomePage() {
       </section>
       <NotificationsNudge />
       <NextEvent event={nextEvent ?? null} />
+      <MyTasks />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
           <Link

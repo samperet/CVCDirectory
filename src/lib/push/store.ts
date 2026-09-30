@@ -17,6 +17,7 @@ export const TOPICS = {
   circles: "Requests to join your circles, and answers to yours",
   polls: "New community polls",
   wiki: "Comments on wiki pages you've written or commented on",
+  tasks: "Tasks given to you, and comments on tasks you're part of",
 } as const;
 
 export type Topic = keyof typeof TOPICS;
@@ -33,6 +34,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   circles: true,
   polls: true,
   wiki: true,
+  tasks: true,
 };
 
 export interface PushSubscriptionRecord {

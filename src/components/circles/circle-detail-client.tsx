@@ -16,6 +16,7 @@ import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { CommunityPolls } from "@/components/polls/community-polls";
 import { WikiSection } from "@/components/wiki/wiki-client";
+import { TasksSection } from "@/components/tasks/task-board";
 import { featureEnabled } from "@/lib/circles/features";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
@@ -181,7 +182,11 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
   const [form, setForm] = useState({ name: circle.name, description: circle.description ?? "" });
   const [club, setClub] = useState(circle.kind === "club");
   const kindChanged = club !== (circle.kind === "club");
-  const [features, setFeatures] = useState({ documents: featureEnabled(circle, "documents"), wiki: featureEnabled(circle, "wiki") });
+  const [features, setFeatures] = useState({
+    tasks: featureEnabled(circle, "tasks"),
+    wiki: featureEnabled(circle, "wiki"),
+    documents: featureEnabled(circle, "documents"),
+  });
   const save = useCircleMutation(
     () =>
       apiFetch(`/api/circles/${circle.id}`, {
@@ -213,8 +218,9 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         <legend className="mb-1 text-xs font-medium text-muted">Sections on this page</legend>
         {(
           [
-            ["documents", "Documents"],
+            ["tasks", "Tasks"],
             ["wiki", "Wiki"],
+            ["documents", "Documents"],
           ] as const
         ).map(([feature, label]) => (
           <label key={feature} className="flex items-center gap-2">
@@ -591,6 +597,12 @@ export function CircleDetailClient({ id }: { id: string }) {
           {community ? (
             <Card id="polls" className="scroll-mt-24">
               <CommunityPolls />
+            </Card>
+          ) : null}
+
+          {featureEnabled(circle, "tasks") ? (
+            <Card id="tasks" className="scroll-mt-24">
+              <TasksSection circle={circle} />
             </Card>
           ) : null}
 
