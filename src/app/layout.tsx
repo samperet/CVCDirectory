@@ -5,6 +5,7 @@ import { ReactQueryProvider } from "@/components/layout/react-query-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AppShell } from "@/components/layout/app-shell";
 import { ToastProvider } from "@/components/ui/use-toast";
+import { sessionPayload } from "@/lib/auth/me";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -26,15 +27,17 @@ export const viewport: Viewport = {
   themeColor: "#97cf8a",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Who's signed in, sent with the page so the first paint has the right layout.
+  const session = await sessionPayload().catch(() => undefined);
   return (
     <html lang="en" className={inter.variable}>
       <body className="font-sans">
-        <ReactQueryProvider>
+        <ReactQueryProvider session={session}>
           <ToastProvider>
             <AppShell>{children}</AppShell>
             <Toaster />
