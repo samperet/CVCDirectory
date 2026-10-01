@@ -230,7 +230,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   finds consented documents by the word "consented". The Secretary can withdraw a record of consent.
   (`PUT`/`DELETE /api/documents/<id>/consent`; stored with the document as `consent`.)
 - **The wiki** (`/wiki`) – one wiki for all of CVC. Every page has a **parent circle**, and its own
-  settings (nothing is inherited): **who can see it** — everyone (the default), only its keeper
+  settings (nothing is inherited): **who can see it** — everyone (the default), only its parent
   circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the
   default; anyone, for Community's pages) or anyone who can see it. The parent circle's members
   (and the Board and admins, who can always see and edit everything) change the parent circle and
