@@ -238,8 +238,8 @@ export function WikiEditor({
       if (!linked.has(wanted.toLowerCase())) continue;
       newPages.current.delete(wanted);
       if (existing.has(wanted.toLowerCase())) continue;
-      // Started under this page, kept by the same circle.
-      const created = await apiFetch("/api/wiki/pages", { method: "POST", body: JSON.stringify({ title: wanted, body: "", parentId: saved.id }) }).catch(() => null);
+      // Kept by the same circle as this page.
+      const created = await apiFetch("/api/wiki/pages", { method: "POST", body: JSON.stringify({ title: wanted, body: "", from: saved.id }) }).catch(() => null);
       if (created) made++;
     }
     if (made) {

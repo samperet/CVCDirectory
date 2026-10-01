@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 }
 
 const newNoteSchema = z.object({
-  newNote: pageInputSchema.omit({ parentId: true, keeper: true }).extend({ circleId: z.string().min(1).max(80) }),
+  newNote: pageInputSchema.omit({ from: true, keeper: true }).extend({ circleId: z.string().min(1).max(80) }),
   target: targetSchema,
   until: pinInputSchema.shape.until,
   reason: pinInputSchema.shape.reason,

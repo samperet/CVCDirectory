@@ -1,13 +1,7 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/admins";
-import { WikiMapClient } from "@/components/admin/wiki-map-client";
 
-export const metadata = { title: "Wiki map · CVC Directory" };
-export const dynamic = "force-dynamic";
-
-/** Admins only: everyone else goes back to the dashboard. */
-export default async function WikiMapPage() {
-  if (!isAdmin(await getSessionUser())) redirect("/");
-  return <WikiMapClient />;
+/** The wiki map moved to the top of the documents page, for everyone. */
+export default function WikiMapPage({ searchParams }: { searchParams: { focus?: string; circle?: string } }) {
+  const query = new URLSearchParams(Object.entries(searchParams).filter(([, value]) => typeof value === "string") as [string, string][]).toString();
+  redirect(`/documents${query ? `?${query}` : ""}`);
 }

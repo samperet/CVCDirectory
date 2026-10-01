@@ -34,7 +34,7 @@ export async function pageContext(slug: string, need: "view" | "edit" | "manage"
   return { ...ctx, page, canEdit, canManage };
 }
 
-export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict" | "bad_parent") {
+export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict") {
   switch (reason) {
     case "not_found":
       return problem("That page no longer exists", 404, "Not Found");
@@ -46,8 +46,6 @@ export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_versio
       return problem("That version no longer exists", 404, "Not Found");
     case "conflict":
       return problem("Someone else saved this page while you were editing it", 409, "Conflict");
-    case "bad_parent":
-      return problem("That page to start it under no longer exists");
   }
 }
 

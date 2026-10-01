@@ -75,13 +75,13 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
   const keeper = circles.find((circle) => circle.id === page.keeper);
   const own = page.keeper === here?.circleId;
   return (
-    <section className="my-3 border-l-4 pl-4" style={{ borderColor: page.color === "white" ? style.edge : style.swatch }} aria-label={`${page.title}${own || !keeper ? "" : `, kept by ${keeper.name}`}`} data-embedded={page.title}>
+    <section className="my-3 border-l-4 pl-4" style={{ borderColor: page.color === "white" ? style.edge : style.swatch }} aria-label={`${page.title}${own || !keeper ? "" : `, from ${keeper.name}`}`} data-embedded={page.title}>
       <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
         <span className="font-semibold text-foreground-light">
           {page.title}
           {section ? ` › ${section}` : ""}
         </span>
-        {own || !keeper ? null : <span>kept by {keeper.name}</span>}
+        {own || !keeper ? null : <span>from {keeper.name}</span>}
         <Link href={section ? `${pageHref}#${headingSlug(section)}` : pageHref} className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline">
           Open <ArrowUpRight className="h-3 w-3" aria-hidden />
         </Link>

@@ -50,8 +50,8 @@ function ViewPicker({ value, onChange, disabled }: { value: InfoView; onChange: 
 /**
  * A circle's information: the wiki pages added on it (and any pinned to it
  * from other circles), as full-colour cards, newest first. "Add Information"
- * starts a new page here; pages started from inside a page aren't listed,
- * but are all under "All pages". The circle's members (and the Board)
+ * starts a new page kept by the circle; other pages it keeps (started from
+ * links in pages) are under "All pages". The circle's members (and the Board)
  * choose how they show: in full, as summary cards, or titles only.
  */
 export function CircleInformation({ circle, canArrange = false }: { circle: Circle; canArrange?: boolean }) {
@@ -118,18 +118,11 @@ export function CircleInformation({ circle, canArrange = false }: { circle: Circ
       ) : (
         <p className="text-sm text-muted">{data?.canAdd ? "Nothing here yet — add the first piece of information." : "Nothing here yet."}</p>
       )}
-      {pageCount || user?.isAdmin ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-3 text-sm">
-          {pageCount ? (
-            <Link href={`/wiki?keeper=${circle.id}`} className="font-medium text-secondary-foreground hover:underline">
-              All pages {circle.name} keeps ({pageCount})
-            </Link>
-          ) : null}
-          {user?.isAdmin ? (
-            <Link href={`/admin/wiki-map?circle=${circle.id}`} className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline">
-              <Network className="h-4 w-4" /> Map
-            </Link>
-          ) : null}
+      {pageCount ? (
+        <div className="border-t border-border pt-3 text-sm">
+          <Link href={`/wiki?keeper=${circle.id}`} className="font-medium text-secondary-foreground hover:underline">
+            All {circle.name} pages ({pageCount})
+          </Link>
         </div>
       ) : null}
       {adding ? <AddInformationDialog circle={circle} onClose={() => setAdding(false)} /> : null}

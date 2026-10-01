@@ -13,22 +13,21 @@ import { useToast } from "@/components/ui/use-toast";
 /** Who can see a page, in words. */
 export function viewLabel(view: PageView, circles: { id: string; name: string }[] | undefined) {
   if (view.kind === "everyone") return "Everyone";
-  if (view.kind === "keeper") return "Keeper circle only";
+  if (view.kind === "keeper") return "Parent circle only";
   const names = view.circles.map((id) => circles?.find((circle) => circle.id === id)?.name ?? id);
-  return `Keeper circle and ${names.join(", ")}`;
+  return `Parent circle and ${names.join(", ")}`;
 }
 
 /**
- * A page's settings, for the circle that keeps it (and the Board): which
- * circle keeps it, who can see it, and who can edit it. Each page has its
- * own; pages under it don't follow.
+ * Who can see a page and who can edit it, set by its parent circle (and the
+ * Board). Each page has its own settings.
  */
 export function PageSettings({ page, slug, onSaved }: { page: WikiPage; slug: string; onSaved: (page: WikiPage) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setOpen(true)}>
-        <Settings2 className="h-4 w-4" /> Settings
+        <Settings2 className="h-4 w-4" /> Who can see &amp; edit
       </Button>
       {open ? (
         <SettingsDialog
@@ -48,16 +47,16 @@ export function PageSettings({ page, slug, onSaved }: { page: WikiPage; slug: st
 function SettingsDialog({ page, slug, onClose, onSaved }: { page: WikiPage; slug: string; onClose: () => void; onSaved: (page: WikiPage) => void }) {
   const { toast } = useToast();
   const circles = useCircles() ?? [];
-  const [keeper, setKeeper] = useState(page.keeper);
+  const keeper = page.keeper;
   const [viewKind, setViewKind] = useState<PageView["kind"]>(page.view.kind);
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(page.view.kind === "circles" ? page.view.circles : []));
   const [edit, setEdit] = useState<PageEdit["kind"]>(page.edit.kind);
-  const keeperName = circles.find((circle) => circle.id === keeper)?.name ?? "the keeper circle";
+  const keeperName = circles.find((circle) => circle.id === keeper)?.name ?? "the parent circle";
   const others = circles.filter((circle) => circle.id !== keeper && circle.id !== "community" && circle.id !== "board");
   const view: PageView = viewKind === "circles" ? { kind: "circles", circles: Array.from(chosen).filter((id) => id !== keeper) } : { kind: viewKind };
   const ready = !(view.kind === "circles" && !view.circles.length);
   const save = useMutation({
-    mutationFn: () => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ keeper, view, edit: { kind: edit } }) }),
+    mutationFn: () => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ view, edit: { kind: edit } }) }),
     onSuccess: ({ page: updated }) => {
       toast({ title: "Settings saved" });
       onSaved(updated);
@@ -66,19 +65,7 @@ function SettingsDialog({ page, slug, onClose, onSaved }: { page: WikiPage; slug
   });
   const radio = "h-4 w-4 accent-[#3f7d5c]";
   return (
-    <Dialog title="Page settings" icon={<Settings2 className="h-5 w-5 text-primary" />} onClose={onClose}>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-semibold text-foreground">Kept by</span>
-        <select value={keeper} onChange={(event) => setKeeper(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-sm text-foreground">
-          {circles.map((circle) => (
-            <option key={circle.id} value={circle.id}>
-              {circle.name}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-muted">The circle that looks after it — its members can always edit it and change these settings.</span>
-      </label>
-
+    <Dialog title="Who can see and edit it" icon={<Settings2 className="h-5 w-5 text-primary" />} onClose={onClose}>
       <fieldset className="flex flex-col gap-1.5 text-sm">
         <legend className="mb-1 font-semibold text-foreground">Who can see it</legend>
         <label className="flex items-center gap-2">

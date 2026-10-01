@@ -162,7 +162,7 @@ function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
             {section ? <span className="font-normal text-muted"> › {section}</span> : null}
           </p>
           <p className="text-xs text-muted">
-            Shown here{circle && circle.id !== wiki?.circleId ? `, kept by ${circle.name}` : ""} ·{" "}
+            Shown here{circle && circle.id !== wiki?.circleId ? `, from ${circle.name}` : ""} ·{" "}
             <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setPreview(!preview)} aria-expanded={preview}>
               {preview ? "Hide preview" : "Show preview"}
             </button>

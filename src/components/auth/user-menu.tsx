@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Bell, Eye, EyeOff, Globe, History, Home, LogOut, Network, ShieldCheck, UserRound } from "lucide-react";
+import { Bell, Eye, EyeOff, Globe, History, Home, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLogout, usePeople, useSession, useViewAs } from "@/lib/auth/client";
 import { NameCombobox } from "@/components/auth/name-combobox";
@@ -88,13 +88,6 @@ export function UserMenu() {
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/admin/sign-ins" onClick={() => setOpen(false)}>
                   <History className="h-4 w-4" /> Sign-in log
-                </Link>
-              </Button>
-            ) : null}
-            {user.isAdmin ? (
-              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
-                <Link href="/admin/wiki-map" onClick={() => setOpen(false)}>
-                  <Network className="h-4 w-4" /> Wiki map
                 </Link>
               </Button>
             ) : null}

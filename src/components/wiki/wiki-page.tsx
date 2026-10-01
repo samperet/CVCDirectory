@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight, CornerDownRight, FilePlus2, FolderTree, History, ListTree, Lock, Network, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeft, CornerDownRight, History as HistoryIcon, ListTree, Lock, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
+import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { timeAgo } from "@/lib/time";
@@ -17,10 +17,9 @@ import { ColorSwatches } from "@/components/pins/color-swatches";
 import { PinToButton, PinnedTo } from "@/components/pins/pin-picker";
 import { WikiComments, threadsOf, useComments, useQuoteHighlights } from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
-import { NewPageForm, useWikiPages } from "@/components/wiki/wiki-client";
+import { useWikiPages } from "@/components/wiki/wiki-client";
 import { useCircles, wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
-import { Dialog } from "@/components/pins/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
@@ -74,7 +73,8 @@ export function WikiPageClient({ slug }: { slug: string }) {
   const pages = useMemo(() => pageList ?? [], [pageList]);
   const commentData = useComments(circleId, slug).data;
   const threads = useMemo(() => threadsOf(commentData?.comments ?? []), [commentData]);
-  const [mode, setMode] = useState<"read" | "edit" | "history">(params.get("edit") ? "edit" : "read");
+  const [mode, setMode] = useState<"read" | "edit">(params.get("edit") ? "edit" : "read");
+  const [showHistory, setShowHistory] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
   const [pendingQuote, setPendingQuote] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -118,8 +118,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
     onSuccess: ({ page: updated }) => {
       saved(updated);
       setViewing(null);
-      setMode("read");
-      toast({ title: "Earlier version restored" });
+      setShowHistory(false);
+      // The editor takes the restored text in, as it does anyone's save.
+      toast({ title: "Earlier version restored", description: "It's in the editor now." });
     },
     onError: (err: Error) => toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
@@ -131,7 +132,14 @@ export function WikiPageClient({ slug }: { slug: string }) {
     },
     onError: (err: Error) => toast({ title: "Could not change the colour", description: err.message, variant: "destructive" }),
   });
-  const [addingSub, setAddingSub] = useState(false);
+  const rehome = useMutation({
+    mutationFn: (keeper: string) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ keeper }) }),
+    onSuccess: ({ page: updated }) => {
+      saved(updated);
+      toast({ title: "Parent circle changed" });
+    },
+    onError: (err: Error) => toast({ title: "Could not change the parent circle", description: err.message, variant: "destructive" }),
+  });
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/wiki/pages/${slug}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -165,23 +173,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
     }
   };
 
-  // Where the page sits: the wiki, then the pages it's under (a breadcrumb back up).
-  const ancestors = useMemo(() => (page ? ancestorsOf(page, pages) : []), [page, pages]);
-  const children = useMemo(() => (page ? pages.filter((entry) => entry.parentId === page.id).sort((a, b) => a.title.localeCompare(b.title)) : []), [page, pages]);
   const back = (
-    <nav className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm text-muted" aria-label="Where this page is">
-      <Link href="/wiki" className="inline-flex items-center gap-1 hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Wiki
-      </Link>
-      {ancestors.map((entry) => (
-        <span key={entry.id} className="inline-flex min-w-0 items-center gap-1">
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <Link href={`/wiki/${entry.slug}`} className="truncate hover:text-foreground">
-            {entry.title}
-          </Link>
-        </span>
-      ))}
-    </nav>
+    <Link href="/wiki" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
+      <ArrowLeft className="h-4 w-4" /> Wiki
+    </Link>
   );
   const paper = noteStyle(page?.color);
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
@@ -200,81 +195,42 @@ export function WikiPageClient({ slug }: { slug: string }) {
     return (
       <div className="flex flex-col gap-4">
         {back}
-        <Card style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
-          <WikiEditor
-            circleId={circleId}
-            circleName={circle?.name ?? ""}
-            page={page}
-            pages={pages}
-            onDone={(updated) => {
-              saved(updated);
-              exitEdit();
-            }}
-          />
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      {back}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card className="flex min-w-0 flex-col gap-4" style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
-              <p className="text-xs text-muted">
-                Kept by{" "}
-                {circle ? (
-                  <Link href={`/circles/${circle.id}`} className="font-medium hover:underline">
-                    {circle.name}
-                  </Link>
-                ) : (
-                  "a circle"
-                )}
-                {page.view.kind !== "everyone" ? (
-                  <span className="ml-1 inline-flex items-center gap-0.5" title={viewLabel(page.view, circles)}>
-                    <Lock className="h-3 w-3" aria-hidden /> {viewLabel(page.view, circles)}
-                  </span>
-                ) : null}
-                {" · "}Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
-                {othersEditing.length ? (
-                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary" data-live-editors>
-                    <Pencil className="h-3 w-3" aria-hidden /> {othersEditing.map((editor) => editor.name).join(", ")} {othersEditing.length === 1 ? "is" : "are"} editing
-                  </span>
-                ) : null}
-              </p>
-              {canEdit ? (
-                <div className="mt-2 flex items-center gap-2 text-xs text-muted">
-                  Colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
-                </div>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {canEdit ? (
-                <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
-                  <Pencil className="h-4 w-4" /> Edit
-                </Button>
-              ) : null}
+        <Card className="flex flex-col gap-3" style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
+          {/* The page's settings and tools, while editing it. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 pb-3 text-xs text-muted" data-page-tools>
+            {canManage ? (
+              <label className="flex items-center gap-2">
+                Parent circle
+                <select
+                  value={page.keeper}
+                  onChange={(event) => rehome.mutate(event.target.value)}
+                  disabled={rehome.isPending}
+                  className="h-8 max-w-[12rem] rounded-md border border-border bg-white px-1.5 text-xs text-foreground"
+                >
+                  {(circles ?? []).map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <span>Parent circle {circle?.name ?? "—"}</span>
+            )}
+            <span className="flex items-center gap-2">
+              Colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
+            </span>
+            <span className="flex flex-wrap items-center gap-2">
               {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
-              {user ? <PinToButton pageId={page.id} title={page.title} /> : null}
-              {user?.isAdmin ? (
-                <Button asChild size="sm" variant="outline" className="gap-1.5">
-                  <Link href={`/admin/wiki-map?focus=${encodeURIComponent(`note:${page.id}`)}`} title="See how this note connects (admins)">
-                    <Network className="h-4 w-4" /> Map
-                  </Link>
-                </Button>
-              ) : null}
+              <PinToButton pageId={page.id} title={page.title} />
               {history.length ? (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMode(mode === "history" ? "read" : "history")}>
-                  {mode === "history" ? <X className="h-4 w-4" /> : <History className="h-4 w-4" />} {mode === "history" ? "Close history" : `History (${history.length})`}
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowHistory(!showHistory)} aria-expanded={showHistory}>
+                  {showHistory ? <X className="h-4 w-4" /> : <HistoryIcon className="h-4 w-4" />} {showHistory ? "Close history" : `History (${history.length})`}
                 </Button>
               ) : null}
-            </div>
+            </span>
           </div>
-
-          {mode === "history" ? (
+          {showHistory ? (
             <div className="flex flex-col gap-3 rounded-lg border border-border bg-accent/40 p-3">
               <h2 className="text-sm font-semibold text-foreground">Earlier versions</h2>
               <ul className="flex flex-col gap-1.5 text-sm">
@@ -313,6 +269,58 @@ export function WikiPageClient({ slug }: { slug: string }) {
               ) : null}
             </div>
           ) : null}
+          <WikiEditor
+            circleId={circleId}
+            circleName={circle?.name ?? ""}
+            page={page}
+            pages={pages}
+            onDone={(updated) => {
+              // The editor's copy has the text; settings changed while editing (colour, parent circle, who can see it) are newer here.
+              saved({ ...page, title: updated.title, body: updated.body, updatedAt: updated.updatedAt, updatedBy: updated.updatedBy, historyCount: updated.historyCount });
+              exitEdit();
+            }}
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {back}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card className="flex min-w-0 flex-col gap-4" style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
+              <p className="text-xs text-muted">
+                Parent circle{" "}
+                {circle ? (
+                  <Link href={`/circles/${circle.id}`} className="font-medium hover:underline">
+                    {circle.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+                {page.view.kind !== "everyone" ? (
+                  <span className="ml-1 inline-flex items-center gap-0.5" title={viewLabel(page.view, circles)}>
+                    <Lock className="h-3 w-3" aria-hidden /> {viewLabel(page.view, circles)}
+                  </span>
+                ) : null}
+                {" · "}Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
+                {othersEditing.length ? (
+                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary" data-live-editors>
+                    <Pencil className="h-3 w-3" aria-hidden /> {othersEditing.map((editor) => editor.name).join(", ")} {othersEditing.length === 1 ? "is" : "are"} editing
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            {canEdit ? (
+              <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            ) : null}
+          </div>
 
           {toc.length >= 3 ? (
             <nav className="rounded-lg border border-border bg-accent/30 p-3 text-sm lg:hidden" aria-label="On this page">
@@ -352,36 +360,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <TocList toc={toc} />
             </nav>
           ) : null}
-          {children.length || canEdit ? (
-            <nav className="rounded-lg border border-border bg-surface p-3 text-sm" aria-label="Sub-pages">
-              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
-                <FolderTree className="h-3.5 w-3.5" /> Sub-pages
-              </p>
-              {children.length ? (
-                <ul className="flex flex-col gap-0.5">
-                  {children.map((child) => (
-                    <li key={child.id} className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: noteStyle(child.color).swatch }} aria-hidden />
-                      <Link href={`/wiki/${child.slug}`} className="min-w-0 truncate text-foreground-light hover:text-foreground hover:underline">
-                        {child.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {canEdit ? (
-                <button type="button" onClick={() => setAddingSub(true)} className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline">
-                  <FilePlus2 className="h-3.5 w-3.5" /> Add a sub-page
-                </button>
-              ) : null}
-            </nav>
-          ) : null}
-          {addingSub ? (
-            <Dialog title="Add a sub-page" icon={<FilePlus2 className="h-5 w-5 text-primary" />} onClose={() => setAddingSub(false)}>
-              <p className="text-sm text-muted">A page under “{page.title}”, kept by {circle?.name ?? "the same circle"}.</p>
-              <NewPageForm parentId={page.id} onCancel={() => setAddingSub(false)} />
-            </Dialog>
-          ) : null}
           <PinnedTo pageId={page.id} />
           <LinkedFrom circleId={circleId} slug={slug} />
           <WikiComments
@@ -417,18 +395,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
       ) : null}
     </div>
   );
-}
-
-/** The pages a page is part of, from the top down (stopping at a loop, or six levels). */
-function ancestorsOf(page: Pick<WikiPage, "id" | "parentId">, pages: WikiPageSummary[]) {
-  const chain: WikiPageSummary[] = [];
-  for (let id = page.parentId; id && chain.length < 6; ) {
-    const found = pages.find((entry) => entry.id === id);
-    if (!found || found.id === page.id || chain.some((entry) => entry.id === found.id)) break;
-    chain.unshift(found);
-    id = found.parentId;
-  }
-  return chain;
 }
 
 /** "Linked from": the pages that link to (or embed) this one. */

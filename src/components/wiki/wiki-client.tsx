@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, ChevronRight, Lock, Network, Plus, Search } from "lucide-react";
+import { BookOpen, Lock, Plus, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
 
 /** The wiki's pages that you can see (and the circles you can start pages for). */
 export function useWikiPages() {
@@ -23,11 +22,11 @@ export function useWikiPages() {
 }
 
 /**
- * Start a page: give it a title, then write it. Under another page
- * (`parentId`) it's kept by that page's circle; otherwise choose which of
- * your circles keeps it.
+ * Start a page: give it a title, then write it. Started from a link in
+ * another page (`from`), it's kept by that page's circle; otherwise choose
+ * which of your circles keeps it.
  */
-export function NewPageForm({ initialTitle = "", parentId, keeper: preferred, onCancel }: { initialTitle?: string; parentId?: string; keeper?: string; onCancel: () => void }) {
+export function NewPageForm({ initialTitle = "", from, keeper: preferred, onCancel }: { initialTitle?: string; from?: string; keeper?: string; onCancel: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -39,7 +38,7 @@ export function NewPageForm({ initialTitle = "", parentId, keeper: preferred, on
     mutationFn: () =>
       apiFetch<{ page: WikiPage }>("/api/wiki/pages", {
         method: "POST",
-        body: JSON.stringify({ title, body: "", ...(parentId ? { parentId } : { keeper }) }),
+        body: JSON.stringify({ title, body: "", ...(from && !chosen ? { from } : { keeper }) }),
       }),
     onSuccess: ({ page }) => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
@@ -56,9 +55,9 @@ export function NewPageForm({ initialTitle = "", parentId, keeper: preferred, on
       }}
     >
       <Input autoFocus placeholder="Page title, e.g. How we run meetings" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} className="bg-white" aria-label="Page title" />
-      {!parentId && keepers.length > 1 ? (
+      {!from && keepers.length > 1 ? (
         <label className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          Kept by
+          Parent circle
           <select value={keeper} onChange={(event) => setChosen(event.target.value)} className="h-9 rounded-md border border-border bg-white px-2 text-sm text-foreground">
             {keepers.map((circle) => (
               <option key={circle.id} value={circle.id}>
@@ -69,7 +68,7 @@ export function NewPageForm({ initialTitle = "", parentId, keeper: preferred, on
         </label>
       ) : null}
       <div className="flex gap-2">
-        <Button type="submit" disabled={!title.trim() || create.isPending || (!parentId && !keeper)}>
+        <Button type="submit" disabled={!title.trim() || create.isPending || (!from && !keeper)}>
           {create.isPending ? "Adding…" : "Add page"}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>
@@ -80,27 +79,7 @@ export function NewPageForm({ initialTitle = "", parentId, keeper: preferred, on
   );
 }
 
-type Branch = { page: WikiPageSummary; children: Branch[] };
-
-/** The pages as a tree: each under the page it was started from (or at the top, when that page isn't one you can see). */
-function treeOf(pages: WikiPageSummary[]): Branch[] {
-  const byId = new Map(pages.map((page) => [page.id, { page, children: [] as Branch[] }]));
-  const roots: Branch[] = [];
-  for (const branch of Array.from(byId.values())) {
-    const parent = branch.page.parentId ? byId.get(branch.page.parentId) : undefined;
-    // Guard against a loop: a page under itself goes to the top.
-    if (parent && parent !== branch) parent.children.push(branch);
-    else roots.push(branch);
-  }
-  const sort = (list: Branch[]) => {
-    list.sort((a, b) => a.page.title.localeCompare(b.page.title));
-    list.forEach((entry) => sort(entry.children));
-    return list;
-  };
-  return sort(roots);
-}
-
-function PageRow({ page, circleName, depth = 0 }: { page: WikiPageSummary; circleName: (id: string) => string; depth?: number }) {
+function PageRow({ page, circleName }: { page: WikiPageSummary; circleName: (id: string) => string }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <Link href={`/wiki/${page.slug}`} className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline">
@@ -108,55 +87,17 @@ function PageRow({ page, circleName, depth = 0 }: { page: WikiPageSummary; circl
         <span className="truncate">{page.title}</span>
         {page.view.kind !== "everyone" ? <Lock className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Not everyone can see this page" /> : null}
       </Link>
-      <p className={cn("text-xs text-muted", depth >= 0 && "pl-[1.125rem]")}>
-        Kept by {circleName(page.keeper)} · edited {timeAgo(page.updatedAt)}
+      <p className="pl-[1.125rem] text-xs text-muted">
+        {circleName(page.keeper)} · edited {timeAgo(page.updatedAt)}
       </p>
     </div>
   );
 }
 
-function Tree({ branches, circleName, depth = 0 }: { branches: Branch[]; circleName: (id: string) => string; depth?: number }) {
-  const [open, setOpen] = useState<Set<string>>(() => new Set());
-  return (
-    <ul className={cn("flex flex-col", depth ? "ml-3 border-l border-border pl-3" : "divide-y divide-border")}>
-      {branches.map(({ page, children }) => {
-        const expanded = open.has(page.id);
-        return (
-          <li key={page.id} className={cn(depth ? "py-1" : "py-2 first:pt-0 last:pb-0")}>
-            <div className="flex items-start gap-1">
-              {children.length ? (
-                <button
-                  type="button"
-                  onClick={() => setOpen((current) => {
-                    const next = new Set(current);
-                    if (next.has(page.id)) next.delete(page.id);
-                    else next.add(page.id);
-                    return next;
-                  })}
-                  className="mt-0.5 rounded p-0.5 text-muted hover:bg-accent hover:text-foreground"
-                  aria-expanded={expanded}
-                  aria-label={`${expanded ? "Hide" : "Show"} the pages under ${page.title}`}
-                >
-                  <ChevronRight className={cn("h-4 w-4 transition", expanded && "rotate-90")} />
-                </button>
-              ) : (
-                <span className="w-5 shrink-0" aria-hidden />
-              )}
-              <PageRow page={page} circleName={circleName} depth={depth} />
-              {children.length ? <span className="mt-0.5 shrink-0 text-xs text-muted">{children.length}</span> : null}
-            </div>
-            {children.length && expanded ? <Tree branches={children} circleName={circleName} depth={depth + 1} /> : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 /**
- * The wiki: every page you can see, as a tree (each page under the one it
- * was started from), or found by title; narrowed to the pages one circle
- * keeps (`?keeper=`). New pages start here (`?new=Title&from=<pageId>`
+ * The wiki: every page you can see, by title — found by search, or
+ * narrowed to the pages one circle keeps (`?keeper=`). Pages connect by
+ * linking to each other. New pages start here (`?new=Title&from=<pageId>`
  * starts one from a link to a page that doesn't exist yet).
  */
 export function WikiHomeClient() {
@@ -175,7 +116,6 @@ export function WikiHomeClient() {
   const keepersWithPages = useMemo(() => Array.from(new Set(all.map((page) => page.keeper))).sort((a, b) => circleName(a).localeCompare(circleName(b))), [all, circles]); // eslint-disable-line react-hooks/exhaustive-deps
   const wanted = filter.trim().toLowerCase();
   const listed = all.filter((page) => (!keeperFilter || page.keeper === keeperFilter) && (!wanted || page.title.toLowerCase().includes(wanted)));
-  const flat = !!wanted || !!keeperFilter;
   const canStart = (data?.keepers.length ?? 0) > 0;
 
   return (
@@ -185,13 +125,6 @@ export function WikiHomeClient() {
           <BookOpen className="h-6 w-6 text-primary" aria-hidden /> Wiki
         </h1>
         <div className="flex flex-wrap gap-2">
-          {user?.isAdmin ? (
-            <Button asChild variant="outline" className="gap-1.5">
-              <Link href={keeperFilter ? `/admin/wiki-map?circle=${keeperFilter}` : "/admin/wiki-map"}>
-                <Network className="h-4 w-4" /> Map
-              </Link>
-            </Button>
-          ) : null}
           {canStart ? (
             <Button className="gap-1" onClick={() => setAdding(true)}>
               <Plus className="h-4 w-4" /> New page
@@ -199,10 +132,10 @@ export function WikiHomeClient() {
           ) : null}
         </div>
       </div>
-      <p className="-mt-3 text-sm text-muted">One wiki for all of CVC. Each page is kept by a circle, which decides who can see and edit it.</p>
+      <p className="-mt-3 text-sm text-muted">One wiki for all of CVC. Each page has a parent circle, which decides who can see and edit it. Pages connect by linking to each other.</p>
       {adding ? (
         <Card>
-          <NewPageForm initialTitle={requested} parentId={from} keeper={keeperFilter || undefined} onCancel={() => setAdding(false)} />
+          <NewPageForm initialTitle={requested} from={from} keeper={keeperFilter || undefined} onCancel={() => setAdding(false)} />
         </Card>
       ) : null}
       <Card className="flex flex-col gap-4">
@@ -215,12 +148,12 @@ export function WikiHomeClient() {
             value={keeperFilter}
             onChange={(event) => router.replace(event.target.value ? `/wiki?keeper=${event.target.value}` : "/wiki")}
             className="h-10 rounded-md border border-border bg-white px-2 text-sm text-foreground"
-            aria-label="Kept by"
+            aria-label="Parent circle"
           >
-            <option value="">Every circle</option>
+            <option value="">Every parent circle</option>
             {keepersWithPages.map((id) => (
               <option key={id} value={id}>
-                Kept by {circleName(id)}
+                {circleName(id)}
               </option>
             ))}
           </select>
@@ -230,8 +163,8 @@ export function WikiHomeClient() {
         ) : error ? (
           <p className="text-sm text-foreground">{(error as Error).message}</p>
         ) : !listed.length ? (
-          <p className="text-sm text-muted">{flat ? "No pages match." : "No pages yet."}</p>
-        ) : flat ? (
+          <p className="text-sm text-muted">{wanted || keeperFilter ? "No pages match." : "No pages yet."}</p>
+        ) : (
           <ul className="flex flex-col divide-y divide-border">
             {[...listed]
               .sort((a, b) => a.title.localeCompare(b.title))
@@ -241,8 +174,6 @@ export function WikiHomeClient() {
                 </li>
               ))}
           </ul>
-        ) : (
-          <Tree branches={treeOf(listed)} circleName={circleName} />
         )}
       </Card>
     </div>

@@ -9,8 +9,8 @@ import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./li
  * The wiki: one for all of CVC. Every page, written in Markdown, has a
  * keeper — the circle that looks after it — and its own settings for who
  * can see it (everyone, the keeper circle, or chosen circles) and who can
- * edit it (the keeper circle, or anyone). Pages form one tree: a page can be
- * started under any other, whoever keeps it.
+ * edit it (the keeper circle, or anyone). Pages don't nest: they connect by
+ * linking to (and embedding) each other.
  *
  * All pages' current text is in one document (`wiki/pages.json`); each page's
  * earlier versions (the most recent 25) are in their own
@@ -57,15 +57,13 @@ export interface WikiPage {
   historyCount: number;
   /** Its colour (as a card, and as a page); unset is yellow. */
   color?: NoteColor;
-  /** The page it was started under. */
-  parentId?: string;
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
   autosaved?: boolean;
   /** Its addresses from when each circle had its own wiki, so old links still arrive. */
   aliases?: { circleId: string; slug: string }[];
 }
 
-export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "parentId" | "keeper" | "view" | "edit">;
+export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "keeper" | "view" | "edit">;
 
 const MAX_PAGES = 1000;
 const MAX_HISTORY = 25;
@@ -87,8 +85,9 @@ export const pageInputSchema = z.object({
   title,
   body: body.default(""),
   color: color.optional(),
-  parentId: z.string().max(80).optional(),
-  /** The circle that keeps it (otherwise the parent's keeper, or Community). */
+  /** The page it was started from (a link in it): the new page is kept by the same circle, when you can edit that page. */
+  from: z.string().max(80).optional(),
+  /** The circle that keeps it (otherwise the keeper of the page it was started from, or Community). */
   keeper: circleIdSchema.optional(),
 });
 export const pageUpdateSchema = z
@@ -122,13 +121,14 @@ const summary = (page: WikiPage): WikiPageSummary => ({
   view: page.view,
   edit: page.edit,
   ...(page.color ? { color: page.color } : {}),
-  ...(page.parentId ? { parentId: page.parentId } : {}),
 });
 
 type Stored = { version: number; pages: WikiPage[] };
 function normalize(raw: unknown): Stored | null {
   const value = raw as Partial<Stored> | null;
-  return value && value.version === VERSION && Array.isArray(value.pages) ? { version: VERSION, pages: value.pages } : null;
+  if (!value || value.version !== VERSION || !Array.isArray(value.pages)) return null;
+  // Pages once nested under others (`parentId`); now they only link, so that's dropped as they're read.
+  return { version: VERSION, pages: value.pages.map((page) => ("parentId" in page ? (({ parentId: _gone, ...rest }) => rest)(page as WikiPage & { parentId?: string }) : page)) };
 }
 
 /** Every page in full (the first read brings the circles' old wikis together). */
@@ -162,7 +162,7 @@ export async function getHistory(pageId: string): Promise<WikiVersion[]> {
   return Array.isArray(versions) ? (versions as WikiVersion[]) : [];
 }
 
-type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict" | "bad_parent";
+type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
 export type WikiResult = { ok: true; page: WikiPage | null } | { ok: false; reason: Failure };
 
 /** Change the pages; `archive` is a version to keep in a page's history once the change is saved. */
@@ -197,12 +197,11 @@ export const slugFor = (text: string, taken: Set<string>) => {
 
 export function createPage(
   author: WikiAuthor,
-  input: { title: string; body: string; color?: NoteColor; parentId?: string; keeper: string; view?: PageView; edit?: PageEdit }
+  input: { title: string; body: string; color?: NoteColor; keeper: string; view?: PageView; edit?: PageEdit }
 ) {
   return mutate((pages) => {
     if (pages.some((page) => page.title.toLowerCase() === input.title.toLowerCase())) return "exists";
     if (pages.length >= MAX_PAGES) return "full";
-    if (input.parentId && !pages.some((entry) => entry.id === input.parentId)) return "bad_parent";
     const now = new Date().toISOString();
     const page: WikiPage = {
       id: randomUUID(),
@@ -218,7 +217,6 @@ export function createPage(
       edit: input.edit ?? DEFAULT_EDIT,
       historyCount: 0,
       ...(input.color && input.color !== "yellow" ? { color: input.color } : {}),
-      ...(input.parentId ? { parentId: input.parentId } : {}),
     };
     return { pages: [...pages, page], page };
   });
@@ -306,19 +304,11 @@ export async function restoreVersion(slug: string, editor: WikiAuthor, index: nu
   return updatePage(slug, editor, { title: version.title, body: version.body });
 }
 
-/** A deleted page's sub-pages move up to its parent. */
 export function deletePage(slug: string) {
   return mutate((pages) => {
     const page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
-    const rest = pages
-      .filter((entry) => entry.id !== page.id)
-      .map((entry) => {
-        if (entry.parentId !== page.id) return entry;
-        const { parentId: _gone, ...moved } = entry;
-        return page.parentId ? { ...moved, parentId: page.parentId } : moved;
-      });
-    return { pages: rest, page: null };
+    return { pages: pages.filter((entry) => entry.id !== page.id), page: null };
   });
 }
 
@@ -439,7 +429,6 @@ async function migrate(): Promise<WikiPage[]> {
     edit: DEFAULT_EDIT,
     historyCount: Math.min(MAX_HISTORY, page.history?.length ?? 0),
     ...(page.color ? { color: page.color } : {}),
-    ...(page.parentId ? { parentId: page.parentId } : {}),
     ...(page.autosaved ? { autosaved: true } : {}),
     aliases: [{ circleId: circle.id, slug: page.slug }],
   }));

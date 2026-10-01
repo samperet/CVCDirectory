@@ -132,7 +132,7 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       [page.title, 20],
       [page.body, 1],
     ],
-    result: { title: page.title, href: `/wiki/${page.slug}`, meta: `Wiki · kept by ${circleName(page.keeper)}` },
+    result: { title: page.title, href: `/wiki/${page.slug}`, meta: `Wiki · ${circleName(page.keeper)}` },
     // The page as plain text: links by their words; no photos, polls, or markup.
     body: excerptOf(page.body, 50_000),
   }));

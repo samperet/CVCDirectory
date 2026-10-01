@@ -20,7 +20,7 @@ export { headingSlug, tableOfContents } from "@/lib/wiki/sections";
 type LinkData = {
   /** The circle that keeps the page being shown (its documents come first for `[[doc:…]]`). */
   circleId: string;
-  /** The page they're on: a page started from a link to a missing one is started under it. */
+  /** The page they're on: a page started from a link to a missing one is kept by the same circle. */
   pageId?: string;
   /** Undefined until the directory loads. */
   circles: CircleRef[] | undefined;

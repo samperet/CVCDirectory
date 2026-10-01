@@ -6,7 +6,7 @@ import { NameTip, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
  * The wiki in 3D: each circle a glowing sphere with its pages gathered
- * around it (pages started from another page around that one), links and
+ * around it, links and
  * pins drawn between them. Drag to turn, scroll to zoom, hover for a name,
  * click to fly to it and open its panel.
  */
@@ -45,7 +45,7 @@ export function Globe3DView({
       const nodes: Node3D[] = graph.nodes.filter((node) => node.kind === "circle" || kinds.has(node.kind)).map((node) => ({ ...node }));
       const ids = new Set(nodes.map((node) => node.id));
       const links: Link3D[] = graph.edges
-        .filter((edge) => ids.has(edge.source) && ids.has(edge.target) && (edge.kind === "belongs" || edge.kind === "child" || edgeKinds.has(edge.kind)))
+        .filter((edge) => ids.has(edge.source) && ids.has(edge.target) && (edge.kind === "belongs" || edgeKinds.has(edge.kind)))
         .map((edge) => ({ ...edge }));
       // Documents gather around their circle too.
       for (const node of nodes) {
@@ -100,7 +100,7 @@ export function Globe3DView({
           selectRef.current(node.id);
         })
         .onBackgroundClick(() => selectRef.current(null));
-      instance.d3Force("link")?.distance((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 38 : link.kind === "child" ? 22 : 110)).strength((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" || link.kind === "child" ? 0.9 : 0.05));
+      instance.d3Force("link")?.distance((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 38 : 110)).strength((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 0.9 : 0.05));
       instance.d3Force("charge")?.strength(-70);
       instance.cameraPosition({ z: 420 });
       graph3d = instance;

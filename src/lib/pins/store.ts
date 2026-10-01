@@ -48,7 +48,7 @@ export const sameNote = (a: PinNoteRef, b: PinNoteRef) => a.pageId === b.pageId;
 /**
  * Bring older pins up to date. Before pins listed a circle's information,
  * every page showed in its circle's Wiki section, so (version 1) every page
- * that wasn't started from another page is pinned to its keeper circle —
+ * is pinned to its keeper circle —
  * nothing disappears from circle pages. Pins once named a page by its circle
  * as well as its id (version 2); now the id alone does (the wiki is one).
  */
@@ -57,7 +57,6 @@ async function migrate(stored: Stored | null): Promise<Pin[]> {
   if ((stored?.version ?? 0) >= 2) return pins;
   const added: Pin[] = [];
   for (const page of await readPages()) {
-    if (page.parentId) continue;
     const note = { pageId: page.id };
     const target = { kind: "circle" as const, id: page.keeper };
     if (pins.some((pin) => sameNote(pin.note, note) && sameTarget(pin.target, target))) continue;

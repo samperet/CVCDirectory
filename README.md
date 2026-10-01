@@ -16,7 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📚 **One wiki** – Pages kept by circles, each with its own view and edit settings: a visual editor, editing together, embeds, history, and comments on pages or passages.
+- 📚 **One wiki** – Pages with parent circles, each with its own view and edit settings: a visual editor, editing together, embeds, history, and comments on pages or passages.
 - 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -229,23 +229,26 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   and the version history marks the consented one. **Consented only** filters the list; search
   finds consented documents by the word "consented". The Secretary can withdraw a record of consent.
   (`PUT`/`DELETE /api/documents/<id>/consent`; stored with the document as `consent`.)
-- **The wiki** (`/wiki`) – one wiki for all of CVC. Every page is **kept by a circle**, and has its own
+- **The wiki** (`/wiki`) – one wiki for all of CVC. Every page has a **parent circle**, and its own
   settings (nothing is inherited): **who can see it** — everyone (the default), only its keeper
-  circle, or its keeper and chosen circles — and **who can edit it** — its keeper circle (the
-  default; anyone, for Community-kept pages) or anyone who can see it. The keeper circle's members
-  (and the Board and admins, who can always see and edit everything) change these under
-  **Settings**, and can delete the page. A page someone can't see is left out everywhere for them:
+  circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the
+  default; anyone, for Community's pages) or anyone who can see it. The parent circle's members
+  (and the Board and admins, who can always see and edit everything) change the parent circle and
+  these settings, and can delete the page. A page reads clean: its **Edit** button opens the editor,
+  where the page's tools live — **Parent circle**, **Colour**, **Who can see & edit**, **Pin to…**,
+  and **History** (earlier versions to view or restore). A page someone can't see is left out everywhere for them:
   the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, pins, and
-  notifications. The wiki home shows every page as a **tree** (each page under the one it was
-  started from), a search, and a filter by keeper (`/wiki?keeper=<circleId>`); **New page** asks
-  which of your circles keeps it. A circle's **Add Information** starts a page kept by that circle and
-  shows it on the circle's page; **Add a sub-page** (on any page) and **@ new page** start pages
-  under the page, kept by the same circle. Pages are Markdown, edited in a **visual editor**
+  notifications. Pages don't nest: they connect by **links** and **embeds** (each page lists what's
+  **Linked from** it). The wiki home lists every page you can see, with a search and a filter by
+  keeper (`/wiki?keeper=<circleId>`); **New page** asks which of your circles keeps it. A circle's
+  **Add Information** starts a page kept by that circle and shows it on the circle's page; **@ new
+  page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the
+  page it was started from. Pages are Markdown, edited in a **visual editor**
   ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple toolbar: headings, bold/italic,
   lists and checklists, links, photos, tables, collapsible sections, embedded pages, and **polls**;
   Markdown shortcuts work as you type. **Typing @** searches pages and documents and links the one
   you pick — or, for a new title, links a new page (`GET /api/wiki/link-search`). The toolbar's
-  **Add a document** button uploads a file into the keeper circle's documents and links it. **Links**
+  **Add a document** button uploads a file into the parent circle's documents and links it. **Links**
   show as **tags**; they're written `[[Page title]]` (titles are unique across the wiki; an older
   `[[O&M:Page title]]` still works) and `[[doc:Document title]]` (`[[doc:O&M:Document title]]` for
   one circle's); any of them takes `|shown text`. **Renaming a page updates the links and embeds
@@ -259,7 +262,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `/circles/<id>/wiki/<slug>`, as a redirect) and left the old documents untouched.
 - **Polls** live in wiki pages: the editor's poll button asks a question with 2–10 options, one
   choice or several, an optional closing date, optionally letting voters add their own options, and
-  — outside Community — optionally for the page's keeper circle's members only (everyone sees the results). It's
+  — outside Community — optionally for the page's parent circle's members only (everyone sees the results). It's
   placed in the page as `::poll{id="…"}`. Residents vote, change or take back their vote while it's
   open; results show once you've voted, when it's closed, or on "See results". Its author, admins,
   and (outside Community) its circle's members close and reopen it. A poll is announced when the page
@@ -306,19 +309,19 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   unpin there (the × on a card; on a circle that takes the page off the circle's page, leaving it
   in the wiki), as can whoever pinned it. Stored in `pins.json` (`GET/POST /api/pins`,
   `DELETE /api/pins/<id>`, `GET /api/pins/targets?q=`); pins go when their page or what they're
-  pinned to is deleted. When circles' information moved to pins, every existing page that wasn't
-  started from another page was listed on its circle.
-- **Wiki map** (admins only, `/admin/wiki-map`, from the user menu or **Map** on a circle's
-  information) – **Islands**: each circle is a soft island (in its own colour) holding its pages —
-  pages started from another page sit inside it — and its documents and tasks; people, discussions,
-  and the dashboard that pages are pinned to gather on their own island. Links and pins arc between
-  them. Hovering shows just a name; clicking anything opens a **panel** (docked on the right; a
-  sheet along the bottom on phones) with its opening lines, who last edited it, what it links to and
-  from, where it's pinned, and pages started from it — each clickable — plus **Open**, **Zoom to**,
-  and **Show connections** (fading everything else). Clicking a circle also zooms in. **3D** shows the same as a turnable globe, each circle a sphere with
-  its pages gathered round it (three.js, loaded only when chosen); a click flies the camera there and
-  opens the same panel. Filter by kind and connection;
-  **Find** zooms to anything. Built from `GET /api/admin/wiki-graph`.
+  pinned to is deleted. When circles' information moved to pins, the existing pages were listed on
+  their circles.
+- **Wiki map** (at the top of `/documents`, for everyone — each sees only the pages they can) –
+  **Islands**: each parent circle is a soft island (in its own colour) holding its pages and the
+  documents they link to; the dashboard that pages are pinned to has its own island. Links and pins
+  arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
+  right; a sheet along the bottom on phones) with its opening lines, who last edited it, what it
+  links to and from, and where it's pinned — each clickable — plus **Open**, **Zoom to**, and
+  **Show connections** (fading everything else). Clicking a circle also zooms in. **3D** shows the
+  same as a turnable globe, each circle a sphere with its pages gathered round it (three.js, loaded
+  only when chosen); a click flies the camera there and opens the same panel. Filter by kind and
+  connection; **Find** zooms to anything. Built from `GET /api/wiki/graph` (`/admin/wiki-map`
+  redirects here).
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors

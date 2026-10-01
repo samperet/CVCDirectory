@@ -3,18 +3,19 @@ import { listDocuments } from "@/lib/documents/store";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
+import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { listPins } from "./store";
 import { excerptOf, pageColor, resolveTarget } from "./server";
 import type { NoteColor, PinKind } from "./shared";
 
 /**
- * The map of how notes connect (for admins): every wiki page, the circle it
- * belongs to, the pages and documents it links to, and everywhere it's
- * pinned.
+ * The map of how the wiki connects (for everyone, each seeing the pages
+ * they can): every page, the circle it belongs to, the pages and documents
+ * it links to (or embeds), and everywhere it's pinned.
  */
 
 export type GraphNodeKind = "note" | PinKind;
-export type GraphEdgeKind = "link" | "pin" | "belongs" | "child";
+export type GraphEdgeKind = "link" | "pin" | "belongs";
 
 export interface GraphNode {
   id: string;
@@ -27,8 +28,6 @@ export interface GraphNode {
   color?: NoteColor;
   /** A page's opening lines, for the map's hover card. */
   excerpt?: string;
-  /** The page it was started from (a node id). */
-  parent?: string;
   /** Who last edited a page, and when. */
   edited?: { by: string; at: string };
 }
@@ -47,9 +46,11 @@ export interface WikiGraph {
 
 const noteId = (pageId: string) => `note:${pageId}`;
 
-export async function buildWikiGraph(directory: DirectoryDocument): Promise<WikiGraph> {
+/** The map as `viewer` sees it: only the pages they can see (and so only links and pins between those). */
+export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiViewer): Promise<WikiGraph> {
   const circles = directory.circles;
-  const [pages, documents, pins] = await Promise.all([readPages(), listDocuments(), listPins(circles, {})]);
+  const [allPages, documents, pins] = await Promise.all([readPages(), listDocuments(), listPins(circles, {})]);
+  const pages = visiblePages(viewer, directory, allPages);
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
@@ -66,11 +67,9 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
   };
 
   // Pages, each with the circle that keeps it.
-  const ids = new Set(pages.map((page) => page.id));
   const byTitle = new Map<string, WikiPage>();
   for (const page of pages) {
     addCircle(page.keeper);
-    const parent = page.parentId && ids.has(page.parentId) ? noteId(page.parentId) : undefined;
     nodes.set(noteId(page.id), {
       id: noteId(page.id),
       kind: "note",
@@ -79,16 +78,12 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
       circleId: page.keeper,
       color: pageColor(page),
       excerpt: excerptOf(page.body, 220),
-      ...(parent ? { parent } : {}),
       edited: { by: page.updatedBy.name, at: page.updatedAt },
     });
     byTitle.set(page.title.toLowerCase(), page);
   }
-  // A page started under another hangs off that page; the rest belong to their keeper.
-  for (const page of pages) {
-    if (page.parentId && ids.has(page.parentId)) addEdge(noteId(page.id), noteId(page.parentId), "child");
-    else addEdge(noteId(page.id), `circle:${page.keeper}`, "belongs");
-  }
+  // Each page belongs to its keeper.
+  for (const page of pages) addEdge(noteId(page.id), `circle:${page.keeper}`, "belongs");
 
   // Links between pages (embeds count), and to documents (the keeper's first, then any).
   for (const page of pages) {

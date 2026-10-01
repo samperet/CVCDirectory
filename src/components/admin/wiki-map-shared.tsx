@@ -92,18 +92,15 @@ export function NodePanel({
   const circle = graph.circles.find((entry) => entry.id === node.circleId);
   const out = (kind: GraphEdgeKind) => graph.edges.filter((edge) => edge.kind === kind && edge.source === node.id).map((edge) => edge.target);
   const into = (kind: GraphEdgeKind) => graph.edges.filter((edge) => edge.kind === kind && edge.target === node.id).map((edge) => edge.source);
-  const children = graph.nodes.filter((entry) => entry.parent === node.id).map((entry) => entry.id);
   const rows: [string, string[]][] =
     node.kind === "note"
       ? [
-          ["Started from", node.parent ? [node.parent] : []],
           ["Links to", out("link")],
           ["Linked from", into("link")],
           ["Pinned to", out("pin")],
-          ["Pages started here", children],
         ]
       : node.kind === "circle"
-        ? [["Pages", graph.nodes.filter((entry) => entry.kind === "note" && entry.circleId === node.circleId && !entry.parent).map((entry) => entry.id)]]
+        ? [["Pages", graph.nodes.filter((entry) => entry.kind === "note" && entry.circleId === node.circleId).map((entry) => entry.id)]]
         : [["Connected pages", Array.from(new Set([...into("link"), ...into("pin")]))]];
   const action = "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition";
   return (

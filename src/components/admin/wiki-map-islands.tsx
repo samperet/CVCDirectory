@@ -9,8 +9,8 @@ import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/p
 import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
- * The wiki as islands: each circle a soft disc holding its pages (pages
- * started from another page sit inside it), its documents, and its tasks;
+ * The wiki as islands: each circle a soft disc holding the pages it keeps,
+ * and its documents;
  * people, discussions, and the dashboard that pages are pinned to gather
  * on their own island. Links and pins arc between them. Hover for a card;
  * click a page to open it, a circle to zoom in.
@@ -18,7 +18,7 @@ import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/admin/wik
 
 interface Item {
   id: string;
-  kind: "root" | "circle" | "group" | "leaf" | "elsewhere";
+  kind: "root" | "circle" | "leaf" | "elsewhere";
   node?: GraphNode;
   circleId?: string;
   label: string;
@@ -73,27 +73,11 @@ export const IslandsView = forwardRef<
     return counts;
   }, [graph]);
 
-  // The nesting: circles → their pages (→ pages started from them), documents, and tasks.
+  // Circles → the pages they keep, and documents.
   const packed = useMemo(() => {
     const shown = graph.nodes.filter((node) => node.kind !== "circle" && kinds.has(node.kind));
-    const childrenOf = new Map<string, GraphNode[]>();
-    for (const node of shown) if (node.kind === "note" && node.parent) childrenOf.set(node.parent, [...(childrenOf.get(node.parent) ?? []), node]);
-    const shownIds = new Set(shown.map((node) => node.id));
     const leafValue = (node: GraphNode) => 1 + Math.min(degree.get(node.id) ?? 0, 8) * 0.5;
-    const itemFor = (node: GraphNode): Item => {
-      const kids = childrenOf.get(node.id) ?? [];
-      if (!kids.length) return { id: node.id, kind: "leaf", node, circleId: node.circleId, label: node.label, value: leafValue(node) };
-      // A page others were started from: a disc holding itself (a small centre) and them.
-      return {
-        id: node.id,
-        kind: "group",
-        node,
-        circleId: node.circleId,
-        label: node.label,
-        children: [{ id: `${node.id}#self`, kind: "leaf", node, circleId: node.circleId, label: node.label, value: leafValue(node) }, ...kids.map(itemFor)],
-      };
-    };
-    const topLevel = (node: GraphNode) => !(node.kind === "note" && node.parent && shownIds.has(node.parent));
+    const itemFor = (node: GraphNode): Item => ({ id: node.id, kind: "leaf", node, circleId: node.circleId, label: node.label, value: leafValue(node) });
     const circles: Item[] = graph.circles
       .map((circle) => ({
         id: `circle:${circle.id}`,
@@ -101,11 +85,11 @@ export const IslandsView = forwardRef<
         circleId: circle.id,
         label: circle.name,
         node: graph.nodes.find((node) => node.id === `circle:${circle.id}`),
-        children: shown.filter((node) => node.circleId === circle.id && node.kind !== "community" && topLevel(node)).map(itemFor),
+        children: shown.filter((node) => node.circleId === circle.id && node.kind !== "community").map(itemFor),
       }))
       .filter((circle) => circle.children.length);
     const placed = new Set(circles.flatMap((circle) => (circle.children ?? []).map((child) => child.id)));
-    const elsewhere = shown.filter((node) => topLevel(node) && !placed.has(node.id) && !(node.kind === "note" && circles.some((circle) => circle.circleId === node.circleId)));
+    const elsewhere = shown.filter((node) => !placed.has(node.id) && !(node.kind === "note" && circles.some((circle) => circle.circleId === node.circleId)));
     const root: Item = {
       id: "root",
       kind: "root",
@@ -122,9 +106,9 @@ export const IslandsView = forwardRef<
     );
     const offset = { x: (size.width - side) / 2, y: (size.height - side) / 2 };
     const all = layout.descendants().map((node) => Object.assign(node, { x: node.x + offset.x, y: node.y + offset.y }));
-    // Where each graph node sits (a page with others inside: its disc).
+    // Where each graph node sits.
     const at = new Map<string, HierarchyCircularNode<Item>>();
-    for (const node of all) if (node.data.node && !node.data.id.endsWith("#self")) at.set(node.data.node.id, node);
+    for (const node of all) if (node.data.node) at.set(node.data.node.id, node);
     for (const node of all) if (node.data.kind === "circle") at.set(node.data.id, node);
     return { all, at };
   }, [graph, kinds, degree, size]);
@@ -207,45 +191,31 @@ export const IslandsView = forwardRef<
           </filter>
         </defs>
         <g transform={transform.toString()}>
-          {/* Islands and pages with pages inside them. */}
+          {/* Islands: each circle, holding the pages it keeps. */}
           {packed.all
-            .filter((node) => node.data.kind === "circle" || node.data.kind === "elsewhere" || node.data.kind === "group")
+            .filter((node) => node.data.kind === "circle" || node.data.kind === "elsewhere")
             .map((node) => {
               const item = node.data;
               const hue = item.kind === "elsewhere" ? "#8c8f86" : colors.get(item.circleId ?? "") ?? "#6b8e70";
-              const island = item.kind !== "group";
-              const paper = item.node?.kind === "note" ? NOTE_STYLES[item.node.color ?? "yellow"] : null;
               const faded = item.node && dim(item.node.id);
               return (
                 <g key={item.id} opacity={faded ? 0.35 : 1} className="cursor-pointer" onClick={(event) => choose(event, item.node, item)} onPointerMove={(event) => item.node && show(event, item.node.id)}>
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={node.r}
-                    fill={island ? hue : paper?.paper ?? "#fff"}
-                    fillOpacity={island ? 0.09 : 0.85}
-                    stroke={hue}
-                    strokeOpacity={island ? 0.35 : 0.45}
-                    strokeWidth={(island ? 1.5 : 1) / k}
-                    filter={island ? "url(#island-shadow)" : undefined}
-                  />
-                  {island || node.r * k > 34 ? (
-                    <text
-                      x={node.x}
-                      // A circle's name sits just above its island; a page's, inside the top of its disc.
-                      y={island ? node.y - node.r - 6 / k : node.y - node.r + clamp(node.r * 0.2, 7, 14) + 4 / k}
-                      textAnchor="middle"
-                      fontSize={island ? clamp(node.r * 0.11, 9, 26) : clamp(node.r * 0.16, 5, 12)}
-                      fontWeight={island ? 700 : 600}
-                      fill={island ? hue : "#2f5a32"}
-                      stroke="#ffffff"
-                      strokeWidth={3 / k}
-                      paintOrder="stroke"
-                      pointerEvents="none"
-                    >
-                      {item.label}
-                    </text>
-                  ) : null}
+                  <circle cx={node.x} cy={node.y} r={node.r} fill={hue} fillOpacity={0.09} stroke={hue} strokeOpacity={0.35} strokeWidth={1.5 / k} filter="url(#island-shadow)" />
+                  {/* A circle's name sits just above its island. */}
+                  <text
+                    x={node.x}
+                    y={node.y - node.r - 6 / k}
+                    textAnchor="middle"
+                    fontSize={clamp(node.r * 0.11, 9, 26)}
+                    fontWeight={700}
+                    fill={hue}
+                    stroke="#ffffff"
+                    strokeWidth={3 / k}
+                    paintOrder="stroke"
+                    pointerEvents="none"
+                  >
+                    {item.label}
+                  </text>
                 </g>
               );
             })}
@@ -257,7 +227,7 @@ export const IslandsView = forwardRef<
               .map((edge) => {
                 const a = packed.at.get(edge.source);
                 const b = packed.at.get(edge.target);
-                if (!a || !b || (a.data.kind !== "leaf" && a.data.kind !== "group") || (b.data.kind !== "leaf" && b.data.kind !== "group" && b.data.kind !== "circle")) return null;
+                if (!a || !b || a.data.kind !== "leaf" || (b.data.kind !== "leaf" && b.data.kind !== "circle")) return null;
                 const lit = !!active && (edge.source === active || edge.target === active);
                 const style = EDGE_INFO[edge.kind as "link" | "pin"];
                 return (
@@ -281,7 +251,6 @@ export const IslandsView = forwardRef<
               const gnode = item.node!;
               const hue = colors.get(item.circleId ?? "") ?? "#8c8f86";
               const r = node.r * 0.92;
-              const isSelf = item.id.endsWith("#self");
               const faded = dim(gnode.id);
               const lit = selected === gnode.id || hover?.id === gnode.id;
               const square = gnode.kind === "document";
@@ -308,7 +277,6 @@ export const IslandsView = forwardRef<
                     <circle cx={node.x} cy={node.y} r={r} fill={nodeFill(gnode)} stroke={lit ? "#1e4620" : gnode.kind === "note" ? hue : "#ffffff"} strokeOpacity={lit ? 1 : 0.7} strokeWidth={(lit ? 2.5 : 1.5) / k} />
                   )}
                   {(() => {
-                    if (isSelf) return null;
                     // Inside the node when it fits and is legible; otherwise beneath it, once zoomed in enough.
                     const text = item.label.length > 26 ? `${item.label.slice(0, 25)}…` : item.label;
                     const size = clamp(r * 0.28, 2.5, 11);

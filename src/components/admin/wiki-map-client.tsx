@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
+import { Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
 import { EDGE_INFO, KIND_INFO, NodePanel, circleColors, nodeFill } from "@/components/admin/wiki-map-shared";
@@ -22,15 +21,16 @@ const Globe3DView = dynamic(() => import("@/components/admin/wiki-map-3d").then(
 const KIND_ORDER: GraphNodeKind[] = ["note", "document", "community"];
 
 /**
- * The wiki map (admins only): each circle an island holding its pages
- * and documents, with links and pins between them — or the same in
- * 3D. Hover for a card about anything; click to open it.
+ * The wiki map (at the top of the documents page, for everyone — each sees
+ * the pages they can): each circle an island holding its pages and
+ * documents, with links and pins between them — or the same in 3D. Hover
+ * for a name; click for details and to open it.
  */
 export function WikiMapClient() {
   const router = useRouter();
   const params = useSearchParams();
   const islands = useRef<IslandsHandle>(null);
-  const { data, error, isLoading } = useQuery({ queryKey: ["wiki-graph"], queryFn: () => apiFetch<WikiGraph>("/api/admin/wiki-graph") });
+  const { data, error, isLoading } = useQuery({ queryKey: ["wiki-graph"], queryFn: () => apiFetch<WikiGraph>("/api/wiki/graph") });
   const [view, setView] = useState<"islands" | "3d">("islands");
   const [kinds, setKinds] = useState<Set<GraphNodeKind>>(() => new Set(KIND_ORDER));
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(() => new Set<GraphEdgeKind>(["link", "pin"]));
@@ -80,15 +80,12 @@ export function WikiMapClient() {
   const check = "flex items-center gap-2 text-sm text-foreground";
   return (
     <div className="flex flex-col gap-4">
-      <Link href="/" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Dashboard
-      </Link>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-            <Network className="h-6 w-6 text-primary" aria-hidden /> Wiki map
-          </h1>
-          <p className="text-sm text-muted">Each circle&apos;s pages and documents, and how they link and pin to each other. Admins only.</p>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Network className="h-5 w-5 text-primary" aria-hidden /> Map
+          </h2>
+          <p className="text-sm text-muted">The wiki&apos;s pages (those you can see) by parent circle, with the documents they link to — and how they link and pin to each other.</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="radiogroup" aria-label="View">
