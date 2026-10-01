@@ -44,7 +44,9 @@ export const NOTE_STYLES: Record<NoteColor, { label: string; paper: string; edge
   green: { label: "Green", paper: "#e5f4dc", edge: "#b5d6a0", swatch: "#9fcf86" },
   grey: { label: "Grey", paper: "#eef0ee", edge: "#c8cfc8", swatch: "#aeb7ae" },
 };
-export const noteStyle = (color: string | null | undefined) => NOTE_STYLES[(NOTE_COLORS as readonly string[]).includes(color ?? "") ? (color as NoteColor) : "yellow"];
+/** A page with no colour of its own is white. */
+export const DEFAULT_NOTE_COLOR: NoteColor = "white";
+export const noteStyle = (color: string | null | undefined) => NOTE_STYLES[(NOTE_COLORS as readonly string[]).includes(color ?? "") ? (color as NoteColor) : DEFAULT_NOTE_COLOR];
 
 /** A pin, ready to show: its note, where it is, and whether you can take it down. */
 export interface PinView {

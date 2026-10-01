@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { NoteColor, PinView } from "@/lib/pins/shared";
+import { DEFAULT_NOTE_COLOR, type NoteColor, type PinView } from "@/lib/pins/shared";
 import { ColorSwatches } from "@/components/pins/color-swatches";
 import { Dialog } from "@/components/pins/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ export function AddInformationDialog({ circle, onClose }: { circle: { id: string
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
-  const [color, setColor] = useState<NoteColor>("yellow");
+  const [color, setColor] = useState<NoteColor>(DEFAULT_NOTE_COLOR);
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ pin: PinView | null }>("/api/pins", {

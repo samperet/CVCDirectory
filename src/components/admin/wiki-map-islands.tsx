@@ -9,10 +9,8 @@ import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/p
 import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
- * The wiki as islands: each circle a soft disc holding the pages it keeps,
- * and its documents;
- * people, discussions, and the dashboard that pages are pinned to gather
- * on their own island. Links and pins arc between them. Hover for a card;
+ * The wiki as islands: each circle a soft disc holding the pages it keeps;
+ * the dashboard that pages are pinned to sits on its own island. Links and pins arc between them. Hover for a card;
  * click a page to open it, a circle to zoom in.
  */
 
@@ -73,7 +71,7 @@ export const IslandsView = forwardRef<
     return counts;
   }, [graph]);
 
-  // Circles → the pages they keep, and documents.
+  // Circles → the pages they keep.
   const packed = useMemo(() => {
     const shown = graph.nodes.filter((node) => node.kind !== "circle" && kinds.has(node.kind));
     const leafValue = (node: GraphNode) => 1 + Math.min(degree.get(node.id) ?? 0, 8) * 0.5;
@@ -243,7 +241,7 @@ export const IslandsView = forwardRef<
               })}
           </g>
 
-          {/* Pages, documents, tasks, people… */}
+          {/* Pages (and the dashboard). */}
           {packed.all
             .filter((node) => node.data.kind === "leaf")
             .map((node) => {

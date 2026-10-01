@@ -11,7 +11,7 @@ import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { timeAgo } from "@/lib/time";
-import { noteStyle, type NoteColor } from "@/lib/pins/shared";
+import { DEFAULT_NOTE_COLOR, noteStyle, type NoteColor } from "@/lib/pins/shared";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
 import { ColorSwatches } from "@/components/pins/color-swatches";
 import { PinToButton, PinnedTo } from "@/components/pins/pin-picker";
@@ -218,7 +218,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <span>Parent circle {circle?.name ?? "—"}</span>
             )}
             <span className="flex items-center gap-2">
-              Colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
+              Colour <ColorSwatches size="sm" value={page.color ?? DEFAULT_NOTE_COLOR} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
             </span>
             <span className="flex flex-wrap items-center gap-2">
               {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}

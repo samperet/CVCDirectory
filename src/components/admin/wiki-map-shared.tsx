@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, CircleDot, FileText, Users, X } from "lucide-react";
-import { NOTE_STYLES } from "@/lib/pins/shared";
+import { noteStyle } from "@/lib/pins/shared";
 import type { GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
 import { timeAgo } from "@/lib/time";
 
@@ -9,7 +9,7 @@ import { timeAgo } from "@/lib/time";
 export const CIRCLE_PALETTE = ["#3f7d5c", "#c4892f", "#4e79a7", "#a05d8c", "#4f9a8f", "#c0634f", "#7568b0", "#8a9a4b", "#b07a55", "#5d8fb8", "#9b6b3d", "#6a8f6b"];
 
 export const KIND_INFO: Record<GraphNodeKind, { label: string; plural: string; icon: typeof BookOpen; color: string }> = {
-  note: { label: "Page", plural: "Pages", icon: BookOpen, color: "#e6c457" },
+  note: { label: "Page", plural: "Pages", icon: BookOpen, color: "#ffffff" },
   circle: { label: "Circle", plural: "Circles", icon: CircleDot, color: "#3f7d5c" },
   document: { label: "Document", plural: "Documents", icon: FileText, color: "#6f8fb3" },
   community: { label: "Community dashboard", plural: "Dashboard", icon: Users, color: "#c27c0e" },
@@ -26,7 +26,7 @@ export function circleColors(graph: WikiGraph) {
 }
 
 /** A node's fill: a page in its own colour, others by kind. */
-export const nodeFill = (node: GraphNode) => (node.kind === "note" ? NOTE_STYLES[node.color ?? "yellow"].swatch : KIND_INFO[node.kind].color);
+export const nodeFill = (node: GraphNode) => (node.kind === "note" ? noteStyle(node.color).swatch : KIND_INFO[node.kind].color);
 
 /** What's connected to what (links and pins only — containment is drawn as nesting). */
 export function neighbours(edges: GraphEdge[]) {

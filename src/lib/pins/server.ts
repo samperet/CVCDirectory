@@ -8,7 +8,7 @@ import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { canViewPage } from "@/lib/wiki/access";
 import { POLL_DIRECTIVE, listWikiPolls } from "@/lib/polls/wiki";
 import { EMBED_DIRECTIVE } from "@/lib/wiki/sections";
-import { NOTE_COLORS, type NoteColor, type Pin, type PinTarget, type PinView } from "./shared";
+import { DEFAULT_NOTE_COLOR, NOTE_COLORS, type NoteColor, type Pin, type PinTarget, type PinView } from "./shared";
 
 /**
  * Who may pin where, and what a pin's note and target are called. Every
@@ -68,7 +68,7 @@ export function canPinTo(user: Viewer, directory: DirectoryDocument, resolved: R
   }
 }
 
-export const pageColor = (page: Pick<WikiPage, "color">): NoteColor => ((NOTE_COLORS as readonly string[]).includes(page.color ?? "") ? (page.color as NoteColor) : "yellow");
+export const pageColor = (page: Pick<WikiPage, "color">): NoteColor => ((NOTE_COLORS as readonly string[]).includes(page.color ?? "") ? (page.color as NoteColor) : DEFAULT_NOTE_COLOR);
 
 /**
  * A page's opening, as plain text: links by their words, polls by their

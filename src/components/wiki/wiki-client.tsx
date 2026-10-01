@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Lock, Plus, Search } from "lucide-react";
+import { BookOpen, Lock, Network, Plus, Search, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
@@ -15,6 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+
+// The map (d3, and three.js for 3D) loads in the browser only, when it's opened.
+const WikiMap = dynamic(() => import("@/components/admin/wiki-map-client").then((module) => module.WikiMapClient), {
+  ssr: false,
+  loading: () => <div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />,
+});
 
 /** The wiki's pages that you can see (and the circles you can start pages for). */
 export function useWikiPages() {
@@ -96,8 +103,8 @@ function PageRow({ page, circleName }: { page: WikiPageSummary; circleName: (id:
 
 /**
  * The wiki: every page you can see, by title — found by search, or
- * narrowed to the pages one circle keeps (`?keeper=`). Pages connect by
- * linking to each other. New pages start here (`?new=Title&from=<pageId>`
+ * narrowed to the pages one circle keeps (`?keeper=`) — and, from the Map
+ * button, the map of how they connect. Pages connect by linking to each other. New pages start here (`?new=Title&from=<pageId>`
  * starts one from a link to a page that doesn't exist yet).
  */
 export function WikiHomeClient() {
@@ -117,14 +124,28 @@ export function WikiHomeClient() {
   const wanted = filter.trim().toLowerCase();
   const listed = all.filter((page) => (!keeperFilter || page.keeper === keeperFilter) && (!wanted || page.title.toLowerCase().includes(wanted)));
   const canStart = (data?.keepers.length ?? 0) > 0;
+  // The map opens above the pages (`?map=1`, which links to it can carry with `focus` or `circle`).
+  const showMap = params.get("map") === "1";
+  const toggleMap = () => {
+    const next = new URLSearchParams(params.toString());
+    if (showMap) {
+      next.delete("map");
+      next.delete("focus");
+      next.delete("circle");
+    } else next.set("map", "1");
+    router.replace(next.toString() ? `/wiki?${next}` : "/wiki");
+  };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex w-full flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
           <BookOpen className="h-6 w-6 text-primary" aria-hidden /> Wiki
         </h1>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="gap-1.5" onClick={toggleMap} aria-pressed={showMap}>
+            {showMap ? <X className="h-4 w-4" /> : <Network className="h-4 w-4" />} {showMap ? "Close map" : "Map"}
+          </Button>
           {canStart ? (
             <Button className="gap-1" onClick={() => setAdding(true)}>
               <Plus className="h-4 w-4" /> New page
@@ -132,13 +153,20 @@ export function WikiHomeClient() {
           ) : null}
         </div>
       </div>
-      <p className="-mt-3 text-sm text-muted">One wiki for all of CVC. Each page has a parent circle, which decides who can see and edit it. Pages connect by linking to each other.</p>
+      <p className="mx-auto -mt-3 w-full max-w-3xl text-sm text-muted">One wiki for all of CVC. Each page has a parent circle, which decides who can see and edit it. Pages connect by linking to each other.</p>
+      {showMap ? (
+        <Card className="flex flex-col gap-4">
+          <Suspense fallback={<div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />}>
+            <WikiMap />
+          </Suspense>
+        </Card>
+      ) : null}
       {adding ? (
-        <Card>
+        <Card className="mx-auto w-full max-w-3xl">
           <NewPageForm initialTitle={requested} from={from} keeper={keeperFilter || undefined} onCancel={() => setAdding(false)} />
         </Card>
       ) : null}
-      <Card className="flex flex-col gap-4">
+      <Card className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         <div className="flex flex-wrap gap-2">
           <div className="relative min-w-[12rem] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />

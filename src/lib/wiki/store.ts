@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
-import { NOTE_COLORS, type NoteColor } from "@/lib/pins/shared";
+import { DEFAULT_NOTE_COLOR, NOTE_COLORS, type NoteColor } from "@/lib/pins/shared";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 
 /**
@@ -216,7 +216,7 @@ export function createPage(
       view: input.view ?? DEFAULT_VIEW,
       edit: input.edit ?? DEFAULT_EDIT,
       historyCount: 0,
-      ...(input.color && input.color !== "yellow" ? { color: input.color } : {}),
+      ...(input.color && input.color !== DEFAULT_NOTE_COLOR ? { color: input.color } : {}),
     };
     return { pages: [...pages, page], page };
   });
@@ -274,9 +274,9 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
       ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),
     };
-    if (update.color && update.color !== (page.color ?? "yellow")) {
+    if (update.color && update.color !== (page.color ?? DEFAULT_NOTE_COLOR)) {
       const { color: _old, ...rest } = page;
-      page = update.color === "yellow" ? rest : { ...rest, color: update.color };
+      page = update.color === DEFAULT_NOTE_COLOR ? rest : { ...rest, color: update.color };
     }
     page = { ...page, ...settings };
     const current = page;
@@ -310,6 +310,11 @@ export function deletePage(slug: string) {
     if (!page) return "not_found";
     return { pages: pages.filter((entry) => entry.id !== page.id), page: null };
   });
+}
+
+/** Every page back to the default colour (white), keeping each page's own colour choice from now on. */
+export function clearColours() {
+  return mutate((pages) => ({ page: null, pages: pages.map((page) => (page.color ? (({ color: _old, ...rest }) => rest)(page) : page)) }));
 }
 
 /** When a circle is deleted, the Board keeps its pages (as with its documents), and no page is shown only to it any more. */

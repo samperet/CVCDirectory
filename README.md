@@ -290,9 +290,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   a small PNG such as a screenshot goes as it is), up to 3 MB, and stored privately
   (`wiki-images/<circleId>/<id>`, served to signed-in residents at
   `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
-  images from other websites show only as their description. A circle's photos go when it does.
-- **Colours and pins** – every page has a colour (white, yellow, orange, red, pink, lavender, blue,
-  teal, green, or grey; chosen under its title by the wiki's editors): the page is drawn in it, and
+  images from other websites show only as their description.
+- **Colours and pins** – every page has a colour (white — the default — yellow, orange, red, pink,
+  lavender, blue, teal, green, or grey; chosen in the editor by the page's editors): the page is drawn in it, and
   it shows as a card of that colour (title and opening lines; the first six, then **+N more**)
   wherever it's pinned. A circle's information is the pages pinned to it — its own, and any pinned
   from other circles. A page can also be pinned to:
@@ -311,17 +311,17 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `DELETE /api/pins/<id>`, `GET /api/pins/targets?q=`); pins go when their page or what they're
   pinned to is deleted. When circles' information moved to pins, the existing pages were listed on
   their circles.
-- **Wiki map** (at the top of `/documents`, for everyone — each sees only the pages they can) –
-  **Islands**: each parent circle is a soft island (in its own colour) holding its pages and the
-  documents they link to; the dashboard that pages are pinned to has its own island. Links and pins
+- **Wiki map** (the **Map** button at the top of `/wiki`, for everyone — each sees only the pages they can) –
+  **Islands**: each parent circle is a soft island (in its own colour) holding its pages (documents
+  aren't shown); the dashboard that pages are pinned to has its own island. Links and pins
   arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
   right; a sheet along the bottom on phones) with its opening lines, who last edited it, what it
   links to and from, and where it's pinned — each clickable — plus **Open**, **Zoom to**, and
   **Show connections** (fading everything else). Clicking a circle also zooms in. **3D** shows the
   same as a turnable globe, each circle a sphere with its pages gathered round it (three.js, loaded
   only when chosen); a click flies the camera there and opens the same panel. Filter by kind and
-  connection; **Find** zooms to anything. Built from `GET /api/wiki/graph` (`/admin/wiki-map`
-  redirects here).
+  connection; **Find** zooms to anything. Built from `GET /api/wiki/graph` (`/wiki?map=1`;
+  `/admin/wiki-map` redirects there).
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors

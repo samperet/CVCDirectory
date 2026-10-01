@@ -1,7 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
@@ -10,12 +8,6 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { Card } from "@/components/ui/card";
 import { SectionArt } from "@/components/layout/section-art";
-
-// The map (d3, and three.js for 3D) loads in the browser only.
-const WikiMap = dynamic(() => import("@/components/admin/wiki-map-client").then((module) => module.WikiMapClient), {
-  ssr: false,
-  loading: () => <div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />,
-});
 
 /** Every circle's documents in one place, searchable by title and contents. */
 export function DocumentsPage() {
@@ -36,11 +28,6 @@ export function DocumentsPage() {
         <SectionArt href="/documents" size={48} />
         <h1 className="text-2xl font-semibold text-foreground">Documents</h1>
       </div>
-      <Card className="flex flex-col gap-4">
-        <Suspense fallback={<div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />}>
-          <WikiMap />
-        </Suspense>
-      </Card>
       <Card>
         <DocumentsPanel circles={circles} uploadCircles={uploadCircles} />
       </Card>

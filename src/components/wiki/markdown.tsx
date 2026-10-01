@@ -12,6 +12,7 @@ import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleR
 import { docFileUrl, findDoc, pageTitled, useCircles, useDocTitles, type DocRef } from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
+import { DEFAULT_NOTE_COLOR } from "@/lib/pins/shared";
 import { EmbedBlock, EmbedChain } from "@/components/wiki/embed-block";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +54,7 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
     if (!pages) return `[${text}](#${mdTitle("pending")})`;
     const page = pageTitled(pages, link.title);
     if (!page) return `[${text}](/wiki?new=${encodeURIComponent(link.title)}${pageId ? `&from=${pageId}` : ""}${mdTitle("missing")})`;
-    return `[${text}](/wiki/${page.slug}${mdTitle(`page:${page.color ?? "yellow"}:`)})`;
+    return `[${text}](/wiki/${page.slug}${mdTitle(`page:${page.color ?? DEFAULT_NOTE_COLOR}:`)})`;
   });
 }
 

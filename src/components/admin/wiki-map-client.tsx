@@ -18,12 +18,12 @@ const Globe3DView = dynamic(() => import("@/components/admin/wiki-map-3d").then(
   loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
 });
 
-const KIND_ORDER: GraphNodeKind[] = ["note", "document", "community"];
+const KIND_ORDER: GraphNodeKind[] = ["note", "community"];
 
 /**
- * The wiki map (at the top of the documents page, for everyone — each sees
- * the pages they can): each circle an island holding its pages and
- * documents, with links and pins between them — or the same in 3D. Hover
+ * The wiki map (opened from the wiki's Map button, for everyone — each sees
+ * the pages they can): each circle an island holding its pages, with links
+ * and pins between them — or the same in 3D. Hover
  * for a name; click for details and to open it.
  */
 export function WikiMapClient() {
@@ -85,7 +85,7 @@ export function WikiMapClient() {
           <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Network className="h-5 w-5 text-primary" aria-hidden /> Map
           </h2>
-          <p className="text-sm text-muted">The wiki&apos;s pages (those you can see) by parent circle, with the documents they link to — and how they link and pin to each other.</p>
+          <p className="text-sm text-muted">The wiki&apos;s pages (those you can see) by parent circle, and how they link to each other and where they&apos;re pinned.</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="radiogroup" aria-label="View">
@@ -144,7 +144,7 @@ export function WikiMapClient() {
             <label htmlFor="map-find" className="text-sm font-semibold text-foreground">
               Find
             </label>
-            <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="A page, circle, person…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm" />
+            <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="A page or circle…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm" />
             {matches.length ? (
               <ul className="absolute inset-x-0 top-full z-20 mt-1 flex flex-col rounded-lg border border-border bg-surface p-1 shadow-elev">
                 {matches.map((node) => (

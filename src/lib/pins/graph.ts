@@ -1,5 +1,4 @@
 import type { DirectoryDocument } from "@/lib/directory/types";
-import { listDocuments } from "@/lib/documents/store";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
@@ -10,8 +9,8 @@ import type { NoteColor, PinKind } from "./shared";
 
 /**
  * The map of how the wiki connects (for everyone, each seeing the pages
- * they can): every page, the circle it belongs to, the pages and documents
- * it links to (or embeds), and everywhere it's pinned.
+ * they can): every page, the circle it belongs to, the pages it links to
+ * (or embeds), and where it's pinned (circles and the dashboard).
  */
 
 export type GraphNodeKind = "note" | PinKind;
@@ -23,7 +22,7 @@ export interface GraphNode {
   label: string;
   href: string;
   external?: boolean;
-  /** A note's (or document's) circle. */
+  /** A page's parent circle. */
   circleId?: string;
   color?: NoteColor;
   /** A page's opening lines, for the map's hover card. */
@@ -49,7 +48,7 @@ const noteId = (pageId: string) => `note:${pageId}`;
 /** The map as `viewer` sees it: only the pages they can see (and so only links and pins between those). */
 export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiViewer): Promise<WikiGraph> {
   const circles = directory.circles;
-  const [allPages, documents, pins] = await Promise.all([readPages(), listDocuments(), listPins(circles, {})]);
+  const [allPages, pins] = await Promise.all([readPages(), listPins(circles, {})]);
   const pages = visiblePages(viewer, directory, allPages);
 
   const nodes = new Map<string, GraphNode>();
@@ -85,28 +84,19 @@ export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiV
   // Each page belongs to its keeper.
   for (const page of pages) addEdge(noteId(page.id), `circle:${page.keeper}`, "belongs");
 
-  // Links between pages (embeds count), and to documents (the keeper's first, then any).
+  // Links between pages (embeds count). Documents aren't on the map.
   for (const page of pages) {
     for (const link of [...wikiLinksIn(page.body, circles), ...embeddedPages(page.body, circles)]) {
-      const wanted = link.title.toLowerCase();
-      if (link.kind === "page") {
-        const target = byTitle.get(wanted);
-        if (target) addEdge(noteId(page.id), noteId(target.id), "link");
-        continue;
-      }
-      const matches = documents.filter((doc) => doc.title.toLowerCase() === wanted && (!link.circleId || doc.circleId === link.circleId));
-      const doc = matches.find((entry) => entry.circleId === page.keeper) ?? matches[0];
-      if (!doc) continue;
-      const id = `document:${doc.id}`;
-      if (!nodes.has(id)) nodes.set(id, { id, kind: "document", label: doc.title, href: `/api/documents/${doc.id}/file`, external: true, circleId: doc.circleId });
-      addEdge(noteId(page.id), id, "link");
+      if (link.kind !== "page") continue;
+      const target = byTitle.get(link.title.toLowerCase());
+      if (target) addEdge(noteId(page.id), noteId(target.id), "link");
     }
   }
 
   // Pins.
   for (const pin of pins) {
     const from = noteId(pin.note.pageId);
-    if (!nodes.has(from)) continue;
+    if (!nodes.has(from) || pin.target.kind === "document") continue;
     // On its own circle's page: that's where it belongs, already drawn.
     const keeper = pages.find((page) => page.id === pin.note.pageId)?.keeper;
     if (pin.target.kind === "circle" && pin.target.id === keeper) {
