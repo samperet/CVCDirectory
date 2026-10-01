@@ -280,11 +280,30 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   (`wiki-images/<circleId>/<id>`, served to signed-in residents at
   `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
   images from other websites show only as their description. A circle's photos go when it does.
-- **Pinned notes** – a circle's members, the Board, and admins can pin up to 3 of its wiki pages to
-  the top of the circle's page (**Pin to circle page** on the wiki page; unpin there or from the
-  note). Each shows in full as a note — a long one folds, with **Show all** — linking to the page,
-  with an edit shortcut for the wiki's editors. Stored on the circle (`pinnedWiki`, the pages'
-  addresses); deleting a page unpins it.
+- **Sticky notes and pins** – every wiki page is also a sticky note, with a colour (yellow, green,
+  blue, pink, or lavender; chosen under the title by the wiki's editors). A note can be pinned in
+  many places, each showing it as a sticky (title and opening lines; the first 5, then **+N more**):
+  - the **community dashboard** ("Community notes"; the Board and admins pin there);
+  - a **circle's page** (its members, the Board, and admins);
+  - a **person** — shown only on their own dashboard as "Pinned for you" (themselves, anyone who
+    shares a circle with them other than Community, and admins; only they, the pinner, and admins
+    see it);
+  - a **task** ("Reference"; whoever edits the circle's tasks, and the task's owner);
+  - a **document** (a "notes" badge on its row; whoever can manage it);
+  - a **forum discussion** (whoever started it, and admins).
+
+  **Pin to…** on a wiki page searches the places you can pin to, with an optional **Pinned until**
+  date (the pin disappears after it) and a short reason; the page lists where it's **Pinned to**,
+  beside **Linked from**. **New note** on a board writes a short note into a wiki and pins it in one
+  step. Anyone who can pin somewhere can unpin there (the × on a note), as can whoever pinned it.
+  Stored in `pins.json` (`GET/POST /api/pins`, `DELETE /api/pins/<id>`,
+  `GET /api/pins/targets?q=`); pins go when their note or what they're pinned to is deleted. Pages
+  circles had pinned before (`pinnedWiki`) became circle pins.
+- **Notes map** (admins only, `/admin/wiki-map`, from the user menu or **Map** on a wiki) – a
+  self-arranging map of every note, its circle, the pages and documents it links to, and everywhere
+  it's pinned. Hover to light up a note's connections, click to open, shift-click (or **Focus on**)
+  to see one note's neighbourhood one or two steps out; filter by circle and by kind. Built from
+  `GET /api/admin/wiki-graph`.
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors

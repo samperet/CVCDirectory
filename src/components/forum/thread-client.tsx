@@ -10,6 +10,7 @@ import { useSession } from "@/lib/auth/client";
 import type { ForumLike, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { useTopics } from "@/components/forum/topic-client";
 import { PollView } from "@/components/polls/poll-view";
+import { PinBoard } from "@/components/pins/pin-board";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -537,6 +538,7 @@ export function ThreadClient({ id }: { id: string }) {
       </Link>
 
       <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />
+      <PinBoard target={{ kind: "thread", id: data.thread.id }} title="Notes" hideWhenEmpty />
 
       <Card className="flex flex-col gap-3">
         {topLevel.length ? (

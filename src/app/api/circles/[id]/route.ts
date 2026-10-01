@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { moveCircleDocuments } from "@/lib/documents/store";
-import { deleteWiki, listPages } from "@/lib/wiki/store";
+import { deleteWiki } from "@/lib/wiki/store";
+import { circleGone, removePinsWhere } from "@/lib/pins/store";
 import { deleteCircleComments } from "@/lib/wiki/comments";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: { id: string } };
 
 /**
- * Edit a circle's name, description, sections, pinned wiki pages, or who can
+ * Edit a circle's name, description, sections, or who can
  * join (its members or the Board), or whether it's an official circle or a
  * social club (the Board).
  */
@@ -35,11 +36,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!isAdmin(ctx.user) && !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)) {
       return problem("Only the Board can change whether this is a circle or a social club", 403, "Forbidden");
     }
-  }
-
-  if (parsed.data.pinnedWiki?.length) {
-    const pages = new Set((await listPages(params.id)).map((page) => page.slug));
-    if (parsed.data.pinnedWiki.some((slug) => !pages.has(slug))) return problem("That wiki page no longer exists", 404, "Not Found");
   }
 
   const result = await updateCircle(ctx.imported, params.id, parsed.data);
@@ -65,5 +61,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   await deleteCircleTaskComments(params.id);
   await deleteCirclePolls(params.id);
   await deleteWikiImages(params.id);
+  await removePinsWhere(circleGone(params.id));
   return NextResponse.json({ ok: true });
 }

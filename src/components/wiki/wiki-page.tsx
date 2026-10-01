@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CornerDownRight, History, Pin, PinOff, ListTree, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeft, CornerDownRight, History, ListTree, Network, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
@@ -12,7 +12,10 @@ import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import { featureEnabled } from "@/lib/circles/features";
 import { timeAgo } from "@/lib/time";
+import { noteStyle, type NoteColor } from "@/lib/pins/shared";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
+import { ColorSwatches } from "@/components/pins/color-swatches";
+import { PinToButton, PinnedTo } from "@/components/pins/pin-picker";
 import { WikiComments, threadsOf, useComments, useQuoteHighlights } from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
 import { useWikiPages } from "@/components/wiki/wiki-client";
@@ -20,8 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 
-type PageResponse = { page: WikiPage; canEdit: boolean; canPin?: boolean };
-const MAX_PINS = 3;
+type PageResponse = { page: WikiPage; canEdit: boolean };
 const NO_THREADS: never[] = [];
 
 /** A floating "Comment" button over selected text on the page. */
@@ -101,16 +103,13 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     },
     onError: (err: Error) => toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
-  const pins = circle?.pinnedWiki ?? [];
-  const pinned = pins.includes(slug);
-  const pin = useMutation({
-    mutationFn: () =>
-      apiFetch(`/api/circles/${circleId}`, { method: "PATCH", body: JSON.stringify({ pinnedWiki: pinned ? pins.filter((entry) => entry !== slug) : [...pins, slug] }) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["directory"] });
-      toast({ title: pinned ? "Unpinned" : `Pinned to the ${circle?.name ?? "circle"} page` });
+  const recolor = useMutation({
+    mutationFn: (color: NoteColor) => apiFetch<{ page: WikiPage }>(`/api/circles/${circleId}/wiki/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
+    onSuccess: ({ page: updated }) => {
+      saved(updated);
+      queryClient.invalidateQueries({ queryKey: ["pins"] });
     },
-    onError: (err: Error) => toast({ title: pinned ? "Could not unpin it" : "Could not pin it", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Could not change the colour", description: err.message, variant: "destructive" }),
   });
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/circles/${circleId}/wiki/${slug}`, { method: "DELETE" }),
@@ -186,13 +185,18 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     <div className="flex flex-col gap-4">
       {back}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card className="flex min-w-0 flex-col gap-4">
+        <Card className="flex min-w-0 flex-col gap-4 border-t-[6px]" style={{ borderTopColor: noteStyle(page.color).swatch }}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
               <p className="text-xs text-muted">
                 Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
               </p>
+              {canEdit ? (
+                <div className="mt-2 flex items-center gap-2 text-xs text-muted">
+                  Note colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
+                </div>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
               {canEdit ? (
@@ -200,16 +204,12 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
                   <Pencil className="h-4 w-4" /> Edit
                 </Button>
               ) : null}
-              {data?.canPin && wikiOn ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  disabled={pin.isPending || (!pinned && pins.length >= MAX_PINS)}
-                  title={!pinned && pins.length >= MAX_PINS ? `${circle?.name ?? "This circle"} has ${MAX_PINS} pinned pages; unpin one first` : undefined}
-                  onClick={() => pin.mutate()}
-                >
-                  {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />} {pinned ? "Unpin" : "Pin to circle page"}
+              {user && wikiOn ? <PinToButton circleId={circleId} pageId={page.id} title={page.title} /> : null}
+              {user?.isAdmin ? (
+                <Button asChild size="sm" variant="outline" className="gap-1.5">
+                  <Link href={`/admin/wiki-map?focus=${encodeURIComponent(`note:${circleId}:${page.id}`)}`} title="See how this note connects (admins)">
+                    <Network className="h-4 w-4" /> Map
+                  </Link>
                 </Button>
               ) : null}
               {page.history.length ? (
@@ -298,6 +298,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
               <TocList toc={toc} />
             </nav>
           ) : null}
+          <PinnedTo circleId={circleId} pageId={page.id} />
           <LinkedFrom circleId={circleId} slug={slug} />
           <WikiComments
             circleId={circleId}

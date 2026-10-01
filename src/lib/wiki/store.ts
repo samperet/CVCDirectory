@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { NOTE_COLORS, type NoteColor } from "@/lib/pins/shared";
 
 /**
  * Circle wikis: each circle's pages, written in Markdown, in one document
@@ -33,20 +34,23 @@ export interface WikiPage {
   updatedBy: WikiAuthor;
   /** Earlier versions, oldest first. */
   history: WikiVersion[];
+  /** Its colour as a sticky note; unset is yellow. */
+  color?: NoteColor;
 }
 
-export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy">;
+export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color">;
 
 const MAX_PAGES = 200;
 const MAX_HISTORY = 25;
 
 const title = z.string().trim().min(1, "Give the page a title").max(120, "Titles must be 120 characters or fewer");
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
-export const pageInputSchema = z.object({ title, body: body.default("") });
+const color = z.enum(NOTE_COLORS);
+export const pageInputSchema = z.object({ title, body: body.default(""), color: color.optional() });
 export const pageUpdateSchema = z
   /** `baseUpdatedAt`: when the page was last saved as the editor started, so a save can't silently undo someone else's. */
-  .object({ title: title.optional(), body: body.optional(), baseUpdatedAt: z.string().optional() })
-  .refine((value) => value.title !== undefined || value.body !== undefined, "Nothing to update");
+  .object({ title: title.optional(), body: body.optional(), color: color.optional(), baseUpdatedAt: z.string().optional() })
+  .refine((value) => value.title !== undefined || value.body !== undefined || value.color !== undefined, "Nothing to update");
 export const restoreSchema = z.object({ index: z.number().int().min(0) });
 
 export const isSlug = (slug: string) => /^[a-z0-9-]{1,60}$/.test(slug);
@@ -57,7 +61,14 @@ function normalize(raw: unknown): WikiPage[] {
   return Array.isArray(pages) ? (pages as WikiPage[]) : [];
 }
 
-const summary = (page: WikiPage): WikiPageSummary => ({ id: page.id, slug: page.slug, title: page.title, updatedAt: page.updatedAt, updatedBy: page.updatedBy });
+const summary = (page: WikiPage): WikiPageSummary => ({
+  id: page.id,
+  slug: page.slug,
+  title: page.title,
+  updatedAt: page.updatedAt,
+  updatedBy: page.updatedBy,
+  ...(page.color ? { color: page.color } : {}),
+});
 
 /** A circle's pages, most recently edited first. */
 export async function listPages(circleId: string): Promise<WikiPageSummary[]> {
@@ -94,7 +105,7 @@ const slugFor = (text: string, taken: Set<string>) => {
   return slug;
 };
 
-export function createPage(circleId: string, author: WikiAuthor, input: { title: string; body: string }) {
+export function createPage(circleId: string, author: WikiAuthor, input: { title: string; body: string; color?: NoteColor }) {
   return mutate(circleId, (pages) => {
     if (pages.some((page) => page.title.toLowerCase() === input.title.toLowerCase())) return "exists";
     if (pages.length >= MAX_PAGES) return "full";
@@ -109,6 +120,7 @@ export function createPage(circleId: string, author: WikiAuthor, input: { title:
       updatedAt: now,
       updatedBy: author,
       history: [],
+      ...(input.color && input.color !== "yellow" ? { color: input.color } : {}),
     };
     return { pages: [...pages, page], page };
   });
@@ -120,11 +132,19 @@ function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; 
   return { ...page, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, history: [...page.history, previous].slice(-MAX_HISTORY) };
 }
 
-export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; baseUpdatedAt?: string }) {
-  return mutate(circleId, (pages) => {
-    const page = pages.find((entry) => entry.slug === slug);
+export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; color?: NoteColor; baseUpdatedAt?: string }) {
+  return mutate(circleId, (found) => {
+    let pages = found;
+    let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
+    // A colour isn't a new version; it's just how the note looks.
+    if (update.color && update.color !== (page.color ?? "yellow")) {
+      const { color: _old, ...rest } = page;
+      const recoloured: WikiPage = update.color === "yellow" ? rest : { ...rest, color: update.color };
+      pages = pages.map((entry) => (entry.id === recoloured.id ? recoloured : entry));
+      page = recoloured;
+    }
     const next = { title: update.title ?? page.title, body: update.body ?? page.body };
     if (next.title.toLowerCase() !== page.title.toLowerCase() && pages.some((entry) => entry.id !== page.id && entry.title.toLowerCase() === next.title.toLowerCase())) {
       return "exists";

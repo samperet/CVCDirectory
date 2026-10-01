@@ -3,8 +3,6 @@ import { circleContext } from "@/lib/circles/access";
 import { featureEnabled } from "@/lib/circles/features";
 import { canUploadTo } from "@/lib/documents/access";
 import { problem } from "@/lib/http";
-import { isAdmin } from "@/lib/auth/admins";
-import { canManageCircle } from "@/lib/circles/icons";
 
 /**
  * Who may read and edit a circle's wiki. Every signed-in resident reads it;
@@ -22,15 +20,12 @@ export async function wikiContext(circleId: string, { edit = false } = {}) {
       return { error: problem("Only this circle's members, the Board, and admins can edit its wiki", 403, "Forbidden") };
     }
   }
-  const canPin = featureEnabled(circle, "wiki") && (isAdmin(ctx.user) || canManageCircle(ctx.directory, circleId, ctx.personId));
   return {
     user: ctx.user,
     directory: ctx.directory,
     imported: ctx.imported,
     circle,
     canEdit: featureEnabled(circle, "wiki") && canUploadTo(ctx.user, ctx.directory, circleId),
-    /** Pin pages to the circle's page: its members, the Board, and admins (as for the circle's details). */
-    canPin,
   };
 }
 

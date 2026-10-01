@@ -13,6 +13,7 @@ import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { TaskComments } from "@/components/tasks/task-comments";
+import { PinBoard } from "@/components/pins/pin-board";
 import { DueLabel, OwnerChip, OwnerSelect, PriorityFlag, STATUS_STYLES, StatusPill, canMoveTask, useDirectory, useTaskUpdate, type TaskResponse } from "@/components/tasks/task-bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -345,6 +346,8 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
               </button>
             ) : null}
           </Card>
+
+          <PinBoard target={{ kind: "task", id: `${circleId}:${task.number}` }} title="Reference" circleId={circleId} layout="stack" className="rounded-2xl p-5" />
 
           {task.activity.length ? (
             <Card className="flex flex-col gap-2">

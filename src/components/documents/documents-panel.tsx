@@ -14,6 +14,7 @@ import {
   MessagesSquare,
   Pencil,
   Search,
+  StickyNote,
   Tags,
   Trash2,
   Upload,
@@ -42,6 +43,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
+import { noteStyle, type PinView } from "@/lib/pins/shared";
 
 type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[]; yearOptions?: string[] };
 
@@ -160,7 +162,20 @@ function ConsentBadge({ doc }: { doc: DocumentListing }) {
   );
 }
 
-function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: string[]; showCircle: boolean }) {
+/** Notes pinned to documents, by document id. */
+function useDocumentNotes() {
+  const { data } = useQuery({ queryKey: ["pins", "kind:document"], queryFn: () => apiFetch<{ pins: PinView[] }>("/api/pins?kind=document") });
+  return useMemo(() => {
+    const byDoc = new Map<string, PinView[]>();
+    for (const pin of data?.pins ?? []) byDoc.set(pin.target.id, [...(byDoc.get(pin.target.id) ?? []), pin]);
+    return byDoc;
+  }, [data]);
+}
+
+const NO_NOTES: PinView[] = [];
+
+function DocumentRow({ doc, terms, showCircle, notes = NO_NOTES }: { doc: DocumentListing; terms: string[]; showCircle: boolean; notes?: PinView[] }) {
+  const [showNotes, setShowNotes] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const replaceInput = useRef<HTMLInputElement>(null);
@@ -271,6 +286,17 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
         <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
           <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
           <ConsentBadge doc={doc} />
+          {notes.length ? (
+            <button
+              type="button"
+              onClick={() => setShowNotes(!showNotes)}
+              aria-expanded={showNotes}
+              className="inline-flex items-center gap-1 rounded-full border border-[#ecd77a] bg-[#fff7d1] px-2 py-0.5 font-medium text-foreground-light hover:text-foreground"
+              title="Notes pinned to this document"
+            >
+              <StickyNote className="h-3 w-3" aria-hidden /> {notes.length} {notes.length === 1 ? "note" : "notes"}
+            </button>
+          ) : null}
           {showCircle ? (
             <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
               {doc.circleName}
@@ -399,6 +425,23 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
         <p className="ml-8 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">
           <Highlighted text={doc.snippet} terms={terms} />
         </p>
+      ) : null}
+
+      {showNotes && notes.length ? (
+        <ul className="ml-8 flex flex-wrap gap-2" aria-label="Pinned notes">
+          {notes.map((pin) => (
+            <li key={pin.id}>
+              <Link
+                href={pin.note.href}
+                className="inline-block max-w-[16rem] truncate rounded-md border px-2.5 py-1 text-sm text-foreground shadow-soft hover:underline"
+                style={{ backgroundColor: noteStyle(pin.note.color).paper, borderColor: noteStyle(pin.note.color).edge }}
+                title={pin.note.excerpt || pin.note.title}
+              >
+                {pin.note.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {replacing ? (
@@ -595,6 +638,7 @@ export function DocumentsPanel({
   /** For the all-documents page: the circles the resident can add documents to (bulk upload). */
   uploadCircles?: { id: string; name: string }[];
 }) {
+  const documentNotes = useDocumentNotes();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState("");
@@ -745,7 +789,7 @@ export function DocumentsPanel({
           ) : null}
           <ul className={cn("divide-y divide-border", isFetching && "opacity-60")}>
             {data.documents.map((doc) => (
-              <DocumentRow key={`${doc.id}-${doc.updatedAt}`} doc={doc} terms={terms} showCircle={!circleId} />
+              <DocumentRow key={`${doc.id}-${doc.updatedAt}`} doc={doc} terms={terms} showCircle={!circleId} notes={documentNotes.get(doc.id)} />
             ))}
           </ul>
         </>

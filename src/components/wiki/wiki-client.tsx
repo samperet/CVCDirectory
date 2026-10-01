@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Plus, Search } from "lucide-react";
+import { ArrowLeft, BookOpen, Network, Plus, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
+import { useSession } from "@/lib/auth/client";
+import { noteStyle } from "@/lib/pins/shared";
 import { wikiPagesQuery } from "@/components/wiki/link-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,10 +66,11 @@ function PageList({ circleId, pages }: { circleId: string; pages: WikiPageSummar
     <ul className="flex flex-col divide-y divide-border">
       {pages.map((page) => (
         <li key={page.id} className="py-2.5 first:pt-0 last:pb-0">
-          <Link href={`/circles/${circleId}/wiki/${page.slug}`} className="font-medium text-foreground hover:underline">
+          <Link href={`/circles/${circleId}/wiki/${page.slug}`} className="inline-flex items-center gap-2 font-medium text-foreground hover:underline">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: noteStyle(page.color).swatch }} aria-hidden />
             {page.title}
           </Link>
-          <p className="text-xs text-muted">
+          <p className="pl-[1.125rem] text-xs text-muted">
             Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
           </p>
         </li>
@@ -78,6 +81,7 @@ function PageList({ circleId, pages }: { circleId: string; pages: WikiPageSummar
 
 /** The Wiki section on a circle's page: its pages, most recently edited first. */
 export function WikiSection({ circleId, limit = 8 }: { circleId: string; limit?: number }) {
+  const { user } = useSession();
   const [adding, setAdding] = useState(false);
   const { data, isLoading } = useWikiPages(circleId);
   const pages = data?.pages ?? [];
@@ -90,11 +94,20 @@ export function WikiSection({ circleId, limit = 8 }: { circleId: string; limit?:
             Wiki
           </Link>
         </h2>
-        {data?.canEdit && !adding ? (
-          <Button className="gap-1" onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4" /> New page
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {user?.isAdmin ? (
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href={`/admin/wiki-map?circle=${circleId}`}>
+                <Network className="h-4 w-4" /> Map
+              </Link>
+            </Button>
+          ) : null}
+          {data?.canEdit && !adding ? (
+            <Button className="gap-1" onClick={() => setAdding(true)}>
+              <Plus className="h-4 w-4" /> New page
+            </Button>
+          ) : null}
+        </div>
       </div>
       {adding ? <NewPageForm circleId={circleId} onCancel={() => setAdding(false)} /> : null}
       {isLoading ? (
@@ -117,6 +130,7 @@ export function WikiSection({ circleId, limit = 8 }: { circleId: string; limit?:
 
 /** Every page in a circle's wiki (`?new=Title` opens a new page with that title — from a link to a missing page). */
 export function WikiIndexClient({ circleId }: { circleId: string }) {
+  const { user } = useSession();
   const circle = useCircle(circleId);
   const params = useSearchParams();
   const requested = params.get("new") ?? "";
@@ -133,11 +147,20 @@ export function WikiIndexClient({ circleId }: { circleId: string }) {
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">{circle ? `${circle.name} wiki` : "Wiki"}</h1>
-        {data?.canEdit && !adding ? (
-          <Button className="gap-1" onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4" /> New page
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {user?.isAdmin ? (
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link href={`/admin/wiki-map?circle=${circleId}`}>
+                <Network className="h-4 w-4" /> Map
+              </Link>
+            </Button>
+          ) : null}
+          {data?.canEdit && !adding ? (
+            <Button className="gap-1" onClick={() => setAdding(true)}>
+              <Plus className="h-4 w-4" /> New page
+            </Button>
+          ) : null}
+        </div>
       </div>
       {adding && data?.canEdit ? (
         <Card>

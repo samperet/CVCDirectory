@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { removePinsOn } from "@/lib/pins/store";
 import { getSessionUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/admins";
 import { deleteThread, editThread, getThread, threadUpdateSchema } from "@/lib/forum/store";
@@ -35,5 +36,6 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   if (!user) return problem("Sign in to delete", 401, "Unauthorized");
 
   const result = await deleteThread(params.id, { id: user.id, admin: isAdmin(user) });
+  if (result.ok) await removePinsOn({ kind: "thread", id: params.id });
   return result.ok ? NextResponse.json({ ok: true }) : forumProblem(result.reason);
 }

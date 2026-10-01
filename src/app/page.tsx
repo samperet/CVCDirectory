@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight, Layers, Share2, MessagesSquare, BookUser, Camera, Lightbulb } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { MyTasks } from "@/components/tasks/my-tasks";
+import { PinBoard } from "@/components/pins/pin-board";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 import { getSessionUser } from "@/lib/auth/session";
@@ -89,6 +90,8 @@ export default async function HomePage() {
       </section>
       <NotificationsNudge />
       <NextEvent event={nextEvent ?? null} />
+      <PinBoard target={{ kind: "community", id: "community" }} title="Community notes" hideWhenEmpty />
+      {user.personId ? <PinBoard target={{ kind: "person", id: user.personId }} title="Pinned for you" hideWhenEmpty /> : null}
       <MyTasks />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (

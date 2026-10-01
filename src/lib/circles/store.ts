@@ -32,19 +32,12 @@ export const circleInputSchema = z.object({
   kind: kind.default("club"),
 });
 
-/** How many wiki pages a circle can pin to its page. */
-export const MAX_PINNED_WIKI = 3;
-
 export const circleUpdateSchema = circleInputSchema
   .omit({ kind: true })
   .extend({
     joinPolicy: z.enum(["open", "apply"]),
     kind,
     features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional(), tasks: z.boolean().optional(), polls: z.boolean().optional() }),
-    pinnedWiki: z
-      .array(z.string().regex(/^[a-z0-9-]{1,60}$/))
-      .max(MAX_PINNED_WIKI, `Pin up to ${MAX_PINNED_WIKI} wiki pages`)
-      .transform((slugs) => Array.from(new Set(slugs))),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -162,7 +155,6 @@ export function updateCircle(
     joinPolicy: "open" | "apply";
     kind: "circle" | "club";
     features: { documents?: boolean; wiki?: boolean; tasks?: boolean; polls?: boolean };
-    pinnedWiki: string[];
   }>
 ) {
   return mutate(imported, (circles) => {
