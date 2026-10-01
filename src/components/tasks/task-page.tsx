@@ -153,7 +153,7 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
     queryKey: ["task", circleId, number],
     queryFn: () => apiFetch<TaskResponse>(`/api/circles/${circleId}/tasks/${number}`),
   });
-  const wikiPages = useWikiPages(circleId).data?.pages ?? [];
+  const wikiPages = useWikiPages().data?.pages ?? [];
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const update = useTaskUpdate(circleId, number);

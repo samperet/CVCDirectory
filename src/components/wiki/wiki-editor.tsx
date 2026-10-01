@@ -44,18 +44,18 @@ const IDLE_MS = 1200;
 /** How often the editor checks in (and looks for others' saves). */
 const LIVE_MS = 4000;
 
-const draftKey = (circleId: string, slug: string) => `cvc-wiki-draft:${circleId}:${slug}`;
-function readDraft(circleId: string, slug: string): Draft | null {
+const draftKey = (pageId: string) => `cvc-wiki-draft:${pageId}`;
+function readDraft(pageId: string): Draft | null {
   try {
-    const raw = localStorage.getItem(draftKey(circleId, slug));
+    const raw = localStorage.getItem(draftKey(pageId));
     return raw ? (JSON.parse(raw) as Draft) : null;
   } catch {
     return null;
   }
 }
-function clearDraft(circleId: string, slug: string) {
+function clearDraft(pageId: string) {
   try {
-    localStorage.removeItem(draftKey(circleId, slug));
+    localStorage.removeItem(draftKey(pageId));
   } catch {
     // Private browsing: nothing was kept.
   }
@@ -97,7 +97,7 @@ export function WikiEditor({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
-  const url = `/api/circles/${circleId}/wiki/${initial.slug}`;
+  const url = `/api/wiki/pages/${initial.slug}`;
   const [mode, setMode] = useState<Mode>("visual");
   const modeRef = useRef<Mode>("visual");
   modeRef.current = mode;
@@ -159,9 +159,9 @@ export function WikiEditor({
 
   // A draft left from last time (a save that never made it): offer it back.
   useEffect(() => {
-    const draft = readDraft(circleId, initial.slug);
+    const draft = readDraft(initial.id);
     if (draft && (draft.title !== initial.title || draft.body !== initial.body)) setOfferDraft(draft);
-    else clearDraft(circleId, initial.slug);
+    else clearDraft(initial.id);
     // Only as the editor opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -171,13 +171,13 @@ export function WikiEditor({
     if (!dirty || offerDraft) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(circleId, initial.slug), JSON.stringify({ title, body, base: synced.updatedAt, savedAt: new Date().toISOString() } satisfies Draft));
+        localStorage.setItem(draftKey(initial.id), JSON.stringify({ title, body, base: synced.updatedAt, savedAt: new Date().toISOString() } satisfies Draft));
       } catch {
         // Storage full or blocked: the page still saves normally.
       }
     }, 600);
     return () => clearTimeout(timer);
-  }, [dirty, offerDraft, circleId, initial.slug, title, body, synced.updatedAt]);
+  }, [dirty, offerDraft, initial.id, title, body, synced.updatedAt]);
 
   // Don't lose unsaved work to an accidental close or reload.
   useEffect(() => {
@@ -231,18 +231,19 @@ export function WikiEditor({
   /** Start the new pages this one now links to (as pages started from it). */
   const startNewPages = async (saved: WikiPage) => {
     if (!newPages.current.size) return;
-    const linked = new Set(wikiLinksIn(saved.body, circleId, []).flatMap((link) => (link.kind === "page" && link.circleId === circleId ? [link.title.toLowerCase()] : [])));
+    const linked = new Set(wikiLinksIn(saved.body, []).flatMap((link) => (link.kind === "page" ? [link.title.toLowerCase()] : [])));
     const existing = new Set(pagesRef.current.map((entry) => entry.title.toLowerCase()));
     let made = 0;
     for (const wanted of Array.from(newPages.current)) {
       if (!linked.has(wanted.toLowerCase())) continue;
       newPages.current.delete(wanted);
       if (existing.has(wanted.toLowerCase())) continue;
-      const created = await apiFetch(`/api/circles/${circleId}/wiki`, { method: "POST", body: JSON.stringify({ title: wanted, body: "", parentId: saved.id }) }).catch(() => null);
+      // Started under this page, kept by the same circle.
+      const created = await apiFetch("/api/wiki/pages", { method: "POST", body: JSON.stringify({ title: wanted, body: "", parentId: saved.id }) }).catch(() => null);
       if (created) made++;
     }
     if (made) {
-      queryClient.invalidateQueries({ queryKey: ["wiki", circleId] });
+      queryClient.invalidateQueries({ queryKey: ["wiki"] });
       toast({ title: made === 1 ? "Started 1 new page" : `Started ${made} new pages`, description: "Open the links to write them." });
     }
   };
@@ -264,7 +265,7 @@ export function WikiEditor({
         setSynced({ ...sent, updatedAt: json.page.updatedAt });
         latest.current = json.page;
         setFailure(null);
-        clearDraft(circleId, initial.slug);
+        clearDraft(initial.id);
         await startNewPages(json.page);
       } else if (response.status === 409 && json?.page) {
         integrate(json.page);
@@ -348,7 +349,7 @@ export function WikiEditor({
       toast({ title: "Couldn't save your last changes", description: "They're still here; try again in a moment.", variant: "destructive" });
       return;
     }
-    clearDraft(circleId, initial.slug);
+    clearDraft(initial.id);
     onDone(latest.current);
   };
 
@@ -386,7 +387,7 @@ export function WikiEditor({
     setUploading((count) => count + images.length);
     for (const file of images) {
       try {
-        insertLink(`![](${await uploadWikiImage(circleId, file)})`);
+        insertLink(`![](${await uploadWikiImage(initial.slug, file)})`);
       } catch (error) {
         toast({ title: `Could not add “${file.name}”`, description: (error as Error).message, variant: "destructive" });
       } finally {
@@ -448,7 +449,7 @@ export function WikiEditor({
             size="sm"
             variant="ghost"
             onClick={() => {
-              clearDraft(circleId, initial.slug);
+              clearDraft(initial.id);
               setOfferDraft(null);
             }}
           >
@@ -505,6 +506,7 @@ export function WikiEditor({
             circleId={circleId}
             circleName={circleName}
             pageId={initial.id}
+            pageSlug={initial.slug}
             onChange={setBody}
             onCreatePage={onCreatePage}
             onError={() => {

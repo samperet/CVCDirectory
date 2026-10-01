@@ -1,10 +1,11 @@
-import type { Circle } from "@/lib/directory/types";
-import { featureEnabled } from "@/lib/circles/features";
+import type { DirectoryDocument } from "@/lib/directory/types";
+import { canViewPage, type WikiViewer } from "./access";
 import { wikiLinksIn } from "./links";
 import { embeddedPages } from "./sections";
-import { readPages } from "./store";
+import { readPages, type WikiPage } from "./store";
 
 export interface Backlink {
+  /** The circle that keeps the linking page. */
   circleId: string;
   circleName: string;
   slug: string;
@@ -12,25 +13,15 @@ export interface Backlink {
 }
 
 /**
- * The pages — in any circle's wiki that's turned on — whose links point to
- * (or that embed) the page titled `title` in `circleId`'s wiki. Links name pages by title, so
- * this reads every wiki's pages and follows their links.
+ * The pages (that `user` can see) whose links point to — or that embed —
+ * `page`. Links name pages by title, so this follows every page's links.
  */
-export async function backlinksTo(circleId: string, pageId: string, title: string, circles: Circle[]): Promise<Backlink[]> {
-  const wanted = title.toLowerCase();
-  const wikis = circles.filter((circle) => featureEnabled(circle, "wiki"));
-  const found = await Promise.all(
-    wikis.map(async (circle) =>
-      (await readPages(circle.id))
-        .filter((page) => page.id !== pageId)
-        .filter((page) =>
-          [...wikiLinksIn(page.body, circle.id, circles), ...embeddedPages(page.body, circle.id, circles)].some(
-            (link) => link.kind === "page" && link.circleId === circleId && link.title.toLowerCase() === wanted
-          )
-        )
-        .map((page) => ({ circleId: circle.id, circleName: circle.name, slug: page.slug, title: page.title }))
-    )
-  );
-  // This circle's pages first, then the others', each by title.
-  return found.flat().sort((a, b) => Number(a.circleId !== circleId) - Number(b.circleId !== circleId) || a.circleName.localeCompare(b.circleName) || a.title.localeCompare(b.title));
+export async function backlinksTo(page: Pick<WikiPage, "id" | "title">, user: WikiViewer, directory: DirectoryDocument): Promise<Backlink[]> {
+  const wanted = page.title.toLowerCase();
+  const circles = directory.circles;
+  return (await readPages())
+    .filter((entry) => entry.id !== page.id && canViewPage(user, directory, entry))
+    .filter((entry) => [...wikiLinksIn(entry.body, circles), ...embeddedPages(entry.body, circles)].some((link) => link.kind === "page" && link.title.toLowerCase() === wanted))
+    .map((entry) => ({ circleId: entry.keeper, circleName: circles.find((circle) => circle.id === entry.keeper)?.name ?? "", slug: entry.slug, title: entry.title }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 }

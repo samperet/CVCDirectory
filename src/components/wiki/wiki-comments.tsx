@@ -20,7 +20,7 @@ export interface Thread {
 export function useComments(circleId: string, slug: string) {
   return useQuery({
     queryKey: ["wiki-comments", circleId, slug],
-    queryFn: () => apiFetch<{ comments: WikiComment[] }>(`/api/circles/${circleId}/wiki/${slug}/comments`),
+    queryFn: () => apiFetch<{ comments: WikiComment[] }>(`/api/wiki/pages/${slug}/comments`),
   });
 }
 
@@ -105,7 +105,7 @@ function CommentBody({ comment, circleId, slug, onChanged }: { comment: WikiComm
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(comment.body);
   const mine = user?.id === comment.authorId;
-  const url = `/api/circles/${circleId}/wiki/${slug}/comments/${comment.id}`;
+  const url = `/api/wiki/pages/${slug}/comments/${comment.id}`;
   const save = useMutation({
     mutationFn: () => apiFetch(url, { method: "PATCH", body: JSON.stringify({ body: text }) }),
     onSuccess: () => {
@@ -187,7 +187,7 @@ function ThreadCard({
   const [reply, setReply] = useState("");
   const { root, replies } = thread;
   const resolved = !!root.resolvedAt;
-  const base = `/api/circles/${circleId}/wiki/${slug}/comments`;
+  const base = `/api/wiki/pages/${slug}/comments`;
   const send = useMutation({
     mutationFn: () => apiFetch(base, { method: "POST", body: JSON.stringify({ body: reply, parentId: root.id }) }),
     onSuccess: () => {
@@ -310,7 +310,7 @@ export function WikiComments({
 
   const post = useMutation({
     mutationFn: () =>
-      apiFetch<{ comment: WikiComment }>(`/api/circles/${circleId}/wiki/${slug}/comments`, {
+      apiFetch<{ comment: WikiComment }>(`/api/wiki/pages/${slug}/comments`, {
         method: "POST",
         body: JSON.stringify({ body: text, quote: pendingQuote ?? undefined }),
       }),

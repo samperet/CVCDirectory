@@ -18,7 +18,7 @@ import {
 } from "lexical";
 import { addComposerChild$, addExportVisitor$, addImportVisitor$, addLexicalNode$, realmPlugin, type LexicalExportVisitor, type MdastImportVisitor } from "@mdxeditor/editor";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink } from "@/lib/wiki/links";
-import { docFileUrl, findDoc, useCircles, useDocTitles, wikiPagesQuery } from "@/components/wiki/link-data";
+import { docFileUrl, findDoc, pageTitled, useCircles, useDocTitles, wikiPagesQuery } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
 
@@ -41,8 +41,8 @@ function EditorWikiTag({ target, label, format = 0 }: { target: string; label?: 
   const wiki = useContext(WikiCircleContext);
   const circleId = wiki?.circleId ?? "";
   const circles = useCircles();
-  const link = circles ? parseWikiLink(target, circleId, circles) : null;
-  const pages = useQuery({ ...wikiPagesQuery(link?.kind === "page" ? link.circleId : circleId), enabled: link?.kind === "page" });
+  const link = circles ? parseWikiLink(target, circles) : null;
+  const pages = useQuery({ ...wikiPagesQuery(), enabled: link?.kind === "page" });
   const docs = useDocTitles(link?.kind === "doc").data;
   const text = label?.trim() || link?.title || target;
   if (!link) return styled(<WikiTag kind="pending" label={text} />);
@@ -53,12 +53,11 @@ function EditorWikiTag({ target, label, format = 0 }: { target: string; label?: 
   }
   if (pages.isError) return styled(<WikiTag kind="missing" label={text} />);
   if (!pages.data) return styled(<WikiTag kind="pending" label={text} />);
-  const page = pages.data.pages.find((entry) => entry.title.toLowerCase() === link.title.toLowerCase());
-  const other = link.circleId !== circleId ? circles?.find((circle) => circle.id === link.circleId)?.name : null;
+  const page = pageTitled(pages.data.pages, link.title);
   return styled(page ? (
-    <WikiTag kind="page" label={text} href={`/circles/${link.circleId}/wiki/${page.slug}`} color={page.color} circleName={other} newTab />
+    <WikiTag kind="page" label={text} href={`/wiki/${page.slug}`} color={page.color} newTab />
   ) : (
-    <WikiTag kind="missing" label={text} href={`/circles/${link.circleId}/wiki?new=${encodeURIComponent(link.title)}`} newTab />
+    <WikiTag kind="missing" label={text} href={`/wiki?new=${encodeURIComponent(link.title)}`} newTab />
   ));
 }
 

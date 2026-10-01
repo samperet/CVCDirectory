@@ -5,6 +5,7 @@ import { canManageDocument, canUploadTo } from "@/lib/documents/access";
 import { getDocument, isDocumentId } from "@/lib/documents/store";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
+import { canViewPage } from "@/lib/wiki/access";
 import { POLL_DIRECTIVE, listWikiPolls } from "@/lib/polls/wiki";
 import { EMBED_DIRECTIVE } from "@/lib/wiki/sections";
 import { NOTE_COLORS, type NoteColor, type Pin, type PinTarget, type PinView } from "./shared";
@@ -103,17 +104,20 @@ export function excerptOf(markdown: string, length = 400, polls: Map<string, str
 }
 
 /**
- * Pins ready to show. Pins whose note or target has gone are left out. `resolved` can supply targets already
+ * Pins ready to show. Pins whose note or target has gone are left out, as
+ * are pages the viewer can't see. `resolved` can supply targets already
  * looked up; `full` includes each page's whole text.
  */
 export async function pinViews(user: Viewer, directory: DirectoryDocument, pins: Pin[], resolved: ResolvedTarget[] = [], { full = false } = {}): Promise<PinView[]> {
-  const visible = pins;
-  const circleIds = Array.from(new Set(visible.map((pin) => pin.note.circleId)));
-  const pages = new Map<string, WikiPage[]>(await Promise.all(circleIds.map(async (id) => [id, await readPages(id)] as [string, WikiPage[]])));
-  // Polls show by their questions, for the circles whose pinned pages hold any.
+  const pages = new Map((await readPages()).map((page) => [page.id, page]));
+  // A page someone can't see isn't shown to them, wherever it's pinned.
+  const visible = pins.filter((pin) => {
+    const page = pages.get(pin.note.pageId);
+    return !!page && canViewPage(user, directory, page);
+  });
+  // Polls show by their questions, when a pinned page holds any.
   const questions = new Map<string, string>();
-  const withPolls = circleIds.filter((id) => visible.some((pin) => pin.note.circleId === id && pages.get(id)?.find((page) => page.id === pin.note.pageId)?.body.includes("::poll")));
-  for (const id of withPolls) for (const poll of await listWikiPolls(id)) questions.set(poll.id, poll.question);
+  if (visible.some((pin) => pages.get(pin.note.pageId)?.body.includes("::poll"))) for (const poll of await listWikiPolls()) questions.set(poll.id, poll.question);
   const targets = new Map<string, ResolvedTarget | null>(resolved.map((entry) => [`${entry.target.kind}:${entry.target.id}`, entry]));
   for (const pin of visible) {
     const key = `${pin.target.kind}:${pin.target.id}`;
@@ -122,21 +126,21 @@ export async function pinViews(user: Viewer, directory: DirectoryDocument, pins:
 
   const views: PinView[] = [];
   for (const pin of visible) {
-    const page = pages.get(pin.note.circleId)?.find((entry) => entry.id === pin.note.pageId);
+    const page = pages.get(pin.note.pageId);
     const target = targets.get(`${pin.target.kind}:${pin.target.id}`);
     if (!page || !target) continue;
-    const circleName = directory.circles.find((circle) => circle.id === pin.note.circleId)?.name ?? "";
+    const circleName = directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "";
     views.push({
       id: pin.id,
       note: {
-        circleId: pin.note.circleId,
+        circleId: page.keeper,
         circleName,
         pageId: page.id,
         slug: page.slug,
         title: page.title,
         excerpt: excerptOf(page.body, 400, questions),
         color: pageColor(page),
-        href: `/circles/${pin.note.circleId}/wiki/${page.slug}`,
+        href: `/wiki/${page.slug}`,
         ...(full ? { body: page.body } : {}),
       },
       target: { kind: pin.target.kind, id: pin.target.id, label: target.label, href: target.href, ...(target.external ? { external: true } : {}) },

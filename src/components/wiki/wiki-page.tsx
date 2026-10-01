@@ -4,14 +4,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight, CornerDownRight, FilePlus2, FolderTree, History, ListTree, Network, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, CornerDownRight, FilePlus2, FolderTree, History, ListTree, Lock, Network, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
-import { featureEnabled } from "@/lib/circles/features";
 import { timeAgo } from "@/lib/time";
 import { noteStyle, type NoteColor } from "@/lib/pins/shared";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
@@ -20,12 +18,13 @@ import { PinToButton, PinnedTo } from "@/components/pins/pin-picker";
 import { WikiComments, threadsOf, useComments, useQuoteHighlights } from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
 import { NewPageForm, useWikiPages } from "@/components/wiki/wiki-client";
+import { useCircles, wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
+import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
 import { Dialog } from "@/components/pins/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 
-type PageResponse = { page: WikiPage; canEdit: boolean };
 const NO_THREADS: never[] = [];
 
 /** A floating "Comment" button over selected text on the page. */
@@ -59,18 +58,19 @@ function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: bool
  * it or on a passage, look back through its versions, and — for its editors —
  * edit, restore a version, or delete it.
  */
-export function WikiPageClient({ circleId, slug }: { circleId: string; slug: string }) {
+export function WikiPageClient({ slug }: { slug: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
-  const circle = useQuery({ queryKey: ["directory"], queryFn: () => apiFetch<DirectoryDocument>("/api/directory") }).data?.circles.find(
-    (entry) => entry.id === circleId
-  );
-  const key = ["wiki", circleId, slug];
-  const { data, isLoading, error } = useQuery({ queryKey: key, queryFn: () => apiFetch<PageResponse>(`/api/circles/${circleId}/wiki/${slug}`) });
-  const pageList = useWikiPages(circleId).data?.pages;
+  const circles = useCircles();
+  const key = wikiPageQuery(slug).queryKey;
+  const { data, isLoading, error } = useQuery(wikiPageQuery(slug));
+  // The circle that keeps it.
+  const circleId = data?.page.keeper ?? "";
+  const circle = circles?.find((entry) => entry.id === circleId);
+  const pageList = useWikiPages().data?.pages;
   const pages = useMemo(() => pageList ?? [], [pageList]);
   const commentData = useComments(circleId, slug).data;
   const threads = useMemo(() => threadsOf(commentData?.comments ?? []), [commentData]);
@@ -81,21 +81,23 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
   const article = useRef<HTMLDivElement>(null);
 
   const page = data?.page;
-  const wikiOn = featureEnabled(circle, "wiki");
-  const canEdit = !!data?.canEdit && wikiOn;
+  const wikiOn = true;
+  const canEdit = !!data?.canEdit;
+  const canManage = !!data?.canManage;
+  const history = data?.history ?? [];
   const reading = mode !== "edit";
   const { ranges, found: foundIds } = useQuoteHighlights(article, reading ? threads : NO_THREADS, activeId, `${page?.body ?? ""}:${mode}`);
   const [prompt, dismissPrompt] = useSelectionPrompt(article, reading && wikiOn && !!user);
   const toc = useMemo(() => (page ? tableOfContents(page.body) : []), [page]);
   // While reading: others' saves appear without reloading, and who's editing shows.
   const live = useQuery({
-    queryKey: ["wiki-live", circleId, slug],
-    queryFn: () => apiFetch<{ updatedAt: string; editors: PageEditor[] }>(`/api/circles/${circleId}/wiki/${slug}/live`),
+    queryKey: ["wiki-live", slug],
+    queryFn: () => apiFetch<{ updatedAt: string; editors: PageEditor[] }>(`/api/wiki/pages/${slug}/live`),
     enabled: !!page && mode !== "edit",
     refetchInterval: 10_000,
   }).data;
   useEffect(() => {
-    if (live && page && live.updatedAt !== page.updatedAt) void queryClient.invalidateQueries({ queryKey: ["wiki", circleId, slug], exact: true });
+    if (live && page && live.updatedAt !== page.updatedAt) void queryClient.invalidateQueries({ queryKey: key, exact: true });
     // Only when the page's last save changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live?.updatedAt]);
@@ -103,14 +105,16 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
 
   const exitEdit = () => {
     setMode("read");
-    router.replace(`/circles/${circleId}/wiki/${slug}`);
+    router.replace(`/wiki/${slug}`);
   };
   const saved = (updated: WikiPage) => {
     queryClient.setQueryData<PageResponse>(key, (old) => (old ? { ...old, page: updated } : old));
-    queryClient.invalidateQueries({ queryKey: ["wiki", circleId], exact: true });
+    // The history, the page list, and pages that embed this one catch up.
+    queryClient.invalidateQueries({ queryKey: key, exact: true });
+    queryClient.invalidateQueries({ queryKey: ["wiki"], exact: true });
   };
   const restore = useMutation({
-    mutationFn: (index: number) => apiFetch<{ page: WikiPage }>(`/api/circles/${circleId}/wiki/${slug}/restore`, { method: "POST", body: JSON.stringify({ index }) }),
+    mutationFn: (index: number) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}/restore`, { method: "POST", body: JSON.stringify({ index }) }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
       setViewing(null);
@@ -120,7 +124,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     onError: (err: Error) => toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
   const recolor = useMutation({
-    mutationFn: (color: NoteColor) => apiFetch<{ page: WikiPage }>(`/api/circles/${circleId}/wiki/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
+    mutationFn: (color: NoteColor) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
       queryClient.invalidateQueries({ queryKey: ["pins"] });
@@ -129,11 +133,12 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
   });
   const [addingSub, setAddingSub] = useState(false);
   const remove = useMutation({
-    mutationFn: () => apiFetch(`/api/circles/${circleId}/wiki/${slug}`, { method: "DELETE" }),
+    mutationFn: () => apiFetch(`/api/wiki/pages/${slug}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wiki", circleId] });
+      queryClient.invalidateQueries({ queryKey: ["wiki"] });
+      queryClient.invalidateQueries({ queryKey: ["pins"] });
       toast({ title: "Page deleted" });
-      router.replace(`/circles/${circleId}/wiki`);
+      router.replace("/wiki");
     },
     onError: (err: Error) => toast({ title: "Could not delete the page", description: err.message, variant: "destructive" }),
   });
@@ -160,18 +165,18 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     }
   };
 
-  // Where the page sits: its circle, then the pages it's part of (a breadcrumb back up).
+  // Where the page sits: the wiki, then the pages it's under (a breadcrumb back up).
   const ancestors = useMemo(() => (page ? ancestorsOf(page, pages) : []), [page, pages]);
   const children = useMemo(() => (page ? pages.filter((entry) => entry.parentId === page.id).sort((a, b) => a.title.localeCompare(b.title)) : []), [page, pages]);
   const back = (
     <nav className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm text-muted" aria-label="Where this page is">
-      <Link href={`/circles/${circleId}`} className="inline-flex items-center gap-1 hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> {circle?.name ?? "Circle"}
+      <Link href="/wiki" className="inline-flex items-center gap-1 hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Wiki
       </Link>
       {ancestors.map((entry) => (
         <span key={entry.id} className="inline-flex min-w-0 items-center gap-1">
           <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <Link href={`/circles/${circleId}/wiki/${entry.slug}`} className="truncate hover:text-foreground">
+          <Link href={`/wiki/${entry.slug}`} className="truncate hover:text-foreground">
             {entry.title}
           </Link>
         </span>
@@ -220,7 +225,20 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
               <p className="text-xs text-muted">
-                Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
+                Kept by{" "}
+                {circle ? (
+                  <Link href={`/circles/${circle.id}`} className="font-medium hover:underline">
+                    {circle.name}
+                  </Link>
+                ) : (
+                  "a circle"
+                )}
+                {page.view.kind !== "everyone" ? (
+                  <span className="ml-1 inline-flex items-center gap-0.5" title={viewLabel(page.view, circles)}>
+                    <Lock className="h-3 w-3" aria-hidden /> {viewLabel(page.view, circles)}
+                  </span>
+                ) : null}
+                {" · "}Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
                 {othersEditing.length ? (
                   <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary" data-live-editors>
                     <Pencil className="h-3 w-3" aria-hidden /> {othersEditing.map((editor) => editor.name).join(", ")} {othersEditing.length === 1 ? "is" : "are"} editing
@@ -239,17 +257,18 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
                   <Pencil className="h-4 w-4" /> Edit
                 </Button>
               ) : null}
-              {user && wikiOn ? <PinToButton circleId={circleId} pageId={page.id} title={page.title} /> : null}
+              {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
+              {user ? <PinToButton pageId={page.id} title={page.title} /> : null}
               {user?.isAdmin ? (
                 <Button asChild size="sm" variant="outline" className="gap-1.5">
-                  <Link href={`/admin/wiki-map?focus=${encodeURIComponent(`note:${circleId}:${page.id}`)}`} title="See how this note connects (admins)">
+                  <Link href={`/admin/wiki-map?focus=${encodeURIComponent(`note:${page.id}`)}`} title="See how this note connects (admins)">
                     <Network className="h-4 w-4" /> Map
                   </Link>
                 </Button>
               ) : null}
-              {page.history.length ? (
+              {history.length ? (
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setMode(mode === "history" ? "read" : "history")}>
-                  {mode === "history" ? <X className="h-4 w-4" /> : <History className="h-4 w-4" />} {mode === "history" ? "Close history" : `History (${page.history.length})`}
+                  {mode === "history" ? <X className="h-4 w-4" /> : <History className="h-4 w-4" />} {mode === "history" ? "Close history" : `History (${history.length})`}
                 </Button>
               ) : null}
             </div>
@@ -259,7 +278,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
             <div className="flex flex-col gap-3 rounded-lg border border-border bg-accent/40 p-3">
               <h2 className="text-sm font-semibold text-foreground">Earlier versions</h2>
               <ul className="flex flex-col gap-1.5 text-sm">
-                {page.history
+                {history
                   .map((version, index) => ({ version, index }))
                   .reverse()
                   .map(({ version, index }) => (
@@ -286,10 +305,10 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
                     </li>
                   ))}
               </ul>
-              {viewing !== null && page.history[viewing] ? (
+              {viewing !== null && history[viewing] ? (
                 <div className="rounded-lg border border-border bg-white p-4">
-                  <p className="mb-2 text-xs font-medium text-muted">Version from {timeAgo(page.history[viewing].editedAt)}</p>
-                  <WikiMarkdown source={page.history[viewing].body} circleId={circleId} pages={pages} />
+                  <p className="mb-2 text-xs font-medium text-muted">Version from {timeAgo(history[viewing].editedAt)}</p>
+                  <WikiMarkdown source={history[viewing].body} circleId={circleId} pages={pages} />
                 </div>
               ) : null}
             </div>
@@ -308,7 +327,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
             <WikiMarkdown source={page.body} circleId={circleId} pages={pages} pageId={page.id} />
           </div>
 
-          {canEdit ? (
+          {canManage ? (
             <div className="border-t border-border pt-3">
               <button
                 type="button"
@@ -343,7 +362,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
                   {children.map((child) => (
                     <li key={child.id} className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: noteStyle(child.color).swatch }} aria-hidden />
-                      <Link href={`/circles/${circleId}/wiki/${child.slug}`} className="min-w-0 truncate text-foreground-light hover:text-foreground hover:underline">
+                      <Link href={`/wiki/${child.slug}`} className="min-w-0 truncate text-foreground-light hover:text-foreground hover:underline">
                         {child.title}
                       </Link>
                     </li>
@@ -359,11 +378,11 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
           ) : null}
           {addingSub ? (
             <Dialog title="Add a sub-page" icon={<FilePlus2 className="h-5 w-5 text-primary" />} onClose={() => setAddingSub(false)}>
-              <p className="text-sm text-muted">A page that&apos;s part of “{page.title}”. It&apos;s listed here rather than on the circle.</p>
-              <NewPageForm circleId={circleId} parentId={page.id} onCancel={() => setAddingSub(false)} />
+              <p className="text-sm text-muted">A page under “{page.title}”, kept by {circle?.name ?? "the same circle"}.</p>
+              <NewPageForm parentId={page.id} onCancel={() => setAddingSub(false)} />
             </Dialog>
           ) : null}
-          <PinnedTo circleId={circleId} pageId={page.id} />
+          <PinnedTo pageId={page.id} />
           <LinkedFrom circleId={circleId} slug={slug} />
           <WikiComments
             circleId={circleId}
@@ -412,11 +431,11 @@ function ancestorsOf(page: Pick<WikiPage, "id" | "parentId">, pages: WikiPageSum
   return chain;
 }
 
-/** "Linked from": the pages, here and in other circles' wikis, that link to this one. */
+/** "Linked from": the pages that link to (or embed) this one. */
 function LinkedFrom({ circleId, slug }: { circleId: string; slug: string }) {
   const { data } = useQuery({
     queryKey: ["wiki-backlinks", circleId, slug],
-    queryFn: () => apiFetch<{ backlinks: Backlink[] }>(`/api/circles/${circleId}/wiki/${slug}/backlinks`),
+    queryFn: () => apiFetch<{ backlinks: Backlink[] }>(`/api/wiki/pages/${slug}/backlinks`),
   });
   if (!data?.backlinks.length) return null;
   return (
@@ -427,7 +446,7 @@ function LinkedFrom({ circleId, slug }: { circleId: string; slug: string }) {
       <ul className="flex flex-col gap-0.5">
         {data.backlinks.map((link) => (
           <li key={`${link.circleId}/${link.slug}`}>
-            <Link href={`/circles/${link.circleId}/wiki/${link.slug}`} className="text-foreground-light hover:text-foreground hover:underline">
+            <Link href={`/wiki/${link.slug}`} className="text-foreground-light hover:text-foreground hover:underline">
               {link.title}
             </Link>
             {link.circleId !== circleId ? <span className="text-xs text-muted"> · {link.circleName}</span> : null}

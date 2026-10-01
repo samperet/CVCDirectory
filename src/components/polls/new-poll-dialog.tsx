@@ -12,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
-/** Ask a question in a wiki page: the poll is made, then placed where the cursor was. */
-export function NewPollDialog({ circle, onCreated, onClose }: { circle: { id: string; name: string }; onCreated: (poll: WikiPoll) => void; onClose: () => void }) {
+/** Ask a question in a wiki page: the poll is made (belonging to the page's keeper circle), then placed where the cursor was. */
+export function NewPollDialog({ circle, pageSlug, onCreated, onClose }: { circle: { id: string; name: string }; pageSlug: string; onCreated: (poll: WikiPoll) => void; onClose: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState("");
@@ -23,12 +23,12 @@ export function NewPollDialog({ circle, onCreated, onClose }: { circle: { id: st
   const ready = question.trim().length >= 3 && draftOptions(draft).length >= 2;
   const create = useMutation({
     mutationFn: () =>
-      apiFetch<{ poll: WikiPoll }>(`/api/circles/${circle.id}/polls`, {
+      apiFetch<{ poll: WikiPoll }>("/api/wiki/polls", {
         method: "POST",
-        body: JSON.stringify({ question, details, membersOnly, poll: pollPayload(draft) }),
+        body: JSON.stringify({ page: pageSlug, question, details, membersOnly, poll: pollPayload(draft) }),
       }),
     onSuccess: ({ poll }) => {
-      queryClient.invalidateQueries({ queryKey: ["wiki-polls", circle.id] });
+      queryClient.invalidateQueries({ queryKey: ["wiki-polls"] });
       onCreated(poll);
     },
     onError: (error: Error) => toast({ title: "Could not add the poll", description: error.message, variant: "destructive" }),

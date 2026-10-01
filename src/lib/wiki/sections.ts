@@ -105,10 +105,10 @@ export function embedsIn(markdown: string): { page: string; section?: string }[]
 /** The directive embedding a page (or one of its sections). */
 export const embedText = (page: string, section?: string) => `::embed{page="${page.replace(/"/g, "")}"${section ? ` section="${section.replace(/"/g, "")}"` : ""}}`;
 
-/** The pages a page embeds, resolved to their circles (as links are). */
-export function embeddedPages(markdown: string, circleId: string, circles: CircleRef[]) {
+/** The pages a page embeds (read as links are). */
+export function embeddedPages(markdown: string, circles: CircleRef[]) {
   return embedsIn(markdown).flatMap(({ page }) => {
-    const link = parseWikiLink(page, circleId, circles);
+    const link = parseWikiLink(page, circles);
     return link.kind === "page" ? [link] : [];
   });
 }

@@ -19,11 +19,11 @@ import { PIN_KINDS, type Pin, type PinNoteRef, type PinTarget } from "./shared";
 const KEY = "pins.json";
 /** A circle's information can hold as many pages as its wiki; other places, a handful. */
 export const maxPinsOn = (target: PinTarget) => (target.kind === "circle" ? 200 : 20);
-const VERSION = 2;
+const VERSION = 3;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-15");
 export const targetSchema = z.object({ kind: z.enum(PIN_KINDS), id: z.string().min(1).max(120) });
-export const noteRefSchema = z.object({ circleId: z.string().min(1).max(80), pageId: z.string().min(1).max(80) });
+export const noteRefSchema = z.object({ pageId: z.string().min(1).max(80) });
 export const pinInputSchema = z.object({
   note: noteRefSchema,
   target: targetSchema,
@@ -43,36 +43,36 @@ export const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "A
 const live = (pin: Pin, on = today()) => !pin.until || pin.until >= on;
 
 export const sameTarget = (a: PinTarget, b: PinTarget) => a.kind === b.kind && a.id === b.id;
-export const sameNote = (a: PinNoteRef, b: PinNoteRef) => a.circleId === b.circleId && a.pageId === b.pageId;
+export const sameNote = (a: PinNoteRef, b: PinNoteRef) => a.pageId === b.pageId;
 
 /**
- * Before pins listed a circle's information, every page showed in its
- * circle's Wiki section. So the first time they're read, every page that
- * wasn't started from another page is pinned to its own circle — nothing
- * disappears from circle pages. (This covers the pages circles once pinned
- * by address, too.)
+ * Bring older pins up to date. Before pins listed a circle's information,
+ * every page showed in its circle's Wiki section, so (version 1) every page
+ * that wasn't started from another page is pinned to its keeper circle —
+ * nothing disappears from circle pages. Pins once named a page by its circle
+ * as well as its id (version 2); now the id alone does (the wiki is one).
  */
-async function migrate(circles: Circle[], pins: Pin[]): Promise<Pin[]> {
+async function migrate(stored: Stored | null): Promise<Pin[]> {
+  const pins: Pin[] = (stored?.pins ?? []).map((pin) => ({ ...pin, note: { pageId: pin.note.pageId } }));
+  if ((stored?.version ?? 0) >= 2) return pins;
   const added: Pin[] = [];
-  for (const circle of circles) {
-    for (const page of await readPages(circle.id)) {
-      if (page.parentId) continue;
-      const note = { circleId: circle.id, pageId: page.id };
-      const target = { kind: "circle" as const, id: circle.id };
-      if (pins.some((pin) => sameNote(pin.note, note) && sameTarget(pin.target, target))) continue;
-      added.push({ id: randomUUID(), note, target, pinnedBy: { personId: null, name: page.createdBy.name }, pinnedAt: page.createdAt, until: null, reason: null });
-    }
+  for (const page of await readPages()) {
+    if (page.parentId) continue;
+    const note = { pageId: page.id };
+    const target = { kind: "circle" as const, id: page.keeper };
+    if (pins.some((pin) => sameNote(pin.note, note) && sameTarget(pin.target, target))) continue;
+    added.push({ id: randomUUID(), note, target, pinnedBy: { personId: null, name: page.createdBy.name }, pinnedAt: page.createdAt, until: null, reason: null });
   }
   return [...pins, ...added];
 }
 
-async function load(circles: Circle[]): Promise<Stored> {
+async function load(_circles: Circle[]): Promise<Stored> {
   const stored = normalize(await readJson(KEY));
   if (stored && stored.version === VERSION) return stored;
   return enqueue(KEY, async () => {
     const again = normalize(await readJson(KEY));
     if (again && again.version === VERSION) return again;
-    const pins = await migrate(circles, again?.pins ?? []);
+    const pins = await migrate(again);
     await save(pins);
     return { version: VERSION, pins };
   });
@@ -153,5 +153,5 @@ export function removePinsWhere(match: (pin: Pin) => boolean) {
 /** Take down the pins on something that's been deleted. */
 export const removePinsOn = (target: PinTarget) => removePinsWhere((pin) => sameTarget(pin.target, target));
 
-/** A deleted circle takes its pages' pins, and the pins on it, with it. */
-export const circleGone = (circleId: string) => (pin: Pin) => pin.note.circleId === circleId || (pin.target.kind === "circle" && pin.target.id === circleId);
+/** A deleted circle takes the pins on it with it (its pages stay, kept by the Board). */
+export const circleGone = (circleId: string) => (pin: Pin) => pin.target.kind === "circle" && pin.target.id === circleId;

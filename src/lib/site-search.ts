@@ -10,6 +10,7 @@ import { categorySlug } from "@/lib/resources/slug";
 import { listSkills } from "@/lib/skills/store";
 import { listTasks } from "@/lib/tasks/store";
 import { readPages } from "@/lib/wiki/store";
+import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { occurrences, snippetFor } from "@/lib/search";
 import { excerptOf } from "@/lib/pins/server";
 
@@ -80,7 +81,7 @@ function collect<T>(items: T[], terms: string[], toResult: (item: T) => { fields
 }
 
 /** Search everything; each group lists its best `perGroup` results, and how many matched in all. */
-export async function searchSite(query: string, directory: DirectoryDocument, perGroup = 5): Promise<SearchGroup[]> {
+export async function searchSite(query: string, directory: DirectoryDocument, viewer: WikiViewer, perGroup = 5): Promise<SearchGroup[]> {
   const terms = searchTerms(query);
   if (!terms.length) return [];
   const circles = directory.circles;
@@ -93,7 +94,7 @@ export async function searchSite(query: string, directory: DirectoryDocument, pe
     searchForum(query),
     listRecommendations(),
     listLoanItems(),
-    Promise.all(circles.filter((circle) => featureEnabled(circle, "wiki")).map(async (circle) => ({ circle, pages: await readPages(circle.id) }))),
+    readPages().then((pages) => visiblePages(viewer, directory, pages)),
     Promise.all(circles.filter((circle) => featureEnabled(circle, "tasks")).map(async (circle) => ({ circle, tasks: await listTasks(circle.id) }))),
   ]);
 
@@ -126,17 +127,15 @@ export async function searchSite(query: string, directory: DirectoryDocument, pe
     body: circle.description ?? undefined,
   }));
 
-  const wikiResults = wikis.flatMap(({ circle, pages }) =>
-    collect(pages, terms, (page) => ({
-      fields: [
-        [page.title, 20],
-        [page.body, 1],
-      ],
-      result: { title: page.title, href: `/circles/${circle.id}/wiki/${page.slug}`, meta: `${circle.name} wiki` },
-      // The page as plain text: links by their words; no photos, polls, or markup.
-      body: excerptOf(page.body, 50_000),
-    }))
-  );
+  const wikiResults = collect(wikis, terms, (page) => ({
+    fields: [
+      [page.title, 20],
+      [page.body, 1],
+    ],
+    result: { title: page.title, href: `/wiki/${page.slug}`, meta: `Wiki · kept by ${circleName(page.keeper)}` },
+    // The page as plain text: links by their words; no photos, polls, or markup.
+    body: excerptOf(page.body, 50_000),
+  }));
 
   const taskResults = tasks.flatMap(({ circle, tasks: list }) =>
     collect(list, terms, (task) => ({

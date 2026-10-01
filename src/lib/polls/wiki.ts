@@ -1,26 +1,26 @@
 import { randomUUID } from "crypto";
-import type { NextResponse } from "next/server";
 import { z } from "zod";
-import { circleContext } from "@/lib/circles/access";
-import { featureEnabled } from "@/lib/circles/features";
 import { canUploadTo } from "@/lib/documents/access";
 import { isAdmin } from "@/lib/auth/admins";
 import { problem } from "@/lib/http";
-import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
+import type { DirectoryDocument } from "@/lib/directory/types";
 import type { Poll, VoteFailure } from "./shared";
 import { PollInput, castVote, newPoll, pollInputSchema, withClosed } from "./server";
 
 /**
  * Polls inside wiki pages. A page holds a poll as `::poll{id="…"}`; the
- * poll itself (question, options, votes) lives with its circle's other
- * polls in one document (`wiki-polls/<circleId>.json`). Whoever can edit the
- * circle's wiki adds polls (any resident, on Community); a poll can be for
- * the circle's members only. A poll is announced the first time a page
+ * poll itself (question, options, votes) lives with every other wiki poll
+ * in one document (`wiki/polls.json`). Whoever can edit a page adds polls to
+ * it; a poll belongs to the page's keeper circle as it was added, and can be
+ * for that circle's members only. A poll is announced the first time a page
  * holding it is saved.
  */
 
 export interface WikiPoll {
   id: string;
+  /** The circle it belongs to (whose members vote, when it's members-only). */
+  circleId: string;
   question: string;
   details: string | null;
   authorId: string;
@@ -46,31 +46,30 @@ export function pollIdsIn(markdown: string) {
   return Array.from(markdown.matchAll(POLL_DIRECTIVE)).map((match) => (match[1] ?? match[2]).toLowerCase());
 }
 
-const key = (circleId: string) => `wiki-polls/${circleId}.json`;
-const MAX_POLLS = 300;
+const KEY = "wiki/polls.json";
+const MAX_POLLS = 3000;
 
 function normalize(raw: unknown): WikiPoll[] {
   const polls = (raw as { polls?: unknown } | null)?.polls;
   return Array.isArray(polls) ? (polls as WikiPoll[]) : [];
 }
 
-export async function listWikiPolls(circleId: string): Promise<WikiPoll[]> {
-  return normalize(await readJson(key(circleId)));
+export async function listWikiPolls(): Promise<WikiPoll[]> {
+  return normalize(await readJson(KEY));
 }
 
-export async function getWikiPoll(circleId: string, id: string): Promise<WikiPoll | null> {
-  return (await listWikiPolls(circleId)).find((entry) => entry.id === id) ?? null;
+export async function getWikiPoll(id: string): Promise<WikiPoll | null> {
+  return (await listWikiPolls()).find((entry) => entry.id === id) ?? null;
 }
 
 export type PollFailure = "not_found" | "forbidden" | VoteFailure;
 export type PollResult = { ok: true; poll: WikiPoll | null } | { ok: false; reason: PollFailure };
 
-function mutate(circleId: string, change: (polls: WikiPoll[]) => { polls: WikiPoll[]; poll: WikiPoll | null } | PollFailure): Promise<PollResult> {
-  return enqueue<PollResult>(key(circleId), async () => {
-    const result = change(normalize(await readJson(key(circleId))));
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(key(circleId), { polls: result.polls });
-    return { ok: true, poll: result.poll };
+function mutate(change: (polls: WikiPoll[]) => { polls: WikiPoll[]; poll: WikiPoll | null } | PollFailure): Promise<PollResult> {
+  return mutateJson<PollResult>(KEY, (raw) => {
+    const result = change(normalize(raw));
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return { value: { polls: result.polls }, result: { ok: true, poll: result.poll } };
   });
 }
 
@@ -81,6 +80,7 @@ export async function createWikiPoll(
 ) {
   const poll: WikiPoll = {
     id: randomUUID(),
+    circleId,
     question: input.question,
     details: input.details,
     authorId: author.id,
@@ -89,13 +89,13 @@ export async function createWikiPoll(
     ...(input.membersOnly ? { membersOnly: true } : {}),
     poll: newPoll(input.poll),
   };
-  await mutate(circleId, (polls) => ({ polls: [...polls, poll].slice(-MAX_POLLS), poll }));
+  await mutate((polls) => ({ polls: [...polls, poll].slice(-MAX_POLLS), poll }));
   return poll;
 }
 
 /** Apply a change to one poll. */
-function update(circleId: string, id: string, change: (entry: WikiPoll) => WikiPoll | PollFailure) {
-  return mutate(circleId, (polls) => {
+function update(id: string, change: (entry: WikiPoll) => WikiPoll | PollFailure) {
+  return mutate((polls) => {
     const entry = polls.find((candidate) => candidate.id === id);
     if (!entry) return "not_found";
     const next = change(entry);
@@ -104,23 +104,23 @@ function update(circleId: string, id: string, change: (entry: WikiPoll) => WikiP
   });
 }
 
-export function voteInWikiPoll(circleId: string, id: string, user: { id: string; name: string }, optionIds: string[], newOption?: string) {
-  return update(circleId, id, (entry) => {
+export function voteInWikiPoll(id: string, user: { id: string; name: string }, optionIds: string[], newOption?: string) {
+  return update(id, (entry) => {
     const poll = castVote(entry.poll, user, optionIds, newOption);
     return typeof poll === "string" ? poll : { ...entry, poll };
   });
 }
 
 /** Its author may close or reopen a poll — and so may those who moderate the wiki. */
-export function setWikiPollClosed(circleId: string, id: string, actor: { id: string; canModerate: boolean }, closed: boolean) {
-  return update(circleId, id, (entry) => (actor.canModerate || entry.authorId === actor.id ? { ...entry, poll: withClosed(entry.poll, closed) } : "forbidden"));
+export function setWikiPollClosed(id: string, actor: { id: string; canModerate: boolean }, closed: boolean) {
+  return update(id, (entry) => (actor.canModerate || entry.authorId === actor.id ? { ...entry, poll: withClosed(entry.poll, closed) } : "forbidden"));
 }
 
 /** Mark polls as announced; returns the ones that weren't yet. */
-export async function claimAnnouncements(circleId: string, ids: string[]): Promise<WikiPoll[]> {
+export async function claimAnnouncements(ids: string[]): Promise<WikiPoll[]> {
   if (!ids.length) return [];
   let fresh: WikiPoll[] = [];
-  await mutate(circleId, (polls) => {
+  await mutate((polls) => {
     fresh = polls.filter((entry) => ids.includes(entry.id) && !entry.announced);
     if (!fresh.length) return { polls, poll: null };
     return { polls: polls.map((entry) => (fresh.includes(entry) ? { ...entry, announced: true } : entry)), poll: null };
@@ -128,32 +128,20 @@ export async function claimAnnouncements(circleId: string, ids: string[]): Promi
   return fresh;
 }
 
-/** Remove a circle's polls (when the circle is deleted). */
-export function deleteWikiPolls(circleId: string) {
-  return enqueue(key(circleId), () => deleteJson(key(circleId)));
-}
-
 /**
- * Who does what with a circle's polls. Everyone signed in sees and votes in
- * them (members-only polls: the circle's members). Whoever edits the
- * circle's wiki adds them; admins — and, outside Community, the wiki's
- * editors — can close anyone's.
+ * What a resident can do with a poll. Everyone signed in sees and votes in
+ * it (members-only polls: its circle's members). Its author can close it,
+ * and so can admins and — outside Community — its circle's members.
  */
-export async function pollsContext(circleId: string) {
-  const ctx = await circleContext({ circleId });
-  if ("error" in ctx) return { error: ctx.error as NextResponse };
-  const circle = ctx.directory.circles.find((entry) => entry.id === circleId)!;
-  const community = circleId === "community";
-  const editor = canUploadTo(ctx.user, ctx.directory, circleId);
-  const personId = ctx.user.personId ?? null;
+export function pollAccess(user: { id: string; personId?: string | null; isAdmin?: boolean }, directory: DirectoryDocument, poll: WikiPoll) {
+  const circle = directory.circles.find((entry) => entry.id === poll.circleId);
+  const community = poll.circleId === "community";
+  const member = community || (!!user.personId && !!circle?.seats.some((seat) => seat.personId === user.personId));
   return {
-    user: ctx.user,
-    circle,
-    canCreate: featureEnabled(circle, "wiki") && editor,
-    canModerate: isAdmin(ctx.user) || (!community && editor),
-    /** Whether you can vote in a members-only poll. */
-    isMember: community || (!!personId && circle.seats.some((seat) => seat.personId === personId)),
-    memberIds: circle.seats.map((seat) => seat.personId),
+    circleName: circle?.name ?? "the circle",
+    canClose: poll.authorId === user.id || isAdmin(user) || (!community && canUploadTo(user, directory, poll.circleId)),
+    canVote: !poll.membersOnly || member,
+    memberIds: circle?.seats.map((seat) => seat.personId) ?? [],
   };
 }
 

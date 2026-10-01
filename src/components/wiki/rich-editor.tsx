@@ -46,7 +46,7 @@ import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
 import { EmbedPageDialog } from "@/components/wiki/embed-page-dialog";
 import { EmbedBlock } from "@/components/wiki/embed-block";
-import { useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
+import { pageTitled, useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
 import { featureEnabled } from "@/lib/circles/features";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
@@ -115,7 +115,7 @@ const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
 function PollDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
   const wiki = useContext(WikiCircleContext);
   const remove = useLexicalNodeRemove();
-  const { data } = useQuery({ ...wikiPollsQuery(wiki?.circleId ?? ""), enabled: !!wiki?.circleId });
+  const { data } = useQuery(wikiPollsQuery());
   const id = (mdastNode.attributes?.id ?? "").toLowerCase();
   const entry = data?.polls.find((poll) => poll.id === id);
   return (
@@ -149,9 +149,9 @@ function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
   const target = mdastNode.attributes?.page ?? "";
   const section = mdastNode.attributes?.section ?? undefined;
   const circles = useCircles();
-  const link = circles && wiki ? parseWikiLink(target, wiki.circleId, circles) : null;
-  const circle = link?.kind === "page" ? circles?.find((entry) => entry.id === link.circleId) : undefined;
-  const found = useQuery({ ...wikiPagesQuery(circle?.id ?? ""), enabled: !!circle }).data?.pages.find((page) => page.title.toLowerCase() === link?.title.toLowerCase());
+  const link = circles ? parseWikiLink(target, circles) : null;
+  const found = pageTitled(useQuery(wikiPagesQuery()).data?.pages, link?.title ?? "");
+  const circle = circles?.find((entry) => entry.id === found?.keeper);
   return (
     <div className="my-2 rounded-lg border border-border bg-accent/30 px-3 py-2" contentEditable={false}>
       <div className="flex items-start gap-2">
@@ -162,15 +162,15 @@ function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
             {section ? <span className="font-normal text-muted"> › {section}</span> : null}
           </p>
           <p className="text-xs text-muted">
-            Shown here from {circle && circle.id !== wiki?.circleId ? circle.name : "this wiki"} ·{" "}
+            Shown here{circle && circle.id !== wiki?.circleId ? `, kept by ${circle.name}` : ""} ·{" "}
             <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setPreview(!preview)} aria-expanded={preview}>
               {preview ? "Hide preview" : "Show preview"}
             </button>
           </p>
         </div>
-        {circle && found ? (
+        {found ? (
           <a
-            href={`/circles/${circle.id}/wiki/${found.slug}`}
+            href={`/wiki/${found.slug}`}
             target="_blank"
             rel="noopener"
             className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
@@ -236,9 +236,12 @@ export const RichEditor = forwardRef<
   RichEditorHandle,
   {
     markdown: string;
+    /** The circle that keeps the page. */
     circleId: string;
     circleName: string;
     pageId: string;
+    /** The page's address (for its photos and polls). */
+    pageSlug: string;
     onChange: (markdown: string) => void;
     onError: () => void;
     /** A new page was linked with @: it's made when this page is saved. */
@@ -246,7 +249,7 @@ export const RichEditor = forwardRef<
     /** The same handle as the ref (refs don't pass through a lazily loaded component). */
     control?: MutableRefObject<RichEditorHandle | null>;
   }
->(function RichEditor({ markdown, circleId, circleName, pageId, onChange, onError, onCreatePage, control }, ref) {
+>(function RichEditor({ markdown, circleId, circleName, pageId, pageSlug, onChange, onError, onCreatePage, control }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
   const lexical = useRef<LexicalEditor | null>(null);
   const [polling, setPolling] = useState(false);
@@ -254,7 +257,7 @@ export const RichEditor = forwardRef<
   const [embedding, setEmbedding] = useState(false);
   // Documents go into the circle's documents, so only while it has them turned on.
   const documentsOn = featureEnabled(useCircles()?.find((circle) => circle.id === circleId), "documents");
-  const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
+  const wiki = useMemo(() => ({ circleId, circleName, pageSlug }), [circleId, circleName, pageSlug]);
   // The plugin is set up once, so it reads the latest callback through a ref.
   const createRef = useRef(onCreatePage);
   createRef.current = onCreatePage;
@@ -262,7 +265,7 @@ export const RichEditor = forwardRef<
   // Photos chosen from the toolbar, pasted, or dropped in go to the circle's wiki photos.
   const uploadPhoto = async (file: File) => {
     try {
-      return await uploadWikiImage(circleId, file);
+      return await uploadWikiImage(pageSlug, file);
     } catch (error) {
       toast({ title: "Could not add the photo", description: (error as Error).message, variant: "destructive" });
       throw error;
@@ -372,6 +375,7 @@ export const RichEditor = forwardRef<
     {polling ? (
       <NewPollDialog
         circle={{ id: circleId, name: circleName }}
+        pageSlug={pageSlug}
         onClose={() => setPolling(false)}
         onCreated={(poll) => {
           setPolling(false);

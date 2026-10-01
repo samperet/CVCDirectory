@@ -1,13 +1,11 @@
-import { Suspense } from "react";
-import { WikiPageClient } from "@/components/wiki/wiki-page";
+import { notFound, redirect } from "next/navigation";
+import { pageAtOldAddress } from "@/lib/wiki/store";
 
-export const metadata = { title: "Wiki · CVC Directory" };
+export const dynamic = "force-dynamic";
 
-export default function WikiPagePage({ params }: { params: { id: string; slug: string } }) {
-  return (
-    <Suspense>
-      {/* Keyed, so going from one page to another (or a new sub-page) starts fresh. */}
-      <WikiPageClient key={`${params.id}/${params.slug}`} circleId={params.id} slug={params.slug} />
-    </Suspense>
-  );
+/** A page's address from when each circle had its own wiki: on to where it is now. */
+export default async function OldCircleWikiPage({ params, searchParams }: { params: { id: string; slug: string }; searchParams: { edit?: string } }) {
+  const page = await pageAtOldAddress(params.id, params.slug);
+  if (!page) notFound();
+  redirect(`/wiki/${page.slug}${searchParams.edit ? "?edit=1" : ""}`);
 }

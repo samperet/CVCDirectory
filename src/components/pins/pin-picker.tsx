@@ -21,12 +21,12 @@ export const KIND_ICONS: Record<PinKind, typeof Pin> = {
   document: FileText,
 };
 
-export const notePinsQuery = (circleId: string, pageId: string) => ({
-  queryKey: ["note-pins", circleId, pageId],
-  queryFn: () => apiFetch<{ pins: PinView[] }>(`/api/pins?note=${encodeURIComponent(`${circleId}:${pageId}`)}`),
+export const notePinsQuery = (pageId: string) => ({
+  queryKey: ["note-pins", pageId],
+  queryFn: () => apiFetch<{ pins: PinView[] }>(`/api/pins?note=${encodeURIComponent(pageId)}`),
 });
 
-function PinPickerDialog({ circleId, pageId, title, onClose }: { circleId: string; pageId: string; title: string; onClose: () => void }) {
+function PinPickerDialog({ pageId, title, onClose }: { pageId: string; title: string; onClose: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
@@ -43,17 +43,17 @@ function PinPickerDialog({ circleId, pageId, title, onClose }: { circleId: strin
     queryFn: () => apiFetch<{ options: PinTargetOption[] }>(`/api/pins/targets?q=${encodeURIComponent(search)}`),
     placeholderData: (previous) => previous,
   });
-  const pinned = new Set((useQuery(notePinsQuery(circleId, pageId)).data?.pins ?? []).map((pin) => targetKey(pin.target)));
+  const pinned = new Set((useQuery(notePinsQuery(pageId)).data?.pins ?? []).map((pin) => targetKey(pin.target)));
 
   const pin = useMutation({
     mutationFn: (target: PinTargetOption) =>
       apiFetch("/api/pins", {
         method: "POST",
-        body: JSON.stringify({ note: { circleId, pageId }, target: { kind: target.kind, id: target.id }, until: until || null, reason: reason.trim() || null }),
+        body: JSON.stringify({ note: { pageId }, target: { kind: target.kind, id: target.id }, until: until || null, reason: reason.trim() || null }),
       }),
     onSuccess: (_result, target) => {
       queryClient.invalidateQueries({ queryKey: ["pins"] });
-      queryClient.invalidateQueries({ queryKey: ["note-pins", circleId, pageId] });
+      queryClient.invalidateQueries({ queryKey: ["note-pins", pageId] });
       toast({ title: `Pinned to ${target.label}` });
       setChosen(null);
       setUntil("");
@@ -143,21 +143,21 @@ function PinPickerDialog({ circleId, pageId, title, onClose }: { circleId: strin
 }
 
 /** "Pin to…": stick this note to a circle, a document, or the community dashboard. */
-export function PinToButton({ circleId, pageId, title }: { circleId: string; pageId: string; title: string }) {
+export function PinToButton({ pageId, title }: { pageId: string; title: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setOpen(true)}>
         <Pin className="h-4 w-4" /> Pin to…
       </Button>
-      {open ? <PinPickerDialog circleId={circleId} pageId={pageId} title={title} onClose={() => setOpen(false)} /> : null}
+      {open ? <PinPickerDialog pageId={pageId} title={title} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
 
 /** "Pinned to": everywhere this note is pinned (that you can see), beside "Linked from". */
-export function PinnedTo({ circleId, pageId }: { circleId: string; pageId: string }) {
-  const { data } = useQuery(notePinsQuery(circleId, pageId));
+export function PinnedTo({ pageId }: { pageId: string }) {
+  const { data } = useQuery(notePinsQuery(pageId));
   const unpin = useUnpin();
   if (!data?.pins.length) return null;
   return (

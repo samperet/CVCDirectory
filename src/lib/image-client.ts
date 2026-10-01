@@ -63,10 +63,11 @@ export async function uploadImage(url: string, blob: Blob): Promise<void> {
  * small PNG (a screenshot, a diagram) goes as it is, keeping it crisp;
  * anything else is downscaled and re-encoded as JPEG first.
  */
-export async function uploadWikiImage(circleId: string, file: File): Promise<string> {
+/** A photo for a wiki page (by its address). */
+export async function uploadWikiImage(pageSlug: string, file: File): Promise<string> {
   const keep = file.type === "image/png" && file.size <= 1.5 * 1024 * 1024;
   const blob = keep ? file : await preparePhoto(file, 2000);
-  const res = await fetch(`/api/circles/${circleId}/wiki/images`, { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+  const res = await fetch(`/api/wiki/images?page=${encodeURIComponent(pageSlug)}`, { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
   const body = await res.json().catch(() => null);
   if (!res.ok || !body?.url) throw new Error(body?.detail ?? "Upload failed");
   return body.url as string;

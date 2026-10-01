@@ -4,12 +4,10 @@ import Link from "next/link";
 import { createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Pencil } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
-import type { WikiPage } from "@/lib/wiki/store";
 import { parseWikiLink } from "@/lib/wiki/links";
 import { headingSlug, sectionOf } from "@/lib/wiki/sections";
 import { noteStyle } from "@/lib/pins/shared";
-import { useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
+import { pageTitled, useCircles, wikiPageQuery, wikiPagesQuery } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 
@@ -19,13 +17,11 @@ import { WikiMarkdown } from "@/components/wiki/markdown";
  * text, edited where it lives, and labelled with the circle that keeps it.
  */
 
-/** The pages already open around this point (`circleId:pageId`), so a page never shows inside itself. */
+/** The pages already open around this point (their ids), so a page never shows inside itself. */
 export const EmbedChain = createContext<string[]>([]);
 
 /** How deep embeds go inside embeds. */
 const MAX_DEPTH = 3;
-
-type PageResponse = { page: WikiPage; canEdit: boolean };
 
 function Notice({ children }: { children: React.ReactNode }) {
   return <p className="my-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted">{children}</p>;
@@ -35,46 +31,30 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
   const here = useContext(WikiCircleContext);
   const chain = useContext(EmbedChain);
   const circles = useCircles();
-  const link = circles ? parseWikiLink(target, here?.circleId ?? "", circles) : null;
-  const circleId = link?.kind === "page" ? link.circleId : "";
-  const circle = circles?.find((entry) => entry.id === circleId);
-  const list = useQuery({ ...wikiPagesQuery(circleId), enabled: !!circle });
-  const summary = link ? list.data?.pages.find((page) => page.title.toLowerCase() === link.title.toLowerCase()) : undefined;
-  const key = summary ? `${circleId}:${summary.id}` : "";
-  const repeated = !!key && chain.includes(key);
+  const link = circles ? parseWikiLink(target, circles) : null;
+  const list = useQuery(wikiPagesQuery());
+  const summary = link?.kind === "page" ? pageTitled(list.data?.pages, link.title) : undefined;
+  const repeated = !!summary && chain.includes(summary.id);
   const tooDeep = chain.length > MAX_DEPTH;
-  const full = useQuery({
-    queryKey: ["wiki", circleId, summary?.slug ?? ""],
-    queryFn: () => apiFetch<PageResponse>(`/api/circles/${circleId}/wiki/${summary!.slug}`),
-    enabled: !!summary && !repeated && !tooDeep,
-  });
+  const full = useQuery({ ...wikiPageQuery(summary?.slug ?? ""), enabled: !!summary && !repeated && !tooDeep });
 
-  if (!circles || (circle && list.isLoading) || (summary && !repeated && !tooDeep && full.isLoading)) {
+  if (!circles || list.isLoading || (summary && !repeated && !tooDeep && full.isLoading)) {
     return <div className="my-2 h-20 animate-pulse rounded-lg bg-accent/40" aria-hidden />;
   }
   if (!link || link.kind !== "page") return <Notice>Only wiki pages can be shown here.</Notice>;
-  if (!circle) return <Notice>“{target}” isn&apos;t a page in any circle&apos;s wiki.</Notice>;
-  if (list.isError) return <Notice>{circle.name}&apos;s wiki isn&apos;t available.</Notice>;
-  const wikiHref = `/circles/${circleId}/wiki`;
+  if (list.isError) return <Notice>The wiki isn&apos;t available just now.</Notice>;
   if (!summary) {
-    return (
-      <Notice>
-        “{link.title}” isn&apos;t in{" "}
-        <Link href={wikiHref} className="font-medium text-secondary-foreground hover:underline">
-          {circle.name}&apos;s wiki
-        </Link>{" "}
-        any more.
-      </Notice>
-    );
+    // Either it's gone, or it's a page this reader can't see.
+    return <Notice>“{link.title}” isn&apos;t a page you can see in the wiki.</Notice>;
   }
-  const pageHref = `/circles/${circleId}/wiki/${summary.slug}`;
+  const pageHref = `/wiki/${summary.slug}`;
   if (repeated || tooDeep) {
     return (
       <Notice>
         <Link href={pageHref} className="font-medium text-secondary-foreground hover:underline">
           {summary.title}
         </Link>{" "}
-        {repeated ? "(shown above)" : `(from ${circle.name})`}
+        {repeated ? "(shown above)" : ""}
       </Notice>
     );
   }
@@ -92,15 +72,16 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
     );
   }
   const style = noteStyle(page.color);
-  const own = circleId === here?.circleId;
+  const keeper = circles.find((circle) => circle.id === page.keeper);
+  const own = page.keeper === here?.circleId;
   return (
-    <section className="my-3 border-l-4 pl-4" style={{ borderColor: page.color === "white" ? style.edge : style.swatch }} aria-label={`${page.title}${own ? "" : `, from ${circle.name}`}`} data-embedded={page.title}>
+    <section className="my-3 border-l-4 pl-4" style={{ borderColor: page.color === "white" ? style.edge : style.swatch }} aria-label={`${page.title}${own || !keeper ? "" : `, kept by ${keeper.name}`}`} data-embedded={page.title}>
       <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
         <span className="font-semibold text-foreground-light">
           {page.title}
           {section ? ` › ${section}` : ""}
         </span>
-        {own ? null : <span>from {circle.name}</span>}
+        {own || !keeper ? null : <span>kept by {keeper.name}</span>}
         <Link href={section ? `${pageHref}#${headingSlug(section)}` : pageHref} className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline">
           Open <ArrowUpRight className="h-3 w-3" aria-hidden />
         </Link>
@@ -110,7 +91,7 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
           </Link>
         ) : null}
       </p>
-      <WikiMarkdown source={body} circleId={circleId} pages={list.data?.pages ?? []} pageId={page.id} />
+      <WikiMarkdown source={body} circleId={page.keeper} pages={list.data?.pages} pageId={page.id} />
     </section>
   );
 }

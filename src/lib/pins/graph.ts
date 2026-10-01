@@ -45,15 +45,11 @@ export interface WikiGraph {
   circles: { id: string; name: string }[];
 }
 
-const noteId = (circleId: string, pageId: string) => `note:${circleId}:${pageId}`;
+const noteId = (pageId: string) => `note:${pageId}`;
 
 export async function buildWikiGraph(directory: DirectoryDocument): Promise<WikiGraph> {
   const circles = directory.circles;
-  const [wikis, documents, pins] = await Promise.all([
-    Promise.all(circles.map(async (circle) => ({ circle, pages: await readPages(circle.id) }))),
-    listDocuments(),
-    listPins(circles, {}),
-  ]);
+  const [pages, documents, pins] = await Promise.all([readPages(), listDocuments(), listPins(circles, {})]);
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
@@ -69,62 +65,57 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
     if (circle && !nodes.has(`circle:${circle.id}`)) nodes.set(`circle:${circle.id}`, { id: `circle:${circle.id}`, kind: "circle", label: circle.name, href: `/circles/${circle.id}`, circleId: circle.id });
   };
 
-  // Notes, and the circle each belongs to.
+  // Pages, each with the circle that keeps it.
+  const ids = new Set(pages.map((page) => page.id));
   const byTitle = new Map<string, WikiPage>();
-  for (const { circle, pages } of wikis) {
-    if (pages.length) addCircle(circle.id);
-    for (const page of pages) {
-      const id = noteId(circle.id, page.id);
-      const parent = page.parentId && pages.some((entry) => entry.id === page.parentId) ? noteId(circle.id, page.parentId) : undefined;
-      nodes.set(id, {
-        id,
-        kind: "note",
-        label: page.title,
-        href: `/circles/${circle.id}/wiki/${page.slug}`,
-        circleId: circle.id,
-        color: pageColor(page),
-        excerpt: excerptOf(page.body, 220),
-        ...(parent ? { parent } : {}),
-        edited: { by: page.updatedBy.name, at: page.updatedAt },
-      });
-      byTitle.set(`${circle.id}|${page.title.toLowerCase()}`, page);
-    }
-    // A page started from another hangs off that page; the rest belong to the circle.
-    for (const page of pages) {
-      const parent = page.parentId && pages.some((entry) => entry.id === page.parentId) ? page.parentId : null;
-      if (parent) addEdge(noteId(circle.id, page.id), noteId(circle.id, parent), "child");
-      else addEdge(noteId(circle.id, page.id), `circle:${circle.id}`, "belongs");
-    }
+  for (const page of pages) {
+    addCircle(page.keeper);
+    const parent = page.parentId && ids.has(page.parentId) ? noteId(page.parentId) : undefined;
+    nodes.set(noteId(page.id), {
+      id: noteId(page.id),
+      kind: "note",
+      label: page.title,
+      href: `/wiki/${page.slug}`,
+      circleId: page.keeper,
+      color: pageColor(page),
+      excerpt: excerptOf(page.body, 220),
+      ...(parent ? { parent } : {}),
+      edited: { by: page.updatedBy.name, at: page.updatedAt },
+    });
+    byTitle.set(page.title.toLowerCase(), page);
+  }
+  // A page started under another hangs off that page; the rest belong to their keeper.
+  for (const page of pages) {
+    if (page.parentId && ids.has(page.parentId)) addEdge(noteId(page.id), noteId(page.parentId), "child");
+    else addEdge(noteId(page.id), `circle:${page.keeper}`, "belongs");
   }
 
-  // Links between notes, and to documents (this circle's first, then any).
-  for (const { circle, pages } of wikis) {
-    for (const page of pages) {
-      // Embedding a page counts as linking to it.
-      for (const link of [...wikiLinksIn(page.body, circle.id, circles), ...embeddedPages(page.body, circle.id, circles)]) {
-        const wanted = link.title.toLowerCase();
-        if (link.kind === "page") {
-          const target = byTitle.get(`${link.circleId}|${wanted}`);
-          if (target) addEdge(noteId(circle.id, page.id), noteId(link.circleId, target.id), "link");
-          continue;
-        }
-        const matches = documents.filter((doc) => doc.title.toLowerCase() === wanted && (!link.circleId || doc.circleId === link.circleId));
-        const doc = matches.find((entry) => entry.circleId === circle.id) ?? matches[0];
-        if (!doc) continue;
-        const id = `document:${doc.id}`;
-        if (!nodes.has(id)) nodes.set(id, { id, kind: "document", label: doc.title, href: `/api/documents/${doc.id}/file`, external: true, circleId: doc.circleId });
-        addEdge(noteId(circle.id, page.id), id, "link");
+  // Links between pages (embeds count), and to documents (the keeper's first, then any).
+  for (const page of pages) {
+    for (const link of [...wikiLinksIn(page.body, circles), ...embeddedPages(page.body, circles)]) {
+      const wanted = link.title.toLowerCase();
+      if (link.kind === "page") {
+        const target = byTitle.get(wanted);
+        if (target) addEdge(noteId(page.id), noteId(target.id), "link");
+        continue;
       }
+      const matches = documents.filter((doc) => doc.title.toLowerCase() === wanted && (!link.circleId || doc.circleId === link.circleId));
+      const doc = matches.find((entry) => entry.circleId === page.keeper) ?? matches[0];
+      if (!doc) continue;
+      const id = `document:${doc.id}`;
+      if (!nodes.has(id)) nodes.set(id, { id, kind: "document", label: doc.title, href: `/api/documents/${doc.id}/file`, external: true, circleId: doc.circleId });
+      addEdge(noteId(page.id), id, "link");
     }
   }
 
   // Pins.
   for (const pin of pins) {
-    const from = noteId(pin.note.circleId, pin.note.pageId);
+    const from = noteId(pin.note.pageId);
     if (!nodes.has(from)) continue;
     // On its own circle's page: that's where it belongs, already drawn.
-    if (pin.target.kind === "circle" && pin.target.id === pin.note.circleId) {
-      addEdge(from, `circle:${pin.note.circleId}`, "belongs");
+    const keeper = pages.find((page) => page.id === pin.note.pageId)?.keeper;
+    if (pin.target.kind === "circle" && pin.target.id === keeper) {
+      addEdge(from, `circle:${keeper}`, "belongs");
       continue;
     }
     const to = `${pin.target.kind}:${pin.target.id}`;

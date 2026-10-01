@@ -72,7 +72,7 @@ export function CircleInformation({ circle, canArrange = false }: { circle: Circ
   const target = { kind: "circle" as const, id: circle.id };
   // Switching views keeps showing what's there while the pages' full text loads.
   const { data, isLoading } = useQuery({ ...pinsQuery(target, { full: view === "full" }), placeholderData: (previous, query) => (query?.queryKey[1] === `circle:${circle.id}` ? previous : undefined) });
-  const pageCount = useWikiPages(circle.id).data?.pages.length ?? 0;
+  const pageCount = useWikiPages().data?.pages.filter((page) => page.keeper === circle.id).length ?? 0;
   const takeOff = useUnpin("Taken off the circle page");
   const [adding, setAdding] = useState(false);
   const pins = data?.pins ?? [];
@@ -121,8 +121,8 @@ export function CircleInformation({ circle, canArrange = false }: { circle: Circ
       {pageCount || user?.isAdmin ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-3 text-sm">
           {pageCount ? (
-            <Link href={`/circles/${circle.id}/wiki`} className="font-medium text-secondary-foreground hover:underline">
-              All pages ({pageCount})
+            <Link href={`/wiki?keeper=${circle.id}`} className="font-medium text-secondary-foreground hover:underline">
+              All pages {circle.name} keeps ({pageCount})
             </Link>
           ) : null}
           {user?.isAdmin ? (

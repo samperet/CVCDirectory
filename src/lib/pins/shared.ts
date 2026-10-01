@@ -10,9 +10,8 @@ export interface PinTarget {
   id: string;
 }
 
-/** A wiki page, by its circle and its id (which stays put when it's renamed). */
+/** A wiki page, by its id (which stays put when it's renamed). */
 export interface PinNoteRef {
-  circleId: string;
   pageId: string;
 }
 
@@ -51,6 +50,7 @@ export const noteStyle = (color: string | null | undefined) => NOTE_STYLES[(NOTE
 export interface PinView {
   id: string;
   note: {
+    /** The circle that keeps the page. */
     circleId: string;
     circleName: string;
     pageId: string;

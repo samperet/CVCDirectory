@@ -74,23 +74,22 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
   const typed = (query ?? "").trim().replace(/[[\]|]/g, "");
   const options = useMemo(() => {
     if (query === null) return [];
-    const self = { id: circleId, name: circleName };
     // Results can lag what's typed: keep only those that still match.
     const fits = (title: string) => title.toLowerCase().includes(typed.toLowerCase());
     const list: LinkOption[] = [
       ...(data?.pages ?? []).filter((page) => fits(page.title)).map(
-        (page) => new LinkOption(`page:${page.circleId}:${page.slug}`, "page", page.title, page.circleId === circleId ? null : page.circleName, pageLinkText(page.title, { id: page.circleId, name: page.circleName }, circleId), page.color)
+        (page) => new LinkOption(`page:${page.slug}`, "page", page.title, page.circleId === circleId ? null : page.circleName, pageLinkText(page.title), page.color)
       ),
       ...(data?.documents ?? []).filter((doc) => fits(doc.title)).map(
         (doc) => new LinkOption(`doc:${doc.id}`, "document", doc.title, doc.circleName, docLinkText(doc.title, { id: doc.circleId, name: doc.circleName }, circleId, doc.ambiguous))
       ),
     ];
-    const exact = data?.pages.some((page) => page.circleId === circleId && page.title.toLowerCase() === typed.toLowerCase());
+    const exact = data?.pages.some((page) => page.title.toLowerCase() === typed.toLowerCase());
     if (typed && !exact && !(data?.exists && debounced.toLowerCase() === typed.toLowerCase())) {
-      list.push(new LinkOption(`create:${typed}`, "create", typed, null, pageLinkText(typed, self, circleId)));
+      list.push(new LinkOption(`create:${typed}`, "create", typed, null, pageLinkText(typed)));
     }
     return list;
-  }, [query, data, typed, debounced, circleId, circleName]);
+  }, [query, data, typed, debounced, circleId]);
 
   return (
     <LexicalTypeaheadMenuPlugin<LinkOption>

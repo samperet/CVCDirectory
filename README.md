@@ -16,7 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📚 **Circle wikis** – Each circle keeps its own wiki: a visual editor, live Markdown preview, history, and comments on pages or passages.
+- 📚 **One wiki** – Pages kept by circles, each with its own view and edit settings: a visual editor, editing together, embeds, history, and comments on pages or passages.
 - 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -229,37 +229,43 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   and the version history marks the consented one. **Consented only** filters the list; search
   finds consented documents by the word "consented". The Secretary can withdraw a record of consent.
   (`PUT`/`DELETE /api/documents/<id>/consent`; stored with the document as `consent`.)
-- **Information (the wiki)** – each circle's information is wiki pages. **Add Information** on the
-  circle's page names a new page and picks its colour; it's listed on the circle's page and opens
-  for writing. Pages started from inside another page (with @, or from a link to a page that
-  doesn't exist yet) aren't listed on the circle; they remember the page they came from (their back
-  link goes there), and every page is under **All pages** (`/circles/<id>/wiki`). Pages are Markdown,
-  edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple
-  toolbar: headings, bold/italic, lists and checklists, links, photos, tables, collapsible sections,
-  and **polls**; Markdown shortcuts work as you type. **Typing @** searches pages (in any circle's
-  wiki) and documents and links the one you pick — or, for a new title, links a new page, made when
-  the page is saved (`GET /api/wiki/link-search`). The toolbar's **Add a document** button uploads a file into the circle's documents (title, type, and meeting date filled in from the file's name) and links it where the cursor was. If a page has something the visual editor can't
-  show, it opens as Markdown beside a preview. **Links** show as **tags** — small pills, a page's in its colour, a document's grey-blue, a missing page's dashed red — both on the page and in the editor (where they're one unit, opening in a new tab when clicked), unlike ordinary underlined web links. They're written `[[Page title]]` (a missing page
-  shows red and offers to be created), `[[O&M:Page title]]` for another circle's page, and
-  `[[doc:Document title]]` for a document — this circle's first, then any circle's
-  (`[[doc:O&M:Document title]]` for one circle's); any of them takes `|shown text`. Each page lists
-  what's **Linked from** it (`GET /api/circles/<id>/wiki/<slug>/backlinks`). **Collapsible
-  sections** are `:::details{title="Winter duty"}` … `:::`. Work in progress is kept on the device
-  until saved; Ctrl/⌘+S saves; a save that would overwrite someone else's newer version stops and
-  says who. Longer pages get **On this page**. Raw HTML isn't rendered. Every signed-in resident
-  reads a wiki; those who can add the circle's documents edit it (any resident, on Community). Each
-  page keeps its last 25 versions, and its address when renamed. Stored per circle in
-  `wiki/<circleId>.json`.
+- **The wiki** (`/wiki`) – one wiki for all of CVC. Every page is **kept by a circle**, and has its own
+  settings (nothing is inherited): **who can see it** — everyone (the default), only its keeper
+  circle, or its keeper and chosen circles — and **who can edit it** — its keeper circle (the
+  default; anyone, for Community-kept pages) or anyone who can see it. The keeper circle's members
+  (and the Board and admins, who can always see and edit everything) change these under
+  **Settings**, and can delete the page. A page someone can't see is left out everywhere for them:
+  the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, pins, and
+  notifications. The wiki home shows every page as a **tree** (each page under the one it was
+  started from), a search, and a filter by keeper (`/wiki?keeper=<circleId>`); **New page** asks
+  which of your circles keeps it. A circle's **Add Information** starts a page kept by that circle and
+  shows it on the circle's page; **Add a sub-page** (on any page) and **@ new page** start pages
+  under the page, kept by the same circle. Pages are Markdown, edited in a **visual editor**
+  ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple toolbar: headings, bold/italic,
+  lists and checklists, links, photos, tables, collapsible sections, embedded pages, and **polls**;
+  Markdown shortcuts work as you type. **Typing @** searches pages and documents and links the one
+  you pick — or, for a new title, links a new page (`GET /api/wiki/link-search`). The toolbar's
+  **Add a document** button uploads a file into the keeper circle's documents and links it. **Links**
+  show as **tags**; they're written `[[Page title]]` (titles are unique across the wiki; an older
+  `[[O&M:Page title]]` still works) and `[[doc:Document title]]` (`[[doc:O&M:Document title]]` for
+  one circle's); any of them takes `|shown text`. **Renaming a page updates the links and embeds
+  that point to it.** **Embeds** (`::embed{page="Title" section="Heading"}`) show another page, or
+  one section of it, inline and always current, labelled with the circle that keeps it. Changes
+  **save as you type**, and several people can edit at once (others' saves merge in paragraph by
+  paragraph). Each page keeps its last 25 versions (`wiki/history/<pageId>.json`), and its address
+  when renamed. Pages are stored together in `wiki/pages.json` (`/api/wiki/pages`,
+  `/api/wiki/pages/<slug>`). Until October 2026 each circle had its own wiki
+  (`wiki/<circleId>.json`); the first read brought them together (keeping each page's old address,
+  `/circles/<id>/wiki/<slug>`, as a redirect) and left the old documents untouched.
 - **Polls** live in wiki pages: the editor's poll button asks a question with 2–10 options, one
   choice or several, an optional closing date, optionally letting voters add their own options, and
-  — outside Community — optionally for the circle's members only (everyone sees the results). It's
+  — outside Community — optionally for the page's keeper circle's members only (everyone sees the results). It's
   placed in the page as `::poll{id="…"}`. Residents vote, change or take back their vote while it's
   open; results show once you've voted, when it's closed, or on "See results". Its author, admins,
-  and (outside Community) the wiki's editors close and reopen it. A poll is announced when the page
+  and (outside Community) its circle's members close and reopen it. A poll is announced when the page
   holding it is first saved (the "polls" notification setting; just the members, for a
-  members-only poll). Stored per circle in `wiki-polls/<circleId>.json`
-  (`/api/circles/<id>/polls`). Circles no longer have a separate Polls section, and the forum no
-  longer has polls.
+  members-only poll). Stored together in `wiki/polls.json` (`/api/wiki/polls`), each with its
+  circle. Circles no longer have a separate Polls section, and the forum no longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
   on or off (with Wiki and Documents, under **Edit details**). A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
@@ -317,7 +323,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
   edit and delete their own (admins any). The page's writers and the thread's participants are
-  notified (the "wiki" notification setting). Stored per circle in `wiki-comments/<circleId>.json`;
+  notified (the "wiki" notification setting). Stored page by page in `wiki/comments/<pageId>.json`;
   a page's comments go with it.
 - **A circle's page** – its sections (Information, Members, a duty schedule where there is one,
   Tasks, Documents) are laid out as the circle chooses: **Arrange page** (its members, the Board,
@@ -326,8 +332,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   circle's layout (stored on the circle as `layout`). Each reader can fold any section away with
   the arrow by its title, remembered on their device. Under **Edit details** the circle turns its
   Information (wiki), Tasks, and Documents sections on or off (each on unless turned off). With
-  Documents off, no new documents can be added; its existing ones stay searchable. With the wiki
-  off, its pages can't be edited.
+  Documents off, no new documents can be added; its existing ones stay searchable. With Information
+  off, the circle's page doesn't show it (its wiki pages are unaffected).
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);

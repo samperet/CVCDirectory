@@ -1,45 +1,62 @@
 import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
-import { featureEnabled } from "@/lib/circles/features";
-import { canUploadTo } from "@/lib/documents/access";
 import { problem } from "@/lib/http";
+import { canEditPage, canManagePage, canViewPage } from "./access";
+import { getPage, isSlug, type WikiPage } from "./store";
+import { userIdsForPeople } from "@/lib/auth/users";
+import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import type { CommunityUser } from "@/lib/auth/users";
 
 /**
- * Who may read and edit a circle's wiki. Every signed-in resident reads it;
- * those who can add the circle's documents — its members, the Board, and
- * admins (anyone, for the Community circle) — edit it, while the circle has
- * its wiki turned on.
+ * The wiki's routes: who's asking (any signed-in resident), and — for a
+ * page — whether they can see it, edit it, or look after it (see
+ * `access.ts`). A page someone can't see is "not found" to them.
  */
-export async function wikiContext(circleId: string, { edit = false } = {}) {
-  const ctx = await circleContext({ circleId });
+
+type Session = { user: CommunityUser; directory: DirectoryDocument; imported: Circle[] };
+type PageSession = Session & { page: WikiPage; canEdit: boolean; canManage: boolean };
+
+export async function wikiSession(): Promise<{ error: NextResponse } | Session> {
+  const ctx = await circleContext();
   if ("error" in ctx) return { error: ctx.error as NextResponse };
-  const circle = ctx.directory.circles.find((entry) => entry.id === circleId)!;
-  if (edit) {
-    if (!featureEnabled(circle, "wiki")) return { error: problem(`${circle.name} has turned its wiki off`, 409, "Conflict") };
-    if (!canUploadTo(ctx.user, ctx.directory, circleId)) {
-      return { error: problem("Only this circle's members, the Board, and admins can edit its wiki", 403, "Forbidden") };
-    }
-  }
-  return {
-    user: ctx.user,
-    directory: ctx.directory,
-    imported: ctx.imported,
-    circle,
-    canEdit: featureEnabled(circle, "wiki") && canUploadTo(ctx.user, ctx.directory, circleId),
-  };
+  return { user: ctx.user, directory: ctx.directory, imported: ctx.imported };
 }
 
-export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict") {
+export async function pageContext(slug: string, need: "view" | "edit" | "manage" = "view"): Promise<{ error: NextResponse } | PageSession> {
+  const ctx = await wikiSession();
+  if ("error" in ctx) return ctx;
+  const page: WikiPage | null = isSlug(slug) ? await getPage(slug) : null;
+  if (!page || !canViewPage(ctx.user, ctx.directory, page)) return { error: wikiProblem("not_found") };
+  const canEdit = canEditPage(ctx.user, ctx.directory, page);
+  const canManage = canManagePage(ctx.user, ctx.directory, page);
+  if (need === "edit" && !canEdit) return { error: problem("Only those this page is open to can edit it", 403, "Forbidden") };
+  if (need === "manage" && !canManage) return { error: problem("Only the circle that keeps this page (or the Board) can change that", 403, "Forbidden") };
+  return { ...ctx, page, canEdit, canManage };
+}
+
+export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict" | "bad_parent") {
   switch (reason) {
     case "not_found":
       return problem("That page no longer exists", 404, "Not Found");
     case "exists":
       return problem("A page with that title already exists", 409, "Conflict");
     case "full":
-      return problem("This wiki has as many pages as it can hold", 409, "Conflict");
+      return problem("The wiki has as many pages as it can hold", 409, "Conflict");
     case "no_version":
       return problem("That version no longer exists", 404, "Not Found");
     case "conflict":
       return problem("Someone else saved this page while you were editing it", 409, "Conflict");
+    case "bad_parent":
+      return problem("That page to start it under no longer exists");
   }
 }
+
+/** Who should hear about a page: everyone (null), or — for a page not everyone can see — those who can. */
+export async function pageAudience(directory: DirectoryDocument, page: Pick<WikiPage, "keeper" | "view">): Promise<string[] | null> {
+  if (page.view.kind === "everyone" || page.keeper === "community") return null;
+  const circles = new Set([page.keeper, "board", ...(page.view.kind === "circles" ? page.view.circles : [])]);
+  if (circles.has("community")) return null;
+  const people = directory.circles.filter((circle) => circles.has(circle.id)).flatMap((circle) => circle.seats.map((seat) => seat.personId));
+  return userIdsForPeople(people);
+}
+

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BookOpen, LayoutList } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { WikiPage } from "@/lib/wiki/store";
+import { wikiPageQuery } from "@/components/wiki/link-data";
 import { embedText, tableOfContents } from "@/lib/wiki/sections";
 import { noteStyle } from "@/lib/pins/shared";
 import { Dialog } from "@/components/pins/dialog";
@@ -16,7 +16,7 @@ type Found = { circleId: string; circleName: string; title: string; slug: string
 
 /**
  * Show another page — or one section of it — inside the page being written:
- * find it (in any circle's wiki), choose the whole page or a section, and an
+ * find it in the wiki, choose the whole page or a section, and an
  * embed goes where the cursor was. It always shows that page's current text.
  */
 export function EmbedPageDialog({
@@ -46,15 +46,11 @@ export function EmbedPageDialog({
     placeholderData: keepPreviousData,
     staleTime: 10_000,
   });
-  const page = useQuery({
-    queryKey: ["wiki", chosen?.circleId ?? "", chosen?.slug ?? ""],
-    queryFn: () => apiFetch<{ page: WikiPage; canEdit: boolean }>(`/api/circles/${chosen!.circleId}/wiki/${chosen!.slug}`),
-    enabled: !!chosen,
-  });
+  const page = useQuery({ ...wikiPageQuery(chosen?.slug ?? ""), enabled: !!chosen });
   const headings = page.data ? tableOfContents(page.data.page.body) : [];
   const insert = () => {
     if (!chosen) return;
-    onChosen(embedText(chosen.circleId === circle.id ? chosen.title : `${chosen.circleName}:${chosen.title}`, section || undefined));
+    onChosen(embedText(chosen.title, section || undefined));
   };
 
   return (
@@ -91,7 +87,7 @@ export function EmbedPageDialog({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a page in any circle" aria-label="Find a page" className="bg-white" />
+          <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a page in the wiki" aria-label="Find a page" className="bg-white" />
           <ul className="flex max-h-72 flex-col overflow-y-auto" role="listbox" aria-label="Pages">
             {(results.data?.pages ?? []).map((found) => (
               <li key={`${found.circleId}:${found.slug}`}>

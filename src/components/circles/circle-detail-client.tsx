@@ -219,7 +219,7 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         <legend className="mb-1 text-xs font-medium text-muted">Sections on this page</legend>
         {(
           [
-            ["wiki", "Information (wiki)"],
+            ["wiki", "Information"],
             ["tasks", "Tasks"],
             ["documents", "Documents"],
           ] as const

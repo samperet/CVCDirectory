@@ -31,7 +31,7 @@ export function AddInformationDialog({ circle, onClose }: { circle: { id: string
       }),
     onSuccess: ({ pin }) => {
       queryClient.invalidateQueries({ queryKey: ["pins"] });
-      queryClient.invalidateQueries({ queryKey: ["wiki", circle.id] });
+      queryClient.invalidateQueries({ queryKey: ["wiki"] });
       if (pin) router.push(`${pin.note.href}?edit=1`);
       onClose();
     },

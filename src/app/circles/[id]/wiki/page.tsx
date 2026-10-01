@@ -1,12 +1,6 @@
-import { Suspense } from "react";
-import { WikiIndexClient } from "@/components/wiki/wiki-client";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Wiki · CVC Directory" };
-
-export default function WikiIndexPage({ params }: { params: { id: string } }) {
-  return (
-    <Suspense>
-      <WikiIndexClient circleId={params.id} />
-    </Suspense>
-  );
+/** Each circle once had its own wiki; now the wiki is one, and this shows the pages the circle keeps. */
+export default function OldCircleWiki({ params, searchParams }: { params: { id: string }; searchParams: { new?: string } }) {
+  redirect(searchParams.new ? `/wiki?new=${encodeURIComponent(searchParams.new)}&keeper=${params.id}` : `/wiki?keeper=${params.id}`);
 }

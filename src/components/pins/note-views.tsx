@@ -31,7 +31,7 @@ function UnpinButton({ pin, onUnpin, busy, className }: { pin: PinView; onUnpin:
 /** A page in full, as it reads on its own page. */
 export function FullNote({ pin, showCircle, onUnpin, busy = false }: { pin: PinView; showCircle: boolean; onUnpin?: () => void; busy?: boolean }) {
   const style = noteStyle(pin.note.color);
-  const pages = useWikiPages(pin.note.circleId).data?.pages ?? [];
+  const pages = useWikiPages().data?.pages ?? [];
   return (
     <article className="group/post flex min-w-0 flex-col gap-3 rounded-lg border p-4 shadow-soft sm:p-5" style={{ backgroundColor: style.paper, borderColor: style.edge }} aria-label={pin.note.title}>
       <div className="flex items-start gap-2">
