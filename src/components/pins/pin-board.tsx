@@ -84,7 +84,7 @@ export function StickyGrid({
 }
 
 /**
- * The pages pinned to a place (a dashboard, a task, a discussion), as
+ * The pages pinned to a place (the community dashboard), as
  * cards — shown only when something's pinned. Pages are pinned from their
  * own "Pin to…" button.
  */

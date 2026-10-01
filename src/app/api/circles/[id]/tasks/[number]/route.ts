@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { removePinsOn } from "@/lib/pins/store";
 import { deleteTask, getTask, taskUpdateSchema, updateTask, type TaskUpdate } from "@/lib/tasks/store";
 import { deleteCommentsForTask } from "@/lib/tasks/comments";
 import { parseNumber, personName, taskProblem, tasksContext } from "@/lib/tasks/http";
@@ -87,6 +86,5 @@ export async function DELETE(_request: Request, { params }: Params) {
   const result = await deleteTask(params.id, number);
   if (!result.ok) return taskProblem(result.reason);
   if (result.before) await deleteCommentsForTask(params.id, result.before.id);
-  await removePinsOn({ kind: "task", id: `${params.id}:${number}` });
   return NextResponse.json({ ok: true });
 }

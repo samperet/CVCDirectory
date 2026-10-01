@@ -21,7 +21,7 @@ export interface GraphNode {
   label: string;
   href: string;
   external?: boolean;
-  /** A note's (or task's, or document's) circle. */
+  /** A note's (or document's) circle. */
   circleId?: string;
   color?: NoteColor;
   /** A page's opening lines, for the map's hover card. */

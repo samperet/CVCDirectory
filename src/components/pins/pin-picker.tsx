@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CircleDot, FileText, ListChecks, MessagesSquare, Pin, User, Users, X } from "lucide-react";
+import { Check, CircleDot, FileText, Pin, Users, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { KIND_LABELS, targetKey, type PinKind, type PinTargetOption, type PinView } from "@/lib/pins/shared";
 import { Dialog, PinDetailsFields } from "@/components/pins/dialog";
@@ -18,10 +18,7 @@ import { cn } from "@/lib/utils";
 export const KIND_ICONS: Record<PinKind, typeof Pin> = {
   community: Users,
   circle: CircleDot,
-  person: User,
-  task: ListChecks,
   document: FileText,
-  thread: MessagesSquare,
 };
 
 export const notePinsQuery = (circleId: string, pageId: string) => ({
@@ -104,7 +101,7 @@ function PinPickerDialog({ circleId, pageId, title, onClose }: { circleId: strin
             inputMode="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="A circle, person, task, document, or discussion"
+            placeholder="A circle or a document"
             className="bg-white"
             aria-label="Find where to pin it"
           />
@@ -138,14 +135,14 @@ function PinPickerDialog({ circleId, pageId, title, onClose }: { circleId: strin
               <p className="px-2.5 py-1.5 text-sm text-muted">{search ? "Nothing you can pin to matches." : "Type to find a place to pin it."}</p>
             )}
           </div>
-          {!search ? <p className="text-xs text-muted">Search to find documents and more. You can pin to yourself, to people you share a circle with, and to places you look after.</p> : null}
+          {!search ? <p className="text-xs text-muted">Search to find documents. You can pin to the circles and documents you look after.</p> : null}
         </>
       )}
     </Dialog>
   );
 }
 
-/** "Pin to…": stick this note to a circle, a person, a task, a document, a discussion, or the community dashboard. */
+/** "Pin to…": stick this note to a circle, a document, or the community dashboard. */
 export function PinToButton({ circleId, pageId, title }: { circleId: string; pageId: string; title: string }) {
   const [open, setOpen] = useState(false);
   return (

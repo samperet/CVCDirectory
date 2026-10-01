@@ -19,11 +19,11 @@ const Globe3DView = dynamic(() => import("@/components/admin/wiki-map-3d").then(
   loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
 });
 
-const KIND_ORDER: GraphNodeKind[] = ["note", "document", "task", "person", "thread", "community"];
+const KIND_ORDER: GraphNodeKind[] = ["note", "document", "community"];
 
 /**
- * The wiki map (admins only): each circle an island holding its pages,
- * documents, and tasks, with links and pins between them — or the same in
+ * The wiki map (admins only): each circle an island holding its pages
+ * and documents, with links and pins between them — or the same in
  * 3D. Hover for a card about anything; click to open it.
  */
 export function WikiMapClient() {
@@ -88,7 +88,7 @@ export function WikiMapClient() {
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
             <Network className="h-6 w-6 text-primary" aria-hidden /> Wiki map
           </h1>
-          <p className="text-sm text-muted">Each circle&apos;s pages, documents, and tasks, and how they link and pin to each other. Admins only.</p>
+          <p className="text-sm text-muted">Each circle&apos;s pages and documents, and how they link and pin to each other. Admins only.</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="radiogroup" aria-label="View">

@@ -91,7 +91,6 @@ export default async function HomePage() {
       <NotificationsNudge />
       <NextEvent event={nextEvent ?? null} />
       <PinBoard target={{ kind: "community", id: "community" }} title="Community information" />
-      {user.personId ? <PinBoard target={{ kind: "person", id: user.personId }} title="Pinned for you" /> : null}
       <MyTasks />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (

@@ -1,9 +1,10 @@
 /** Pins and sticky notes: the shapes shared by the server and the browser. */
 
-export const PIN_KINDS = ["community", "circle", "person", "task", "document", "thread"] as const;
+/** Where pages can be pinned. (Pins once made on people, tasks, and forum discussions are no longer shown.) */
+export const PIN_KINDS = ["community", "circle", "document"] as const;
 export type PinKind = (typeof PIN_KINDS)[number];
 
-/** Where a note is pinned. A task's id is `<circleId>:<number>`; the community dashboard's is "community". */
+/** Where a note is pinned. The community dashboard's id is "community". */
 export interface PinTarget {
   kind: PinKind;
   id: string;
@@ -78,10 +79,7 @@ export interface PinTargetOption extends PinTarget {
 export const KIND_LABELS: Record<PinKind, string> = {
   community: "Community",
   circle: "Circle",
-  person: "Person",
-  task: "Task",
   document: "Document",
-  thread: "Forum",
 };
 
 export const targetKey = (target: PinTarget) => `${target.kind}:${target.id}`;

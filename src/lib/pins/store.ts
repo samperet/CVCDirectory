@@ -7,13 +7,13 @@ import { PIN_KINDS, type Pin, type PinNoteRef, type PinTarget } from "./shared";
 
 /**
  * Pins: a wiki page stuck to somewhere it's useful — the community
- * dashboard, a circle, a person's own dashboard, a task, a document, or a
- * forum discussion. A page can be pinned in many places, and each place can
+ * dashboard, a circle, or a document. A page can be pinned in many places, and each place can
  * hold many pages. A circle's own information is the pages pinned to it:
  * pages start by being added on a circle (and pinned there), while pages
  * started from inside another page aren't. All pins live in one document
  * (`pins.json`). A pin can end on a date (`until`), after which it's no
- * longer shown.
+ * longer shown. Pins once made on people, tasks, and forum discussions
+ * stay stored but aren't shown.
  */
 
 const KEY = "pins.json";
@@ -78,9 +78,11 @@ async function load(circles: Circle[]): Promise<Stored> {
   });
 }
 
-/** Every pin, including ones past their date (for the map and clean-ups). */
+const KINDS: readonly string[] = PIN_KINDS;
+
+/** Every pin, including ones past their date (for the map and clean-ups) — on the places pages can still be pinned. */
 export async function allPins(circles: Circle[]): Promise<Pin[]> {
-  return (await load(circles)).pins;
+  return (await load(circles)).pins.filter((pin) => KINDS.includes(pin.target.kind));
 }
 
 /** The pins showing now on a target, or of a note, newest first. */
@@ -151,6 +153,5 @@ export function removePinsWhere(match: (pin: Pin) => boolean) {
 /** Take down the pins on something that's been deleted. */
 export const removePinsOn = (target: PinTarget) => removePinsWhere((pin) => sameTarget(pin.target, target));
 
-/** A deleted circle takes its pages' pins, and the pins on it and its tasks, with it. */
-export const circleGone = (circleId: string) => (pin: Pin) =>
-  pin.note.circleId === circleId || (pin.target.kind === "circle" && pin.target.id === circleId) || (pin.target.kind === "task" && pin.target.id.startsWith(`${circleId}:`));
+/** A deleted circle takes its pages' pins, and the pins on it, with it. */
+export const circleGone = (circleId: string) => (pin: Pin) => pin.note.circleId === circleId || (pin.target.kind === "circle" && pin.target.id === circleId);

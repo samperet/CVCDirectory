@@ -101,7 +101,7 @@ export const IslandsView = forwardRef<
         circleId: circle.id,
         label: circle.name,
         node: graph.nodes.find((node) => node.id === `circle:${circle.id}`),
-        children: shown.filter((node) => node.circleId === circle.id && node.kind !== "person" && node.kind !== "community" && node.kind !== "thread" && topLevel(node)).map(itemFor),
+        children: shown.filter((node) => node.circleId === circle.id && node.kind !== "community" && topLevel(node)).map(itemFor),
       }))
       .filter((circle) => circle.children.length);
     const placed = new Set(circles.flatMap((circle) => (circle.children ?? []).map((child) => child.id)));
@@ -284,7 +284,7 @@ export const IslandsView = forwardRef<
               const isSelf = item.id.endsWith("#self");
               const faded = dim(gnode.id);
               const lit = selected === gnode.id || hover?.id === gnode.id;
-              const square = gnode.kind === "document" || gnode.kind === "task";
+              const square = gnode.kind === "document";
               return (
                 <g
                   key={item.id}
@@ -300,7 +300,6 @@ export const IslandsView = forwardRef<
                       width={r * 1.6}
                       height={r * 1.6}
                       rx={r * 0.3}
-                      transform={gnode.kind === "task" ? `rotate(45 ${node.x} ${node.y})` : undefined}
                       fill={nodeFill(gnode)}
                       stroke={lit ? "#1e4620" : "#ffffff"}
                       strokeWidth={(lit ? 2.5 : 1.5) / k}

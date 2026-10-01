@@ -47,9 +47,9 @@ export function Globe3DView({
       const links: Link3D[] = graph.edges
         .filter((edge) => ids.has(edge.source) && ids.has(edge.target) && (edge.kind === "belongs" || edge.kind === "child" || edgeKinds.has(edge.kind)))
         .map((edge) => ({ ...edge }));
-      // Documents and tasks gather around their circle too.
+      // Documents gather around their circle too.
       for (const node of nodes) {
-        if ((node.kind === "document" || node.kind === "task") && node.circleId && ids.has(`circle:${node.circleId}`)) {
+        if (node.kind === "document" && node.circleId && ids.has(`circle:${node.circleId}`)) {
           links.push({ source: node.id, target: `circle:${node.circleId}`, kind: "belongs" });
         }
       }

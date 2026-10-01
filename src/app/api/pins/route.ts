@@ -6,7 +6,7 @@ import { canUploadTo } from "@/lib/documents/access";
 import { problem } from "@/lib/http";
 import { isAdmin } from "@/lib/auth/admins";
 import { addPin, maxPinsOn, listPins, noteRefSchema, pinInputSchema, targetSchema } from "@/lib/pins/store";
-import { canPinTo, canSeePin, pinViews, resolveTarget } from "@/lib/pins/server";
+import { canPinTo, pinViews, resolveTarget } from "@/lib/pins/server";
 import { parseTargetKey } from "@/lib/pins/shared";
 import { createPage, pageInputSchema, readPages } from "@/lib/wiki/store";
 import { wikiProblem } from "@/lib/wiki/http";
@@ -43,10 +43,6 @@ export async function GET(request: NextRequest) {
 
   const target = parseTargetKey(params.get("target"));
   if (!target) return problem("Say where to look: ?target=kind:id");
-  // A person's pins are for them.
-  if (target.kind === "person" && target.id !== ctx.personId && !isAdmin(ctx.user)) {
-    return NextResponse.json({ pins: [], canPin: false, canAdd: false }, { headers: noStore });
-  }
   const resolved = await resolveTarget(ctx.directory, target);
   if (!resolved) return problem("That no longer exists", 404, "Not Found");
   const pins = await listPins(ctx.directory.circles, { target });
@@ -113,6 +109,6 @@ export async function POST(request: NextRequest) {
       ? problem(`It's already pinned to ${resolved.label}`, 409, "Conflict")
       : full;
   }
-  const [view] = await pinViews(ctx.user, ctx.directory, [result.pin].filter((pin) => canSeePin(ctx.user, pin)), [resolved]);
+  const [view] = await pinViews(ctx.user, ctx.directory, [result.pin], [resolved]);
   return NextResponse.json({ pin: view ?? null }, { status: 201 });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CircleDot, FileText, ListChecks, MessagesSquare, User, Users, X } from "lucide-react";
+import { BookOpen, CircleDot, FileText, Users, X } from "lucide-react";
 import { NOTE_STYLES } from "@/lib/pins/shared";
 import type { GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
 import { timeAgo } from "@/lib/time";
@@ -11,10 +11,7 @@ export const CIRCLE_PALETTE = ["#3f7d5c", "#c4892f", "#4e79a7", "#a05d8c", "#4f9
 export const KIND_INFO: Record<GraphNodeKind, { label: string; plural: string; icon: typeof BookOpen; color: string }> = {
   note: { label: "Page", plural: "Pages", icon: BookOpen, color: "#e6c457" },
   circle: { label: "Circle", plural: "Circles", icon: CircleDot, color: "#3f7d5c" },
-  person: { label: "Person", plural: "People", icon: User, color: "#8c8f86" },
-  task: { label: "Task", plural: "Tasks", icon: ListChecks, color: "#d39a3a" },
   document: { label: "Document", plural: "Documents", icon: FileText, color: "#6f8fb3" },
-  thread: { label: "Discussion", plural: "Forum", icon: MessagesSquare, color: "#9a77b5" },
   community: { label: "Community dashboard", plural: "Dashboard", icon: Users, color: "#c27c0e" },
 };
 
@@ -60,10 +57,7 @@ export function NameTip({ node, graph, x, y, bounds }: { node: GraphNode; graph:
 const OPEN_LABEL: Record<GraphNodeKind, string> = {
   note: "Open page",
   circle: "Open circle page",
-  person: "Open profile",
-  task: "Open task",
   document: "Open document",
-  thread: "Open discussion",
   community: "Open dashboard",
 };
 
