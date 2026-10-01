@@ -325,43 +325,6 @@ export function setLike(threadId: string, replyId: string | null, user: { id: st
   );
 }
 
-/** A discussion's poll from when the forum had them (kept in older documents until cleared out). */
-export interface LegacyThreadPoll {
-  threadId: string;
-  title: string;
-  poll: unknown;
-}
-
-/** Every discussion that still holds a poll. */
-export async function legacyThreadPolls(): Promise<LegacyThreadPoll[]> {
-  const found: LegacyThreadPoll[] = [];
-  for (const summary of normalizeIndex(await readJson(INDEX_KEY))) {
-    const doc = await getThread(summary.id);
-    const poll = (doc?.thread as { poll?: unknown } | undefined)?.poll;
-    if (doc && poll) found.push({ threadId: doc.thread.id, title: doc.thread.title, poll });
-  }
-  return found;
-}
-
-/** Remove the polls from every discussion (and the "poll" mark from the list); returns how many were removed. */
-export async function removeThreadPolls(): Promise<number> {
-  let removed = 0;
-  for (const { threadId } of await legacyThreadPolls()) {
-    await enqueue(threadKey(threadId), async () => {
-      const doc = (await readJson(threadKey(threadId))) as ForumThreadDocument | null;
-      if (!doc?.thread || !("poll" in doc.thread)) return;
-      const { poll: _poll, ...thread } = doc.thread as ForumThread & { poll?: unknown };
-      await writeJson(threadKey(threadId), { ...doc, thread });
-      removed++;
-    });
-  }
-  await updateIndex((threads) => threads.map((summary) => {
-    const { poll: _poll, ...rest } = summary as ForumThreadSummary & { poll?: unknown };
-    return rest;
-  }));
-  return removed;
-}
-
 /** Move every discussion in one topic to another (when a topic is removed). */
 export async function moveTopicThreads(fromTopicId: string, toTopicId: string) {
   const threads = (await listThreads()).filter((summary) => topicOf(summary) === fromTopicId);

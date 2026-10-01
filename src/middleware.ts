@@ -31,7 +31,6 @@ const PUBLIC_PATHS = new Set([
   "/api/admin/photos", // protected by its own bearer token
   "/api/admin/schedules", // protected by its own bearer token
   "/api/admin/resources", // protected by its own bearer token
-  "/api/admin/legacy-polls", // protected by its own bearer token (a one-off clean-up)
 ]);
 
 const encoder = new TextEncoder();
