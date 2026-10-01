@@ -1,6 +1,7 @@
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { listDocuments } from "@/lib/documents/store";
 import { wikiLinksIn } from "@/lib/wiki/links";
+import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { listPins } from "./store";
 import { excerptOf, pageColor, resolveTarget } from "./server";
@@ -99,7 +100,8 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
   // Links between notes, and to documents (this circle's first, then any).
   for (const { circle, pages } of wikis) {
     for (const page of pages) {
-      for (const link of wikiLinksIn(page.body, circle.id, circles)) {
+      // Embedding a page counts as linking to it.
+      for (const link of [...wikiLinksIn(page.body, circle.id, circles), ...embeddedPages(page.body, circle.id, circles)]) {
         const wanted = link.title.toLowerCase();
         if (link.kind === "page") {
           const target = byTitle.get(`${link.circleId}|${wanted}`);

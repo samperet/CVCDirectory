@@ -60,8 +60,10 @@ export const pageUpdateSchema = z
     baseUpdatedAt: z.string().optional(),
     /** Saved as you type: folded into your own recent version rather than adding one to the history each time. */
     autosave: z.boolean().optional(),
+    /** The page it's part of (in the same wiki), or null for none. */
+    parentId: z.string().max(80).nullable().optional(),
   })
-  .refine((value) => value.title !== undefined || value.body !== undefined || value.color !== undefined, "Nothing to update");
+  .refine((value) => value.title !== undefined || value.body !== undefined || value.color !== undefined || value.parentId !== undefined, "Nothing to update");
 export const restoreSchema = z.object({ index: z.number().int().min(0) });
 
 export const isSlug = (slug: string) => /^[a-z0-9-]{1,60}$/.test(slug);
@@ -98,7 +100,7 @@ export async function getPage(circleId: string, slug: string): Promise<WikiPage 
   return normalize(await readJson(key(circleId))).find((page) => page.slug === slug) ?? null;
 }
 
-type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
+type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict" | "bad_parent";
 export type WikiResult = { ok: true; page: WikiPage | null } | { ok: false; reason: Failure };
 
 async function mutate(circleId: string, change: (pages: WikiPage[]) => { pages: WikiPage[]; page: WikiPage | null } | Failure): Promise<WikiResult> {
@@ -160,7 +162,7 @@ function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; 
   return { ...rest, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, history: [...page.history, previous].slice(-MAX_HISTORY), ...(autosave ? { autosaved: true } : {}) };
 }
 
-export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; color?: NoteColor; baseUpdatedAt?: string; autosave?: boolean }) {
+export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; color?: NoteColor; baseUpdatedAt?: string; autosave?: boolean; parentId?: string | null }) {
   return mutate(circleId, (found) => {
     let pages = found;
     let page = pages.find((entry) => entry.slug === slug);
@@ -172,6 +174,21 @@ export function updatePage(circleId: string, slug: string, editor: WikiAuthor, u
       const recoloured: WikiPage = update.color === "yellow" ? rest : { ...rest, color: update.color };
       pages = pages.map((entry) => (entry.id === recoloured.id ? recoloured : entry));
       page = recoloured;
+    }
+    // Which page it's part of isn't a new version either. The parent must be in this wiki, and not the page or anything under it.
+    if (update.parentId !== undefined && update.parentId !== (page.parentId ?? null)) {
+      const current = page;
+      if (update.parentId !== null) {
+        const byId = new Map(pages.map((entry) => [entry.id, entry]));
+        if (!byId.has(update.parentId)) return "bad_parent";
+        for (let id: string | undefined = update.parentId, steps = 0; id && steps < MAX_PAGES; id = byId.get(id)?.parentId, steps++) {
+          if (id === current.id) return "bad_parent";
+        }
+      }
+      const { parentId: _old, ...rest } = current;
+      const moved: WikiPage = update.parentId === null ? rest : { ...rest, parentId: update.parentId };
+      pages = pages.map((entry) => (entry.id === moved.id ? moved : entry));
+      page = moved;
     }
     const next = { title: update.title ?? page.title, body: update.body ?? page.body };
     if (next.title.toLowerCase() !== page.title.toLowerCase() && pages.some((entry) => entry.id !== page.id && entry.title.toLowerCase() === next.title.toLowerCase())) {

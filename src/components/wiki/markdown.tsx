@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Children, isValidElement, useMemo, type ReactNode } from "react";
+import { Children, isValidElement, useContext, useMemo, type ReactNode } from "react";
 import { useQueries } from "@tanstack/react-query";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import { remarkWikiDirectives } from "@/lib/wiki/directives";
+import { headingSlug } from "@/lib/wiki/sections";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleRef } from "@/lib/wiki/links";
 import { docFileUrl, findDoc, useCircles, useDocTitles, wikiPagesQuery, type DocRef } from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
+import { EmbedBlock, EmbedChain } from "@/components/wiki/embed-block";
 import { cn } from "@/lib/utils";
+
+export { headingSlug, tableOfContents } from "@/lib/wiki/sections";
 
 type LinkData = {
   circleId: string;
@@ -58,36 +62,10 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
   });
 }
 
-/** A heading's anchor, from its text: "Mowing & tools" → "mowing-tools". */
-export const headingSlug = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "section";
-
 function textOf(children: ReactNode): string {
   return Children.toArray(children)
     .map((child) => (typeof child === "string" || typeof child === "number" ? String(child) : isValidElement(child) ? textOf(child.props.children) : ""))
     .join("");
-}
-
-/** The page's headings (levels 1–3, outside code blocks), for "On this page". */
-export function tableOfContents(markdown: string) {
-  const headings: { level: number; text: string; id: string }[] = [];
-  let inCode = false;
-  for (const line of normalizeWikiLinks(markdown).split("\n")) {
-    if (/^\s*(```|~~~)/.test(line)) inCode = !inCode;
-    const match = !inCode && line.match(/^(#{1,3})\s+(.+?)\s*#*\s*$/);
-    if (!match) continue;
-    const text = match[2]
-      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target)
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-      .replace(/[*_`~]/g, "")
-      .trim();
-    if (text) headings.push({ level: match[1].length, text, id: headingSlug(text) });
-  }
-  return headings;
 }
 
 const heading = (Tag: "h2" | "h3" | "h4", className: string): Components["h1"] =>
@@ -110,10 +88,12 @@ const components: Components = {
   code: ({ node: _node, className, ...props }) => <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />,
   pre: ({ node: _node, ...props }) => <pre className="overflow-x-auto rounded-lg bg-accent p-3 text-sm [&_code]:bg-transparent [&_code]:p-0" {...props} />,
   hr: () => <hr className="border-border" />,
-  // A poll the page holds (`::poll{id="…"}`).
+  // A poll the page holds (`::poll{id="…"}`), or another page shown in it (`::embed{page="…"}`).
   div: ({ node: _node, ...props }) => {
-    const pollId = (props as Record<string, unknown>)["data-poll"];
-    return typeof pollId === "string" ? <WikiPollBlock pollId={pollId} /> : <div {...props} />;
+    const data = props as Record<string, unknown>;
+    if (typeof data["data-poll"] === "string") return <WikiPollBlock pollId={data["data-poll"]} />;
+    if (typeof data["data-embed"] === "string") return <EmbedBlock target={data["data-embed"]} section={typeof data["data-section"] === "string" ? data["data-section"] : undefined} />;
+    return <div {...props} />;
   },
   details: ({ node: _node, ...props }) => <details className="wiki-details group rounded-lg border border-border bg-surface px-4 py-2 [&>*+*]:mt-3" {...props} />,
   summary: ({ node: _node, ...props }) => (
@@ -191,14 +171,20 @@ export function WikiMarkdown({ source, circleId, pages, pageId }: { source: stri
   const linkData = useLinkData(source, circleId, pages, pageId);
   const circleName = linkData.circles?.find((circle) => circle.id === circleId)?.name;
   const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
+  // Pages embedded in this one know it's already open (so it never shows inside itself).
+  const outer = useContext(EmbedChain);
+  const self = pageId ? `${circleId}:${pageId}` : null;
+  const chain = useMemo(() => (self && outer[outer.length - 1] !== self ? [...outer, self] : outer), [outer, self]);
   if (!source.trim()) return <p className="text-sm text-muted">This page is empty.</p>;
   return (
     <WikiCircleContext.Provider value={wiki}>
-      <div className="flex flex-col gap-3 break-words text-foreground">
-        <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
-          {linkWikiPages(normalizeWikiLinks(source), linkData)}
-        </ReactMarkdown>
-      </div>
+      <EmbedChain.Provider value={chain}>
+        <div className="flex flex-col gap-3 break-words text-foreground">
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
+            {linkWikiPages(normalizeWikiLinks(source), linkData)}
+          </ReactMarkdown>
+        </div>
+      </EmbedChain.Provider>
     </WikiCircleContext.Provider>
   );
 }

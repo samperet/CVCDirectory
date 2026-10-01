@@ -6,6 +6,7 @@ import { getDocument, isDocumentId } from "@/lib/documents/store";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { POLL_DIRECTIVE, listWikiPolls } from "@/lib/polls/wiki";
+import { EMBED_DIRECTIVE } from "@/lib/wiki/sections";
 import { NOTE_COLORS, type NoteColor, type Pin, type PinTarget, type PinView } from "./shared";
 
 /**
@@ -70,12 +71,18 @@ export const pageColor = (page: Pick<WikiPage, "color">): NoteColor => ((NOTE_CO
 
 /**
  * A page's opening, as plain text: links by their words, polls by their
- * questions, collapsible sections by their titles; no images, headings, or
+ * questions, collapsible sections by their titles, embedded pages as "↳ Title"; no images, headings, or
  * markup.
  */
 export function excerptOf(markdown: string, length = 400, polls: Map<string, string> = new Map()) {
   const text = markdown
     .replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, " ")
+    .replace(EMBED_DIRECTIVE, (_m, attributes: string) => {
+      const page = attributes.match(/page="([^"\n]*)"/)?.[1] ?? "";
+      const section = attributes.match(/section="([^"\n]*)"/)?.[1];
+      const title = page.slice(page.lastIndexOf(":") + 1).trim();
+      return title ? `↳ ${title}${section ? ` › ${section}` : ""}` : "";
+    })
     .replace(POLL_DIRECTIVE, (_m, id?: string, short?: string) => {
       const question = polls.get((id ?? short ?? "").toLowerCase());
       return question ? `Poll: ${question}` : "";

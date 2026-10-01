@@ -1,6 +1,7 @@
 import type { Circle } from "@/lib/directory/types";
 import { featureEnabled } from "@/lib/circles/features";
 import { wikiLinksIn } from "./links";
+import { embeddedPages } from "./sections";
 import { readPages } from "./store";
 
 export interface Backlink {
@@ -12,7 +13,7 @@ export interface Backlink {
 
 /**
  * The pages — in any circle's wiki that's turned on — whose links point to
- * the page titled `title` in `circleId`'s wiki. Links name pages by title, so
+ * (or that embed) the page titled `title` in `circleId`'s wiki. Links name pages by title, so
  * this reads every wiki's pages and follows their links.
  */
 export async function backlinksTo(circleId: string, pageId: string, title: string, circles: Circle[]): Promise<Backlink[]> {
@@ -22,7 +23,11 @@ export async function backlinksTo(circleId: string, pageId: string, title: strin
     wikis.map(async (circle) =>
       (await readPages(circle.id))
         .filter((page) => page.id !== pageId)
-        .filter((page) => wikiLinksIn(page.body, circle.id, circles).some((link) => link.kind === "page" && link.circleId === circleId && link.title.toLowerCase() === wanted))
+        .filter((page) =>
+          [...wikiLinksIn(page.body, circle.id, circles), ...embeddedPages(page.body, circle.id, circles)].some(
+            (link) => link.kind === "page" && link.circleId === circleId && link.title.toLowerCase() === wanted
+          )
+        )
         .map((page) => ({ circleId: circle.id, circleName: circle.name, slug: page.slug, title: page.title }))
     )
   );

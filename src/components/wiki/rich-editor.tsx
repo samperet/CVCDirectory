@@ -5,7 +5,7 @@ import { forwardRef, useContext, useImperativeHandle, useMemo, useRef, useState,
 import type { LexicalEditor } from "lexical";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
-import { AtSign, BarChart3, ChevronDown, ChevronsUpDown, FilePlus2, X } from "lucide-react";
+import { ArrowUpRight, AtSign, BarChart3, ChevronDown, ChevronsUpDown, FilePlus2, LayoutList, X } from "lucide-react";
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
@@ -37,14 +37,16 @@ import {
   useLexicalNodeRemove,
   useMdastNodeUpdater,
 } from "@mdxeditor/editor";
-import { normalizeWikiLinks, protectWikiLinks } from "@/lib/wiki/links";
+import { normalizeWikiLinks, parseWikiLink, protectWikiLinks } from "@/lib/wiki/links";
 import { mentionPlugin } from "@/components/wiki/mention-menu";
 import { wikiLinkPlugin } from "@/components/wiki/wiki-link-node";
 import { captureCursor, editorBridgePlugin, restoreCursor } from "@/components/wiki/editor-cursor";
 import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
 import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
-import { useCircles } from "@/components/wiki/link-data";
+import { EmbedPageDialog } from "@/components/wiki/embed-page-dialog";
+import { EmbedBlock } from "@/components/wiki/embed-block";
+import { useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
 import { featureEnabled } from "@/lib/circles/features";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
@@ -139,6 +141,67 @@ const pollDirective: DirectiveDescriptor<LeafDirective> = {
   Editor: PollDirectiveEditor,
 };
 
+/** Another page (or a section of it) shown in this one: what it is, a preview on request, and a × to take it out. */
+function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
+  const wiki = useContext(WikiCircleContext);
+  const remove = useLexicalNodeRemove();
+  const [preview, setPreview] = useState(false);
+  const target = mdastNode.attributes?.page ?? "";
+  const section = mdastNode.attributes?.section ?? undefined;
+  const circles = useCircles();
+  const link = circles && wiki ? parseWikiLink(target, wiki.circleId, circles) : null;
+  const circle = link?.kind === "page" ? circles?.find((entry) => entry.id === link.circleId) : undefined;
+  const found = useQuery({ ...wikiPagesQuery(circle?.id ?? ""), enabled: !!circle }).data?.pages.find((page) => page.title.toLowerCase() === link?.title.toLowerCase());
+  return (
+    <div className="my-2 rounded-lg border border-border bg-accent/30 px-3 py-2" contentEditable={false}>
+      <div className="flex items-start gap-2">
+        <LayoutList className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">
+            {link?.title ?? target}
+            {section ? <span className="font-normal text-muted"> › {section}</span> : null}
+          </p>
+          <p className="text-xs text-muted">
+            Shown here from {circle && circle.id !== wiki?.circleId ? circle.name : "this wiki"} ·{" "}
+            <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setPreview(!preview)} aria-expanded={preview}>
+              {preview ? "Hide preview" : "Show preview"}
+            </button>
+          </p>
+        </div>
+        {circle && found ? (
+          <a
+            href={`/circles/${circle.id}/wiki/${found.slug}`}
+            target="_blank"
+            rel="noopener"
+            className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
+            aria-label="Open the page in a new tab"
+            title="Open in a new tab"
+          >
+            <ArrowUpRight className="h-4 w-4" />
+          </a>
+        ) : null}
+        <button type="button" onClick={remove} className="rounded p-1 text-muted hover:bg-accent hover:text-foreground" aria-label="Take the embedded page out" title="Take out of the page">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {preview ? (
+        <div className="mt-2 max-h-80 overflow-y-auto rounded-md bg-white/70 px-3 py-2">
+          <EmbedBlock target={target} section={section} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const embedDirective: DirectiveDescriptor<LeafDirective> = {
+  name: "embed",
+  type: "leafDirective",
+  testNode: (node) => node.type === "leafDirective" && node.name === "embed",
+  attributes: ["page", "section"],
+  hasChildren: false,
+  Editor: EmbedDirectiveEditor,
+};
+
 /** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
 const textDirectives: DirectiveDescriptor<TextDirective> = {
   name: ":text",
@@ -188,6 +251,7 @@ export const RichEditor = forwardRef<
   const lexical = useRef<LexicalEditor | null>(null);
   const [polling, setPolling] = useState(false);
   const [addingDocument, setAddingDocument] = useState(false);
+  const [embedding, setEmbedding] = useState(false);
   // Documents go into the circle's documents, so only while it has them turned on.
   const documentsOn = featureEnabled(useCircles()?.find((circle) => circle.id === circleId), "documents");
   const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
@@ -243,7 +307,7 @@ export const RichEditor = forwardRef<
         codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
         codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" }, autoLoadLanguageSupport: false }),
         markdownShortcutPlugin(),
-        directivesPlugin({ directiveDescriptors: [detailsDirective, pollDirective, textDirectives, otherDirectives] }),
+        directivesPlugin({ directiveDescriptors: [detailsDirective, pollDirective, embedDirective, textDirectives, otherDirectives] }),
         wikiLinkPlugin(),
         editorBridgePlugin({ target: lexical }),
         mentionPlugin({ circleId, circleName, pageId, onCreatePage: (title) => createRef.current(title) }),
@@ -269,6 +333,9 @@ export const RichEditor = forwardRef<
                   <FilePlus2 className="h-5 w-5" />
                 </ButtonWithTooltip>
               ) : null}
+              <ButtonWithTooltip title="Show another page here" onClick={() => setEmbedding(true)}>
+                <LayoutList className="h-5 w-5" />
+              </ButtonWithTooltip>
               <InsertTable />
               <ButtonWithTooltip title="Collapsible section" onClick={() => insert(':::details{title="Details"}\nWhat this section hides.\n:::')}>
                 <ChevronsUpDown className="h-5 w-5" />
@@ -288,6 +355,17 @@ export const RichEditor = forwardRef<
         onAdded={(link) => {
           setAddingDocument(false);
           insert(` ${link} `);
+        }}
+      />
+    ) : null}
+    {embedding ? (
+      <EmbedPageDialog
+        circle={{ id: circleId, name: circleName }}
+        pageId={pageId}
+        onClose={() => setEmbedding(false)}
+        onChosen={(directive) => {
+          setEmbedding(false);
+          insert(directive);
         }}
       />
     ) : null}

@@ -6,7 +6,8 @@ export const metadata = { title: "Wiki · CVC Directory" };
 export default function WikiPagePage({ params }: { params: { id: string; slug: string } }) {
   return (
     <Suspense>
-      <WikiPageClient circleId={params.id} slug={params.slug} />
+      {/* Keyed, so going from one page to another (or a new sub-page) starts fresh. */}
+      <WikiPageClient key={`${params.id}/${params.slug}`} circleId={params.id} slug={params.slug} />
     </Suspense>
   );
 }

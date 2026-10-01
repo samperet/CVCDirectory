@@ -26,8 +26,8 @@ function useCircle(circleId: string) {
   return data?.circles.find((circle) => circle.id === circleId);
 }
 
-/** Start a page from a link to one that doesn't exist yet: give it a title, then write it. */
-function NewPageForm({ circleId, initialTitle = "", parentId, onCancel }: { circleId: string; initialTitle?: string; parentId?: string; onCancel: () => void }) {
+/** Start a page (from a link to one that doesn't exist yet, or as a sub-page): give it a title, then write it. */
+export function NewPageForm({ circleId, initialTitle = "", parentId, onCancel }: { circleId: string; initialTitle?: string; parentId?: string; onCancel: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();

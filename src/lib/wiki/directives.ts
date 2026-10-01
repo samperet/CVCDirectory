@@ -6,8 +6,10 @@
  *   :::
  *
  * (`:::details[Winter duty]` works too.) This remark plugin turns them into
- * <details>/<summary>, and a poll — `::poll{id="…"}`, on its own line — into
- * a placeholder the page fills with the poll. Anything else that happens to
+ * <details>/<summary>, a poll — `::poll{id="…"}`, on its own line — into
+ * a placeholder the page fills with the poll, and an embedded page —
+ * `::embed{page="Circle:Title" section="Heading"}` — into one the page fills
+ * with that page (or section). Anything else that happens to
  * look like a directive — "Contact:Lynn" — is put back as the text it was.
  */
 
@@ -47,6 +49,10 @@ function transform(node: Node): Node[] {
   }
   if (node.type === "leafDirective" && node.name === "poll" && node.attributes?.id) {
     return [{ type: "wikiPoll", data: { hName: "div", hProperties: { dataPoll: node.attributes.id } } }];
+  }
+  if (node.type === "leafDirective" && node.name === "embed" && node.attributes?.page) {
+    const section = node.attributes.section?.trim();
+    return [{ type: "wikiEmbed", data: { hName: "div", hProperties: { dataEmbed: node.attributes.page, ...(section ? { dataSection: section } : {}) } } }];
   }
   if (node.type === "leafDirective") {
     const label = node.children?.length ? `[${node.children.map(textOf).join("")}]` : "";
