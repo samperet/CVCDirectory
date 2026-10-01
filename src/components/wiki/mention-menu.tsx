@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalTypeaheadMenuPlugin, MenuOption, type MenuTextMatch } from "@lexical/react/LexicalTypeaheadMenuPlugin";
 import { $createTextNode } from "lexical";
+import { $createWikiLinkNode } from "@/components/wiki/wiki-link-node";
 import { addComposerChild$, realmPlugin } from "@mdxeditor/editor";
 import { BookOpen, FileText, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -98,9 +99,13 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
       options={options}
       onSelectOption={(option, node, closeMenu) => {
         editor.update(() => {
-          const link = $createTextNode(option.text);
+          // The link goes in as a tag, with a space after it to carry on typing.
+          const [, target = option.text, label] = /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(option.text) ?? [];
+          const link = $createWikiLinkNode(target, label, node?.getFormat() ?? 0);
           if (node) node.replace(link);
-          link.select();
+          const space = $createTextNode(" ");
+          link.insertAfter(space);
+          space.select(1, 1);
           closeMenu();
         });
         if (option.kind === "create") onCreatePage(option.label);

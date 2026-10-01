@@ -239,7 +239,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   and **polls**; Markdown shortcuts work as you type. **Typing @** searches pages (in any circle's
   wiki) and documents and links the one you pick — or, for a new title, links a new page, made when
   the page is saved (`GET /api/wiki/link-search`). The toolbar's **Add a document** button uploads a file into the circle's documents (title, type, and meeting date filled in from the file's name) and links it where the cursor was. If a page has something the visual editor can't
-  show, it opens as Markdown beside a preview. **Links** are written `[[Page title]]` (a missing page
+  show, it opens as Markdown beside a preview. **Links** show as **tags** — small pills, a page's in its colour, a document's grey-blue, a missing page's dashed red — both on the page and in the editor (where they're one unit, opening in a new tab when clicked), unlike ordinary underlined web links. They're written `[[Page title]]` (a missing page
   shows red and offers to be created), `[[O&M:Page title]]` for another circle's page, and
   `[[doc:Document title]]` for a document — this circle's first, then any circle's
   (`[[doc:O&M:Document title]]` for one circle's); any of them takes `|shown text`. Each page lists

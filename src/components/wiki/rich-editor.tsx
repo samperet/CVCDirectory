@@ -36,8 +36,9 @@ import {
   useLexicalNodeRemove,
   useMdastNodeUpdater,
 } from "@mdxeditor/editor";
-import { normalizeWikiLinks } from "@/lib/wiki/links";
+import { normalizeWikiLinks, protectWikiLinks } from "@/lib/wiki/links";
 import { mentionPlugin } from "@/components/wiki/mention-menu";
+import { wikiLinkPlugin } from "@/components/wiki/wiki-link-node";
 import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
 import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
@@ -197,17 +198,17 @@ export const RichEditor = forwardRef<
     }
   };
   useImperativeHandle(ref, () => ({
-    setMarkdown: (value) => editor.current?.setMarkdown(value),
+    setMarkdown: (value) => editor.current?.setMarkdown(protectWikiLinks(value)),
     focus: () => editor.current?.focus(),
   }));
   const insert = (text: string) => {
-    editor.current?.focus(() => editor.current?.insertMarkdown(text), { preventScroll: true });
+    editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(text)), { preventScroll: true });
   };
   return (
     <WikiCircleContext.Provider value={wiki}>
     <MDXEditor
       ref={editor}
-      markdown={markdown}
+      markdown={protectWikiLinks(markdown)}
       onChange={(value) => onChange(normalizeWikiLinks(value))}
       onError={onError}
       suppressHtmlProcessing
@@ -227,6 +228,7 @@ export const RichEditor = forwardRef<
         codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" }, autoLoadLanguageSupport: false }),
         markdownShortcutPlugin(),
         directivesPlugin({ directiveDescriptors: [detailsDirective, pollDirective, textDirectives, otherDirectives] }),
+        wikiLinkPlugin(),
         mentionPlugin({ circleId, circleName, pageId, onCreatePage: (title) => createRef.current(title) }),
         toolbarPlugin({
           toolbarClassName: "wiki-toolbar",

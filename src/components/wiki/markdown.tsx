@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Children, isValidElement, useMemo, type ReactNode } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
@@ -12,6 +11,7 @@ import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleRef } from "@/lib/wiki/links";
 import { docFileUrl, findDoc, useCircles, useDocTitles, wikiPagesQuery, type DocRef } from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
+import { WikiTag } from "@/components/wiki/wiki-tag";
 import { cn } from "@/lib/utils";
 
 type LinkData = {
@@ -54,7 +54,7 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
       const from = pageId && link.circleId === circleId ? `&from=${pageId}` : "";
       return `[${text}](/circles/${link.circleId}/wiki?new=${encodeURIComponent(link.title)}${from}${mdTitle("missing")})`;
     }
-    return `[${text}](/circles/${link.circleId}/wiki/${page.slug}${other ? mdTitle(`circle:${other}`) : ""})`;
+    return `[${text}](/circles/${link.circleId}/wiki/${page.slug}${mdTitle(`page:${page.color ?? "yellow"}:${other ?? ""}`)})`;
   });
 }
 
@@ -126,31 +126,21 @@ const components: Components = {
   ),
   th: ({ node: _node, ...props }) => <th className="border border-border bg-accent/60 px-2 py-1 text-left font-semibold" {...props} />,
   td: ({ node: _node, ...props }) => <td className="border border-border px-2 py-1 align-top" {...props} />,
+  // Wiki links are tags (see WikiTag); other links stay underlined text.
   a: ({ node: _node, href = "", title, children }) => {
     const mark = title?.startsWith(MARK) ? title.slice(MARK.length) : null;
-    const base = "font-medium underline underline-offset-4";
-    if (mark === "pending") return <span className="text-foreground-light">{children}</span>;
-    if (mark === "doc-missing") {
-      return (
-        <span className={cn(base, "cursor-help text-destructive decoration-dotted")} title="No document with this title">
-          <FileText className="mr-0.5 inline h-[1em] w-[1em] align-[-0.125em]" aria-hidden />
-          {children}
-        </span>
-      );
+    if (mark === "pending") return <WikiTag kind="pending" label={children} />;
+    if (mark === "doc-missing") return <WikiTag kind="doc-missing" label={children} />;
+    if (mark?.startsWith("doc:")) return <WikiTag kind="doc" label={children} href={href} circleName={mark.slice(4)} />;
+    if (mark === "missing") return <WikiTag kind="missing" label={children} href={href} />;
+    if (mark?.startsWith("page:")) {
+      const [color, ...name] = mark.slice(5).split(":");
+      return <WikiTag kind="page" label={children} href={href} color={color} circleName={name.join(":") || null} />;
     }
-    if (mark?.startsWith("doc:")) {
-      return (
-        <a href={href} className={cn(base, "text-secondary-foreground")} target="_blank" rel="noopener" title={`Document · ${mark.slice(4)}`}>
-          <FileText className="mr-0.5 inline h-[1em] w-[1em] align-[-0.125em]" aria-hidden />
-          {children}
-        </a>
-      );
-    }
-    const missing = mark === "missing";
-    const className = cn(base, missing ? "text-destructive decoration-dotted" : "text-secondary-foreground");
+    const className = "font-medium text-secondary-foreground underline underline-offset-4";
     if (href.startsWith("/")) {
       return (
-        <Link href={href} className={className} title={missing ? "No page yet — create it" : mark?.startsWith("circle:") ? `In the ${mark.slice(7)} wiki` : undefined}>
+        <Link href={href} className={className}>
           {children}
         </Link>
       );

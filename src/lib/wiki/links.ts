@@ -18,6 +18,22 @@
 export const normalizeWikiLinks = (markdown: string) =>
   markdown.replace(/\\?\[\\?\[((?:\\[^[\]\n]|[^\]\n\\]){1,240})\\?\]\\?\]/g, (_match, inner: string) => `[[${inner.replace(/\\([!-/:-@[-`{-~])/g, "$1")}]]`);
 
+/**
+ * Ready for the visual editor: colons inside links escaped, so "[[O&M:Water]]"
+ * isn't read as a `:Water` directive (outside code blocks). Saving undoes
+ * it, as `normalizeWikiLinks` does.
+ */
+export function protectWikiLinks(markdown: string) {
+  let inCode = false;
+  return normalizeWikiLinks(markdown)
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) inCode = !inCode;
+      return inCode ? line : line.replace(/\[\[[^\]\n]{1,360}\]\]/g, (link) => link.replace(/:/g, "\\:"));
+    })
+    .join("\n");
+}
+
 /** A link, once normalized: `[[target]]` or `[[target|label]]`. */
 export const WIKI_LINK = /\[\[([^\]|\n]{1,240})(?:\|([^\]\n]{1,120}))?\]\]/g;
 
