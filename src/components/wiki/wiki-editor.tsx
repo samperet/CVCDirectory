@@ -3,12 +3,13 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Eye, ImagePlus } from "lucide-react";
+import { AlertTriangle, Eye, FilePlus2, ImagePlus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { wikiLinksIn } from "@/lib/wiki/links";
+import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
 import { uploadWikiImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,7 @@ export function WikiEditor({
   const [mode, setMode] = useState<Mode>("visual");
   // New pages linked with @, made when this one is saved.
   const newPages = useRef(new Set<string>());
+  const [addingDocument, setAddingDocument] = useState(false);
   const [title, setTitle] = useState(page.title);
   const [body, setBody] = useState(page.body);
   const [base, setBase] = useState(page.updatedAt);
@@ -272,6 +274,23 @@ export function WikiEditor({
             >
               <ImagePlus className="h-4 w-4" aria-hidden /> {uploading ? "Adding photo…" : "Insert photo"}
             </button>
+            <button
+              type="button"
+              onClick={() => setAddingDocument(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-sm font-medium text-foreground transition hover:bg-accent"
+            >
+              <FilePlus2 className="h-4 w-4" aria-hidden /> Add a document
+            </button>
+            {addingDocument ? (
+              <AddDocumentDialog
+                circle={{ id: circleId, name: circleName }}
+                onClose={() => setAddingDocument(false)}
+                onAdded={(link) => {
+                  setAddingDocument(false);
+                  insertLink(link);
+                }}
+              />
+            ) : null}
             <input
               ref={photoInput}
               type="file"
@@ -318,7 +337,7 @@ export function WikiEditor({
         </div>
       )}
 
-      <p className="text-xs text-muted">Type @ to link a page or a document — or to start a new page. Ctrl/⌘+S saves.</p>
+      <p className="text-xs text-muted">Type @ to link a page or a document — or to start a new page. Add a new document with the document button. Ctrl/⌘+S saves.</p>
       <div className="flex gap-2">
         <Button onClick={() => void save()} disabled={saving || !title.trim() || !dirty}>
           {saving ? "Saving…" : "Save"}

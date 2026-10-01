@@ -238,7 +238,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   toolbar: headings, bold/italic, lists and checklists, links, photos, tables, collapsible sections,
   and **polls**; Markdown shortcuts work as you type. **Typing @** searches pages (in any circle's
   wiki) and documents and links the one you pick — or, for a new title, links a new page, made when
-  the page is saved (`GET /api/wiki/link-search`). If a page has something the visual editor can't
+  the page is saved (`GET /api/wiki/link-search`). The toolbar's **Add a document** button uploads a file into the circle's documents (title, type, and meeting date filled in from the file's name) and links it where the cursor was. If a page has something the visual editor can't
   show, it opens as Markdown beside a preview. **Links** are written `[[Page title]]` (a missing page
   shows red and offers to be created), `[[O&M:Page title]]` for another circle's page, and
   `[[doc:Document title]]` for a document — this circle's first, then any circle's

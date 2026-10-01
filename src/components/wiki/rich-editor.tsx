@@ -4,7 +4,7 @@ import "@mdxeditor/editor/style.css";
 import { forwardRef, useContext, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
-import { AtSign, BarChart3, ChevronDown, ChevronsUpDown, X } from "lucide-react";
+import { AtSign, BarChart3, ChevronDown, ChevronsUpDown, FilePlus2, X } from "lucide-react";
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
@@ -40,6 +40,9 @@ import { normalizeWikiLinks } from "@/lib/wiki/links";
 import { mentionPlugin } from "@/components/wiki/mention-menu";
 import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
 import { NewPollDialog } from "@/components/polls/new-poll-dialog";
+import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
+import { useCircles } from "@/components/wiki/link-data";
+import { featureEnabled } from "@/lib/circles/features";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -176,6 +179,9 @@ export const RichEditor = forwardRef<
 >(function RichEditor({ markdown, circleId, circleName, pageId, onChange, onError, onCreatePage }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
   const [polling, setPolling] = useState(false);
+  const [addingDocument, setAddingDocument] = useState(false);
+  // Documents go into the circle's documents, so only while it has them turned on.
+  const documentsOn = featureEnabled(useCircles()?.find((circle) => circle.id === circleId), "documents");
   const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
   // The plugin is set up once, so it reads the latest callback through a ref.
   const createRef = useRef(onCreatePage);
@@ -239,6 +245,11 @@ export const RichEditor = forwardRef<
               </ButtonWithTooltip>
               <Separator />
               <InsertImage />
+              {documentsOn ? (
+                <ButtonWithTooltip title="Add a document" onClick={() => setAddingDocument(true)}>
+                  <FilePlus2 className="h-5 w-5" />
+                </ButtonWithTooltip>
+              ) : null}
               <InsertTable />
               <ButtonWithTooltip title="Collapsible section" onClick={() => insert(':::details{title="Details"}\nWhat this section hides.\n:::')}>
                 <ChevronsUpDown className="h-5 w-5" />
@@ -251,6 +262,16 @@ export const RichEditor = forwardRef<
         }),
       ]}
     />
+    {addingDocument ? (
+      <AddDocumentDialog
+        circle={{ id: circleId, name: circleName }}
+        onClose={() => setAddingDocument(false)}
+        onAdded={(link) => {
+          setAddingDocument(false);
+          insert(` ${link} `);
+        }}
+      />
+    ) : null}
     {polling ? (
       <NewPollDialog
         circle={{ id: circleId, name: circleName }}
