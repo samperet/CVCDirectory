@@ -192,7 +192,8 @@ Authors always come from the signed-in session, never from the request body.
   entries ("Split entries", for different people who share a name) or combine entries whose names
   differ ("Same person listed elsewhere?"). "Remove from unit N" takes someone out of one of their
   households and keeps them in the others. Links to a combined entry open the one profile.
-- **Search** (`/search`, the header's search button, or "/" anywhere) – one search across the site
+- **Search** (`/search`, or "/" anywhere; the header's magnifying glass opens a menu with a search
+  box and **All documents**, the way to browse every circle's documents) – one search across the site
   for residents: people (by name, bio, and skills), circles, wiki pages, forum discussions,
   documents (their details and text), tasks, resources, and the loan library. Every word must
   match somewhere in a result; titles count most. Results come in groups, best first, with the
@@ -296,7 +297,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   documents stay searchable. With Wiki off, its pages can't be edited.
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
-  admins). Each file gets an editable title (from its name), type, and meeting date (filled in
+  admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);
+  a single file works the same way, and a description can be added afterwards with Edit.
+- **Filtering and sorting** – document lists filter by circle (on `/documents`), type, year (on
+  `/documents`), and Consented only, and sort by newest (the default), oldest, title, or recently
+  updated (best match while searching); **Clear** resets them (`GET /api/documents?sort=…&year=…`). Each file gets an editable title (from its name), type, and meeting date (filled in
   when the name has one, like `2024-03-12`); they upload one after another, and failures can be retried.
   The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,
   or images, up to 50 MB) with a title, one of the circle's document types, an optional meeting date,

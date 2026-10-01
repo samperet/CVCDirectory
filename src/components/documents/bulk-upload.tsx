@@ -29,7 +29,8 @@ interface Row {
 let nextKey = 0;
 
 /**
- * Upload many documents to one circle at once, from the Documents page.
+ * Upload many documents to one circle at once: from the Documents page
+ * (choosing the circle), or from a circle's own page (just that circle).
  * Each file gets a title (from its name), a type, and a meeting date (when
  * its name has one), all editable; they upload one after another, and any
  * that fail can be retried.
@@ -40,6 +41,8 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
   const input = useRef<HTMLInputElement>(null);
   const [circleId, setCircleId] = useState(initialCircleId && circles.some((circle) => circle.id === initialCircleId) ? initialCircleId : circles[0]?.id ?? "");
   const [rows, setRows] = useState<Row[]>([]);
+  // On a circle's own page there's only that circle: no need to choose.
+  const single = circles.length === 1;
   const [dragging, setDragging] = useState(false);
   const [running, setRunning] = useState(false);
   const [batch, setBatch] = useState({ current: 0, total: 0 });
@@ -127,13 +130,14 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
   return (
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-foreground">Upload documents</h3>
+        <h3 className="text-base font-semibold text-foreground">{single ? `Add documents to ${circles[0].name}` : "Upload documents"}</h3>
         <Button variant="ghost" size="icon" onClick={onDone} disabled={running} aria-label="Close">
           <X className="h-4 w-4" />
         </Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
+        {single ? null : (
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Circle
           <select
@@ -149,6 +153,7 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
             ))}
           </select>
         </label>
+        )}
         {rows.length > 1 && pending.length ? (
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
             Set every file&apos;s type

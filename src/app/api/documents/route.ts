@@ -15,12 +15,22 @@ export const dynamic = "force-dynamic";
 // Finishing an upload reassembles the file and reads its text, which can take a while for a large PDF.
 export const maxDuration = 60;
 
+/** How a list of documents can be ordered (search results are best match first unless one is chosen). */
+const SORTS = {
+  newest: (a: DocumentRecord, b: DocumentRecord) => documentDate(b).localeCompare(documentDate(a)) || b.createdAt.localeCompare(a.createdAt),
+  oldest: (a: DocumentRecord, b: DocumentRecord) => documentDate(a).localeCompare(documentDate(b)) || a.createdAt.localeCompare(b.createdAt),
+  title: (a: DocumentRecord, b: DocumentRecord) => a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true }),
+  updated: (a: DocumentRecord, b: DocumentRecord) => b.updatedAt.localeCompare(a.updatedAt),
+} as const;
+type Sort = keyof typeof SORTS;
+
 /**
  * List documents, newest first — or, with `q`, search their details and
  * contents, best match first. Filters: `circle`, `type` (a type's name,
- * since each circle names its own types), and `consented=1` (only documents
- * whose current version the circle has consented to). Also returns the type names in use,
- * for the type filter.
+ * since each circle names its own types), `year` (of the meeting, or the
+ * upload), and `consented=1` (only documents whose current version the circle
+ * has consented to). `sort`: newest, oldest, title, or updated. Also returns
+ * the type names and years in use, for the filters.
  */
 export async function GET(request: NextRequest) {
   const context = await circleContext();
@@ -30,27 +40,34 @@ export async function GET(request: NextRequest) {
   const q = (params.get("q") ?? "").trim().slice(0, 200);
   const circle = params.get("circle");
   const type = params.get("type");
+  const year = params.get("year");
   const consentedOnly = params.get("consented") === "1";
+  const sortParam = params.get("sort");
+  const sort: Sort | null = sortParam && sortParam in SORTS ? (sortParam as Sort) : null;
   const types = await readTypeMap();
   const label = (doc: DocumentRecord) => typeLabelFor(doc, types);
 
   const inCircle = (await listDocuments()).filter((doc) => !circle || doc.circleId === circle);
   const typeOptions = Array.from(new Set(inCircle.map(label))).sort((a, b) => a.localeCompare(b));
+  const yearOptions = Array.from(new Set(inCircle.map((doc) => documentDate(doc).slice(0, 4)))).sort((a, b) => b.localeCompare(a));
   const documents = inCircle
     .filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase())
+    .filter((doc) => !year || documentDate(doc).startsWith(`${year}-`))
     .filter((doc) => !consentedOnly || consentState(doc) === "consented");
   const circleName = (doc: DocumentRecord) => directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "";
+  const options = { typeOptions, yearOptions };
 
   if (q) {
-    const hits = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${label(doc)}${consentState(doc) === "consented" ? " consented" : ""}`);
+    const found = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${label(doc)}${consentState(doc) === "consented" ? " consented" : ""}`);
+    const hits = sort ? [...found].sort((a, b) => SORTS[sort](a.doc, b.doc)) : found;
     return NextResponse.json(
-      { documents: hits.slice(0, 100).map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)), total: hits.length, typeOptions },
+      { documents: hits.slice(0, 100).map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)), total: hits.length, ...options },
       { headers: { "Cache-Control": "private, no-store" } }
     );
   }
-  const sorted = [...documents].sort((a, b) => documentDate(b).localeCompare(documentDate(a)) || b.createdAt.localeCompare(a.createdAt));
+  const sorted = [...documents].sort(SORTS[sort ?? "newest"]);
   return NextResponse.json(
-    { documents: sorted.map((doc) => toListing(doc, user, directory, types)), total: sorted.length, typeOptions },
+    { documents: sorted.map((doc) => toListing(doc, user, directory, types)), total: sorted.length, ...options },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }

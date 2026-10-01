@@ -620,7 +620,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           {featureEnabled(circle, "documents") ? (
             <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
               <h2 className="text-lg font-semibold text-foreground">Documents</h2>
-              <DocumentsPanel circleId={id} canUpload={canUpload} canEditTypes={canManage} />
+              <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
             </Card>
           ) : null}
         </div>

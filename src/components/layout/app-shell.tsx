@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Menu, Search, Share2, Layers, Grid, MessagesSquare, BookUser, CalendarDays, Camera, Lightbulb, Eye } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { UserMenu } from "@/components/auth/user-menu";
 import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
 import { useSession, useViewAs } from "@/lib/auth/client";
@@ -24,20 +25,90 @@ const links = [
   { href: "/resources", label: "Resources", icon: Lightbulb },
 ];
 
-/** The header's search button: the whole-site search. */
+/**
+ * The header's magnifying glass: a small menu to search everything (Enter
+ * goes to the full search) or browse all documents, which aren't in the
+ * header themselves.
+ */
 function SearchButton({ active }: { active: boolean }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const box = useRef<HTMLDivElement>(null);
+
+  // Close on a click outside, on Escape, and when the page changes.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  useEffect(() => setOpen(false), [pathname]);
+
   return (
-    <Link
-      href="/search"
-      aria-label="Search"
-      title="Search everything ( / )"
-      className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
-        active ? "bg-primary text-primary-foreground shadow-soft" : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
-      )}
-    >
-      <Search className="h-4 w-4" />
-    </Link>
+    // On phones the menu spans the header's width (positioned from the header row); on wider screens it hangs under the button.
+    <div ref={box} className="sm:relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-label="Search"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        title="Search ( / )"
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
+          active || open ? "bg-primary text-primary-foreground shadow-soft" : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
+        )}
+      >
+        <Search className="h-4 w-4" />
+      </button>
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Search and browse"
+          className="absolute inset-x-4 top-full z-50 mt-1 rounded-2xl border border-border bg-surface p-2 shadow-elev sm:inset-x-auto sm:right-0 sm:mt-2 sm:w-[21rem]"
+        >
+          <form
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const q = text.trim();
+              setOpen(false);
+              router.push(q ? `/search?${new URLSearchParams({ q })}` : "/search");
+            }}
+            className="relative"
+          >
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+            <Input
+              autoFocus
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              placeholder="Search everything…"
+              enterKeyHint="search"
+              className="h-11 bg-white pl-9"
+              aria-label="Search everything"
+            />
+          </form>
+          <div className="mt-2 border-t border-border pt-2">
+            <Link href="/documents" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-accent">
+              <SectionArt href="/documents" size={32} />
+              <span className="flex flex-col">
+                <span className="text-sm font-medium text-foreground">All documents</span>
+                <span className="text-xs text-muted">Browse every circle&apos;s, with filters and sorting</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -126,7 +197,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         ) : null}
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+        <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground">
             <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
             CVC Directory

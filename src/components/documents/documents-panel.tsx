@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   BadgeCheck,
   Download,
   FileText,
@@ -19,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { FileIcon, checkFile, sendFile, uploadDocument, useCircleTypes } from "@/components/documents/upload";
+import { FileIcon, checkFile, sendFile, useCircleTypes } from "@/components/documents/upload";
 import { BulkUpload } from "@/components/documents/bulk-upload";
 import {
   ACCEPTED_EXTENSIONS,
@@ -42,7 +43,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
 
-type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[] };
+type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[]; yearOptions?: string[] };
 
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
   `/api/documents/${doc.id}/file?${new URLSearchParams({ ...(version ? { v: String(version) } : {}), ...(download ? { download: "1" } : {}) })}`;
@@ -129,120 +130,6 @@ function DetailsFields({
         <Textarea rows={2} value={form.description} maxLength={1000} onChange={set("description")} className="bg-white" />
       </label>
     </div>
-  );
-}
-
-/** Add a document to a circle: choose (or drop) a file, describe it, and upload. */
-function UploadCard({ circleId, onDone }: { circleId: string; onDone: () => void }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const input = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [form, setForm] = useState<DetailsForm>({ title: "", type: "", meetingDate: "", description: "" });
-  const [progress, setProgress] = useState<{ sent: number; finishing: boolean } | null>(null);
-  const loadedTypes = useCircleTypes(circleId).data?.types;
-  const types = useMemo(() => loadedTypes ?? [], [loadedTypes]);
-  useEffect(() => {
-    if (!form.type && types.length) setForm((current) => ({ ...current, type: types[0].id }));
-  }, [types, form.type]);
-
-  const choose = (chosen: File | undefined) => {
-    if (!chosen) return;
-    const problem = checkFile(chosen);
-    if (problem) {
-      toast({ title: "Can't upload that file", description: problem, variant: "destructive" });
-      return;
-    }
-    setFile(chosen);
-    setForm((current) => ({ ...current, title: current.title || chosen.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() }));
-  };
-
-  const upload = useMutation({
-    mutationFn: async () => {
-      if (!file) throw new Error("Choose a file");
-      return uploadDocument(
-        file,
-        circleId,
-        { title: form.title, type: form.type, meetingDate: form.meetingDate || null, description: form.description || null },
-        setProgress
-      );
-    },
-    onSuccess: (document) => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-      toast({
-        title: "Document added",
-        description: currentVersion(document).textChars ? "Its contents are searchable." : "Searchable by its title and description (no text found inside).",
-      });
-      onDone();
-    },
-    onError: (err: Error) => toast({ title: "Upload failed", description: err.message, variant: "destructive" }),
-    onSettled: () => setProgress(null),
-  });
-
-  return (
-    <Card className="flex flex-col gap-4 p-5">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-foreground">Add a document</h3>
-        <Button variant="ghost" size="icon" onClick={onDone} disabled={upload.isPending} aria-label="Cancel">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      <input
-        ref={input}
-        type="file"
-        accept={ACCEPTED_EXTENSIONS.join(",")}
-        className="hidden"
-        onChange={(event) => {
-          choose(event.target.files?.[0]);
-          event.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => input.current?.click()}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          choose(event.dataTransfer.files?.[0]);
-        }}
-        disabled={upload.isPending}
-        className={cn(
-          "flex flex-col items-center gap-1 rounded-lg border-2 border-dashed p-5 text-center text-sm transition",
-          dragging ? "border-primary bg-accent" : "border-border bg-white hover:bg-accent/50"
-        )}
-      >
-        {file ? (
-          <>
-            <span className="flex items-center gap-2 font-medium text-foreground">
-              <FileIcon contentType={file.type} className="h-4 w-4 text-primary" /> {file.name}
-            </span>
-            <span className="text-xs text-muted">{formatBytes(file.size)} · click to choose a different file</span>
-          </>
-        ) : (
-          <>
-            <Upload className="h-5 w-5 text-primary" aria-hidden />
-            <span className="font-medium text-foreground">Choose a file, or drop it here</span>
-            <span className="text-xs text-muted">PDF, Word, Excel, PowerPoint, text, or image · up to 50 MB</span>
-          </>
-        )}
-      </button>
-      {file ? <DetailsFields form={form} onChange={setForm} types={types} /> : null}
-      {progress && file ? <Progress sent={progress.sent} total={file.size} finishing={progress.finishing} /> : null}
-      <div className="flex gap-2">
-        <Button onClick={() => upload.mutate()} disabled={!file || !form.title.trim() || !form.type || upload.isPending}>
-          {upload.isPending ? "Uploading…" : "Upload"}
-        </Button>
-        <Button variant="outline" onClick={onDone} disabled={upload.isPending}>
-          Cancel
-        </Button>
-      </div>
-    </Card>
   );
 }
 
@@ -691,12 +578,15 @@ function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
  */
 export function DocumentsPanel({
   circleId,
+  circleName,
   canUpload = false,
   circles,
   uploadCircles = [],
   canEditTypes = canUpload,
 }: {
   circleId?: string;
+  /** On a circle's page: its name, for the upload form. */
+  circleName?: string;
   canUpload?: boolean;
   /** Whether the resident can change the circle's document types (by default, whoever can upload). */
   canEditTypes?: boolean;
@@ -709,6 +599,9 @@ export function DocumentsPanel({
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState("");
   const [consentedOnly, setConsentedOnly] = useState(false);
+  const [year, setYear] = useState("");
+  // "" means the natural order: newest first, or best match while searching.
+  const [sort, setSort] = useState("");
   const [circle, setCircle] = useState("");
   const [adding, setAdding] = useState(false);
   const [editingTypes, setEditingTypes] = useState(false);
@@ -719,7 +612,7 @@ export function DocumentsPanel({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filters = { q: debounced, circle: circleId ?? circle, type, consented: consentedOnly ? "1" : "" };
+  const filters = { q: debounced, circle: circleId ?? circle, type, year, sort, consented: consentedOnly ? "1" : "" };
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["documents", filters],
     queryFn: () =>
@@ -737,7 +630,17 @@ export function DocumentsPanel({
   });
   // Type names in use (each circle names its own), for the filter; kept while a type is chosen.
   const typeOptions = useMemo(() => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(), [data, type]);
-  const filtered = !!(debounced || type || consentedOnly || (!circleId && circle));
+  const filtered = !!(debounced || type || year || consentedOnly || (!circleId && circle));
+  const yearOptions = Array.from(new Set([...(data?.yearOptions ?? []), ...(year ? [year] : [])])).sort((a, b) => b.localeCompare(a));
+  const clearFilters = () => {
+    setQuery("");
+    setDebounced("");
+    setType("");
+    setYear("");
+    setConsentedOnly(false);
+    setSort("");
+    if (!circleId) setCircle("");
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -781,6 +684,31 @@ export function DocumentsPanel({
           <input type="checkbox" checked={consentedOnly} onChange={(event) => setConsentedOnly(event.target.checked)} className="sr-only" />
           <BadgeCheck className={cn("h-4 w-4", consentedOnly ? "text-pine" : "text-muted")} aria-hidden /> Consented only
         </label>
+        {!circleId && yearOptions.length > 1 ? (
+          <select value={year} onChange={(event) => setYear(event.target.value)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Year">
+            <option value="">All years</option>
+            {yearOptions.map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <label className="flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white pl-3 text-sm text-muted">
+          <ArrowUpDown className="h-4 w-4" aria-hidden />
+          <select value={sort} onChange={(event) => setSort(event.target.value)} className="h-full rounded-lg bg-transparent pr-2 text-foreground focus:outline-none" aria-label="Sort">
+            <option value="">{debounced ? "Best match" : "Newest"}</option>
+            {debounced ? <option value="newest">Newest</option> : null}
+            <option value="oldest">Oldest</option>
+            <option value="title">Title A–Z</option>
+            <option value="updated">Recently updated</option>
+          </select>
+        </label>
+        {filtered || sort ? (
+          <button type="button" onClick={clearFilters} className="inline-flex h-10 items-center gap-1 px-1 text-sm font-medium text-muted hover:text-foreground">
+            <X className="h-4 w-4" aria-hidden /> Clear
+          </button>
+        ) : null}
         {canEditTypes && circleId && !editingTypes ? (
           <Button variant="outline" className="gap-1.5" onClick={() => setEditingTypes(true)}>
             <Tags className="h-4 w-4" /> Edit types
@@ -793,13 +721,13 @@ export function DocumentsPanel({
         ) : null}
         {canUpload && circleId && !adding ? (
           <Button className="gap-1.5" onClick={() => setAdding(true)}>
-            <Upload className="h-4 w-4" /> Add a document
+            <Upload className="h-4 w-4" /> Add documents
           </Button>
         ) : null}
       </div>
 
       {editingTypes && circleId ? <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} /> : null}
-      {adding && circleId ? <UploadCard circleId={circleId} onDone={() => setAdding(false)} /> : null}
+      {adding && circleId ? <BulkUpload circles={[{ id: circleId, name: circleName ?? "this circle" }]} onDone={() => setAdding(false)} /> : null}
       {bulk && !circleId ? <BulkUpload circles={uploadCircles} initialCircleId={circle || undefined} onDone={() => setBulk(false)} /> : null}
 
       {isLoading ? (
