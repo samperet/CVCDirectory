@@ -31,7 +31,6 @@ const PUBLIC_PATHS = new Set([
   "/api/admin/photos", // protected by its own bearer token
   "/api/admin/schedules", // protected by its own bearer token
   "/api/admin/resources", // protected by its own bearer token
-  "/api/admin/wiki-import", // protected by its own bearer token (a one-off import)
 ]);
 
 const encoder = new TextEncoder();
