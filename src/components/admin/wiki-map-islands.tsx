@@ -6,7 +6,7 @@ import { select } from "d3-selection";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
 import { NOTE_STYLES } from "@/lib/pins/shared";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
-import { EDGE_INFO, NodeCard, neighbours, nodeFill } from "@/components/admin/wiki-map-shared";
+import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
  * The wiki as islands: each circle a soft disc holding its pages (pages
@@ -39,16 +39,19 @@ export const IslandsView = forwardRef<
     colors: Map<string, string>;
     kinds: Set<GraphNodeKind>;
     edgeKinds: Set<GraphEdgeKind>;
-    focus: string | null;
-    onOpen: (node: GraphNode) => void;
+    /** The item whose panel is open. */
+    selected: string | null;
+    /** Light up the selected item's connections and fade the rest. */
+    connections: boolean;
+    onSelect: (id: string | null) => void;
   }
->(function IslandsView({ graph, colors, kinds, edgeKinds, focus, onOpen }, ref) {
+>(function IslandsView({ graph, colors, kinds, edgeKinds, selected, connections, onSelect }, ref) {
   const box = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomer = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
-  const [hover, setHover] = useState<{ id: string; x: number; y: number; pinned?: boolean } | null>(null);
+  const [hover, setHover] = useState<{ id: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const element = box.current;
@@ -127,8 +130,9 @@ export const IslandsView = forwardRef<
   }, [graph, kinds, degree, size]);
 
   const links = useMemo(() => neighbours(graph.edges.filter((edge) => edgeKinds.has(edge.kind))), [graph, edgeKinds]);
-  const active = hover?.id ?? focus;
-  const near = active ? new Set([active, ...Array.from(links.get(active) ?? [])]) : null;
+  // Hovering lights an item's links; "Show connections" also fades everything else.
+  const active = hover?.id ?? selected;
+  const near = connections && selected ? new Set([selected, ...Array.from(links.get(selected) ?? [])]) : null;
   const dim = (id: string) => !!near && !near.has(id);
 
   // Zooming and panning; zoomTo eases to a circle or node (null: everything).
@@ -173,18 +177,17 @@ export const IslandsView = forwardRef<
   const hoveredNode = hover ? graph.nodes.find((node) => node.id === hover.id) : null;
   const show = (event: React.PointerEvent | React.MouseEvent, id: string) => {
     const rect = box.current!.getBoundingClientRect();
-    setHover((current) => (current?.pinned ? current : { id, x: event.clientX - rect.left, y: event.clientY - rect.top }));
+    setHover({ id, x: event.clientX - rect.left, y: event.clientY - rect.top });
   };
+  // A click selects (opening its panel); a circle also zooms in.
   const choose = (event: React.MouseEvent, node: GraphNode | undefined, item: Item) => {
     event.stopPropagation();
-    const touch = (event.nativeEvent as PointerEvent).pointerType === "touch";
-    if (item.kind === "circle" || item.kind === "elsewhere") return zoomTo(item.id === "elsewhere" ? null : item.id);
-    if (!node) return;
-    if (touch) {
-      const rect = box.current!.getBoundingClientRect();
-      return setHover({ id: node.id, x: event.clientX - rect.left, y: event.clientY - rect.top, pinned: true });
+    if (item.kind === "elsewhere") return zoomTo(null);
+    if (item.kind === "circle") {
+      if (node) onSelect(node.id);
+      return zoomTo(item.id);
     }
-    onOpen(node);
+    if (node) onSelect(node.id);
   };
 
   const edgePath = (a: HierarchyCircularNode<Item>, b: HierarchyCircularNode<Item>) => {
@@ -196,8 +199,8 @@ export const IslandsView = forwardRef<
   };
 
   return (
-    <div ref={box} className="relative overflow-hidden rounded-2xl border border-border bg-[radial-gradient(ellipse_at_top,#fbfdf8,#eef3ec)]" onPointerLeave={() => setHover((current) => (current?.pinned ? current : null))}>
-      <svg ref={svgRef} width={size.width} height={size.height} className="block touch-none select-none font-sans" role="img" aria-label="Map of wiki pages by circle" onClick={() => setHover(null)}>
+    <div ref={box} className="relative overflow-hidden rounded-2xl border border-border bg-[radial-gradient(ellipse_at_top,#fbfdf8,#eef3ec)]" onPointerLeave={() => setHover(null)}>
+      <svg ref={svgRef} width={size.width} height={size.height} className="block touch-none select-none font-sans" role="img" aria-label="Map of wiki pages by circle" onClick={() => onSelect(null)}>
         <defs>
           <filter id="island-shadow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#1e4620" floodOpacity="0.08" />
@@ -280,7 +283,7 @@ export const IslandsView = forwardRef<
               const r = node.r * 0.92;
               const isSelf = item.id.endsWith("#self");
               const faded = dim(gnode.id);
-              const lit = active === gnode.id;
+              const lit = selected === gnode.id || hover?.id === gnode.id;
               const square = gnode.kind === "document" || gnode.kind === "task";
               return (
                 <g
@@ -341,15 +344,7 @@ export const IslandsView = forwardRef<
         </button>
       </div>
 
-      {hoveredNode && hover ? (
-        <div
-          className={hover.pinned ? "absolute z-10" : "pointer-events-none absolute z-10"}
-          style={{ left: clamp(hover.x + 14, 8, size.width - 300), top: clamp(hover.y + 14, 8, size.height - 220) }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <NodeCard node={hoveredNode} graph={graph} colors={colors} onOpen={hover.pinned ? () => onOpen(hoveredNode) : undefined} />
-        </div>
-      ) : null}
+      {hoveredNode && hover ? <NameTip node={hoveredNode} graph={graph} x={hover.x} y={hover.y} bounds={size} /> : null}
     </div>
   );
 });

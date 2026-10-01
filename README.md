@@ -306,10 +306,12 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   information) – **Islands**: each circle is a soft island (in its own colour) holding its pages —
   pages started from another page sit inside it — and its documents and tasks; people, discussions,
   and the dashboard that pages are pinned to gather on their own island. Links and pins arc between
-  them. Hover anything for a card (its opening lines, what it links to and from, where it's pinned,
-  who last edited it); click a circle to zoom in, a page to open it (on phones, a tap shows the card
-  with an **Open** button). **3D** shows the same as a turnable globe, each circle a sphere with
-  its pages gathered round it (three.js, loaded only when chosen). Filter by kind and connection;
+  them. Hovering shows just a name; clicking anything opens a **panel** (docked on the right; a
+  sheet along the bottom on phones) with its opening lines, who last edited it, what it links to and
+  from, where it's pinned, and pages started from it — each clickable — plus **Open**, **Zoom to**,
+  and **Show connections** (fading everything else). Clicking a circle also zooms in. **3D** shows the same as a turnable globe, each circle a sphere with
+  its pages gathered round it (three.js, loaded only when chosen); a click flies the camera there and
+  opens the same panel. Filter by kind and connection;
   **Find** zooms to anything. Built from `GET /api/admin/wiki-graph`.
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and

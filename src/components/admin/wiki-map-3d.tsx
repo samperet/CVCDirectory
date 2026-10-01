@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
-import { NodeCard, nodeFill } from "@/components/admin/wiki-map-shared";
+import { NameTip, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
  * The wiki in 3D: each circle a glowing sphere with its pages gathered
  * around it (pages started from another page around that one), links and
- * pins drawn between them. Drag to turn, scroll to zoom, hover for a card,
- * click to open.
+ * pins drawn between them. Drag to turn, scroll to zoom, hover for a name,
+ * click to fly to it and open its panel.
  */
 
 type Node3D = GraphNode & { x?: number; y?: number; z?: number };
@@ -19,19 +19,19 @@ export function Globe3DView({
   colors,
   kinds,
   edgeKinds,
-  onOpen,
+  onSelect,
 }: {
   graph: WikiGraph;
   colors: Map<string, string>;
   kinds: Set<GraphNodeKind>;
   edgeKinds: Set<GraphEdgeKind>;
-  onOpen: (node: GraphNode) => void;
+  onSelect: (id: string | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<GraphNode | null>(null);
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
-  const openRef = useRef(onOpen);
-  openRef.current = onOpen;
+  const selectRef = useRef(onSelect);
+  selectRef.current = onSelect;
 
   useEffect(() => {
     const element = box.current;
@@ -92,7 +92,14 @@ export function Globe3DView({
           element.style.cursor = node ? "pointer" : "default";
           setHovered(node);
         })
-        .onNodeClick((node: Node3D) => openRef.current(node));
+        .onNodeClick((node: Node3D) => {
+          // Ease the camera toward it, then show its panel.
+          const distance = 110;
+          const ratio = 1 + distance / Math.max(1, Math.hypot(node.x ?? 0, node.y ?? 0, node.z ?? 0));
+          instance.cameraPosition({ x: (node.x ?? 0) * ratio, y: (node.y ?? 0) * ratio, z: (node.z ?? 0) * ratio }, node, 900);
+          selectRef.current(node.id);
+        })
+        .onBackgroundClick(() => selectRef.current(null));
       instance.d3Force("link")?.distance((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 38 : link.kind === "child" ? 22 : 110)).strength((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" || link.kind === "child" ? 0.9 : 0.05));
       instance.d3Force("charge")?.strength(-70);
       instance.cameraPosition({ z: 420 });
@@ -117,12 +124,8 @@ export function Globe3DView({
       }}
     >
       <div ref={box} className="min-h-[420px] w-full" aria-label="3D map of wiki pages by circle" role="img" />
-      {hovered ? (
-        <div className="pointer-events-none absolute z-10" style={{ left: Math.min(mouse.x + 14, (box.current?.clientWidth ?? 600) - 300), top: Math.min(mouse.y + 14, (box.current?.clientHeight ?? 500) - 220) }}>
-          <NodeCard node={hovered} graph={graph} colors={colors} />
-        </div>
-      ) : null}
-      <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[#cfe3d4]/70">Drag to turn · scroll to zoom · click to open</p>
+      {hovered ? <NameTip node={hovered} graph={graph} x={mouse.x} y={mouse.y} bounds={{ width: box.current?.clientWidth ?? 600, height: box.current?.clientHeight ?? 500 }} /> : null}
+      <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[#cfe3d4]/70">Drag to turn · scroll to zoom · click for details</p>
     </div>
   );
 }

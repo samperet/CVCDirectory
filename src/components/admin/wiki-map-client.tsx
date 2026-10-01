@@ -5,10 +5,10 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Box, Crosshair, Map as MapIcon, Network, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
-import { EDGE_INFO, KIND_INFO, circleColors, nodeFill } from "@/components/admin/wiki-map-shared";
+import { EDGE_INFO, KIND_INFO, NodePanel, circleColors, nodeFill } from "@/components/admin/wiki-map-shared";
 import { IslandsView, type IslandsHandle } from "@/components/admin/wiki-map-islands";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,9 @@ export function WikiMapClient() {
   const [view, setView] = useState<"islands" | "3d">("islands");
   const [kinds, setKinds] = useState<Set<GraphNodeKind>>(() => new Set(KIND_ORDER));
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(() => new Set<GraphEdgeKind>(["link", "pin"]));
-  const [focus, setFocus] = useState<string | null>(params.get("focus"));
+  // The item whose panel is open, and whether its connections are lit.
+  const [selected, setSelected] = useState<string | null>(params.get("focus"));
+  const [connections, setConnections] = useState(false);
   const [find, setFind] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const colors = useMemo(() => (data ? circleColors(data) : new Map<string, string>()), [data]);
@@ -48,16 +50,21 @@ export function WikiMapClient() {
   }, [data, start]);
 
   const open = (node: GraphNode) => (node.external ? window.open(node.href, "_blank", "noopener") : router.push(node.href));
-  const focusOn = (id: string | null) => {
-    setFocus(id);
-    setFind("");
-    if (view === "islands") islands.current?.zoomTo(id);
+  const select = (id: string | null, zoom = false) => {
+    setSelected(id);
+    if (!id) setConnections(false);
+    if (zoom && view === "islands") islands.current?.zoomTo(id);
   };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && select(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
   const matches = useMemo(() => {
     const wanted = find.trim().toLowerCase();
     return wanted && data ? data.nodes.filter((node) => node.label.toLowerCase().includes(wanted)).slice(0, 8) : [];
   }, [find, data]);
-  const focused = data?.nodes.find((node) => node.id === focus);
+  const chosen = data?.nodes.find((node) => node.id === selected);
   const toggle = <T,>(set: Set<T>, value: T) => {
     const next = new Set(set);
     if (next.has(value)) next.delete(value);
@@ -123,9 +130,9 @@ export function WikiMapClient() {
                 <li key={circle.id}>
                   <button
                     type="button"
-                    onClick={() => (view === "islands" ? islands.current?.zoomTo(`circle:${circle.id}`) : undefined)}
+                    onClick={() => select(`circle:${circle.id}`, true)}
                     className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm text-foreground hover:bg-accent"
-                    title={view === "islands" ? `Zoom to ${circle.name}` : undefined}
+                    title={`Show ${circle.name}`}
                   >
                     <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors.get(circle.id) }} aria-hidden />
                     <span className="min-w-0 flex-1 truncate">{circle.name}</span>
@@ -140,31 +147,26 @@ export function WikiMapClient() {
             <label htmlFor="map-find" className="text-sm font-semibold text-foreground">
               Find
             </label>
-            {focused ? (
-              <p className="flex items-start gap-1.5 rounded-lg border border-border bg-accent/40 p-2 text-sm">
-                <Crosshair className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                <span className="min-w-0 flex-1 break-words">{focused.label}</span>
-                <button type="button" onClick={() => focusOn(null)} className="rounded p-0.5 text-muted hover:text-foreground" aria-label="Clear">
-                  <X className="h-4 w-4" />
-                </button>
-              </p>
-            ) : (
-              <>
-                <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="A page, circle, person…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm" />
-                {matches.length ? (
-                  <ul className="absolute inset-x-0 top-full z-20 mt-1 flex flex-col rounded-lg border border-border bg-surface p-1 shadow-elev">
-                    {matches.map((node) => (
-                      <li key={node.id}>
-                        <button type="button" onClick={() => focusOn(node.id)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent">
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: node.kind === "circle" ? colors.get(node.circleId ?? "") : nodeFill(node) }} aria-hidden />
-                          <span className="truncate">{node.label}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </>
-            )}
+            <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="A page, circle, person…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm" />
+            {matches.length ? (
+              <ul className="absolute inset-x-0 top-full z-20 mt-1 flex flex-col rounded-lg border border-border bg-surface p-1 shadow-elev">
+                {matches.map((node) => (
+                  <li key={node.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFind("");
+                        select(node.id, true);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    >
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: node.kind === "circle" ? colors.get(node.circleId ?? "") : nodeFill(node) }} aria-hidden />
+                      <span className="truncate">{node.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </section>
 
           <fieldset className="flex flex-col gap-1.5">
@@ -198,18 +200,36 @@ export function WikiMapClient() {
               <p className="text-sm text-foreground">{(error as Error).message}</p>
             </Card>
           ) : data && data.nodes.length ? (
-            view === "islands" ? (
-              <IslandsView ref={islands} graph={data} colors={colors} kinds={kinds} edgeKinds={edgeKinds} focus={focus} onOpen={open} />
-            ) : (
-              <Globe3DView graph={data} colors={colors} kinds={kinds} edgeKinds={edgeKinds} onOpen={open} />
-            )
+            <div className="relative">
+              {view === "islands" ? (
+                <IslandsView ref={islands} graph={data} colors={colors} kinds={kinds} edgeKinds={edgeKinds} selected={selected} connections={connections} onSelect={(id) => select(id)} />
+              ) : (
+                <Globe3DView graph={data} colors={colors} kinds={kinds} edgeKinds={edgeKinds} onSelect={(id) => select(id)} />
+              )}
+              {chosen ? (
+                // Docked on the right on wider screens; a sheet along the bottom on phones.
+                <div className="absolute inset-x-2 bottom-2 z-20 flex max-h-[60%] flex-col sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-12 sm:max-h-[calc(100%-4rem)] sm:w-80">
+                  <NodePanel
+                    node={chosen}
+                    graph={data}
+                    colors={colors}
+                    connections={connections}
+                    onSelect={(id) => select(id, true)}
+                    onOpen={open}
+                    onZoom={view === "islands" ? () => islands.current?.zoomTo(chosen.id) : undefined}
+                    onToggleConnections={() => setConnections(!connections)}
+                    onClose={() => select(null)}
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : (
             <Card>
               <p className="text-sm text-muted">No wiki pages yet.</p>
             </Card>
           )}
           <p className="mt-2 text-xs text-muted">
-            {view === "islands" ? "Scroll or pinch to zoom, drag to pan. Click a circle to zoom in; click a page to open it (tap shows its card on phones)." : "Drag to turn, scroll to zoom, click to open."}
+            {view === "islands" ? "Scroll or pinch to zoom, drag to pan. Hover for a name; click anything for details and to open it." : "Drag to turn, scroll to zoom. Hover for a name; click for details."}
           </p>
         </div>
       </div>
