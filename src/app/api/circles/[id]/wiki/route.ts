@@ -14,7 +14,7 @@ export async function GET(_request: Request, { params }: Params) {
   return NextResponse.json({ pages: await listPages(params.id), canEdit: ctx.canEdit }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
-/** Add a page. */
+/** Add a page — one started from inside another page carries `parentId`, and isn't listed on the circle. */
 export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await wikiContext(params.id, { edit: true });
   if ("error" in ctx) return ctx.error;

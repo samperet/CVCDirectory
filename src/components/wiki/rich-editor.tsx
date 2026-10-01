@@ -1,32 +1,27 @@
 "use client";
 
 import "@mdxeditor/editor/style.css";
-import { forwardRef, useImperativeHandle, useRef } from "react";
-import type { ContainerDirective, TextDirective } from "mdast-util-directive";
-import { ChevronDown, ChevronsUpDown } from "lucide-react";
+import { forwardRef, useContext, useImperativeHandle, useMemo, useRef, useState } from "react";
+import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
+import { useQuery } from "@tanstack/react-query";
+import { AtSign, BarChart3, ChevronDown, ChevronsUpDown, X } from "lucide-react";
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
   ButtonWithTooltip,
-  CodeToggle,
   CreateLink,
-  DiffSourceToggleWrapper,
   type DirectiveDescriptor,
   GenericDirectiveEditor,
-  InsertCodeBlock,
   InsertImage,
   InsertTable,
-  InsertThematicBreak,
   ListsToggle,
   MDXEditor,
   type MDXEditorMethods,
   NestedLexicalEditor,
   Separator,
-  StrikeThroughSupSubToggles,
   UndoRedo,
   codeBlockPlugin,
   codeMirrorPlugin,
-  diffSourcePlugin,
   directivesPlugin,
   headingsPlugin,
   imagePlugin,
@@ -38,10 +33,13 @@ import {
   tablePlugin,
   thematicBreakPlugin,
   toolbarPlugin,
+  useLexicalNodeRemove,
   useMdastNodeUpdater,
 } from "@mdxeditor/editor";
 import { normalizeWikiLinks } from "@/lib/wiki/links";
-import { LinkPicker } from "@/components/wiki/link-picker";
+import { mentionPlugin } from "@/components/wiki/mention-menu";
+import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
+import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -103,6 +101,36 @@ const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
   Editor: DetailsEditor,
 };
 
+/** A poll in the page, while editing: its question and choices, and a × to take it out. */
+function PollDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
+  const wiki = useContext(WikiCircleContext);
+  const remove = useLexicalNodeRemove();
+  const { data } = useQuery({ ...wikiPollsQuery(wiki?.circleId ?? ""), enabled: !!wiki?.circleId });
+  const id = (mdastNode.attributes?.id ?? "").toLowerCase();
+  const entry = data?.polls.find((poll) => poll.id === id);
+  return (
+    <div className="my-2 flex items-start gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2" contentEditable={false}>
+      <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">{entry ? entry.question : data ? "A poll that's no longer available" : "Poll"}</p>
+        {entry ? <p className="truncate text-xs text-muted">{entry.poll.options.map((option) => option.text).join(" · ")}</p> : null}
+      </div>
+      <button type="button" onClick={remove} className="rounded p-1 text-muted hover:bg-accent hover:text-foreground" aria-label="Take the poll out of the page" title="Take out of the page">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+const pollDirective: DirectiveDescriptor<LeafDirective> = {
+  name: "poll",
+  type: "leafDirective",
+  testNode: (node) => node.type === "leafDirective" && node.name === "poll",
+  attributes: ["id"],
+  hasChildren: false,
+  Editor: PollDirectiveEditor,
+};
+
 /** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
 const textDirectives: DirectiveDescriptor<TextDirective> = {
   name: ":text",
@@ -128,16 +156,30 @@ const otherDirectives: DirectiveDescriptor = {
 };
 
 /**
- * The wiki's visual editor (MDXEditor): a formatting toolbar, tables, links,
- * code blocks, and Markdown shortcuts as you type (`#`, `-`, `**`), saving
- * plain Markdown. The toolbar's right-hand toggle shows the raw Markdown, or
- * what's changed since the page was last saved. HTML tags stay as text.
+ * The wiki's visual editor (MDXEditor): a simple formatting toolbar, lists,
+ * tables, photos, collapsible sections, polls, and Markdown shortcuts as
+ * you type (`#`, `-`, `**`), saving plain Markdown. Typing @ links a page or
+ * a document — or a new page. HTML tags stay as text.
  */
 export const RichEditor = forwardRef<
   RichEditorHandle,
-  { markdown: string; savedMarkdown: string; circleId: string; pageId: string; onChange: (markdown: string) => void; onError: () => void }
->(function RichEditor({ markdown, savedMarkdown, circleId, pageId, onChange, onError }, ref) {
+  {
+    markdown: string;
+    circleId: string;
+    circleName: string;
+    pageId: string;
+    onChange: (markdown: string) => void;
+    onError: () => void;
+    /** A new page was linked with @: it's made when this page is saved. */
+    onCreatePage: (title: string) => void;
+  }
+>(function RichEditor({ markdown, circleId, circleName, pageId, onChange, onError, onCreatePage }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
+  const [polling, setPolling] = useState(false);
+  const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
+  // The plugin is set up once, so it reads the latest callback through a ref.
+  const createRef = useRef(onCreatePage);
+  createRef.current = onCreatePage;
   const { toast } = useToast();
   // Photos chosen from the toolbar, pasted, or dropped in go to the circle's wiki photos.
   const uploadPhoto = async (file: File) => {
@@ -152,11 +194,11 @@ export const RichEditor = forwardRef<
     setMarkdown: (value) => editor.current?.setMarkdown(value),
     focus: () => editor.current?.focus(),
   }));
-  // Put the link where the cursor was, and carry on typing after it.
-  const insertLink = (text: string) => {
+  const insert = (text: string) => {
     editor.current?.focus(() => editor.current?.insertMarkdown(text), { preventScroll: true });
   };
   return (
+    <WikiCircleContext.Provider value={wiki}>
     <MDXEditor
       ref={editor}
       markdown={markdown}
@@ -165,7 +207,7 @@ export const RichEditor = forwardRef<
       suppressHtmlProcessing
       className="wiki-editor rounded-lg border border-border bg-white"
       contentEditableClassName="wiki-prose min-h-[20rem] px-4 py-3"
-      placeholder="Start writing — or type # for a heading, - for a list, ** for bold…"
+      placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
       plugins={[
         headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
         listsPlugin(),
@@ -178,38 +220,47 @@ export const RichEditor = forwardRef<
         codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
         codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" }, autoLoadLanguageSupport: false }),
         markdownShortcutPlugin(),
-        directivesPlugin({ directiveDescriptors: [detailsDirective, textDirectives, otherDirectives] }),
-        diffSourcePlugin({ diffMarkdown: savedMarkdown, viewMode: "rich-text" }),
+        directivesPlugin({ directiveDescriptors: [detailsDirective, pollDirective, textDirectives, otherDirectives] }),
+        mentionPlugin({ circleId, circleName, pageId, onCreatePage: (title) => createRef.current(title) }),
         toolbarPlugin({
           toolbarClassName: "wiki-toolbar",
           toolbarContents: () => (
-            <DiffSourceToggleWrapper options={["rich-text", "diff", "source"]}>
+            <>
               <UndoRedo />
               <Separator />
               <BlockTypeSelect />
               <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
-              <StrikeThroughSupSubToggles options={["Strikethrough"]} />
-              <CodeToggle />
               <Separator />
               <ListsToggle options={["bullet", "number", "check"]} />
               <Separator />
               <CreateLink />
-              <LinkPicker compact circleId={circleId} pageId={pageId} onPick={insertLink} />
+              <ButtonWithTooltip title="Link a page or document (or type @)" onClick={() => insert(" @")}>
+                <AtSign className="h-5 w-5" />
+              </ButtonWithTooltip>
               <Separator />
               <InsertImage />
               <InsertTable />
-              <InsertThematicBreak />
-              <InsertCodeBlock />
-              <ButtonWithTooltip
-                title="Collapsible section"
-                onClick={() => editor.current?.insertMarkdown(':::details{title="Details"}\nWhat this section hides.\n:::')}
-              >
+              <ButtonWithTooltip title="Collapsible section" onClick={() => insert(':::details{title="Details"}\nWhat this section hides.\n:::')}>
                 <ChevronsUpDown className="h-5 w-5" />
               </ButtonWithTooltip>
-            </DiffSourceToggleWrapper>
+              <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
+                <BarChart3 className="h-5 w-5" />
+              </ButtonWithTooltip>
+            </>
           ),
         }),
       ]}
     />
+    {polling ? (
+      <NewPollDialog
+        circle={{ id: circleId, name: circleName }}
+        onClose={() => setPolling(false)}
+        onCreated={(poll) => {
+          setPolling(false);
+          insert(`\n::poll{id="${poll.id}"}\n`);
+        }}
+      />
+    ) : null}
+    </WikiCircleContext.Provider>
   );
 });

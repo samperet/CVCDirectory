@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { SECTION_IDS, SECTION_SIZES, type SectionLayout } from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
@@ -37,7 +38,12 @@ export const circleUpdateSchema = circleInputSchema
   .extend({
     joinPolicy: z.enum(["open", "apply"]),
     kind,
-    features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional(), tasks: z.boolean().optional(), polls: z.boolean().optional() }),
+    features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional(), tasks: z.boolean().optional() }),
+    /** The page's sections, in order, with their sizes. */
+    layout: z
+      .array(z.object({ id: z.enum(SECTION_IDS), size: z.enum(SECTION_SIZES) }))
+      .max(SECTION_IDS.length)
+      .refine((entries) => new Set(entries.map((entry) => entry.id)).size === entries.length, "Each section once"),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -154,7 +160,8 @@ export function updateCircle(
     description: string | null;
     joinPolicy: "open" | "apply";
     kind: "circle" | "club";
-    features: { documents?: boolean; wiki?: boolean; tasks?: boolean; polls?: boolean };
+    features: { documents?: boolean; wiki?: boolean; tasks?: boolean };
+    layout: SectionLayout[];
   }>
 ) {
   return mutate(imported, (circles) => {

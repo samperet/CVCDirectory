@@ -1,8 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
-import type { Poll } from "@/lib/polls/shared";
-import { PollInput, castVote, newPoll, pollInputSchema, pollUpdateSchema, voteSchema, withClosed } from "@/lib/polls/server";
 import { GENERAL_TOPIC_ID } from "./topics";
 
 /**
@@ -42,9 +40,6 @@ export interface ForumReply {
   likes?: ForumLike[];
 }
 
-/** A poll on a discussion; the discussion's title is its question. */
-export type ForumPoll = Poll;
-
 export interface ForumThread {
   id: string;
   title: string;
@@ -54,7 +49,6 @@ export interface ForumThread {
   createdAt: string;
   editedAt?: string | null;
   likes?: ForumLike[];
-  poll?: ForumPoll;
   /** Its forum topic; unset means General. */
   topicId?: string;
 }
@@ -73,8 +67,6 @@ export interface ForumThreadSummary {
   createdAt: string;
   lastActivityAt: string;
   replyCount: number;
-  /** The discussion has a poll. */
-  poll?: boolean;
   /** Its forum topic; unset means General. */
   topicId?: string;
 }
@@ -89,21 +81,21 @@ export const topicOf = (thread: { topicId?: string }, known?: Set<string>) => {
 };
 
 const title = z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer");
-// A discussion needs a post, unless it's a poll (whose title is the question).
 const postBody = z.string().trim().max(5000, "Post must be 5000 characters or fewer");
 const replyBody = z.string().trim().min(1, "Reply cannot be empty").max(3000, "Reply must be 3000 characters or fewer");
 
 const topicId = z.string().regex(/^[a-z0-9-]{1,40}$/, "Choose a topic");
 
-export const threadInputSchema = z
-  .object({ title, body: postBody.default(""), poll: pollInputSchema.optional(), topicId: topicId.default(GENERAL_TOPIC_ID) })
-  .refine((value) => value.body.length > 0 || value.poll, { message: "Write something to start the discussion", path: ["body"] });
+export const threadInputSchema = z.object({
+  title,
+  body: postBody.min(1, "Write something to start the discussion"),
+  topicId: topicId.default(GENERAL_TOPIC_ID),
+});
 
 export const threadUpdateSchema = z
   .object({ title: title.optional(), body: postBody.optional(), topicId: topicId.optional() })
   .refine((value) => value.title !== undefined || value.body !== undefined || value.topicId !== undefined, "Nothing to update");
 
-export { pollUpdateSchema, voteSchema };
 
 export const replyInputSchema = z.object({
   parentId: z.string().uuid().nullable().optional().transform((value) => value ?? null),
@@ -167,7 +159,7 @@ async function syncSummary(doc: ForumThreadDocument) {
 
 export async function createThread(
   author: { id: string; name: string },
-  input: { title: string; body: string; topicId: string; poll?: PollInput }
+  input: { title: string; body: string; topicId: string }
 ): Promise<ForumThreadDocument> {
   const now = new Date().toISOString();
   const thread: ForumThread = {
@@ -178,7 +170,6 @@ export async function createThread(
     authorName: author.name,
     createdAt: now,
     topicId: input.topicId,
-    ...(input.poll ? { poll: newPoll(input.poll) } : {}),
   };
   const doc: ForumThreadDocument = { thread, replies: [] };
   await enqueue(threadKey(thread.id), () => writeJson(threadKey(thread.id), doc));
@@ -193,13 +184,12 @@ export async function createThread(
       lastActivityAt: now,
       replyCount: 0,
       topicId: input.topicId,
-      ...(thread.poll ? { poll: true } : {}),
     },
   ]);
   return doc;
 }
 
-type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post" | "poll_closed" | "invalid_vote" | "no_new_options" | "options_full";
+type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post";
 export type ThreadResult = { ok: true; doc: ForumThreadDocument } | { ok: false; reason: Failure };
 
 /**
@@ -282,7 +272,7 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
 export function editThread(threadId: string, actor: ForumActor, update: { title?: string; body?: string; topicId?: string }) {
   return mutateThread(threadId, (doc) => {
     if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
-    if (update.body !== undefined && !update.body && !doc.thread.poll) return "empty_post";
+    if (update.body !== undefined && !update.body) return "empty_post";
     // Moving a discussion to another topic isn't an edit of what was said.
     const edited = update.title !== undefined || update.body !== undefined;
     return { ...doc, thread: { ...doc.thread, ...update, ...(edited ? { editedAt: new Date().toISOString() } : {}) } };
@@ -335,33 +325,41 @@ export function setLike(threadId: string, replyId: string | null, user: { id: st
   );
 }
 
-/**
- * Vote in a discussion's poll, replacing any earlier vote; no options takes
- * the vote back. One option unless the poll allows several.
- */
-export function vote(threadId: string, user: { id: string; name: string }, optionIds: string[], newOption?: string) {
-  return mutateThread(
-    threadId,
-    (doc) => {
-      if (!doc.thread.poll) return "not_found";
-      const poll = castVote(doc.thread.poll, user, optionIds, newOption);
-      return typeof poll === "string" ? poll : { ...doc, thread: { ...doc.thread, poll } };
-    },
-    { sync: false }
-  );
+/** A discussion's poll from when the forum had them (kept in older documents until cleared out). */
+export interface LegacyThreadPoll {
+  threadId: string;
+  title: string;
+  poll: unknown;
 }
 
-/** Close a poll, or reopen it (clearing a closing time that has passed): its author or an admin. */
-export function setPollClosed(threadId: string, actor: ForumActor, closed: boolean) {
-  return mutateThread(
-    threadId,
-    (doc) => {
-      if (!doc.thread.poll) return "not_found";
-      if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
-      return { ...doc, thread: { ...doc.thread, poll: withClosed(doc.thread.poll, closed) } };
-    },
-    { sync: false }
-  );
+/** Every discussion that still holds a poll. */
+export async function legacyThreadPolls(): Promise<LegacyThreadPoll[]> {
+  const found: LegacyThreadPoll[] = [];
+  for (const summary of normalizeIndex(await readJson(INDEX_KEY))) {
+    const doc = await getThread(summary.id);
+    const poll = (doc?.thread as { poll?: unknown } | undefined)?.poll;
+    if (doc && poll) found.push({ threadId: doc.thread.id, title: doc.thread.title, poll });
+  }
+  return found;
+}
+
+/** Remove the polls from every discussion (and the "poll" mark from the list); returns how many were removed. */
+export async function removeThreadPolls(): Promise<number> {
+  let removed = 0;
+  for (const { threadId } of await legacyThreadPolls()) {
+    await enqueue(threadKey(threadId), async () => {
+      const doc = (await readJson(threadKey(threadId))) as ForumThreadDocument | null;
+      if (!doc?.thread || !("poll" in doc.thread)) return;
+      const { poll: _poll, ...thread } = doc.thread as ForumThread & { poll?: unknown };
+      await writeJson(threadKey(threadId), { ...doc, thread });
+      removed++;
+    });
+  }
+  await updateIndex((threads) => threads.map((summary) => {
+    const { poll: _poll, ...rest } = summary as ForumThreadSummary & { poll?: unknown };
+    return rest;
+  }));
+  return removed;
 }
 
 /** Move every discussion in one topic to another (when a topic is removed). */

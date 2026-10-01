@@ -11,10 +11,13 @@ import { remarkWikiDirectives } from "@/lib/wiki/directives";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleRef } from "@/lib/wiki/links";
 import { docFileUrl, findDoc, useCircles, useDocTitles, wikiPagesQuery, type DocRef } from "@/components/wiki/link-data";
+import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { cn } from "@/lib/utils";
 
 type LinkData = {
   circleId: string;
+  /** The page they're on: a page started from a link to a missing one is started from it. */
+  pageId?: string;
   /** Undefined until the directory loads. */
   circles: CircleRef[] | undefined;
   /** Each circle's pages, once loaded. */
@@ -32,7 +35,7 @@ const mdTitle = (value: string) => ` "${MARK}${value.replace(/["\\]/g, "")}"`;
  * (each optionally `|shown text`) as ordinary Markdown links: to the page (or,
  * if there's no such page yet, to creating it), or to the document's file.
  */
-function linkWikiPages(source: string, { circleId, circles, pages, docs }: LinkData) {
+function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs }: LinkData) {
   return source.replace(WIKI_LINK, (_match, target: string, label?: string) => {
     const clean = (text: string) => text.trim().replace(/[[\]]/g, "");
     if (!circles) return `[${clean(label ?? target)}](#${mdTitle("pending")})`;
@@ -47,7 +50,10 @@ function linkWikiPages(source: string, { circleId, circles, pages, docs }: LinkD
     if (!known) return `[${text}](#${mdTitle("pending")})`;
     const page = known.find((entry) => entry.title.toLowerCase() === link.title.toLowerCase());
     const other = link.circleId !== circleId ? circles.find((circle) => circle.id === link.circleId)?.name : undefined;
-    if (!page) return `[${text}](/circles/${link.circleId}/wiki?new=${encodeURIComponent(link.title)}${mdTitle("missing")})`;
+    if (!page) {
+      const from = pageId && link.circleId === circleId ? `&from=${pageId}` : "";
+      return `[${text}](/circles/${link.circleId}/wiki?new=${encodeURIComponent(link.title)}${from}${mdTitle("missing")})`;
+    }
     return `[${text}](/circles/${link.circleId}/wiki/${page.slug}${other ? mdTitle(`circle:${other}`) : ""})`;
   });
 }
@@ -104,6 +110,11 @@ const components: Components = {
   code: ({ node: _node, className, ...props }) => <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />,
   pre: ({ node: _node, ...props }) => <pre className="overflow-x-auto rounded-lg bg-accent p-3 text-sm [&_code]:bg-transparent [&_code]:p-0" {...props} />,
   hr: () => <hr className="border-border" />,
+  // A poll the page holds (`::poll{id="…"}`).
+  div: ({ node: _node, ...props }) => {
+    const pollId = (props as Record<string, unknown>)["data-poll"];
+    return typeof pollId === "string" ? <WikiPollBlock pollId={pollId} /> : <div {...props} />;
+  },
   details: ({ node: _node, ...props }) => <details className="wiki-details group rounded-lg border border-border bg-surface px-4 py-2 [&>*+*]:mt-3" {...props} />,
   summary: ({ node: _node, ...props }) => (
     <summary className="-mx-4 -my-2 cursor-pointer select-none rounded-lg px-4 py-2 font-semibold text-foreground hover:bg-accent/60 group-open:rounded-b-none group-open:border-b group-open:border-border" {...props} />
@@ -166,7 +177,7 @@ const components: Components = {
 };
 
 /** What a page's links need: the circles, the other wikis it links into, and (if it links any) the documents. */
-function useLinkData(source: string, circleId: string, pages: WikiPageSummary[]): LinkData {
+function useLinkData(source: string, circleId: string, pages: WikiPageSummary[], pageId?: string): LinkData {
   const circles = useCircles();
   const links = useMemo(() => (circles ? wikiLinksIn(source, circleId, circles) : []), [source, circleId, circles]);
   const others = Array.from(new Set(links.flatMap((link) => (link.kind === "page" && link.circleId !== circleId ? [link.circleId] : []))));
@@ -179,21 +190,25 @@ function useLinkData(source: string, circleId: string, pages: WikiPageSummary[])
     // A wiki that can't be read (turned off, or gone) has no pages to link to.
     else if (otherPages[index]?.isError) byCircle.set(id, []);
   });
-  return { circleId, circles, pages: byCircle, docs };
+  return { circleId, pageId, circles, pages: byCircle, docs };
 }
 
 /** A photo uploaded to one of the circles' wikis. */
 const WIKI_IMAGE = /^\/api\/circles\/[a-z0-9-]+\/wiki\/images\/[0-9a-f-]{36}$/;
 
 /** A wiki page's Markdown, as formatted text. Raw HTML isn't rendered; photos added to a wiki show, other images as their description. */
-export function WikiMarkdown({ source, circleId, pages }: { source: string; circleId: string; pages: WikiPageSummary[] }) {
-  const linkData = useLinkData(source, circleId, pages);
+export function WikiMarkdown({ source, circleId, pages, pageId }: { source: string; circleId: string; pages: WikiPageSummary[]; pageId?: string }) {
+  const linkData = useLinkData(source, circleId, pages, pageId);
+  const circleName = linkData.circles?.find((circle) => circle.id === circleId)?.name;
+  const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
   if (!source.trim()) return <p className="text-sm text-muted">This page is empty.</p>;
   return (
-    <div className="flex flex-col gap-3 break-words text-foreground">
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
-        {linkWikiPages(normalizeWikiLinks(source), linkData)}
-      </ReactMarkdown>
-    </div>
+    <WikiCircleContext.Provider value={wiki}>
+      <div className="flex flex-col gap-3 break-words text-foreground">
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
+          {linkWikiPages(normalizeWikiLinks(source), linkData)}
+        </ReactMarkdown>
+      </div>
+    </WikiCircleContext.Provider>
   );
 }

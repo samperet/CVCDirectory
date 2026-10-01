@@ -9,7 +9,6 @@ import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumLike, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
 import { useTopics } from "@/components/forum/topic-client";
-import { PollView } from "@/components/polls/poll-view";
 import { PinBoard } from "@/components/pins/pin-board";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
@@ -367,11 +366,6 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
       }),
     "Could not save changes"
   );
-  // The discussion's poll: votes and closing return the updated discussion.
-  const pollRequest = async (method: "POST" | "PATCH", body: object) => {
-    const updated = await apiFetch<ForumThreadDocument>(`/api/forum/threads/${thread.id}/poll`, { method, body: JSON.stringify(body) });
-    queryClient.setQueryData(["forum", "thread", thread.id], updated);
-  };
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/forum/threads/${thread.id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -403,7 +397,6 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
           rows={6}
           value={body}
           maxLength={5000}
-          placeholder={thread.poll ? "Add some context (optional)" : undefined}
           onChange={(event) => setBody(event.target.value)}
           className="bg-white"
           aria-label="Post"
@@ -411,7 +404,7 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
         <div className="flex gap-2">
           <Button
             size="sm"
-            disabled={save.isPending || title.trim().length < 3 || (!body.trim() && !thread.poll)}
+            disabled={save.isPending || title.trim().length < 3 || !body.trim()}
             onClick={() => save.mutate(undefined, { onSuccess: () => setEditing(false) })}
           >
             {save.isPending ? "Saving…" : "Save"}
@@ -469,15 +462,6 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
         </div>
       </div>
       {thread.body ? <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p> : null}
-      {thread.poll ? (
-        <PollView
-          id={thread.id}
-          poll={thread.poll}
-          canClose={mine}
-          onVote={(optionIds, newOption) => pollRequest("POST", { optionIds, newOption })}
-          onSetClosed={(closed) => pollRequest("PATCH", { closed })}
-        />
-      ) : null}
     </Card>
   );
 }
@@ -538,7 +522,7 @@ export function ThreadClient({ id }: { id: string }) {
       </Link>
 
       <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />
-      <PinBoard target={{ kind: "thread", id: data.thread.id }} title="Notes" hideWhenEmpty />
+      <PinBoard target={{ kind: "thread", id: data.thread.id }} title="Pinned information" />
 
       <Card className="flex flex-col gap-3">
         {topLevel.length ? (

@@ -4,21 +4,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, Check, FileText, LayoutGrid, ListChecks, LogOut, Pencil, Plus, Trash2, UserPlus, Users, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle, CircleApplication, CircleSeat, DirectoryDocument, JoinPolicy, Person } from "@/lib/directory/types";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
-import { DutyScheduleModule } from "@/components/circles/duty-schedule";
+import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
+import { ArrangeSections, CircleSections, SectionToggle, type SectionDefinition } from "@/components/circles/circle-sections";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
-import { CirclePolls } from "@/components/polls/circle-polls";
-import { WikiSection } from "@/components/wiki/wiki-client";
-import { PinBoard } from "@/components/pins/pin-board";
+import { CircleInformation } from "@/components/wiki/circle-information";
 import { TasksSection } from "@/components/tasks/task-board";
 import { featureEnabled } from "@/lib/circles/features";
+import { DEFAULT_LAYOUT, layoutFor, type SectionId, type SectionLayout } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -184,7 +184,6 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
   const [club, setClub] = useState(circle.kind === "club");
   const kindChanged = club !== (circle.kind === "club");
   const [features, setFeatures] = useState({
-    polls: featureEnabled(circle, "polls"),
     tasks: featureEnabled(circle, "tasks"),
     wiki: featureEnabled(circle, "wiki"),
     documents: featureEnabled(circle, "documents"),
@@ -220,9 +219,8 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         <legend className="mb-1 text-xs font-medium text-muted">Sections on this page</legend>
         {(
           [
-            ["polls", "Polls"],
+            ["wiki", "Information (wiki)"],
             ["tasks", "Tasks"],
-            ["wiki", "Wiki"],
             ["documents", "Documents"],
           ] as const
         ).map(([feature, label]) => (
@@ -431,7 +429,8 @@ function MembersPanel({
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
+            <SectionToggle />
             Members <span className="text-sm font-normal text-muted">({members.length})</span>
           </h2>
           <EmailCircleButton circle={circle} people={people} className="-mr-2" />
@@ -502,6 +501,14 @@ export function CircleDetailClient({ id }: { id: string }) {
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>
     router.replace("/circles")
   );
+  const schedule = useCircleSchedule(id).data?.schedule ?? null;
+  // Arranging the page: the layout being worked on, until it's saved.
+  const [arranging, setArranging] = useState<SectionLayout[] | null>(null);
+  const saveLayout = useCircleMutation(
+    (layout: SectionLayout[]) => apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ layout }) }),
+    "Could not save the layout",
+    () => setArranging(null)
+  );
 
   if (isLoading) return <p className="text-sm text-muted">Loading circle…</p>;
   if (error || !data || !circle) {
@@ -522,6 +529,47 @@ export function CircleDetailClient({ id }: { id: string }) {
     .map((person) => ({ id: person.id, name: person.displayName }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // The page's sections: those this circle has, in the order (and sizes) it chose.
+  const icon = (Icon: typeof BookOpen) => <Icon className="h-5 w-5 text-primary" aria-hidden />;
+  const sections: Partial<Record<SectionId, SectionDefinition>> = {
+    ...(featureEnabled(circle, "wiki") ? { information: { title: "Information", icon: icon(BookOpen), content: <CircleInformation circle={circle} /> } } : {}),
+    ...(community
+      ? {}
+      : { members: { title: "Members", icon: icon(Users), content: <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> } }),
+    ...(schedule ? { schedule: { title: schedule.title, icon: icon(CalendarDays), content: <DutyScheduleModule circleId={id} people={people} /> } } : {}),
+    ...(featureEnabled(circle, "tasks")
+      ? {
+          tasks: {
+            title: "Tasks",
+            icon: icon(ListChecks),
+            content: (
+              <Card>
+                <TasksSection circle={circle} />
+              </Card>
+            ),
+          },
+        }
+      : {}),
+    ...(featureEnabled(circle, "documents")
+      ? {
+          documents: {
+            title: "Documents",
+            icon: icon(FileText),
+            content: (
+              <Card className="flex flex-col gap-4">
+                <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
+                  <SectionToggle /> Documents
+                </h2>
+                <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
+              </Card>
+            ),
+          },
+        }
+      : {}),
+  };
+  const available = Object.keys(sections) as SectionId[];
+  const layout = layoutFor(circle.layout, available);
+
   return (
     <div className="flex flex-col gap-6">
       <datalist id="circle-roles">
@@ -533,98 +581,72 @@ export function CircleDetailClient({ id }: { id: string }) {
         <ArrowLeft className="h-4 w-4" /> All circles
       </Link>
 
-      {/* The members sit in a side panel on the right; on phones, just below the circle's header. The Community circle has none. */}
-      <div
-        className={
-          community
-            ? "flex flex-col gap-6"
-            : "grid gap-6 [grid-template-areas:'header'_'members'_'main'] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'header_members'_'main_members']"
-        }
-      >
-        <div className="min-w-0 [grid-area:header]">
-          <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <CircleIcon circle={circle} size={96} />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              {editingDetails ? (
-                <DetailsEditor
-                  circle={circle}
-                  canSetKind={onBoard && circle.id !== "board" && !community}
-                  onDone={() => setEditingDetails(false)}
-                />
-              ) : (
-                <>
-                  <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
-                  {circle.kind === "club" ? (
-                    <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">Social club</span>
-                  ) : null}
-                  {circle.description ? (
-                    <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
-                  ) : canManage ? (
-                    <p className="text-sm text-muted">No description yet.</p>
-                  ) : null}
-                </>
-              )}
-              {canManage && !editingDetails ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingDetails(true)}>
-                    <Pencil className="h-4 w-4" /> Edit details
-                  </Button>
-                  <IconControls circle={circle} />
-                  {onBoard && circle.id !== "board" && !community ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="gap-1.5 text-muted hover:text-destructive"
-                      onClick={() => {
-                        if (window.confirm(`Delete ${circle.name}? This can't be undone.`)) remove.mutate(undefined);
-                      }}
-                      disabled={remove.isPending}
-                    >
-                      <X className="h-4 w-4" /> Delete circle
-                    </Button>
-                  ) : null}
-                </div>
+      <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <CircleIcon circle={circle} size={96} />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {editingDetails ? (
+            <DetailsEditor circle={circle} canSetKind={onBoard && circle.id !== "board" && !community} onDone={() => setEditingDetails(false)} />
+          ) : (
+            <>
+              <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
+              {circle.kind === "club" ? (
+                <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">Social club</span>
+              ) : null}
+              {circle.description ? (
+                <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
+              ) : canManage ? (
+                <p className="text-sm text-muted">No description yet.</p>
+              ) : null}
+            </>
+          )}
+          {canManage && !editingDetails ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingDetails(true)}>
+                <Pencil className="h-4 w-4" /> Edit details
+              </Button>
+              <IconControls circle={circle} />
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setArranging(arranging ? null : layout)} aria-pressed={!!arranging}>
+                <LayoutGrid className="h-4 w-4" /> Arrange page
+              </Button>
+              {onBoard && circle.id !== "board" && !community ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 text-muted hover:text-destructive"
+                  onClick={() => {
+                    if (window.confirm(`Delete ${circle.name}? This can't be undone.`)) remove.mutate(undefined);
+                  }}
+                  disabled={remove.isPending}
+                >
+                  <X className="h-4 w-4" /> Delete circle
+                </Button>
               ) : null}
             </div>
-          </Card>
-        </div>
-        {community ? null : (
-          <aside className="[grid-area:members] lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
-            <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} />
-          </aside>
-        )}
-        <div className="flex min-w-0 flex-col gap-6 [grid-area:main]">
-          <PinBoard target={{ kind: "circle", id: circle.id }} title="Pinned notes" circleId={circle.id} />
-
-          {/* Only circles set up with a duty rotation (the Chicken Tenders) show one. */}
-          <DutyScheduleModule circleId={id} people={people} />
-
-          {featureEnabled(circle, "polls") ? (
-            <Card id="polls" className="scroll-mt-24">
-              <CirclePolls circle={circle} />
-            </Card>
-          ) : null}
-
-          {featureEnabled(circle, "tasks") ? (
-            <Card id="tasks" className="scroll-mt-24">
-              <TasksSection circle={circle} />
-            </Card>
-          ) : null}
-
-          {featureEnabled(circle, "wiki") ? (
-            <Card id="wiki" className="scroll-mt-24">
-              <WikiSection circleId={id} />
-            </Card>
-          ) : null}
-
-          {featureEnabled(circle, "documents") ? (
-            <Card id="documents" className="flex scroll-mt-24 flex-col gap-4">
-              <h2 className="text-lg font-semibold text-foreground">Documents</h2>
-              <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
-            </Card>
           ) : null}
         </div>
-      </div>
+      </Card>
+
+      {arranging ? (
+        <>
+          <div className="sticky top-16 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-primary/50 bg-accent px-4 py-3 shadow-soft">
+            <p className="w-full text-sm text-foreground sm:w-auto sm:min-w-0 sm:flex-1">
+              <strong>Arrange this page</strong> — drag sections or use the arrows. Sizes apply on wider screens; everyone sees this layout.
+            </p>
+            <Button size="sm" variant="ghost" onClick={() => setArranging(layoutFor(DEFAULT_LAYOUT, available))}>
+              Reset
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setArranging(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={() => saveLayout.mutate(arranging)} disabled={saveLayout.isPending}>
+              {saveLayout.isPending ? "Saving…" : "Save layout"}
+            </Button>
+          </div>
+          <ArrangeSections layout={arranging} sections={sections} onChange={setArranging} />
+        </>
+      ) : (
+        <CircleSections circleId={circle.id} layout={layout} sections={sections} />
+      )}
     </div>
   );
 }

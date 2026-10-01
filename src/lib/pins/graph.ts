@@ -13,7 +13,7 @@ import type { NoteColor, PinKind } from "./shared";
  */
 
 export type GraphNodeKind = "note" | PinKind;
-export type GraphEdgeKind = "link" | "pin" | "belongs";
+export type GraphEdgeKind = "link" | "pin" | "belongs" | "child";
 
 export interface GraphNode {
   id: string;
@@ -70,7 +70,12 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
       const id = noteId(circle.id, page.id);
       nodes.set(id, { id, kind: "note", label: page.title, href: `/circles/${circle.id}/wiki/${page.slug}`, circleId: circle.id, color: pageColor(page) });
       byTitle.set(`${circle.id}|${page.title.toLowerCase()}`, page);
-      addEdge(id, `circle:${circle.id}`, "belongs");
+    }
+    // A page started from another hangs off that page; the rest belong to the circle.
+    for (const page of pages) {
+      const parent = page.parentId && pages.some((entry) => entry.id === page.parentId) ? page.parentId : null;
+      if (parent) addEdge(noteId(circle.id, page.id), noteId(circle.id, parent), "child");
+      else addEdge(noteId(circle.id, page.id), `circle:${circle.id}`, "belongs");
     }
   }
 
@@ -98,6 +103,11 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
   for (const pin of pins) {
     const from = noteId(pin.note.circleId, pin.note.pageId);
     if (!nodes.has(from)) continue;
+    // On its own circle's page: that's where it belongs, already drawn.
+    if (pin.target.kind === "circle" && pin.target.id === pin.note.circleId) {
+      addEdge(from, `circle:${pin.note.circleId}`, "belongs");
+      continue;
+    }
     const to = `${pin.target.kind}:${pin.target.id}`;
     if (!nodes.has(to)) {
       const resolved = await resolveTarget(directory, pin.target);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Network, Plus, Search } from "lucide-react";
+import { ArrowLeft, Network, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
@@ -26,14 +26,14 @@ function useCircle(circleId: string) {
   return data?.circles.find((circle) => circle.id === circleId);
 }
 
-/** Start a page: give it a title, then write it. */
-function NewPageForm({ circleId, initialTitle = "", onCancel }: { circleId: string; initialTitle?: string; onCancel: () => void }) {
+/** Start a page from a link to one that doesn't exist yet: give it a title, then write it. */
+function NewPageForm({ circleId, initialTitle = "", parentId, onCancel }: { circleId: string; initialTitle?: string; parentId?: string; onCancel: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
   const create = useMutation({
-    mutationFn: () => apiFetch<{ page: WikiPage }>(`/api/circles/${circleId}/wiki`, { method: "POST", body: JSON.stringify({ title, body: "" }) }),
+    mutationFn: () => apiFetch<{ page: WikiPage }>(`/api/circles/${circleId}/wiki`, { method: "POST", body: JSON.stringify({ title, body: "", ...(parentId ? { parentId } : {}) }) }),
     onSuccess: ({ page }) => {
       queryClient.invalidateQueries({ queryKey: ["wiki", circleId] });
       router.push(`/circles/${circleId}/wiki/${page.slug}?edit=1`);
@@ -62,6 +62,7 @@ function NewPageForm({ circleId, initialTitle = "", onCancel }: { circleId: stri
 }
 
 function PageList({ circleId, pages }: { circleId: string; pages: WikiPageSummary[] }) {
+  const titleOf = new Map(pages.map((page) => [page.id, page.title]));
   return (
     <ul className="flex flex-col divide-y divide-border">
       {pages.map((page) => (
@@ -71,6 +72,7 @@ function PageList({ circleId, pages }: { circleId: string; pages: WikiPageSummar
             {page.title}
           </Link>
           <p className="pl-[1.125rem] text-xs text-muted">
+            {page.parentId && titleOf.has(page.parentId) ? <>From {titleOf.get(page.parentId)} · </> : null}
             Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
           </p>
         </li>
@@ -79,61 +81,17 @@ function PageList({ circleId, pages }: { circleId: string; pages: WikiPageSummar
   );
 }
 
-/** The Wiki section on a circle's page: its pages, most recently edited first. */
-export function WikiSection({ circleId, limit = 8 }: { circleId: string; limit?: number }) {
-  const { user } = useSession();
-  const [adding, setAdding] = useState(false);
-  const { data, isLoading } = useWikiPages(circleId);
-  const pages = data?.pages ?? [];
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <BookOpen className="h-5 w-5 text-primary" aria-hidden />
-          <Link href={`/circles/${circleId}/wiki`} className="hover:underline">
-            Wiki
-          </Link>
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {user?.isAdmin ? (
-            <Button asChild variant="outline" className="gap-1.5">
-              <Link href={`/admin/wiki-map?circle=${circleId}`}>
-                <Network className="h-4 w-4" /> Map
-              </Link>
-            </Button>
-          ) : null}
-          {data?.canEdit && !adding ? (
-            <Button className="gap-1" onClick={() => setAdding(true)}>
-              <Plus className="h-4 w-4" /> New page
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      {adding ? <NewPageForm circleId={circleId} onCancel={() => setAdding(false)} /> : null}
-      {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
-      ) : pages.length ? (
-        <>
-          <PageList circleId={circleId} pages={pages.slice(0, limit)} />
-          {pages.length > limit ? (
-            <Link href={`/circles/${circleId}/wiki`} className="w-fit text-sm font-medium text-secondary-foreground hover:underline">
-              All {pages.length} pages
-            </Link>
-          ) : null}
-        </>
-      ) : (
-        <p className="text-sm text-muted">No pages yet.</p>
-      )}
-    </div>
-  );
-}
-
-/** Every page in a circle's wiki (`?new=Title` opens a new page with that title — from a link to a missing page). */
+/**
+ * Every page in a circle's wiki — those on the circle's page and those
+ * started from inside other pages. (`?new=Title&from=<pageId>` starts a page
+ * with that title, from a link to one that doesn't exist yet.)
+ */
 export function WikiIndexClient({ circleId }: { circleId: string }) {
   const { user } = useSession();
   const circle = useCircle(circleId);
   const params = useSearchParams();
   const requested = params.get("new") ?? "";
+  const from = params.get("from") ?? undefined;
   const [adding, setAdding] = useState(!!requested);
   const { data, isLoading, error } = useWikiPages(circleId);
   const [filter, setFilter] = useState("");
@@ -155,16 +113,18 @@ export function WikiIndexClient({ circleId }: { circleId: string }) {
               </Link>
             </Button>
           ) : null}
-          {data?.canEdit && !adding ? (
-            <Button className="gap-1" onClick={() => setAdding(true)}>
-              <Plus className="h-4 w-4" /> New page
-            </Button>
-          ) : null}
         </div>
       </div>
+      <p className="-mt-3 text-sm text-muted">
+        Every page, including ones started from inside other pages. New information starts on{" "}
+        <Link href={`/circles/${circleId}`} className="font-medium text-secondary-foreground hover:underline">
+          {circle?.name ?? "the circle"}&apos;s page
+        </Link>
+        .
+      </p>
       {adding && data?.canEdit ? (
         <Card>
-          <NewPageForm circleId={circleId} initialTitle={requested} onCancel={() => setAdding(false)} />
+          <NewPageForm circleId={circleId} initialTitle={requested} parentId={from} onCancel={() => setAdding(false)} />
         </Card>
       ) : null}
       {requested && data && !data.canEdit ? <p className="text-sm text-muted">There&apos;s no page called “{requested}” yet.</p> : null}

@@ -2,18 +2,18 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Code2, Eye, ImagePlus, PenLine } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Eye, ImagePlus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
-import { LinkPicker } from "@/components/wiki/link-picker";
+import { wikiLinksIn } from "@/lib/wiki/links";
 import { uploadWikiImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
 
 // The visual editor is large, and needs the browser; load it only when someone edits.
 const RichEditor = dynamic(() => import("@/components/wiki/rich-editor").then((module) => module.RichEditor), {
@@ -48,27 +48,33 @@ function clearDraft(circleId: string, slug: string) {
 }
 
 /**
- * Editing a wiki page: a visual editor (toolbar, tables, links; its right-hand
- * toggle shows the raw Markdown or the changes since the last save), or
- * Markdown beside a live preview. Work in progress is kept on this device
- * until it's saved; Ctrl/⌘+S saves; a save that would overwrite someone
- * else's newer version stops and says so.
+ * Editing a wiki page in the visual editor — or, for a page it can't show,
+ * as Markdown beside a live preview. Pages linked with @ as new are made
+ * when the page is saved (started from this one, so they aren't listed on
+ * the circle). Work in progress is kept on this device until it's saved;
+ * Ctrl/⌘+S saves; a save that would overwrite someone else's newer version
+ * stops and says so.
  */
 export function WikiEditor({
   circleId,
+  circleName,
   page,
   pages,
   onSaved,
   onCancel,
 }: {
   circleId: string;
+  circleName: string;
   page: WikiPage;
   pages: WikiPageSummary[];
   onSaved: (page: WikiPage) => void;
   onCancel: () => void;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>("visual");
+  // New pages linked with @, made when this one is saved.
+  const newPages = useRef(new Set<string>());
   const [title, setTitle] = useState(page.title);
   const [body, setBody] = useState(page.body);
   const [base, setBase] = useState(page.updatedAt);
@@ -118,6 +124,20 @@ export function WikiEditor({
         });
         clearDraft(circleId, page.slug);
         setConflict(null);
+        // Make the new pages this one still links to (as pages started from it).
+        const linked = new Set(wikiLinksIn(saved.body, circleId, []).flatMap((link) => (link.kind === "page" && link.circleId === circleId ? [link.title.toLowerCase()] : [])));
+        const existing = new Set(pages.map((entry) => entry.title.toLowerCase()));
+        let made = 0;
+        for (const title of Array.from(newPages.current)) {
+          if (!linked.has(title.toLowerCase()) || existing.has(title.toLowerCase())) continue;
+          const created = await apiFetch(`/api/circles/${circleId}/wiki`, { method: "POST", body: JSON.stringify({ title, body: "", parentId: page.id }) }).catch(() => null);
+          if (created) made++;
+        }
+        newPages.current.clear();
+        if (made) {
+          queryClient.invalidateQueries({ queryKey: ["wiki", circleId] });
+          toast({ title: made === 1 ? "Started 1 new page" : `Started ${made} new pages`, description: "Open the links to write them." });
+        }
         onSaved(saved);
       } catch (error) {
         const message = (error as Error).message;
@@ -132,7 +152,7 @@ export function WikiEditor({
         setSaving(false);
       }
     },
-    [title, body, base, saving, circleId, page.slug, onSaved, toast]
+    [title, body, base, saving, circleId, page.slug, page.id, pages, onSaved, toast, queryClient]
   );
 
   useEffect(() => {
@@ -223,50 +243,27 @@ export function WikiEditor({
 
       <Input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} className="bg-white text-lg font-semibold" aria-label="Title" />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="tablist" aria-label="Editor">
-          {(
-            [
-              ["visual", "Visual", PenLine],
-              ["markdown", "Markdown + preview", Code2],
-            ] as const
-          ).map(([value, label, Icon]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={mode === value}
-              onClick={() => setMode(value)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition",
-                mode === value ? "bg-primary text-primary-foreground shadow-soft" : "text-muted hover:text-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4" /> {label}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-muted">{dirty ? "Unsaved changes · kept on this device" : "No changes yet"}</span>
-      </div>
+      <p className="-mt-1 text-xs text-muted">{dirty ? "Unsaved changes · kept on this device" : "No changes yet"}</p>
 
       {mode === "visual" ? (
         <RichEditor
           key={editorKey}
           markdown={body}
-          savedMarkdown={page.body}
           circleId={circleId}
+          circleName={circleName}
           pageId={page.id}
           onChange={setBody}
+          onCreatePage={(title) => newPages.current.add(title)}
           onError={() => {
             setMode("markdown");
-            toast({ title: "Switched to Markdown", description: "Part of this page is easier to edit as Markdown." });
+            toast({ title: "Opened as plain text", description: "Part of this page can't be shown in the visual editor." });
           }}
         />
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="flex flex-col gap-2">
+          <p className="text-xs text-muted">This page has something the visual editor can&apos;t show, so it&apos;s open as plain text (Markdown).</p>
           <div className="flex flex-wrap items-center gap-2">
-            <LinkPicker circleId={circleId} pageId={page.id} onPick={insertLink} />
             <button
               type="button"
               onClick={() => photoInput.current?.click()}
@@ -321,10 +318,7 @@ export function WikiEditor({
         </div>
       )}
 
-      <p className="text-xs text-muted">
-        Type <code>#</code> for a heading, <code>-</code> for a list, <code>**bold**</code>, and <code>[[Page title]]</code> to link another page — <code>[[O&amp;M:Page title]]</code> for another circle&apos;s, <code>[[doc:Document title]]</code> for a document (or use <strong>Link page or doc</strong>). Add photos with the toolbar&apos;s picture button, or paste or drop them in. A collapsible section:{" "}
-        <code>:::details{"{"}title=&quot;…&quot;{"}"}</code> … <code>:::</code> (or the toolbar&apos;s <strong>⇕</strong> button). Ctrl/⌘+S saves.
-      </p>
+      <p className="text-xs text-muted">Type @ to link a page or a document — or to start a new page. Ctrl/⌘+S saves.</p>
       <div className="flex gap-2">
         <Button onClick={() => void save()} disabled={saving || !title.trim() || !dirty}>
           {saving ? "Saving…" : "Save"}

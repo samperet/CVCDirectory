@@ -6,16 +6,20 @@ import { readPages } from "@/lib/wiki/store";
 import { PIN_KINDS, type Pin, type PinNoteRef, type PinTarget } from "./shared";
 
 /**
- * Pins: a wiki page (a "note") stuck to somewhere it's useful — the
- * community dashboard, a circle, a person's own dashboard, a task, a
- * document, or a forum discussion. A note can be pinned in many places, and
- * each place can hold many notes. All pins live in one document
+ * Pins: a wiki page stuck to somewhere it's useful — the community
+ * dashboard, a circle, a person's own dashboard, a task, a document, or a
+ * forum discussion. A page can be pinned in many places, and each place can
+ * hold many pages. A circle's own information is the pages pinned to it:
+ * pages start by being added on a circle (and pinned there), while pages
+ * started from inside another page aren't. All pins live in one document
  * (`pins.json`). A pin can end on a date (`until`), after which it's no
  * longer shown.
  */
 
 const KEY = "pins.json";
-export const MAX_PINS_PER_TARGET = 20;
+/** A circle's information can hold as many pages as its wiki; other places, a handful. */
+export const maxPinsOn = (target: PinTarget) => (target.kind === "circle" ? 200 : 20);
+const VERSION = 2;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-15");
 export const targetSchema = z.object({ kind: z.enum(PIN_KINDS), id: z.string().min(1).max(120) });
@@ -27,11 +31,12 @@ export const pinInputSchema = z.object({
   reason: z.string().trim().max(140, "Keep the reason to 140 characters").nullable().default(null),
 });
 
-type Stored = { pins: Pin[] };
+type Stored = { version?: number; pins: Pin[] };
 const normalize = (raw: unknown): Stored | null => {
-  const pins = (raw as Partial<Stored> | null)?.pins;
-  return Array.isArray(pins) ? { pins } : null;
+  const value = raw as Partial<Stored> | null;
+  return Array.isArray(value?.pins) ? { version: value!.version, pins: value!.pins } : null;
 };
+const save = (pins: Pin[]) => writeJson(KEY, { version: VERSION, pins });
 
 /** Today, as YYYY-MM-DD, in Vermont. */
 export const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
@@ -41,40 +46,35 @@ export const sameTarget = (a: PinTarget, b: PinTarget) => a.kind === b.kind && a
 export const sameNote = (a: PinNoteRef, b: PinNoteRef) => a.circleId === b.circleId && a.pageId === b.pageId;
 
 /**
- * Circles used to pin pages by their addresses (`circle.pinnedWiki`); the
- * first time the pins are read, those become circle pins.
+ * Before pins listed a circle's information, every page showed in its
+ * circle's Wiki section. So the first time they're read, every page that
+ * wasn't started from another page is pinned to its own circle — nothing
+ * disappears from circle pages. (This covers the pages circles once pinned
+ * by address, too.)
  */
-async function migrate(circles: Circle[]): Promise<Stored> {
-  const pins: Pin[] = [];
+async function migrate(circles: Circle[], pins: Pin[]): Promise<Pin[]> {
+  const added: Pin[] = [];
   for (const circle of circles) {
-    if (!circle.pinnedWiki?.length) continue;
-    const pages = await readPages(circle.id);
-    for (const slug of circle.pinnedWiki) {
-      const page = pages.find((entry) => entry.slug === slug);
-      if (!page) continue;
-      pins.push({
-        id: randomUUID(),
-        note: { circleId: circle.id, pageId: page.id },
-        target: { kind: "circle", id: circle.id },
-        pinnedBy: { personId: null, name: page.updatedBy.name },
-        pinnedAt: page.updatedAt,
-        until: null,
-        reason: null,
-      });
+    for (const page of await readPages(circle.id)) {
+      if (page.parentId) continue;
+      const note = { circleId: circle.id, pageId: page.id };
+      const target = { kind: "circle" as const, id: circle.id };
+      if (pins.some((pin) => sameNote(pin.note, note) && sameTarget(pin.target, target))) continue;
+      added.push({ id: randomUUID(), note, target, pinnedBy: { personId: null, name: page.createdBy.name }, pinnedAt: page.createdAt, until: null, reason: null });
     }
   }
-  return { pins };
+  return [...pins, ...added];
 }
 
 async function load(circles: Circle[]): Promise<Stored> {
   const stored = normalize(await readJson(KEY));
-  if (stored) return stored;
+  if (stored && stored.version === VERSION) return stored;
   return enqueue(KEY, async () => {
     const again = normalize(await readJson(KEY));
-    if (again) return again;
-    const migrated = await migrate(circles);
-    await writeJson(KEY, migrated);
-    return migrated;
+    if (again && again.version === VERSION) return again;
+    const pins = await migrate(circles, again?.pins ?? []);
+    await save(pins);
+    return { version: VERSION, pins };
   });
 }
 
@@ -83,7 +83,7 @@ export async function allPins(circles: Circle[]): Promise<Pin[]> {
   return (await load(circles)).pins;
 }
 
-/** The pins showing now on a target, or of a note, oldest first. */
+/** The pins showing now on a target, or of a note, newest first. */
 export async function listPins(circles: Circle[], filter: { target?: PinTarget; note?: PinNoteRef; kind?: PinTarget["kind"] }): Promise<Pin[]> {
   const on = today();
   return (await allPins(circles)).filter(
@@ -92,7 +92,7 @@ export async function listPins(circles: Circle[], filter: { target?: PinTarget; 
       (!filter.target || sameTarget(pin.target, filter.target)) &&
       (!filter.note || sameNote(pin.note, filter.note)) &&
       (!filter.kind || pin.target.kind === filter.kind)
-  );
+  ).sort((a, b) => b.pinnedAt.localeCompare(a.pinnedAt));
 }
 
 type Failure = "exists" | "full" | "not_found";
@@ -103,7 +103,7 @@ async function mutate<T>(circles: Circle[], change: (pins: Pin[]) => { pins: Pin
   return enqueue(KEY, async () => {
     const stored = normalize(await readJson(KEY)) ?? { pins: [] };
     const { pins, result } = change(stored.pins);
-    if (pins !== stored.pins) await writeJson(KEY, { pins });
+    if (pins !== stored.pins) await save(pins);
     return result;
   });
 }
@@ -115,7 +115,7 @@ export function addPin(circles: Circle[], input: z.infer<typeof pinInputSchema>,
     // Pinning again where a pin has run out renews it.
     if (existing && live(existing, on)) return { pins, result: { ok: false, reason: "exists" } };
     const others = pins.filter((pin) => pin !== existing);
-    if (others.filter((pin) => sameTarget(pin.target, input.target) && live(pin, on)).length >= MAX_PINS_PER_TARGET) {
+    if (others.filter((pin) => sameTarget(pin.target, input.target) && live(pin, on)).length >= maxPinsOn(input.target)) {
       return { pins, result: { ok: false, reason: "full" } };
     }
     const pin: Pin = { id: randomUUID(), note: input.note, target: input.target, pinnedBy: by, pinnedAt: new Date().toISOString(), until: input.until, reason: input.reason || null };
@@ -142,7 +142,8 @@ export function removePinsWhere(match: (pin: Pin) => boolean) {
     const stored = normalize(await readJson(KEY));
     if (!stored) return 0;
     const pins = stored.pins.filter((pin) => !match(pin));
-    if (pins.length !== stored.pins.length) await writeJson(KEY, { pins });
+    // Keeps the stored version: a document not yet migrated still gets migrated when next read.
+    if (pins.length !== stored.pins.length) await writeJson(KEY, { ...(stored.version ? { version: stored.version } : {}), pins });
     return stored.pins.length - pins.length;
   });
 }

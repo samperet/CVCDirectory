@@ -143,11 +143,14 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     }
   };
 
+  // Back to the page this one was started from, or else to the circle it's on.
+  const parent = page?.parentId ? pages.find((entry) => entry.id === page.parentId) : undefined;
   const back = (
-    <Link href={`/circles/${circleId}/wiki`} className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-      <ArrowLeft className="h-4 w-4" /> {circle ? `${circle.name} wiki` : "Wiki"}
+    <Link href={parent ? `/circles/${circleId}/wiki/${parent.slug}` : `/circles/${circleId}`} className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
+      <ArrowLeft className="h-4 w-4" /> {parent ? parent.title : circle?.name ?? "Circle"}
     </Link>
   );
+  const paper = noteStyle(page?.color);
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (error || !page) {
     return (
@@ -164,9 +167,10 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     return (
       <div className="flex flex-col gap-4">
         {back}
-        <Card>
+        <Card style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
           <WikiEditor
             circleId={circleId}
+            circleName={circle?.name ?? ""}
             page={page}
             pages={pages}
             onSaved={(updated) => {
@@ -185,7 +189,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     <div className="flex flex-col gap-4">
       {back}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card className="flex min-w-0 flex-col gap-4 border-t-[6px]" style={{ borderTopColor: noteStyle(page.color).swatch }}>
+        <Card className="flex min-w-0 flex-col gap-4" style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
@@ -194,7 +198,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
               </p>
               {canEdit ? (
                 <div className="mt-2 flex items-center gap-2 text-xs text-muted">
-                  Note colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
+                  Colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
                 </div>
               ) : null}
             </div>
@@ -270,7 +274,7 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
           ) : null}
 
           <div ref={article} onClick={onArticleClick}>
-            <WikiMarkdown source={page.body} circleId={circleId} pages={pages} />
+            <WikiMarkdown source={page.body} circleId={circleId} pages={pages} pageId={page.id} />
           </div>
 
           {canEdit ? (

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     options.push({ kind: "community", id: COMMUNITY_ID, label: "Community dashboard", meta: "Everyone's dashboard" });
   }
 
-  const circles = directory.circles.filter((circle) => (admin || canManageCircle(directory, circle.id, me)) && matches(circle.name));
+  const circles = directory.circles.filter((circle) => canUploadTo(user, directory, circle.id) && matches(circle.name));
   // Your own circles first.
   circles.sort((a, b) => Number(b.seats.some((seat) => seat.personId === me)) - Number(a.seats.some((seat) => seat.personId === me)) || a.name.localeCompare(b.name));
   options.push(...take(circles).map((circle) => ({ kind: "circle" as const, id: circle.id, label: circle.name, meta: circle.kind === "club" ? "Social club" : "Circle" })));

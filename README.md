@@ -8,7 +8,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
 - 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
-- 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth, and polls.
+- 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth.
 - 🏡 **Homes for sale** – Admins and the Board list homes for sale, shown with contact details on the public front page.
 - 💚 **Appreciations** – Short thank-you notes that rotate through the footer of every page, all listed on their own page.
 - 🙂 **Profiles** – Residents edit their own details and add a photo.
@@ -156,15 +156,6 @@ Admin status is checked server-side on every request, and the user menu shows an
   like count stays in view once it has likes. The opening post shows when it was started, not who
   by, and reply counts aren't shown. Each thread is one JSON document (`forum/threads/<id>.json`) with
   replies stored flat by `parentId`, plus an index (`forum/index.json`) for the list page.
-- **Polls** – a discussion can carry a poll ("Add a poll" when starting one): the title is the
-  question, the post is optional context, and it has 2–10 options, one choice or several, and an
-  optional closing date. Residents vote, change their vote, or take it back while it's open; results
-  (counts, percentages, and who chose what) show once you've voted, when it's closed, or on "See
-  results". The poll's author or an admin can close and reopen it. The author's options are fixed
-  once posted, but a poll can **let people add their own options**: a voter types one in and votes
-  for it (it's marked "added by …"; typing one that's already there just votes for it), up to 30
-  options in all.
-  Votes are stored with the thread (`POST /api/forum/threads/<id>/poll` votes, `PATCH` closes).
 - **Appreciations** – signed-in members share short public thank-you notes, optionally addressed
   to someone. One at a time rotates through the footer of every page, large and centered (pausing
   while you hover, and not auto-advancing for visitors who prefer reduced motion); clicking it
@@ -238,26 +229,37 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   and the version history marks the consented one. **Consented only** filters the list; search
   finds consented documents by the word "consented". The Secretary can withdraw a record of consent.
   (`PUT`/`DELETE /api/documents/<id>/consent`; stored with the document as `consent`.)
-- **Wiki** – each circle also has its own wiki (`/circles/<id>/wiki`, with a page finder). Pages are
-  Markdown, edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), open source, on
-  Lexical): a toolbar for headings, bold/italic/strikethrough, lists and checklists, links, tables,
-  code blocks, and dividers; Markdown shortcuts as you type; a toggle to see the raw Markdown or
-  the **changes since the last save**; and **Link page or doc**, to pick a page (in any circle's wiki)
-  or a document to link. Or edit as **Markdown beside a live preview**. **Links**: `[[Page title]]`
-  links a page in the same wiki (a missing one shows red and offers to be created);
-  `[[O&M:Page title]]` a page in another circle's wiki (by the circle's name); and
-  `[[doc:Document title]]` a document, by title — this circle's first, then any circle's — opening its
-  file (`[[doc:O&M:Document title]]` for one circle's). Any of them takes `|shown text`. Each page lists
-  what's **Linked from** it — the pages, in any wiki that's turned on, linking to it
-  (`GET /api/circles/<id>/wiki/<slug>/backlinks`). **Collapsible sections** use the Markdown
-  directive syntax — `:::details{title="Winter duty"}` … `:::` (or `:::details[Winter duty]`) — and
-  the visual editor's toolbar inserts them as a block with an editable title. Work in progress
-  is kept on the device until saved (and offered back after a crash or closed tab); Ctrl/⌘+S saves;
-  leaving with unsaved changes asks first; and a save that would overwrite someone else's newer
-  version stops and says who. Longer pages get **On this page** (from their headings). Raw HTML
-  isn't rendered and images show as their description. Every signed-in resident reads a wiki;
-  those who can add the circle's documents edit it. Each page keeps its last 25 versions to view
-  or restore, and its address when renamed. Stored per circle in `wiki/<circleId>.json`.
+- **Information (the wiki)** – each circle's information is wiki pages. **Add Information** on the
+  circle's page names a new page and picks its colour; it's listed on the circle's page and opens
+  for writing. Pages started from inside another page (with @, or from a link to a page that
+  doesn't exist yet) aren't listed on the circle; they remember the page they came from (their back
+  link goes there), and every page is under **All pages** (`/circles/<id>/wiki`). Pages are Markdown,
+  edited in a **visual editor** ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple
+  toolbar: headings, bold/italic, lists and checklists, links, photos, tables, collapsible sections,
+  and **polls**; Markdown shortcuts work as you type. **Typing @** searches pages (in any circle's
+  wiki) and documents and links the one you pick — or, for a new title, links a new page, made when
+  the page is saved (`GET /api/wiki/link-search`). If a page has something the visual editor can't
+  show, it opens as Markdown beside a preview. **Links** are written `[[Page title]]` (a missing page
+  shows red and offers to be created), `[[O&M:Page title]]` for another circle's page, and
+  `[[doc:Document title]]` for a document — this circle's first, then any circle's
+  (`[[doc:O&M:Document title]]` for one circle's); any of them takes `|shown text`. Each page lists
+  what's **Linked from** it (`GET /api/circles/<id>/wiki/<slug>/backlinks`). **Collapsible
+  sections** are `:::details{title="Winter duty"}` … `:::`. Work in progress is kept on the device
+  until saved; Ctrl/⌘+S saves; a save that would overwrite someone else's newer version stops and
+  says who. Longer pages get **On this page**. Raw HTML isn't rendered. Every signed-in resident
+  reads a wiki; those who can add the circle's documents edit it (any resident, on Community). Each
+  page keeps its last 25 versions, and its address when renamed. Stored per circle in
+  `wiki/<circleId>.json`.
+- **Polls** live in wiki pages: the editor's poll button asks a question with 2–10 options, one
+  choice or several, an optional closing date, optionally letting voters add their own options, and
+  — outside Community — optionally for the circle's members only (everyone sees the results). It's
+  placed in the page as `::poll{id="…"}`. Residents vote, change or take back their vote while it's
+  open; results show once you've voted, when it's closed, or on "See results". Its author, admins,
+  and (outside Community) the wiki's editors close and reopen it. A poll is announced when the page
+  holding it is first saved (the "polls" notification setting; just the members, for a
+  members-only poll). Stored per circle in `wiki-polls/<circleId>.json`
+  (`/api/circles/<id>/polls`). Circles no longer have a separate Polls section, and the forum no
+  longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
   on or off (with Wiki and Documents, under **Edit details**). A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
@@ -280,40 +282,46 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   (`wiki-images/<circleId>/<id>`, served to signed-in residents at
   `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
   images from other websites show only as their description. A circle's photos go when it does.
-- **Sticky notes and pins** – every wiki page is also a sticky note, with a colour (yellow, green,
-  blue, pink, or lavender; chosen under the title by the wiki's editors). A note can be pinned in
-  many places, each showing it as a sticky (title and opening lines; the first 5, then **+N more**):
-  - the **community dashboard** ("Community notes"; the Board and admins pin there);
-  - a **circle's page** (its members, the Board, and admins);
+- **Colours and pins** – every page has a colour (white, yellow, orange, red, pink, lavender, blue,
+  teal, green, or grey; chosen under its title by the wiki's editors): the page is drawn in it, and
+  it shows as a card of that colour (title and opening lines; the first six, then **+N more**)
+  wherever it's pinned. A circle's information is the pages pinned to it — its own, and any pinned
+  from other circles. A page can also be pinned to:
+  - the **community dashboard** ("Community information"; the Board and admins pin there);
   - a **person** — shown only on their own dashboard as "Pinned for you" (themselves, anyone who
     shares a circle with them other than Community, and admins; only they, the pinner, and admins
     see it);
   - a **task** ("Reference"; whoever edits the circle's tasks, and the task's owner);
-  - a **document** (a "notes" badge on its row; whoever can manage it);
+  - a **document** (a "pinned" badge on its row; whoever can manage it);
   - a **forum discussion** (whoever started it, and admins).
 
-  **Pin to…** on a wiki page searches the places you can pin to, with an optional **Pinned until**
-  date (the pin disappears after it) and a short reason; the page lists where it's **Pinned to**,
-  beside **Linked from**. **New note** on a board writes a short note into a wiki and pins it in one
-  step. Anyone who can pin somewhere can unpin there (the × on a note), as can whoever pinned it.
-  Stored in `pins.json` (`GET/POST /api/pins`, `DELETE /api/pins/<id>`,
-  `GET /api/pins/targets?q=`); pins go when their note or what they're pinned to is deleted. Pages
-  circles had pinned before (`pinnedWiki`) became circle pins.
-- **Notes map** (admins only, `/admin/wiki-map`, from the user menu or **Map** on a wiki) – a
-  self-arranging map of every note, its circle, the pages and documents it links to, and everywhere
-  it's pinned. Hover to light up a note's connections, click to open, shift-click (or **Focus on**)
-  to see one note's neighbourhood one or two steps out; filter by circle and by kind. Built from
-  `GET /api/admin/wiki-graph`.
+  **Pin to…** on a page searches the places you can pin to, with an optional **Pinned until** date
+  and a short reason; the page lists where it's **Pinned to**. Anyone who can pin somewhere can
+  unpin there (the × on a card; on a circle that takes the page off the circle's page, leaving it
+  in the wiki), as can whoever pinned it. Stored in `pins.json` (`GET/POST /api/pins`,
+  `DELETE /api/pins/<id>`, `GET /api/pins/targets?q=`); pins go when their page or what they're
+  pinned to is deleted. When circles' information moved to pins, every existing page that wasn't
+  started from another page was listed on its circle.
+- **Wiki map** (admins only, `/admin/wiki-map`, from the user menu or **Map** on a circle's
+  information) – a self-arranging map of every page, its circle (or the page it was started from),
+  the pages and documents it links to, and everywhere it's pinned. Hover to light up a page's
+  connections, click to open, shift-click (or **Focus on**) to see one page's neighbourhood one or
+  two steps out; filter by circle and by kind. Built from `GET /api/admin/wiki-graph`.
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
   edit and delete their own (admins any). The page's writers and the thread's participants are
   notified (the "wiki" notification setting). Stored per circle in `wiki-comments/<circleId>.json`;
   a page's comments go with it.
-- **Sections on a circle's page** – a circle's members, the Board, and admins turn its Documents
-  and Wiki sections on or off under **Edit details** (both on unless turned off). With Documents
-  off, no new documents can be added and the circle drops out of the bulk-upload list; its existing
-  documents stay searchable. With Wiki off, its pages can't be edited.
+- **A circle's page** – its sections (Information, Members, a duty schedule where there is one,
+  Tasks, Documents) are laid out as the circle chooses: **Arrange page** (its members, the Board,
+  and admins) drags them into order — or moves them with arrows, on phones — and sizes each to a
+  third, half, two thirds, or the full width of wider screens; phones stack them. Everyone sees the
+  circle's layout (stored on the circle as `layout`). Each reader can fold any section away with
+  the arrow by its title, remembered on their device. Under **Edit details** the circle turns its
+  Information (wiki), Tasks, and Documents sections on or off (each on unless turned off). With
+  Documents off, no new documents can be added; its existing ones stay searchable. With the wiki
+  off, its pages can't be edited.
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);
@@ -351,18 +359,8 @@ from then on, so re-importing the directory never overwrites circle changes.
 
 - **Community circle** – a built-in circle (`community`) for everyone at CVC, shown across the top
   of `/circles` at double width. It has no member list and can't be joined, left, or deleted; any
-  resident can add its documents, and its page has **Polls**: any resident asks everyone a
-  question. The Board and admins edit the circle's details and icon.
-- **Circle polls** – *Polls* is a section any circle can turn on (under **Edit details**; off by
-  default, except on the Community page). A poll has a question, optional context, 2–10 options,
-  one choice or several, an optional closing date, and optionally lets voters add their own
-  options; results show as in forum polls. On the Community page any resident asks; elsewhere the
-  circle's members, the Board, and admins do, and can make a poll **members only** (only the
-  circle's members vote; everyone sees the results). A poll's author, admins, and — outside
-  Community — the circle's members close, reopen, or delete it. New polls notify residents (just
-  the circle's members, for a members-only poll; the "polls" notification setting). Stored in
-  `circle-polls/<circleId>.json` (the Community page's in `community/polls.json`), served at
-  `/api/circles/<id>/polls`.
+  resident can add its documents and information (and polls in it). The Board and admins edit the
+  circle's details and icon.
 - `/circles` lists the Community circle, then **Circles** (the official, sociocratically formed
   ones), then **Social Clubs** (e.g. the Chicken Tenders), each with name, member count, and
   description. Any resident can start a social club and becomes its first member; the Board and

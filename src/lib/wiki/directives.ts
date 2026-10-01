@@ -6,8 +6,9 @@
  *   :::
  *
  * (`:::details[Winter duty]` works too.) This remark plugin turns them into
- * <details>/<summary>. Anything else that happens to look like a directive
- * — "Contact:Lynn" — is put back as the text it was.
+ * <details>/<summary>, and a poll — `::poll{id="…"}`, on its own line — into
+ * a placeholder the page fills with the poll. Anything else that happens to
+ * look like a directive — "Contact:Lynn" — is put back as the text it was.
  */
 
 interface Node {
@@ -43,6 +44,9 @@ function transform(node: Node): Node[] {
   if (node.type === "textDirective") {
     const label = node.children?.length ? `[${node.children.map(textOf).join("")}]` : "";
     return [{ type: "text", value: `:${node.name}${label}` }];
+  }
+  if (node.type === "leafDirective" && node.name === "poll" && node.attributes?.id) {
+    return [{ type: "wikiPoll", data: { hName: "div", hProperties: { dataPoll: node.attributes.id } } }];
   }
   if (node.type === "leafDirective") {
     const label = node.children?.length ? `[${node.children.map(textOf).join("")}]` : "";

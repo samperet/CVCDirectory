@@ -1,4 +1,4 @@
-/** Polls — on forum discussions and on the Community page. Types and rules shared by the server and the browser. */
+/** Polls (in wiki pages): types and rules shared by the server and the browser. */
 
 export interface PollOption {
   id: string;

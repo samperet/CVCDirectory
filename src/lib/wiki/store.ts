@@ -34,11 +34,13 @@ export interface WikiPage {
   updatedBy: WikiAuthor;
   /** Earlier versions, oldest first. */
   history: WikiVersion[];
-  /** Its colour as a sticky note; unset is yellow. */
+  /** Its colour (as a card, and as a page); unset is yellow. */
   color?: NoteColor;
+  /** The page it was started from, when it was started inside another page rather than added on the circle. */
+  parentId?: string;
 }
 
-export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color">;
+export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "parentId">;
 
 const MAX_PAGES = 200;
 const MAX_HISTORY = 25;
@@ -46,7 +48,7 @@ const MAX_HISTORY = 25;
 const title = z.string().trim().min(1, "Give the page a title").max(120, "Titles must be 120 characters or fewer");
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
 const color = z.enum(NOTE_COLORS);
-export const pageInputSchema = z.object({ title, body: body.default(""), color: color.optional() });
+export const pageInputSchema = z.object({ title, body: body.default(""), color: color.optional(), parentId: z.string().max(80).optional() });
 export const pageUpdateSchema = z
   /** `baseUpdatedAt`: when the page was last saved as the editor started, so a save can't silently undo someone else's. */
   .object({ title: title.optional(), body: body.optional(), color: color.optional(), baseUpdatedAt: z.string().optional() })
@@ -68,6 +70,7 @@ const summary = (page: WikiPage): WikiPageSummary => ({
   updatedAt: page.updatedAt,
   updatedBy: page.updatedBy,
   ...(page.color ? { color: page.color } : {}),
+  ...(page.parentId ? { parentId: page.parentId } : {}),
 });
 
 /** A circle's pages, most recently edited first. */
@@ -105,7 +108,7 @@ const slugFor = (text: string, taken: Set<string>) => {
   return slug;
 };
 
-export function createPage(circleId: string, author: WikiAuthor, input: { title: string; body: string; color?: NoteColor }) {
+export function createPage(circleId: string, author: WikiAuthor, input: { title: string; body: string; color?: NoteColor; parentId?: string }) {
   return mutate(circleId, (pages) => {
     if (pages.some((page) => page.title.toLowerCase() === input.title.toLowerCase())) return "exists";
     if (pages.length >= MAX_PAGES) return "full";
@@ -121,6 +124,8 @@ export function createPage(circleId: string, author: WikiAuthor, input: { title:
       updatedBy: author,
       history: [],
       ...(input.color && input.color !== "yellow" ? { color: input.color } : {}),
+      // Only a page in the same wiki can be a parent.
+      ...(input.parentId && pages.some((entry) => entry.id === input.parentId) ? { parentId: input.parentId } : {}),
     };
     return { pages: [...pages, page], page };
   });

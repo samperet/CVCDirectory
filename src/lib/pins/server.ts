@@ -7,6 +7,7 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { getThread, isThreadId } from "@/lib/forum/store";
 import { getTask } from "@/lib/tasks/store";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
+import { POLL_DIRECTIVE, listWikiPolls } from "@/lib/polls/wiki";
 import { NOTE_COLORS, type NoteColor, type Pin, type PinTarget, type PinView } from "./shared";
 
 /**
@@ -15,7 +16,8 @@ import { NOTE_COLORS, type NoteColor, type Pin, type PinTarget, type PinView } f
  * place it goes:
  *
  * - the community dashboard: the Board and admins;
- * - a circle: its members, the Board, and admins;
+ * - a circle: whoever edits its wiki — its members, the Board, and admins
+ *   (any resident, on Community);
  * - a person: themselves, anyone who shares a circle with them (other than
  *   Community), and admins — and only they (and whoever pinned it) see it;
  * - a task: whoever edits the circle's tasks, and the task's owner;
@@ -92,7 +94,7 @@ export function canPinTo(user: Viewer, directory: DirectoryDocument, resolved: R
     case "community":
       return canManageCircle(directory, BOARD_ID, me);
     case "circle":
-      return canManageCircle(directory, target.id, me);
+      return canUploadTo(user, directory, target.id);
     case "person":
       return target.id === me || shareACircle(directory, me, target.id);
     case "task":
@@ -112,10 +114,20 @@ export function canSeePin(user: Viewer, pin: Pick<Pin, "target" | "pinnedBy">) {
 
 export const pageColor = (page: Pick<WikiPage, "color">): NoteColor => ((NOTE_COLORS as readonly string[]).includes(page.color ?? "") ? (page.color as NoteColor) : "yellow");
 
-/** A note's opening, as plain text: links by their words, no images, headings, or markup. */
-export function excerptOf(markdown: string, length = 400) {
+/**
+ * A page's opening, as plain text: links by their words, polls by their
+ * questions, collapsible sections by their titles; no images, headings, or
+ * markup.
+ */
+export function excerptOf(markdown: string, length = 400, polls: Map<string, string> = new Map()) {
   const text = markdown
     .replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, " ")
+    .replace(POLL_DIRECTIVE, (_m, id?: string, short?: string) => {
+      const question = polls.get((id ?? short ?? "").toLowerCase());
+      return question ? `Poll: ${question}` : "";
+    })
+    .replace(/^[ \t]*:::\s*details(?:\[([^\]\n]*)\])?(?:\{[^}\n]*?title="([^"\n]*)"[^}\n]*\})?.*$/gm, (_m, label?: string, title?: string) => title ?? label ?? "")
+    .replace(/^[ \t]*:{2,}[ \t]*$/gm, "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[\[(?:doc:)?(?:[^\]|]*:)?([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target)
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
@@ -138,6 +150,10 @@ export async function pinViews(user: Viewer, directory: DirectoryDocument, pins:
   const visible = pins.filter((pin) => canSeePin(user, pin));
   const circleIds = Array.from(new Set(visible.map((pin) => pin.note.circleId)));
   const pages = new Map<string, WikiPage[]>(await Promise.all(circleIds.map(async (id) => [id, await readPages(id)] as [string, WikiPage[]])));
+  // Polls show by their questions, for the circles whose pinned pages hold any.
+  const questions = new Map<string, string>();
+  const withPolls = circleIds.filter((id) => visible.some((pin) => pin.note.circleId === id && pages.get(id)?.find((page) => page.id === pin.note.pageId)?.body.includes("::poll")));
+  for (const id of withPolls) for (const poll of await listWikiPolls(id)) questions.set(poll.id, poll.question);
   const targets = new Map<string, ResolvedTarget | null>(resolved.map((entry) => [`${entry.target.kind}:${entry.target.id}`, entry]));
   for (const pin of visible) {
     const key = `${pin.target.kind}:${pin.target.id}`;
@@ -158,7 +174,7 @@ export async function pinViews(user: Viewer, directory: DirectoryDocument, pins:
         pageId: page.id,
         slug: page.slug,
         title: page.title,
-        excerpt: excerptOf(page.body),
+        excerpt: excerptOf(page.body, 400, questions),
         color: pageColor(page),
         href: `/circles/${pin.note.circleId}/wiki/${page.slug}`,
       },

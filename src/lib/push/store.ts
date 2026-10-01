@@ -15,7 +15,7 @@ export const TOPICS = {
   library: "New things to borrow in the loan library",
   documents: "New and updated documents in circles",
   circles: "Requests to join your circles, and answers to yours",
-  polls: "New community polls",
+  polls: "New polls",
   wiki: "Comments on wiki pages you've written or commented on",
   tasks: "Tasks given to you, and comments on tasks you're part of",
 } as const;

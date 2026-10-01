@@ -1,3 +1,4 @@
+import type { SectionLayout } from "@/lib/circles/layout";
 export type PersonRole = "owner" | "renter" | "household";
 
 export interface Person {
@@ -60,7 +61,9 @@ export interface Circle {
   /** "club" for a social club; unset for an official, sociocratically formed circle. */
   kind?: CircleKind;
   /** Which of its pages' sections the circle uses; each is on unless set to false. */
-  features?: { documents?: boolean; wiki?: boolean; tasks?: boolean; polls?: boolean };
+  features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
+  /** How its page is laid out (see `src/lib/circles/layout.ts`); unset is the default. */
+  layout?: SectionLayout[];
   /** Wiki pages (their addresses) once pinned to the circle's page; carried over into pins (`pins.json`) when they're first read. */
   pinnedWiki?: string[];
   /** Pending applications; only the circle's members, the Board, and admins see them. */

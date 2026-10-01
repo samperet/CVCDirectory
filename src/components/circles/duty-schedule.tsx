@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { SectionToggle } from "@/components/circles/circle-sections";
 
 export interface ScheduleResponse {
   schedule: DutySchedule | null;
@@ -293,7 +294,10 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
     <Card className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{schedule.title}</h2>
+          <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
+            <SectionToggle />
+            {schedule.title}
+          </h2>
           <p className="text-sm text-muted">
             {data.canChangeDays ? "Tap a day to record a swap or cover." : "Households on the rotation can record swaps and cover."}
           </p>

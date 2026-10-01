@@ -27,6 +27,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { SectionToggle } from "@/components/circles/circle-sections";
 
 /** Open tasks first by status, then high priority, then soonest due, then oldest. */
 const byUrgency = (a: TaskSummary, b: TaskSummary) =>
@@ -326,6 +327,7 @@ export function TasksSection({ circle }: { circle: Circle }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <SectionToggle />
           <ListChecks className="h-5 w-5 text-primary" aria-hidden />
           <Link href={`/circles/${circle.id}/tasks`} className="hover:underline">
             Tasks

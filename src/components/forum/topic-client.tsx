@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BarChart3, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumThreadDocument, ForumThreadSummary } from "@/lib/forum/store";
@@ -16,7 +16,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import type { ForumTopic } from "@/lib/forum/topics";
-import { PollFields, draftOptions, emptyPollDraft, pollPayload } from "@/components/polls/poll-fields";
 
 /** A topic, with how many discussions it holds and its most recently active one. */
 export type TopicSummary = ForumTopic & { threadCount: number; lastActivityAt: string | null; latest: { id: string; title: string } | null };
@@ -79,10 +78,7 @@ export function TopicClient({ topicId }: { topicId: string }) {
   const [composing, setComposing] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  // An optional poll: the title is its question.
-  const [polling, setPolling] = useState(false);
-  const [draft, setDraft] = useState(emptyPollDraft);
-  const ready = title.trim().length >= 3 && (polling ? draftOptions(draft).length >= 2 : !!body.trim());
+  const ready = title.trim().length >= 3 && !!body.trim();
 
   const { data, isLoading } = useQuery({
     queryKey: ["forum", "threads", topicId],
@@ -94,12 +90,7 @@ export function TopicClient({ topicId }: { topicId: string }) {
     mutationFn: () =>
       apiFetch<ForumThreadDocument>("/api/forum/threads", {
         method: "POST",
-        body: JSON.stringify({
-          topicId,
-          title,
-          body,
-          poll: polling ? pollPayload(draft) : undefined,
-        }),
+        body: JSON.stringify({ topicId, title, body }),
       }),
     onSuccess: (doc) => router.push(`/forum/${doc.thread.id}`),
     onError: (error: Error) =>
@@ -163,34 +154,22 @@ export function TopicClient({ topicId }: { topicId: string }) {
       {composing && user ? (
         <Card className="flex flex-col gap-3">
           <Input
-            placeholder={polling ? "Question, e.g. Which Saturday works for the work day?" : "Title"}
+            placeholder="Title"
             value={title}
             maxLength={160}
             onChange={(e) => setTitle(e.target.value)}
-            aria-label={polling ? "Question" : "Title"}
+            aria-label="Title"
           />
           <Textarea
-            rows={polling ? 3 : 5}
-            placeholder={polling ? "Add some context (optional)" : "What would you like to discuss?"}
+            rows={5}
+            placeholder="What would you like to discuss?"
             value={body}
             maxLength={5000}
             onChange={(e) => setBody(e.target.value)}
           />
-          {polling ? <PollFields draft={draft} onChange={setDraft} /> : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => create.mutate()} disabled={create.isPending || !ready}>
-              {create.isPending ? "Posting…" : polling ? "Post poll" : "Post discussion"}
-            </Button>
-            <Button type="button" variant="outline" className="gap-1" onClick={() => setPolling((value) => !value)}>
-              {polling ? (
-                <>
-                  <X className="h-4 w-4" /> Remove poll
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="h-4 w-4" /> Add a poll
-                </>
-              )}
+              {create.isPending ? "Posting…" : "Post discussion"}
             </Button>
             <span className="text-xs text-muted">Posting as {user.name}.</span>
           </div>
@@ -205,11 +184,6 @@ export function TopicClient({ topicId }: { topicId: string }) {
             <li key={thread.id}>
               <Link href={`/forum/${thread.id}`} className="block rounded-2xl border border-border bg-surface p-4 shadow-soft transition hover:border-primary">
                 <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">
-                  {thread.poll ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                      <BarChart3 className="h-3.5 w-3.5" /> Poll
-                    </span>
-                  ) : null}
                   {thread.title}
                 </p>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">

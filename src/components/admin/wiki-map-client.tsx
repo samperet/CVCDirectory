@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const KINDS: { kind: GraphNodeKind; label: string; color: string }[] = [
-  { kind: "note", label: "Notes", color: NOTE_STYLES.yellow.swatch },
+  { kind: "note", label: "Pages", color: NOTE_STYLES.yellow.swatch },
   { kind: "circle", label: "Circles", color: "#1e4620" },
   { kind: "person", label: "People", color: "#6b8e70" },
   { kind: "task", label: "Tasks", color: "#e8a317" },
@@ -29,7 +29,8 @@ const KIND_COLOR = Object.fromEntries(KINDS.map((entry) => [entry.kind, entry.co
 const EDGES: { kind: GraphEdgeKind; label: string; color: string; dash?: string; width: number }[] = [
   { kind: "link", label: "Links", color: "#2f5a32", width: 1.4 },
   { kind: "pin", label: "Pins", color: "#d08f0b", dash: "5 4", width: 1.6 },
-  { kind: "belongs", label: "Belongs to circle", color: "#b8c7b9", width: 1 },
+  { kind: "belongs", label: "On its circle", color: "#b8c7b9", width: 1 },
+  { kind: "child", label: "Started from a page", color: "#6b8e70", dash: "2 3", width: 1.4 },
 ];
 const EDGE_STYLE = Object.fromEntries(EDGES.map((entry) => [entry.kind, entry])) as Record<GraphEdgeKind, (typeof EDGES)[number]>;
 
@@ -170,7 +171,7 @@ function GraphCanvas({ nodes, edges, focus, onFocus }: { nodes: GraphNode[]; edg
         "link",
         forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance((d) => (d.kind === "belongs" ? 70 : d.kind === "pin" ? 90 : 80))
+          .distance((d) => (d.kind === "belongs" ? 70 : d.kind === "pin" ? 90 : d.kind === "child" ? 60 : 80))
           .strength((d) => (d.kind === "belongs" ? 0.3 : 0.6))
       )
       .force("charge", forceManyBody<SimNode>().strength((d) => (d.kind === "circle" ? -420 : -200)))
@@ -230,7 +231,7 @@ function GraphCanvas({ nodes, edges, focus, onFocus }: { nodes: GraphNode[]; edg
 
   return (
     <div className="relative">
-      <svg ref={svgRef} className="h-[70vh] min-h-[24rem] w-full touch-none font-sans select-none rounded-xl border border-border bg-[#fbfdf9]" role="img" aria-label="Map of notes and how they connect" />
+      <svg ref={svgRef} className="h-[70vh] min-h-[24rem] w-full touch-none font-sans select-none rounded-xl border border-border bg-[#fbfdf9]" role="img" aria-label="Map of wiki pages and how they connect" />
       <button
         type="button"
         onClick={() => fitRef.current()}
@@ -243,7 +244,7 @@ function GraphCanvas({ nodes, edges, focus, onFocus }: { nodes: GraphNode[]; edg
 }
 
 /**
- * The notes map (admins only): every wiki note, its circle, what it links
+ * The wiki map (admins only): every wiki page, its circle, what it links
  * to, and where it's pinned — drawn as a graph that settles itself. Hover to
  * see a note's connections; click to open; shift-click to focus on it.
  */
@@ -281,9 +282,9 @@ export function WikiMapClient() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-            <Network className="h-6 w-6 text-primary" aria-hidden /> Notes map
+            <Network className="h-6 w-6 text-primary" aria-hidden /> Wiki map
           </h1>
-          <p className="text-sm text-muted">How wiki notes connect: links between them, where they&apos;re pinned, and their circles. Admins only.</p>
+          <p className="text-sm text-muted">How wiki pages connect: links between them, pages started from others, where they&apos;re pinned, and their circles. Admins only.</p>
         </div>
         <button
           type="button"
@@ -338,7 +339,7 @@ export function WikiMapClient() {
               </div>
             ) : (
               <>
-                <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="Find a note, circle, person…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm font-normal" />
+                <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="Find a page, circle, person…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm font-normal" />
                 {matches.length ? (
                   <ul className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-lg border border-border bg-surface p-1 shadow-elev">
                     {matches.map((node) => (

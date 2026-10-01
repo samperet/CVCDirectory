@@ -11,6 +11,7 @@ import { listSkills } from "@/lib/skills/store";
 import { listTasks } from "@/lib/tasks/store";
 import { readPages } from "@/lib/wiki/store";
 import { occurrences, snippetFor } from "@/lib/search";
+import { excerptOf } from "@/lib/pins/server";
 
 /**
  * Search across the whole site — people (with their bios and skills),
@@ -132,7 +133,8 @@ export async function searchSite(query: string, directory: DirectoryDocument, pe
         [page.body, 1],
       ],
       result: { title: page.title, href: `/circles/${circle.id}/wiki/${page.slug}`, meta: `${circle.name} wiki` },
-      body: page.body.replace(/\[\[(?:doc:)?(?:[^\]|]*:)?([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target).replace(/!\[[^\]]*\]\([^)]*\)/g, ""),
+      // The page as plain text: links by their words; no photos, polls, or markup.
+      body: excerptOf(page.body, 50_000),
     }))
   );
 

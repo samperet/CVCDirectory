@@ -94,7 +94,7 @@ export function UserMenu() {
             {user.isAdmin ? (
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/admin/wiki-map" onClick={() => setOpen(false)}>
-                  <Network className="h-4 w-4" /> Notes map
+                  <Network className="h-4 w-4" /> Wiki map
                 </Link>
               </Button>
             ) : null}

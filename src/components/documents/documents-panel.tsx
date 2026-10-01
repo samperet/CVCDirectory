@@ -292,9 +292,9 @@ function DocumentRow({ doc, terms, showCircle, notes = NO_NOTES }: { doc: Docume
               onClick={() => setShowNotes(!showNotes)}
               aria-expanded={showNotes}
               className="inline-flex items-center gap-1 rounded-full border border-[#ecd77a] bg-[#fff7d1] px-2 py-0.5 font-medium text-foreground-light hover:text-foreground"
-              title="Notes pinned to this document"
+              title="Wiki pages pinned to this document"
             >
-              <StickyNote className="h-3 w-3" aria-hidden /> {notes.length} {notes.length === 1 ? "note" : "notes"}
+              <StickyNote className="h-3 w-3" aria-hidden /> {notes.length} pinned
             </button>
           ) : null}
           {showCircle ? (
@@ -428,7 +428,7 @@ function DocumentRow({ doc, terms, showCircle, notes = NO_NOTES }: { doc: Docume
       ) : null}
 
       {showNotes && notes.length ? (
-        <ul className="ml-8 flex flex-wrap gap-2" aria-label="Pinned notes">
+        <ul className="ml-8 flex flex-wrap gap-2" aria-label="Pinned pages">
           {notes.map((pin) => (
             <li key={pin.id}>
               <Link
