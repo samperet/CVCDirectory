@@ -29,7 +29,7 @@ export async function wikiContext(circleId: string, { edit = false } = {}) {
   };
 }
 
-export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict" | "bad_parent") {
+export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict") {
   switch (reason) {
     case "not_found":
       return problem("That page no longer exists", 404, "Not Found");
@@ -39,8 +39,6 @@ export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_versio
       return problem("This wiki has as many pages as it can hold", 409, "Conflict");
     case "no_version":
       return problem("That version no longer exists", 404, "Not Found");
-    case "bad_parent":
-      return problem("A page can only be part of another page in the same wiki — and not of itself or a page under it");
     case "conflict":
       return problem("Someone else saved this page while you were editing it", 409, "Conflict");
   }

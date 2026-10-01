@@ -127,14 +127,6 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
     },
     onError: (err: Error) => toast({ title: "Could not change the colour", description: err.message, variant: "destructive" }),
   });
-  const move = useMutation({
-    mutationFn: (parentId: string | null) => apiFetch<{ page: WikiPage }>(`/api/circles/${circleId}/wiki/${slug}`, { method: "PATCH", body: JSON.stringify({ parentId }) }),
-    onSuccess: ({ page: updated }) => {
-      saved(updated);
-      toast({ title: updated.parentId ? "Moved" : "Now a page of its own" });
-    },
-    onError: (err: Error) => toast({ title: "Could not move the page", description: err.message, variant: "destructive" }),
-  });
   const [addingSub, setAddingSub] = useState(false);
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/circles/${circleId}/wiki/${slug}`, { method: "DELETE" }),
@@ -236,26 +228,8 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
                 ) : null}
               </p>
               {canEdit ? (
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
-                  <span className="flex items-center gap-2">
-                    Colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
-                  </span>
-                  <label className="flex items-center gap-2">
-                    Part of
-                    <select
-                      value={page.parentId && pages.some((entry) => entry.id === page.parentId) ? page.parentId : ""}
-                      onChange={(event) => move.mutate(event.target.value || null)}
-                      disabled={move.isPending}
-                      className="h-7 max-w-[14rem] rounded-md border border-border bg-white px-1.5 text-xs text-foreground"
-                    >
-                      <option value="">— nothing (a page of its own)</option>
-                      {parentChoices(page, pages).map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div className="mt-2 flex items-center gap-2 text-xs text-muted">
+                  Colour <ColorSwatches size="sm" value={page.color ?? "yellow"} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
                 </div>
               ) : null}
             </div>
@@ -436,21 +410,6 @@ function ancestorsOf(page: Pick<WikiPage, "id" | "parentId">, pages: WikiPageSum
     id = found.parentId;
   }
   return chain;
-}
-
-/** The pages this one could be part of: any in the wiki but itself and the pages under it. */
-function parentChoices(page: Pick<WikiPage, "id">, pages: WikiPageSummary[]) {
-  const under = new Set([page.id]);
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const entry of pages) {
-      if (entry.parentId && under.has(entry.parentId) && !under.has(entry.id)) {
-        under.add(entry.id);
-        grew = true;
-      }
-    }
-  }
-  return pages.filter((entry) => !under.has(entry.id)).sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /** "Linked from": the pages, here and in other circles' wikis, that link to this one. */
