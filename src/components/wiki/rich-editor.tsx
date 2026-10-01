@@ -1,7 +1,8 @@
 "use client";
 
 import "@mdxeditor/editor/style.css";
-import { forwardRef, useContext, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useContext, useImperativeHandle, useMemo, useRef, useState, type MutableRefObject } from "react";
+import type { LexicalEditor } from "lexical";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
 import { AtSign, BarChart3, ChevronDown, ChevronsUpDown, FilePlus2, X } from "lucide-react";
@@ -39,6 +40,7 @@ import {
 import { normalizeWikiLinks, protectWikiLinks } from "@/lib/wiki/links";
 import { mentionPlugin } from "@/components/wiki/mention-menu";
 import { wikiLinkPlugin } from "@/components/wiki/wiki-link-node";
+import { captureCursor, editorBridgePlugin, restoreCursor } from "@/components/wiki/editor-cursor";
 import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
 import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
@@ -50,6 +52,8 @@ import { useToast } from "@/components/ui/use-toast";
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */
   setMarkdown: (markdown: string) => void;
+  /** Replace the text with a merged version, keeping the cursor in its block (`mineAt` maps old blocks to new). */
+  replace: (markdown: string, mineAt: number[] | null) => void;
   focus: () => void;
 }
 
@@ -176,9 +180,12 @@ export const RichEditor = forwardRef<
     onError: () => void;
     /** A new page was linked with @: it's made when this page is saved. */
     onCreatePage: (title: string) => void;
+    /** The same handle as the ref (refs don't pass through a lazily loaded component). */
+    control?: MutableRefObject<RichEditorHandle | null>;
   }
->(function RichEditor({ markdown, circleId, circleName, pageId, onChange, onError, onCreatePage }, ref) {
+>(function RichEditor({ markdown, circleId, circleName, pageId, onChange, onError, onCreatePage, control }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
+  const lexical = useRef<LexicalEditor | null>(null);
   const [polling, setPolling] = useState(false);
   const [addingDocument, setAddingDocument] = useState(false);
   // Documents go into the circle's documents, so only while it has them turned on.
@@ -197,10 +204,19 @@ export const RichEditor = forwardRef<
       throw error;
     }
   };
-  useImperativeHandle(ref, () => ({
+  const handle: RichEditorHandle = {
     setMarkdown: (value) => editor.current?.setMarkdown(protectWikiLinks(value)),
+    replace: (value, mineAt) => {
+      const root = lexical.current?.getRootElement();
+      const focused = !!root && root.contains(document.activeElement);
+      const mark = focused && lexical.current ? captureCursor(lexical.current) : null;
+      editor.current?.setMarkdown(protectWikiLinks(value));
+      if (lexical.current && mark) restoreCursor(lexical.current, mark, mineAt);
+    },
     focus: () => editor.current?.focus(),
-  }));
+  };
+  useImperativeHandle(ref, () => handle);
+  if (control) control.current = handle;
   const insert = (text: string) => {
     editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(text)), { preventScroll: true });
   };
@@ -229,6 +245,7 @@ export const RichEditor = forwardRef<
         markdownShortcutPlugin(),
         directivesPlugin({ directiveDescriptors: [detailsDirective, pollDirective, textDirectives, otherDirectives] }),
         wikiLinkPlugin(),
+        editorBridgePlugin({ target: lexical }),
         mentionPlugin({ circleId, circleName, pageId, onCreatePage: (title) => createRef.current(title) }),
         toolbarPlugin({
           toolbarClassName: "wiki-toolbar",

@@ -421,6 +421,85 @@ export function enqueue<T>(key: string, task: () => Promise<T>): Promise<T> {
 }
 
 /**
+ * Read, change, and write a document safely even when several server
+ * instances change it at once: the write only lands if nobody else wrote
+ * since it was read (R2 conditional put), and is retried from a fresh read
+ * otherwise. `change` returns the new value and a result, or just a result
+ * (`write: false`) to leave the document as it is.
+ */
+export function mutateJson<T>(key: string, change: (current: unknown | null) => { value: unknown; result: T } | { write: false; result: T }): Promise<T> {
+  return enqueue(key, async () => {
+    if (isPersistent() && !conditionalUnsupported) {
+      try {
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const { value: current, etag } = await readJsonWithEtag(key);
+          const next = change(current);
+          if (!("value" in next)) return next.result;
+          if (await writeJsonIfUnchanged(key, next.value, etag)) return next.result;
+          await new Promise((resolve) => setTimeout(resolve, 40 + Math.random() * 120 * (attempt + 1)));
+        }
+        throw new Error("This was being changed by several people at once; try again");
+      } catch (error) {
+        if ((error as Error).message?.startsWith("This was being changed")) throw error;
+        // Anything else: carry on below with a plain read and write (which falls back only if R2 itself is down).
+        console.warn(`[r2] conditional update of ${key} failed (${(error as { name?: string }).name ?? "Error"}); writing plainly`);
+      }
+    }
+    const next = change(await readJson(key));
+    if ("value" in next) await writeJson(key, next.value);
+    return next.result;
+  });
+}
+
+let conditionalUnsupported = false;
+
+async function readJsonWithEtag(key: string): Promise<{ value: unknown | null; etag: string | null }> {
+  const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+    const body = await result.Body?.transformToString();
+    return { value: body ? JSON.parse(body) : null, etag: result.ETag ?? null };
+  } catch (error) {
+    const name = (error as { name?: string })?.name;
+    if (name === "NoSuchKey" || name === "NotFound") return { value: null, etag: null };
+    throw error;
+  }
+}
+
+/** Write only if the document is still the version read (or still absent); false if someone else got there first. */
+async function writeJsonIfUnchanged(key: string, value: unknown, etag: string | null): Promise<boolean> {
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: key,
+        Body: JSON.stringify(value, null, 2),
+        ContentType: "application/json",
+        ...(etag ? { IfMatch: etag } : { IfNoneMatch: "*" }),
+      })
+    );
+    return true;
+  } catch (error) {
+    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+    const status = err.$metadata?.httpStatusCode;
+    if (status === 412 || err.name === "PreconditionFailed" || status === 409 || err.name === "ConditionalRequestConflict") return false;
+    if (status === 501 || status === 400 || err.name === "NotImplemented") {
+      // A store without conditional writes: fall back to plain writes (one instance's queue still applies).
+      conditionalUnsupported = true;
+      console.warn("[r2] conditional writes unsupported; using plain writes");
+      await writeJsonToR2(key, value);
+      return true;
+    }
+    throw error;
+  }
+}
+
+/**
  * A short-lived link that downloads an object straight from R2, for files
  * too large to pass through a serverless function. Returns null without R2
  * (local development), where callers serve the bytes themselves.

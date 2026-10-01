@@ -10,6 +10,7 @@ import { useSession } from "@/lib/auth/client";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
+import type { PageEditor } from "@/lib/wiki/presence";
 import { featureEnabled } from "@/lib/circles/features";
 import { timeAgo } from "@/lib/time";
 import { noteStyle, type NoteColor } from "@/lib/pins/shared";
@@ -84,6 +85,19 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
   const { ranges, found: foundIds } = useQuoteHighlights(article, reading ? threads : NO_THREADS, activeId, `${page?.body ?? ""}:${mode}`);
   const [prompt, dismissPrompt] = useSelectionPrompt(article, reading && wikiOn && !!user);
   const toc = useMemo(() => (page ? tableOfContents(page.body) : []), [page]);
+  // While reading: others' saves appear without reloading, and who's editing shows.
+  const live = useQuery({
+    queryKey: ["wiki-live", circleId, slug],
+    queryFn: () => apiFetch<{ updatedAt: string; editors: PageEditor[] }>(`/api/circles/${circleId}/wiki/${slug}/live`),
+    enabled: !!page && mode !== "edit",
+    refetchInterval: 10_000,
+  }).data;
+  useEffect(() => {
+    if (live && page && live.updatedAt !== page.updatedAt) void queryClient.invalidateQueries({ queryKey: ["wiki", circleId, slug], exact: true });
+    // Only when the page's last save changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live?.updatedAt]);
+  const othersEditing = (live?.editors ?? []).filter((editor) => editor.userId !== user?.id);
 
   const exitEdit = () => {
     setMode("read");
@@ -173,12 +187,10 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
             circleName={circle?.name ?? ""}
             page={page}
             pages={pages}
-            onSaved={(updated) => {
+            onDone={(updated) => {
               saved(updated);
               exitEdit();
-              toast({ title: "Page saved" });
             }}
-            onCancel={exitEdit}
           />
         </Card>
       </div>
@@ -195,6 +207,11 @@ export function WikiPageClient({ circleId, slug }: { circleId: string; slug: str
               <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
               <p className="text-xs text-muted">
                 Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
+                {othersEditing.length ? (
+                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary" data-live-editors>
+                    <Pencil className="h-3 w-3" aria-hidden /> {othersEditing.map((editor) => editor.name).join(", ")} {othersEditing.length === 1 ? "is" : "are"} editing
+                  </span>
+                ) : null}
               </p>
               {canEdit ? (
                 <div className="mt-2 flex items-center gap-2 text-xs text-muted">

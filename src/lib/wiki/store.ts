@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import { NOTE_COLORS, type NoteColor } from "@/lib/pins/shared";
 
 /**
@@ -38,6 +38,8 @@ export interface WikiPage {
   color?: NoteColor;
   /** The page it was started from, when it was started inside another page rather than added on the circle. */
   parentId?: string;
+  /** The current version was saved as someone typed (so the next autosave can fold into it). */
+  autosaved?: boolean;
 }
 
 export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "parentId">;
@@ -51,7 +53,14 @@ const color = z.enum(NOTE_COLORS);
 export const pageInputSchema = z.object({ title, body: body.default(""), color: color.optional(), parentId: z.string().max(80).optional() });
 export const pageUpdateSchema = z
   /** `baseUpdatedAt`: when the page was last saved as the editor started, so a save can't silently undo someone else's. */
-  .object({ title: title.optional(), body: body.optional(), color: color.optional(), baseUpdatedAt: z.string().optional() })
+  .object({
+    title: title.optional(),
+    body: body.optional(),
+    color: color.optional(),
+    baseUpdatedAt: z.string().optional(),
+    /** Saved as you type: folded into your own recent version rather than adding one to the history each time. */
+    autosave: z.boolean().optional(),
+  })
   .refine((value) => value.title !== undefined || value.body !== undefined || value.color !== undefined, "Nothing to update");
 export const restoreSchema = z.object({ index: z.number().int().min(0) });
 
@@ -93,11 +102,11 @@ type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
 export type WikiResult = { ok: true; page: WikiPage | null } | { ok: false; reason: Failure };
 
 async function mutate(circleId: string, change: (pages: WikiPage[]) => { pages: WikiPage[]; page: WikiPage | null } | Failure): Promise<WikiResult> {
-  return enqueue<WikiResult>(key(circleId), async () => {
-    const result = change(normalize(await readJson(key(circleId))));
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(key(circleId), { pages: result.pages });
-    return { ok: true, page: result.page };
+  // Several people can be saving the same wiki at once (on different servers): a conditional write, retried, keeps everyone's.
+  return mutateJson<WikiResult>(key(circleId), (raw) => {
+    const result = change(normalize(raw));
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return { value: { pages: result.pages }, result: { ok: true, page: result.page } };
   });
 }
 
@@ -131,13 +140,27 @@ export function createPage(circleId: string, author: WikiAuthor, input: { title:
   });
 }
 
-/** Save a new version of a page (keeping the one it replaces in its history). */
-function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; body: string }): WikiPage {
+/** How long a run of autosaves by one person stays one version. */
+const AUTOSAVE_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Save a new version of a page (keeping the one it replaces in its history).
+ * An autosave over a version from the last few minutes — the same person's,
+ * or another autosave — replaces it instead, so a session of typing (alone
+ * or together) is one version, not dozens.
+ */
+function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; body: string }, autosave = false): WikiPage {
+  const recent = Date.now() - Date.parse(page.updatedAt) < AUTOSAVE_WINDOW_MS;
+  // Co-editing: everyone's autosaves in one session make one version.
+  if (autosave && recent && (page.updatedBy.userId === editor.userId || page.autosaved) && page.history.length) {
+    return { ...page, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, autosaved: true };
+  }
+  const { autosaved: _autosaved, ...rest } = page;
   const previous: WikiVersion = { title: page.title, body: page.body, editedAt: page.updatedAt, editedBy: page.updatedBy };
-  return { ...page, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, history: [...page.history, previous].slice(-MAX_HISTORY) };
+  return { ...rest, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, history: [...page.history, previous].slice(-MAX_HISTORY), ...(autosave ? { autosaved: true } : {}) };
 }
 
-export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; color?: NoteColor; baseUpdatedAt?: string }) {
+export function updatePage(circleId: string, slug: string, editor: WikiAuthor, update: { title?: string; body?: string; color?: NoteColor; baseUpdatedAt?: string; autosave?: boolean }) {
   return mutate(circleId, (found) => {
     let pages = found;
     let page = pages.find((entry) => entry.slug === slug);
@@ -155,7 +178,7 @@ export function updatePage(circleId: string, slug: string, editor: WikiAuthor, u
       return "exists";
     }
     if (next.title === page.title && next.body === page.body) return { pages, page };
-    const updated = withVersion(page, editor, next);
+    const updated = withVersion(page, editor, next, update.autosave);
     return { pages: pages.map((entry) => (entry.id === page.id ? updated : entry)), page: updated };
   });
 }
