@@ -3,25 +3,23 @@ import { wikiLinksIn } from "@/lib/wiki/links";
 import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
-import { listPins } from "./store";
-import { excerptOf, pageColor, resolveTarget } from "./server";
-import type { NoteColor, PinKind } from "./shared";
+import { excerptOf, pageColor } from "@/lib/wiki/excerpt";
+import type { NoteColor } from "@/lib/wiki/colors";
 
 /**
  * The map of how the wiki connects (for everyone, each seeing the pages
  * they can): every page, the circle it belongs to, the pages it links to
- * (or embeds), and where it's pinned (circles and the dashboard).
+ * (or embeds).
  */
 
-export type GraphNodeKind = "note" | PinKind;
-export type GraphEdgeKind = "link" | "pin" | "belongs";
+export type GraphNodeKind = "note" | "circle";
+export type GraphEdgeKind = "link" | "belongs";
 
 export interface GraphNode {
   id: string;
   kind: GraphNodeKind;
   label: string;
   href: string;
-  external?: boolean;
   /** A page's parent circle. */
   circleId?: string;
   color?: NoteColor;
@@ -45,11 +43,10 @@ export interface WikiGraph {
 
 const noteId = (pageId: string) => `note:${pageId}`;
 
-/** The map as `viewer` sees it: only the pages they can see (and so only links and pins between those). */
+/** The map as `viewer` sees it: only the pages they can see (and so only the links between those). */
 export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiViewer): Promise<WikiGraph> {
   const circles = directory.circles;
-  const [allPages, pins] = await Promise.all([readPages(), listPins(circles, {})]);
-  const pages = visiblePages(viewer, directory, allPages);
+  const pages = visiblePages(viewer, directory, await readPages());
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
@@ -91,32 +88,6 @@ export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiV
       const target = byTitle.get(link.title.toLowerCase());
       if (target) addEdge(noteId(page.id), noteId(target.id), "link");
     }
-  }
-
-  // Pins.
-  for (const pin of pins) {
-    const from = noteId(pin.note.pageId);
-    if (!nodes.has(from) || pin.target.kind === "document") continue;
-    // On its own circle's page: that's where it belongs, already drawn.
-    const keeper = pages.find((page) => page.id === pin.note.pageId)?.keeper;
-    if (pin.target.kind === "circle" && pin.target.id === keeper) {
-      addEdge(from, `circle:${keeper}`, "belongs");
-      continue;
-    }
-    const to = `${pin.target.kind}:${pin.target.id}`;
-    if (!nodes.has(to)) {
-      const resolved = await resolveTarget(directory, pin.target);
-      if (!resolved) continue;
-      nodes.set(to, {
-        id: to,
-        kind: pin.target.kind,
-        label: resolved.label,
-        href: resolved.href,
-        ...(resolved.external ? { external: true } : {}),
-        ...(resolved.circleId && pin.target.kind !== "community" ? { circleId: resolved.circleId } : {}),
-      });
-    }
-    addEdge(from, to, "pin");
   }
 
   return {

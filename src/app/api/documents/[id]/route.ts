@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { removePinsOn } from "@/lib/pins/store";
 import { circleContext } from "@/lib/circles/access";
 import { canManageDocument, toListing } from "@/lib/documents/access";
 import { deleteDocument, documentUpdateSchema, getDocument, isDocumentId, updateDocument } from "@/lib/documents/store";
@@ -51,6 +50,5 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (!canManageDocument(found.user, found.directory, found.doc)) return problem("You can't delete this document", 403, "Forbidden");
   const result = await deleteDocument(found.doc.id);
   if (!result.ok) return problem("Document not found", 404, "Not Found");
-  await removePinsOn({ kind: "document", id: found.doc.id });
   return NextResponse.json({ ok: true });
 }

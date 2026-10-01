@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
+import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { EDGE_INFO, KIND_INFO, NodePanel, circleColors, nodeFill } from "@/components/admin/wiki-map-shared";
 import { IslandsView, type IslandsHandle } from "@/components/admin/wiki-map-islands";
 import { Card } from "@/components/ui/card";
@@ -18,12 +18,12 @@ const Globe3DView = dynamic(() => import("@/components/admin/wiki-map-3d").then(
   loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
 });
 
-const KIND_ORDER: GraphNodeKind[] = ["note", "community"];
+const KINDS = new Set<GraphNodeKind>(["note"]);
 
 /**
  * The wiki map (opened from the wiki's Map button, for everyone — each sees
  * the pages they can): each circle an island holding its pages, with links
- * and pins between them — or the same in 3D. Hover
+ * between them — or the same in 3D. Hover
  * for a name; click for details and to open it.
  */
 export function WikiMapClient() {
@@ -32,8 +32,8 @@ export function WikiMapClient() {
   const islands = useRef<IslandsHandle>(null);
   const { data, error, isLoading } = useQuery({ queryKey: ["wiki-graph"], queryFn: () => apiFetch<WikiGraph>("/api/wiki/graph") });
   const [view, setView] = useState<"islands" | "3d">("islands");
-  const [kinds, setKinds] = useState<Set<GraphNodeKind>>(() => new Set(KIND_ORDER));
-  const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(() => new Set<GraphEdgeKind>(["link", "pin"]));
+  const kinds = KINDS;
+  const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(() => new Set<GraphEdgeKind>(["link"]));
   // The item whose panel is open, and whether its connections are lit.
   const [selected, setSelected] = useState<string | null>(params.get("focus"));
   const [connections, setConnections] = useState(false);
@@ -49,7 +49,7 @@ export function WikiMapClient() {
     return () => clearTimeout(timer);
   }, [data, start]);
 
-  const open = (node: GraphNode) => (node.external ? window.open(node.href, "_blank", "noopener") : router.push(node.href));
+  const open = (node: GraphNode) => router.push(node.href);
   const select = (id: string | null, zoom = false) => {
     setSelected(id);
     if (!id) setConnections(false);
@@ -85,7 +85,7 @@ export function WikiMapClient() {
           <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Network className="h-5 w-5 text-primary" aria-hidden /> Map
           </h2>
-          <p className="text-sm text-muted">The wiki&apos;s pages (those you can see) by parent circle, and how they link to each other and where they&apos;re pinned.</p>
+          <p className="text-sm text-muted">The wiki&apos;s pages (those you can see) by parent circle, and how they link to each other.</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="radiogroup" aria-label="View">
@@ -167,17 +167,8 @@ export function WikiMapClient() {
           </section>
 
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1 text-sm font-semibold text-foreground">Show</legend>
-            {KIND_ORDER.map((kind) => (
-              <label key={kind} className={check}>
-                <input type="checkbox" checked={kinds.has(kind)} onChange={() => setKinds(toggle(kinds, kind))} className="h-4 w-4 accent-[#3f7d5c]" />
-                <span className="h-3 w-3 rounded-full border border-black/10" style={{ backgroundColor: KIND_INFO[kind].color }} aria-hidden /> {KIND_INFO[kind].plural}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="flex flex-col gap-1.5">
             <legend className="mb-1 text-sm font-semibold text-foreground">Connections</legend>
-            {(["link", "pin"] as const).map((kind) => (
+            {(["link"] as const).map((kind) => (
               <label key={kind} className={check}>
                 <input type="checkbox" checked={edgeKinds.has(kind)} onChange={() => setEdgeKinds(toggle(edgeKinds, kind))} className="h-4 w-4 accent-[#3f7d5c]" />
                 <svg width="22" height="6" aria-hidden>

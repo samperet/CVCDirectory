@@ -3,7 +3,7 @@ import { listDocuments } from "@/lib/documents/store";
 import { listPages } from "@/lib/wiki/store";
 import { visiblePages } from "@/lib/wiki/access";
 import { wikiSession } from "@/lib/wiki/http";
-import { DEFAULT_NOTE_COLOR } from "@/lib/pins/shared";
+import { DEFAULT_NOTE_COLOR } from "@/lib/wiki/colors";
 
 export const dynamic = "force-dynamic";
 

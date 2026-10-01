@@ -36,30 +36,3 @@ export function Dialog({ title, icon, onClose, children }: { title: string; icon
     document.body
   );
 }
-
-/** "Until" and "why" for a pin, both optional. */
-export function PinDetailsFields({
-  until,
-  reason,
-  onUntil,
-  onReason,
-}: {
-  until: string;
-  reason: string;
-  onUntil: (value: string) => void;
-  onReason: (value: string) => void;
-}) {
-  const field = "h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground";
-  return (
-    <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
-      <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-        Pinned until <span className="sr-only">(optional)</span>
-        <input type="date" value={until} min={new Date().toLocaleDateString("en-CA")} onChange={(event) => onUntil(event.target.value)} className={field} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-        Why it&apos;s here <span className="sr-only">(optional)</span>
-        <input type="text" value={reason} maxLength={140} placeholder="Optional" onChange={(event) => onReason(event.target.value)} className={field} />
-      </label>
-    </div>
-  );
-}

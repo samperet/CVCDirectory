@@ -6,7 +6,7 @@ import { Settings2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { PageEdit, PageView, WikiPage } from "@/lib/wiki/store";
 import { useCircles } from "@/components/wiki/link-data";
-import { Dialog } from "@/components/pins/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 

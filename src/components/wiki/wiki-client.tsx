@@ -10,7 +10,7 @@ import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { useSession } from "@/lib/auth/client";
-import { noteStyle } from "@/lib/pins/shared";
+import { noteStyle } from "@/lib/wiki/colors";
 import { useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

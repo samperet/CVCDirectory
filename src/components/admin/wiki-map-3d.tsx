@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
+import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { NameTip, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
  * The wiki in 3D: each circle a glowing sphere with its pages gathered
  * around it, links and
- * pins drawn between them. Drag to turn, scroll to zoom, hover for a name,
+ * drawn between them. Drag to turn, scroll to zoom, hover for a name,
  * click to fly to it and open its panel.
  */
 
@@ -47,12 +47,6 @@ export function Globe3DView({
       const links: Link3D[] = graph.edges
         .filter((edge) => ids.has(edge.source) && ids.has(edge.target) && (edge.kind === "belongs" || edgeKinds.has(edge.kind)))
         .map((edge) => ({ ...edge }));
-      // Documents gather around their circle too.
-      for (const node of nodes) {
-        if (node.kind === "document" && node.circleId && ids.has(`circle:${node.circleId}`)) {
-          links.push({ source: node.id, target: `circle:${node.circleId}`, kind: "belongs" });
-        }
-      }
       const hue = (node: GraphNode) => (node.circleId ? colors.get(node.circleId) : undefined) ?? "#8c8f86";
       const height = Math.max(420, Math.min(window.innerHeight * 0.72, element.clientWidth * 1.1));
       // The library's own types don't know our node and link fields; it's driven loosely here.
@@ -82,9 +76,9 @@ export function Globe3DView({
           (label as unknown as { position: { set: (x: number, y: number, z: number) => void } }).position.set(0, 16, 0);
           return label;
         })
-        .linkColor((link: Link3D) => (link.kind === "pin" ? "#e0a849" : link.kind === "link" ? "#cfe3d4" : "#5d7a6b"))
+        .linkColor((link: Link3D) => (link.kind === "link" ? "#cfe3d4" : "#5d7a6b"))
         .linkOpacity(0.35)
-        .linkWidth((link: Link3D) => (link.kind === "link" ? 0.8 : link.kind === "pin" ? 0.6 : 0.3))
+        .linkWidth((link: Link3D) => (link.kind === "link" ? 0.8 : 0.3))
         .linkDirectionalParticles((link: Link3D) => (link.kind === "link" ? 2 : 0))
         .linkDirectionalParticleWidth(1.2)
         .linkDirectionalParticleColor(() => "#f6dc6b")

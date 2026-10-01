@@ -4,7 +4,6 @@ import { deletePage, getHistory, pageUpdateSchema, updatePage, type WikiPage } f
 import { deletePageComments } from "@/lib/wiki/comments";
 import { pageAudience, pageContext, wikiProblem } from "@/lib/wiki/http";
 import { problem } from "@/lib/http";
-import { removePinsWhere } from "@/lib/pins/store";
 import { claimAnnouncements, pollIdsIn } from "@/lib/polls/wiki";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
@@ -72,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json({ page: result.page });
 }
 
-/** Delete a page (its keeper circle): its history, comments, and pins go too; its sub-pages move up. */
+/** Delete a page (its parent circle): its history and comments go too. */
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug, "manage");
   if ("error" in ctx) return ctx.error;
@@ -80,6 +79,5 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (!result.ok) return wikiProblem(result.reason);
   await deletePageComments(ctx.page.id);
   await deleteJson(`wiki/history/${ctx.page.id}.json`);
-  await removePinsWhere((pin) => pin.note.pageId === ctx.page.id);
   return NextResponse.json({ ok: true });
 }

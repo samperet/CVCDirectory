@@ -12,7 +12,7 @@ import { listTasks } from "@/lib/tasks/store";
 import { readPages } from "@/lib/wiki/store";
 import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { occurrences, snippetFor } from "@/lib/search";
-import { excerptOf } from "@/lib/pins/server";
+import { excerptOf } from "@/lib/wiki/excerpt";
 
 /**
  * Search across the whole site — people (with their bios and skills),

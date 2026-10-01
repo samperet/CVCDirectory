@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildWikiGraph } from "@/lib/pins/graph";
+import { buildWikiGraph } from "@/lib/wiki/graph";
 import { wikiSession } from "@/lib/wiki/http";
 
 export const dynamic = "force-dynamic";

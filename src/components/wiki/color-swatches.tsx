@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { NOTE_COLORS, NOTE_STYLES, type NoteColor } from "@/lib/pins/shared";
+import { NOTE_COLORS, NOTE_STYLES, type NoteColor } from "@/lib/wiki/colors";
 import { cn } from "@/lib/utils";
 
 /** Choose a page's colour. */

@@ -4,13 +4,13 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import { select } from "d3-selection";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { NOTE_STYLES } from "@/lib/pins/shared";
-import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
+import { NOTE_STYLES } from "@/lib/wiki/colors";
+import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/admin/wiki-map-shared";
 
 /**
  * The wiki as islands: each circle a soft disc holding the pages it keeps;
- * the dashboard that pages are pinned to sits on its own island. Links and pins arc between them. Hover for a card;
+ * links arc between them. Hover for a card;
  * click a page to open it, a circle to zoom in.
  */
 
@@ -64,7 +64,7 @@ export const IslandsView = forwardRef<
   const degree = useMemo(() => {
     const counts = new Map<string, number>();
     for (const edge of graph.edges) {
-      if (edge.kind !== "link" && edge.kind !== "pin") continue;
+      if (edge.kind !== "link") continue;
       counts.set(edge.source, (counts.get(edge.source) ?? 0) + 1);
       counts.set(edge.target, (counts.get(edge.target) ?? 0) + 1);
     }
@@ -83,7 +83,7 @@ export const IslandsView = forwardRef<
         circleId: circle.id,
         label: circle.name,
         node: graph.nodes.find((node) => node.id === `circle:${circle.id}`),
-        children: shown.filter((node) => node.circleId === circle.id && node.kind !== "community").map(itemFor),
+        children: shown.filter((node) => node.circleId === circle.id).map(itemFor),
       }))
       .filter((circle) => circle.children.length);
     const placed = new Set(circles.flatMap((circle) => (circle.children ?? []).map((child) => child.id)));
@@ -218,21 +218,21 @@ export const IslandsView = forwardRef<
               );
             })}
 
-          {/* Links and pins, arcing between pages. */}
+          {/* Links, arcing between pages. */}
           <g fill="none" pointerEvents="none">
             {graph.edges
-              .filter((edge) => (edge.kind === "link" || edge.kind === "pin") && edgeKinds.has(edge.kind))
+              .filter((edge) => edge.kind === "link" && edgeKinds.has(edge.kind))
               .map((edge) => {
                 const a = packed.at.get(edge.source);
                 const b = packed.at.get(edge.target);
                 if (!a || !b || a.data.kind !== "leaf" || (b.data.kind !== "leaf" && b.data.kind !== "circle")) return null;
                 const lit = !!active && (edge.source === active || edge.target === active);
-                const style = EDGE_INFO[edge.kind as "link" | "pin"];
+                const style = EDGE_INFO.link;
                 return (
                   <path
                     key={`${edge.source}|${edge.target}|${edge.kind}`}
                     d={edgePath(a, b)}
-                    stroke={lit ? (edge.kind === "pin" ? "#c4892f" : "#2f5a32") : style.color}
+                    stroke={lit ? "#2f5a32" : style.color}
                     strokeOpacity={active ? (lit ? 0.9 : 0.05) : 0.16}
                     strokeWidth={(lit ? 2 : 1.2) / k}
                     strokeDasharray={style.dash ? style.dash.split(" ").map((v) => Number(v) / k).join(" ") : undefined}
@@ -251,7 +251,7 @@ export const IslandsView = forwardRef<
               const r = node.r * 0.92;
               const faded = dim(gnode.id);
               const lit = selected === gnode.id || hover?.id === gnode.id;
-              const square = gnode.kind === "document";
+              const square = false;
               return (
                 <g
                   key={item.id}

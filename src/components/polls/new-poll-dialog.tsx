@@ -6,7 +6,7 @@ import { BarChart3 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPoll } from "@/lib/polls/wiki";
 import { PollFields, draftOptions, emptyPollDraft, pollPayload } from "@/components/polls/poll-fields";
-import { Dialog } from "@/components/pins/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

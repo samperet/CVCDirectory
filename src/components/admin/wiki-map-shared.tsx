@@ -1,8 +1,8 @@
 "use client";
 
 import { BookOpen, CircleDot, FileText, Users, X } from "lucide-react";
-import { noteStyle } from "@/lib/pins/shared";
-import type { GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/pins/graph";
+import { noteStyle } from "@/lib/wiki/colors";
+import type { GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { timeAgo } from "@/lib/time";
 
 /** Earthy, harmonious colours for circles — each circle keeps one. */
@@ -11,13 +11,10 @@ export const CIRCLE_PALETTE = ["#3f7d5c", "#c4892f", "#4e79a7", "#a05d8c", "#4f9
 export const KIND_INFO: Record<GraphNodeKind, { label: string; plural: string; icon: typeof BookOpen; color: string }> = {
   note: { label: "Page", plural: "Pages", icon: BookOpen, color: "#ffffff" },
   circle: { label: "Circle", plural: "Circles", icon: CircleDot, color: "#3f7d5c" },
-  document: { label: "Document", plural: "Documents", icon: FileText, color: "#6f8fb3" },
-  community: { label: "Community dashboard", plural: "Dashboard", icon: Users, color: "#c27c0e" },
 };
 
-export const EDGE_INFO: Record<"link" | "pin", { label: string; color: string; dash?: string }> = {
+export const EDGE_INFO: Record<"link", { label: string; color: string; dash?: string }> = {
   link: { label: "Links", color: "#5b6b62" },
-  pin: { label: "Pins", color: "#c4892f", dash: "4 4" },
 };
 
 /** Each circle's colour, by its place in the list (stable as long as circles don't change). */
@@ -28,11 +25,11 @@ export function circleColors(graph: WikiGraph) {
 /** A node's fill: a page in its own colour, others by kind. */
 export const nodeFill = (node: GraphNode) => (node.kind === "note" ? noteStyle(node.color).swatch : KIND_INFO[node.kind].color);
 
-/** What's connected to what (links and pins only — containment is drawn as nesting). */
+/** What links to what (a page's circle is drawn as nesting). */
 export function neighbours(edges: GraphEdge[]) {
   const map = new Map<string, Set<string>>();
   for (const edge of edges) {
-    if (edge.kind !== "link" && edge.kind !== "pin") continue;
+    if (edge.kind !== "link") continue;
     map.set(edge.source, (map.get(edge.source) ?? new Set()).add(edge.target));
     map.set(edge.target, (map.get(edge.target) ?? new Set()).add(edge.source));
   }
@@ -57,8 +54,6 @@ export function NameTip({ node, graph, x, y, bounds }: { node: GraphNode; graph:
 const OPEN_LABEL: Record<GraphNodeKind, string> = {
   note: "Open page",
   circle: "Open circle page",
-  document: "Open document",
-  community: "Open dashboard",
 };
 
 /**
@@ -97,11 +92,8 @@ export function NodePanel({
       ? [
           ["Links to", out("link")],
           ["Linked from", into("link")],
-          ["Pinned to", out("pin")],
         ]
-      : node.kind === "circle"
-        ? [["Pages", graph.nodes.filter((entry) => entry.kind === "note" && entry.circleId === node.circleId).map((entry) => entry.id)]]
-        : [["Connected pages", Array.from(new Set([...into("link"), ...into("pin")]))]];
+      : [["Pages", graph.nodes.filter((entry) => entry.kind === "note" && entry.circleId === node.circleId).map((entry) => entry.id)]];
   const action = "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition";
   return (
     <div className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-white/95 p-4 text-sm shadow-elev backdrop-blur" role="dialog" aria-label={node.label}>

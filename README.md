@@ -235,13 +235,14 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   default; anyone, for Community's pages) or anyone who can see it. The parent circle's members
   (and the Board and admins, who can always see and edit everything) change the parent circle and
   these settings, and can delete the page. A page reads clean: its **Edit** button opens the editor,
-  where the page's tools live — **Parent circle**, **Colour**, **Who can see & edit**, **Pin to…**,
-  and **History** (earlier versions to view or restore). A page someone can't see is left out everywhere for them:
-  the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, pins, and
-  notifications. Pages don't nest: they connect by **links** and **embeds** (each page lists what's
+  where the page's tools live — **Parent circle**, **Colour**, **Who can see & edit**, and
+  **History** (earlier versions to view or restore). A page someone can't see is left out everywhere for them:
+  the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, circles'
+  Information modules, and notifications. Pages don't nest: they connect by **links** and **embeds** (each page lists what's
   **Linked from** it). The wiki home lists every page you can see, with a search and a filter by
   keeper (`/wiki?keeper=<circleId>`); **New page** asks which of your circles keeps it. A circle's
-  **Add Information** starts a page kept by that circle and shows it on the circle's page; **@ new
+  **Add Information** starts a page with that circle as its parent (so it shows in the circle's
+  Information); **@ new
   page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the
   page it was started from. Pages are Markdown, edited in a **visual editor**
   ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple toolbar: headings, bold/italic,
@@ -270,7 +271,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   members-only poll). Stored together in `wiki/polls.json` (`/api/wiki/polls`), each with its
   circle. Circles no longer have a separate Polls section, and the forum no longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
-  on or off (with Wiki and Documents, under **Edit details**). A task has a title, Markdown details
+  on or off (by adding or removing its Tasks module under **Edit page**). A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
   (anyone in the directory — the circle's members listed first), a due date, a priority, and a
   checklist whose progress shows as a bar. The board has a column per status (stacked on phones):
@@ -291,36 +292,21 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   (`wiki-images/<circleId>/<id>`, served to signed-in residents at
   `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
   images from other websites show only as their description.
-- **Colours and pins** – every page has a colour (white — the default — yellow, orange, red, pink,
-  lavender, blue, teal, green, or grey; chosen in the editor by the page's editors): the page is drawn in it, and
-  it shows as a card of that colour (title and opening lines; the first six, then **+N more**)
-  wherever it's pinned. A circle's information is the pages pinned to it — its own, and any pinned
-  from other circles. A page can also be pinned to:
-  - the **community dashboard** ("Community information"; the Board and admins pin there);
-  - a **person** — shown only on their own dashboard as "Pinned for you" (themselves, anyone who
-    shares a circle with them other than Community, and admins; only they, the pinner, and admins
-    see it);
-  - a **task** ("Reference"; whoever edits the circle's tasks, and the task's owner);
-  - a **document** (a "pinned" badge on its row; whoever can manage it);
-  - a **forum discussion** (whoever started it, and admins).
-
-  **Pin to…** on a page searches the places you can pin to, with an optional **Pinned until** date
-  and a short reason; the page lists where it's **Pinned to**. Anyone who can pin somewhere can
-  unpin there (the × on a card; on a circle that takes the page off the circle's page, leaving it
-  in the wiki), as can whoever pinned it. Stored in `pins.json` (`GET/POST /api/pins`,
-  `DELETE /api/pins/<id>`, `GET /api/pins/targets?q=`); pins go when their page or what they're
-  pinned to is deleted. When circles' information moved to pins, the existing pages were listed on
-  their circles.
+- **Colours** – every page has a colour (white — the default — yellow, orange, red, pink,
+  lavender, blue, teal, green, or grey; chosen in the editor by the page's editors): the page is
+  drawn in it, and it shows as a card of that colour (title and opening lines) in circles'
+  Information modules. (Pages used to be **pinned** to circles, the dashboard, people, tasks,
+  documents, and discussions; pinning has been removed. The old `pins.json` is left in storage,
+  unused.)
 - **Wiki map** (the **Map** button at the top of `/wiki`, for everyone — each sees only the pages they can) –
   **Islands**: each parent circle is a soft island (in its own colour) holding its pages (documents
-  aren't shown); the dashboard that pages are pinned to has its own island. Links and pins
-  arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
+  aren't shown). Links arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
   right; a sheet along the bottom on phones) with its opening lines, who last edited it, what it
-  links to and from, and where it's pinned — each clickable — plus **Open**, **Zoom to**, and
+  links to and from — each clickable — plus **Open**, **Zoom to**, and
   **Show connections** (fading everything else). Clicking a circle also zooms in. **3D** shows the
   same as a turnable globe, each circle a sphere with its pages gathered round it (three.js, loaded
-  only when chosen); a click flies the camera there and opens the same panel. Filter by kind and
-  connection; **Find** zooms to anything. Built from `GET /api/wiki/graph` (`/wiki?map=1`;
+  only when chosen); a click flies the camera there and opens the same panel. **Find** zooms to
+  anything. Built from `GET /api/wiki/graph` (`/wiki?map=1`;
   `/admin/wiki-map` redirects there).
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
@@ -328,15 +314,27 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   edit and delete their own (admins any). The page's writers and the thread's participants are
   notified (the "wiki" notification setting). Stored page by page in `wiki/comments/<pageId>.json`;
   a page's comments go with it.
-- **A circle's page** – its sections (Information, Members, a duty schedule where there is one,
-  Tasks, Documents) are laid out as the circle chooses: **Arrange page** (its members, the Board,
-  and admins) drags them into order — or moves them with arrows, on phones — and sizes each to a
-  third, half, two thirds, or the full width of wider screens; phones stack them. Everyone sees the
-  circle's layout (stored on the circle as `layout`). Each reader can fold any section away with
-  the arrow by its title, remembered on their device. Under **Edit details** the circle turns its
-  Information (wiki), Tasks, and Documents sections on or off (each on unless turned off). With
-  Documents off, no new documents can be added; its existing ones stay searchable. With Information
-  off, the circle's page doesn't show it (its wiki pages are unaffected).
+- **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
+  **Members** (not on Community, which is everyone), the **duty schedule** where there is one,
+  **Tasks**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
+  and admins) adds modules (**Add module**), removes them, drags them into order — or moves them
+  with arrows, on phones — and sizes each to a third, half, two thirds, or the full width of wider
+  screens; phones stack them. Everyone sees the circle's page as it was saved (stored on the
+  circle as `modules`). Each reader can fold any module away with the arrow by its title,
+  remembered on their device.
+  - An **Information module** has a title ("Information" unless given one) and **Settings**:
+    which pages it shows — **Specific pages** (up to 12, searched by title, shown in the order
+    chosen), **All pages of a circle** (any circle, by title), or **Recently edited** (3–12, from
+    one circle or the whole wiki, newest first) — and how: **Full**, **Summary** (cards with their
+    opening lines; the first six, then **+N more**), or **Titles only**. Each reader sees only the
+    pages they can. A module listing this circle's own pages has **Add Information** for whoever
+    can start pages for the circle.
+  - Removing **Tasks** or **Documents** turns them off for the circle (its existing tasks and
+    documents are kept, and return when the module is added back). With Documents off, no new
+    documents can be added; its existing ones stay searchable.
+  - A circle that hasn't saved its page yet shows what it had before: an Information module with
+    all of its own pages, Members, its duty schedule, and Tasks and Documents unless they were
+    turned off (from the older `layout`, `features`, and `infoView`).
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);

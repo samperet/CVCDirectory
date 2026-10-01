@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { INFO_VIEWS, SECTION_IDS, SECTION_SIZES, type InfoView, type SectionLayout } from "./layout";
+import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, SECTION_IDS, SECTION_SIZES, type CircleModule, type InfoView, type SectionLayout } from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
@@ -27,6 +27,33 @@ const text = (max: number, label: string) =>
 
 const kind = z.enum(["circle", "club"]);
 
+const id = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/, "Not a valid id");
+const infoFilter = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("pages"), pageIds: z.array(id).min(1, "Choose at least one page").max(MAX_CHOSEN_PAGES, `Choose up to ${MAX_CHOSEN_PAGES} pages`) }),
+  z.object({ kind: z.literal("circle"), circleId: id }),
+  z.object({ kind: z.literal("recent"), limit: z.number().int().min(RECENT_LIMITS.min).max(RECENT_LIMITS.max), circleId: id.optional() }),
+]);
+const moduleSchema = z
+  .object({
+    id,
+    type: z.enum(MODULE_TYPES),
+    size: z.enum(SECTION_SIZES),
+    title: text(60, "A module's title").optional().transform((value) => value || undefined),
+    info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
+  })
+  .refine((module) => (module.type === "information") === !!module.info, "Information modules (only) choose which pages they show")
+  .transform(({ title, info, ...module }): CircleModule => ({ ...module, ...(title ? { title } : {}), ...(info ? { info } : {}) }));
+
+/** The page's modules, in order: any number of Information modules, the others once each. */
+export const modulesSchema = z
+  .array(moduleSchema)
+  .max(MAX_MODULES, `Up to ${MAX_MODULES} modules`)
+  .refine((modules) => new Set(modules.map((module) => module.id)).size === modules.length, "Each module once")
+  .refine((modules) => {
+    const others = modules.filter((module) => module.type !== "information").map((module) => module.type);
+    return new Set(others).size === others.length;
+  }, "Members, the duty schedule, tasks, and documents can each appear once");
+
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),
   description: text(1000, "Description").optional().transform((value) => value || null),
@@ -46,6 +73,7 @@ export const circleUpdateSchema = circleInputSchema
       .refine((entries) => new Set(entries.map((entry) => entry.id)).size === entries.length, "Each section once"),
     /** How the Information section shows its pages. */
     infoView: z.enum(INFO_VIEWS),
+    modules: modulesSchema,
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -165,6 +193,7 @@ export function updateCircle(
     features: { documents?: boolean; wiki?: boolean; tasks?: boolean };
     layout: SectionLayout[];
     infoView: InfoView;
+    modules: CircleModule[];
   }>
 ) {
   return mutate(imported, (circles) => {
@@ -182,6 +211,17 @@ export function updateCircle(
       ...next[index],
       ...update,
       ...(update.features ? { features: { ...next[index].features, ...update.features } } : {}),
+      // Tasks and documents are on exactly when their modules are on the page (which is what lets the circle use them).
+      ...(update.modules
+        ? {
+            features: {
+              ...next[index].features,
+              ...update.features,
+              tasks: update.modules.some((module) => module.type === "tasks"),
+              documents: update.modules.some((module) => module.type === "documents"),
+            },
+          }
+        : {}),
     };
     return { circles: next, value: next[index] };
   });

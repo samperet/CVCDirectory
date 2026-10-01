@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BookOpen, FileText, Plus } from "lucide-react";
-import { noteStyle } from "@/lib/pins/shared";
+import { noteStyle } from "@/lib/wiki/colors";
 import { cn } from "@/lib/utils";
 
 export type WikiTagKind = "page" | "doc" | "missing" | "doc-missing" | "pending";

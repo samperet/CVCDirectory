@@ -11,10 +11,9 @@ import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { timeAgo } from "@/lib/time";
-import { DEFAULT_NOTE_COLOR, noteStyle, type NoteColor } from "@/lib/pins/shared";
+import { DEFAULT_NOTE_COLOR, noteStyle, type NoteColor } from "@/lib/wiki/colors";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
-import { ColorSwatches } from "@/components/pins/color-swatches";
-import { PinToButton, PinnedTo } from "@/components/pins/pin-picker";
+import { ColorSwatches } from "@/components/wiki/color-swatches";
 import { WikiComments, threadsOf, useComments, useQuoteHighlights } from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
 import { useWikiPages } from "@/components/wiki/wiki-client";
@@ -128,7 +127,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
     mutationFn: (color: NoteColor) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
-      queryClient.invalidateQueries({ queryKey: ["pins"] });
+      queryClient.invalidateQueries({ queryKey: ["wiki"] });
     },
     onError: (err: Error) => toast({ title: "Could not change the colour", description: err.message, variant: "destructive" }),
   });
@@ -144,7 +143,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
     mutationFn: () => apiFetch(`/api/wiki/pages/${slug}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
-      queryClient.invalidateQueries({ queryKey: ["pins"] });
       toast({ title: "Page deleted" });
       router.replace("/wiki");
     },
@@ -222,7 +220,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
             </span>
             <span className="flex flex-wrap items-center gap-2">
               {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
-              <PinToButton pageId={page.id} title={page.title} />
               {history.length ? (
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowHistory(!showHistory)} aria-expanded={showHistory}>
                   {showHistory ? <X className="h-4 w-4" /> : <HistoryIcon className="h-4 w-4" />} {showHistory ? "Close history" : `History (${history.length})`}
@@ -360,7 +357,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <TocList toc={toc} />
             </nav>
           ) : null}
-          <PinnedTo pageId={page.id} />
           <LinkedFrom circleId={circleId} slug={slug} />
           <WikiComments
             circleId={circleId}

@@ -6,7 +6,7 @@ import { FilePlus2, Upload } from "lucide-react";
 import { ACCEPTED_EXTENSIONS, formatBytes } from "@/lib/documents/types";
 import { docLinkText } from "@/lib/wiki/links";
 import { FileIcon, checkFile, dateFromFileName, titleFromFileName, uploadDocument, useCircleTypes } from "@/components/documents/upload";
-import { Dialog } from "@/components/pins/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";

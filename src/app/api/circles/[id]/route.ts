@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { moveCircleDocuments } from "@/lib/documents/store";
 import { handOverPages } from "@/lib/wiki/store";
-import { circleGone, removePinsWhere } from "@/lib/pins/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { circleContext, circleProblem } from "@/lib/circles/access";
@@ -56,6 +55,5 @@ export async function DELETE(_request: Request, { params }: Params) {
   await handOverPages(params.id, BOARD_ID);
   await deleteCircleTasks(params.id);
   await deleteCircleTaskComments(params.id);
-  await removePinsWhere(circleGone(params.id));
   return NextResponse.json({ ok: true });
 }

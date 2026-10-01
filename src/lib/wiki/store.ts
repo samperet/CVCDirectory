@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
-import { DEFAULT_NOTE_COLOR, NOTE_COLORS, type NoteColor } from "@/lib/pins/shared";
+import { DEFAULT_NOTE_COLOR, NOTE_COLORS, type NoteColor } from "@/lib/wiki/colors";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 
 /**
@@ -63,7 +63,10 @@ export interface WikiPage {
   aliases?: { circleId: string; slug: string }[];
 }
 
-export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "keeper" | "view" | "edit">;
+export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "keeper" | "view" | "edit"> & {
+  /** Its opening lines, as plain text (in the page list, for cards). */
+  excerpt?: string;
+};
 
 const MAX_PAGES = 1000;
 const MAX_HISTORY = 25;
@@ -111,7 +114,7 @@ export const isSlug = (slug: string) => /^[a-z0-9-]{1,60}$/.test(slug);
 export const DEFAULT_VIEW: PageView = { kind: "everyone" };
 export const DEFAULT_EDIT: PageEdit = { kind: "keeper" };
 
-const summary = (page: WikiPage): WikiPageSummary => ({
+export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   id: page.id,
   slug: page.slug,
   title: page.title,
@@ -140,7 +143,7 @@ export async function readPages(): Promise<WikiPage[]> {
 
 /** Every page, most recently edited first. */
 export async function listPages(): Promise<WikiPageSummary[]> {
-  return (await readPages()).map(summary).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return (await readPages()).map(pageSummary).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function getPage(slug: string): Promise<WikiPage | null> {

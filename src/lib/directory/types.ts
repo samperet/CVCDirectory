@@ -1,4 +1,4 @@
-import type { InfoView, SectionLayout } from "@/lib/circles/layout";
+import type { CircleModule, InfoView, SectionLayout } from "@/lib/circles/layout";
 export type PersonRole = "owner" | "renter" | "household";
 
 export interface Person {
@@ -66,7 +66,9 @@ export interface Circle {
   layout?: SectionLayout[];
   /** How its Information section shows pages; unset is "summary". */
   infoView?: InfoView;
-  /** Wiki pages (their addresses) once pinned to the circle's page; carried over into pins (`pins.json`) when they're first read. */
+  /** Its page, as modules (see `modulesFor`); unset means as `layout`, `features`, and `infoView` describe. */
+  modules?: CircleModule[];
+  /** Wiki pages (their addresses) once pinned to the circle's page, from before pinning was removed; no longer used. */
   pinnedWiki?: string[];
   /** Pending applications; only the circle's members, the Board, and admins see them. */
   applications?: CircleApplication[];

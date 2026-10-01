@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Pencil } from "lucide-react";
 import { parseWikiLink } from "@/lib/wiki/links";
 import { headingSlug, sectionOf } from "@/lib/wiki/sections";
-import { noteStyle } from "@/lib/pins/shared";
+import { noteStyle } from "@/lib/wiki/colors";
 import { pageTitled, useCircles, wikiPageQuery, wikiPagesQuery } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiMarkdown } from "@/components/wiki/markdown";

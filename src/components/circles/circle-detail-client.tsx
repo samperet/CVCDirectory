@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, CalendarDays, Check, FileText, LayoutGrid, ListChecks, LogOut, Pencil, Plus, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, LayoutGrid, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle, CircleApplication, CircleSeat, DirectoryDocument, JoinPolicy, Person } from "@/lib/directory/types";
@@ -12,13 +12,13 @@ import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
-import { ArrangeSections, CircleSections, SectionToggle, type SectionDefinition } from "@/components/circles/circle-sections";
+import { ArrangeSections, CircleSections, SectionToggle, type ModuleSections } from "@/components/circles/circle-sections";
+import { AddModuleDialog, InformationSettings, MODULE_ICONS, describeFilter } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
-import { CircleInformation } from "@/components/wiki/circle-information";
+import { InformationModule } from "@/components/wiki/information-module";
 import { TasksSection } from "@/components/tasks/task-board";
-import { featureEnabled } from "@/lib/circles/features";
-import { DEFAULT_LAYOUT, layoutFor, type SectionId, type SectionLayout } from "@/lib/circles/layout";
+import { moduleTitle, modulesFor, type CircleModule } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -183,16 +183,11 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
   const [form, setForm] = useState({ name: circle.name, description: circle.description ?? "" });
   const [club, setClub] = useState(circle.kind === "club");
   const kindChanged = club !== (circle.kind === "club");
-  const [features, setFeatures] = useState({
-    tasks: featureEnabled(circle, "tasks"),
-    wiki: featureEnabled(circle, "wiki"),
-    documents: featureEnabled(circle, "documents"),
-  });
   const save = useCircleMutation(
     () =>
       apiFetch(`/api/circles/${circle.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ ...form, features, ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}) }),
+        body: JSON.stringify({ ...form, ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}) }),
       }),
     "Could not save circle",
     onDone
@@ -215,26 +210,6 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         className="bg-white"
         aria-label="Description"
       />
-      <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-foreground">
-        <legend className="mb-1 text-xs font-medium text-muted">Sections on this page</legend>
-        {(
-          [
-            ["wiki", "Information"],
-            ["tasks", "Tasks"],
-            ["documents", "Documents"],
-          ] as const
-        ).map(([feature, label]) => (
-          <label key={feature} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={features[feature]}
-              onChange={(event) => setFeatures((current) => ({ ...current, [feature]: event.target.checked }))}
-              className="h-4 w-4 accent-primary"
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
       {canSetKind ? (
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" checked={club} onChange={(event) => setClub(event.target.checked)} className="h-4 w-4 accent-primary" />
@@ -501,12 +476,14 @@ export function CircleDetailClient({ id }: { id: string }) {
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>
     router.replace("/circles")
   );
-  const schedule = useCircleSchedule(id).data?.schedule ?? null;
-  // Arranging the page: the layout being worked on, until it's saved.
-  const [arranging, setArranging] = useState<SectionLayout[] | null>(null);
-  const saveLayout = useCircleMutation(
-    (layout: SectionLayout[]) => apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ layout }) }),
-    "Could not save the layout",
+  const scheduleQuery = useCircleSchedule(id);
+  const schedule = scheduleQuery.data?.schedule ?? null;
+  // Editing the page: the modules being worked on, until they're saved — and the dialog open on them.
+  const [arranging, setArranging] = useState<CircleModule[] | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "settings"; module: CircleModule } | null>(null);
+  const saveModules = useCircleMutation(
+    (modules: CircleModule[]) => apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ modules }) }),
+    "Could not save the page",
     () => setArranging(null)
   );
 
@@ -529,46 +506,54 @@ export function CircleDetailClient({ id }: { id: string }) {
     .map((person) => ({ id: person.id, name: person.displayName }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // The page's sections: those this circle has, in the order (and sizes) it chose.
-  const icon = (Icon: typeof BookOpen) => <Icon className="h-5 w-5 text-primary" aria-hidden />;
-  const sections: Partial<Record<SectionId, SectionDefinition>> = {
-    ...(featureEnabled(circle, "wiki") ? { information: { title: "Information", icon: icon(BookOpen), content: <CircleInformation circle={circle} canArrange={canManage} /> } } : {}),
-    ...(community
-      ? {}
-      : { members: { title: "Members", icon: icon(Users), content: <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> } }),
-    ...(schedule ? { schedule: { title: schedule.title, icon: icon(CalendarDays), content: <DutyScheduleModule circleId={id} people={people} /> } } : {}),
-    ...(featureEnabled(circle, "tasks")
-      ? {
-          tasks: {
-            title: "Tasks",
-            icon: icon(ListChecks),
-            content: (
-              <Card>
-                <TasksSection circle={circle} />
-              </Card>
-            ),
-          },
-        }
-      : {}),
-    ...(featureEnabled(circle, "documents")
-      ? {
-          documents: {
-            title: "Documents",
-            icon: icon(FileText),
-            content: (
-              <Card className="flex flex-col gap-4">
-                <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-                  <SectionToggle /> Documents
-                </h2>
-                <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
-              </Card>
-            ),
-          },
-        }
-      : {}),
+  // The page's modules, in the order (and sizes) the circle chose.
+  const modules = modulesFor(circle, { hasSchedule: !!schedule });
+  const circleName = (circleId: string) => data.circles.find((entry) => entry.id === circleId)?.name;
+  const icon = (module: CircleModule) => {
+    const Icon = MODULE_ICONS[module.type];
+    return <Icon className="h-5 w-5 text-primary" aria-hidden />;
   };
-  const available = Object.keys(sections) as SectionId[];
-  const layout = layoutFor(circle.layout, available);
+  const sectionFor = (module: CircleModule) => {
+    const title = moduleTitle(module, schedule?.title);
+    switch (module.type) {
+      case "information":
+        return {
+          title,
+          icon: icon(module),
+          detail: module.info ? describeFilter(module.info.filter, circleName) : undefined,
+          content: <InformationModule circle={circle} module={module} canAdd={canUpload} narrow={module.size === "small"} />,
+        };
+      case "members":
+        return community ? undefined : { title, icon: icon(module), content: <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> };
+      case "schedule":
+        return schedule ? { title, icon: icon(module), content: <DutyScheduleModule circleId={id} people={people} /> } : undefined;
+      case "tasks":
+        return {
+          title,
+          icon: icon(module),
+          content: (
+            <Card>
+              <TasksSection circle={circle} />
+            </Card>
+          ),
+        };
+      case "documents":
+        return {
+          title,
+          icon: icon(module),
+          content: (
+            <Card className="flex flex-col gap-4">
+              <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
+                <SectionToggle /> {title}
+              </h2>
+              <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
+            </Card>
+          ),
+        };
+    }
+  };
+  const sectionsOf = (list: CircleModule[]): ModuleSections => Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
+  const editing = arranging ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -605,8 +590,8 @@ export function CircleDetailClient({ id }: { id: string }) {
                 <Pencil className="h-4 w-4" /> Edit details
               </Button>
               <IconControls circle={circle} />
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setArranging(arranging ? null : layout)} aria-pressed={!!arranging}>
-                <LayoutGrid className="h-4 w-4" /> Arrange page
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setArranging(arranging ? null : modules)} aria-pressed={!!arranging} disabled={scheduleQuery.isLoading}>
+                <LayoutGrid className="h-4 w-4" /> Edit page
               </Button>
               {onBoard && circle.id !== "board" && !community ? (
                 <Button
@@ -630,22 +615,50 @@ export function CircleDetailClient({ id }: { id: string }) {
         <>
           <div className="sticky top-16 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-primary/50 bg-accent px-4 py-3 shadow-soft">
             <p className="w-full text-sm text-foreground sm:w-auto sm:min-w-0 sm:flex-1">
-              <strong>Arrange this page</strong> — drag sections or use the arrows. Sizes apply on wider screens; everyone sees this layout.
+              <strong>Edit this page</strong> — add modules, drag them or use the arrows, and set their sizes (on wider screens). Everyone sees this page.
             </p>
-            <Button size="sm" variant="ghost" onClick={() => setArranging(layoutFor(DEFAULT_LAYOUT, available))}>
-              Reset
+            <Button size="sm" variant="outline" className="gap-1" onClick={() => setDialog({ kind: "add" })}>
+              <Plus className="h-4 w-4" /> Add module
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setArranging(null)}>
+            <Button size="sm" variant="ghost" onClick={() => setArranging(null)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={() => saveLayout.mutate(arranging)} disabled={saveLayout.isPending}>
-              {saveLayout.isPending ? "Saving…" : "Save layout"}
+            <Button size="sm" onClick={() => saveModules.mutate(arranging)} disabled={saveModules.isPending}>
+              {saveModules.isPending ? "Saving…" : "Save page"}
             </Button>
           </div>
-          <ArrangeSections layout={arranging} sections={sections} onChange={setArranging} />
+          {editing.length ? (
+            <ArrangeSections modules={editing} sections={sectionsOf(editing)} onChange={setArranging} onSettings={(module) => setDialog({ kind: "settings", module })} />
+          ) : (
+            <Card>
+              <p className="text-sm text-muted">Nothing on this page yet — add a module.</p>
+            </Card>
+          )}
+          {dialog?.kind === "add" ? (
+            <AddModuleDialog
+              circle={circle}
+              modules={editing}
+              hasSchedule={!!schedule}
+              onClose={() => setDialog(null)}
+              onAdd={(module) => {
+                setArranging([...editing, module]);
+                setDialog(module.type === "information" ? { kind: "settings", module } : null);
+              }}
+            />
+          ) : dialog?.kind === "settings" ? (
+            <InformationSettings
+              circle={circle}
+              module={dialog.module}
+              onClose={() => setDialog(null)}
+              onSave={(module) => {
+                setArranging(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setDialog(null);
+              }}
+            />
+          ) : null}
         </>
       ) : (
-        <CircleSections circleId={circle.id} layout={layout} sections={sections} />
+        <CircleSections circleId={circle.id} modules={modules} sections={sectionsOf(modules)} />
       )}
     </div>
   );

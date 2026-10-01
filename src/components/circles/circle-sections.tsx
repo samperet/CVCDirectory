@@ -1,17 +1,17 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import { SECTION_SIZES, SIZE_LABELS, SIZE_NAMES, type SectionId, type SectionLayout, type SectionSize } from "@/lib/circles/layout";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, Settings2, Trash2 } from "lucide-react";
+import { SECTION_SIZES, SIZE_LABELS, SIZE_NAMES, type CircleModule, type SectionSize } from "@/lib/circles/layout";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
- * A circle page's sections, laid out as the circle chose: in its order, each
+ * A circle page's modules, laid out as the circle chose: in its order, each
  * a third, half, two thirds, or the full width of wider screens (phones
- * stack them). Each reader can fold any section away; that's remembered on
- * their device. In "arrange" mode the circle's members drag sections (or
- * use the arrows) and pick their sizes.
+ * stack them). Each reader can fold any module away; that's remembered on
+ * their device. Editing the page, the circle's members drag modules (or use
+ * the arrows), pick their sizes, set Information modules up, and remove them.
  */
 
 const SPAN: Record<SectionSize, string> = {
@@ -25,7 +25,18 @@ export interface SectionDefinition {
   title: string;
   icon?: React.ReactNode;
   content: React.ReactNode;
+  /** What it shows, in a word or two (while editing the page). */
+  detail?: string;
 }
+
+/** Each module's title, icon, and content, by module id (a module without one isn't shown). */
+export type ModuleSections = Record<string, SectionDefinition | undefined>;
+
+const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
+  information: " Its pages stay in the wiki.",
+  tasks: " The circle's tasks are kept, and come back if you add Tasks again.",
+  documents: " The circle's documents are kept, and come back if you add Documents again.",
+};
 
 type SectionState = { collapsed: boolean; toggle: () => void; title: string };
 const SectionContext = createContext<SectionState | null>(null);
@@ -48,20 +59,20 @@ export function SectionToggle({ className }: { className?: string }) {
   );
 }
 
-/** Which of a circle's sections this reader has folded away, kept on this device. */
+/** Which of a circle's modules this reader has folded away (by id), kept on this device. */
 function useCollapsed(circleId: string) {
   const key = `cvc-circle-folded:${circleId}`;
-  const [folded, setFolded] = useState<SectionId[]>([]);
+  const [folded, setFolded] = useState<string[]>([]);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(key);
-      setFolded(raw ? (JSON.parse(raw) as SectionId[]) : []);
+      setFolded(raw ? (JSON.parse(raw) as string[]) : []);
     } catch {
       setFolded([]);
     }
   }, [key]);
   const toggle = useCallback(
-    (id: SectionId) =>
+    (id: string) =>
       setFolded((current) => {
         const next = current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id];
         try {
@@ -89,16 +100,16 @@ function FoldedSection({ title, icon, onOpen }: { title: string; icon?: React.Re
   );
 }
 
-export function CircleSections({ circleId, layout, sections }: { circleId: string; layout: SectionLayout[]; sections: Partial<Record<SectionId, SectionDefinition>> }) {
+export function CircleSections({ circleId, modules, sections }: { circleId: string; modules: CircleModule[]; sections: ModuleSections }) {
   const [folded, toggle] = useCollapsed(circleId);
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-flow-row-dense lg:grid-cols-6">
-      {layout.map(({ id, size }) => {
+      {modules.map(({ id, type, size }) => {
         const section = sections[id];
         if (!section) return null;
         const collapsed = folded.includes(id);
         return (
-          <div key={id} id={id} className={cn("min-w-0 scroll-mt-24", SPAN[size])} data-section={id}>
+          <div key={id} id={id} className={cn("min-w-0 scroll-mt-24", SPAN[size])} data-section={type} data-module={id}>
             <SectionContext.Provider value={{ collapsed, toggle: () => toggle(id), title: section.title }}>
               {collapsed ? <FoldedSection title={section.title} icon={section.icon} onOpen={() => toggle(id)} /> : section.content}
             </SectionContext.Provider>
@@ -110,19 +121,22 @@ export function CircleSections({ circleId, layout, sections }: { circleId: strin
 }
 
 /**
- * Arranging the page: each section as a small card — dragged into place (or
- * moved with its arrows, on phones), and sized for wider screens.
+ * Editing the page: each module as a small card — dragged into place (or
+ * moved with its arrows, on phones), sized for wider screens, set up (an
+ * Information module's pages), or removed.
  */
 export function ArrangeSections({
-  layout,
+  modules: layout,
   sections,
   onChange,
+  onSettings,
 }: {
-  layout: SectionLayout[];
-  sections: Partial<Record<SectionId, SectionDefinition>>;
-  onChange: (layout: SectionLayout[]) => void;
+  modules: CircleModule[];
+  sections: ModuleSections;
+  onChange: (modules: CircleModule[]) => void;
+  onSettings: (module: CircleModule) => void;
 }) {
-  const [dragging, setDragging] = useState<SectionId | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
   const move = (from: number, to: number) => {
     if (to < 0 || to >= layout.length || from === to) return;
     const next = [...layout];
@@ -130,17 +144,20 @@ export function ArrangeSections({
     next.splice(to, 0, entry);
     onChange(next);
   };
-  const resize = (id: SectionId, size: SectionSize) => onChange(layout.map((entry) => (entry.id === id ? { ...entry, size } : entry)));
+  const remove = (id: string) => onChange(layout.filter((entry) => entry.id !== id));
+  const resize = (id: string, size: SectionSize) => onChange(layout.map((entry) => (entry.id === id ? { ...entry, size } : entry)));
   const control = "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white text-foreground transition hover:bg-accent disabled:opacity-40";
   return (
     <div className="grid grid-cols-1 items-start gap-4 lg:grid-flow-row-dense lg:grid-cols-6">
-      {layout.map(({ id, size }, index) => {
+      {layout.map((module, index) => {
+        const { id, size } = module;
         const section = sections[id];
         if (!section) return null;
         return (
           <div
             key={id}
-            data-arrange={id}
+            data-arrange={module.type}
+            data-module={id}
             className={cn("min-w-0", SPAN[size])}
             draggable
             onDragStart={(event) => {
@@ -160,12 +177,32 @@ export function ArrangeSections({
               <div className="flex items-center gap-2">
                 <GripVertical className="hidden h-5 w-5 shrink-0 cursor-grab text-muted lg:block" aria-hidden />
                 {section.icon}
-                <span className="min-w-0 flex-1 truncate font-semibold text-foreground">{section.title}</span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-semibold text-foreground">{section.title}</span>
+                  {section.detail ? <span className="truncate text-xs text-muted">{section.detail}</span> : null}
+                </span>
                 <button type="button" className={control} onClick={() => move(index, index - 1)} disabled={index === 0} aria-label={`Move ${section.title} up`} title="Move up">
                   <ArrowUp className="h-4 w-4" />
                 </button>
                 <button type="button" className={control} onClick={() => move(index, index + 1)} disabled={index === layout.length - 1} aria-label={`Move ${section.title} down`} title="Move down">
                   <ArrowDown className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {module.type === "information" ? (
+                  <button type="button" className={cn(control, "w-auto gap-1.5 px-2.5 text-sm")} onClick={() => onSettings(module)} aria-label={`Set up ${section.title}`}>
+                    <Settings2 className="h-4 w-4" /> Settings
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={cn(control, "w-auto gap-1.5 px-2.5 text-sm text-muted hover:text-destructive")}
+                  onClick={() => {
+                    if (window.confirm(`Remove ${section.title} from this page?${REMOVE_NOTE[module.type] ?? ""}`)) remove(id);
+                  }}
+                  aria-label={`Remove ${section.title}`}
+                >
+                  <Trash2 className="h-4 w-4" /> Remove
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">

@@ -10,7 +10,7 @@ import { $createWikiLinkNode } from "@/components/wiki/wiki-link-node";
 import { addComposerChild$, realmPlugin } from "@mdxeditor/editor";
 import { BookOpen, FileText, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { noteStyle } from "@/lib/pins/shared";
+import { noteStyle } from "@/lib/wiki/colors";
 import { docLinkText, pageLinkText } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
 
