@@ -18,6 +18,7 @@ const noStore = { "Cache-Control": "private, no-store" };
 /**
  * `?target=kind:id`: the pages pinned there (newest first), whether you can
  * pin more — and, on a circle, whether you can add information to it.
+ * Add `&full=1` for each page's whole text.
  * `?note=circleId:pageId`: everywhere a page is pinned (that you can see).
  * `?kind=document`: every page pinned to a document (for the documents list).
  */
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
   const circle = target.kind === "circle" ? ctx.directory.circles.find((entry) => entry.id === target.id) : undefined;
   return NextResponse.json(
     {
-      pins: await pinViews(ctx.user, ctx.directory, pins, [resolved]),
+      pins: await pinViews(ctx.user, ctx.directory, pins, [resolved], { full: params.get("full") === "1" }),
       canPin: canPinTo(ctx.user, ctx.directory, resolved),
       label: resolved.label,
       // Information starts on a circle: a new page in its wiki, shown on its page.

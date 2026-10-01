@@ -1,4 +1,4 @@
-import type { SectionLayout } from "@/lib/circles/layout";
+import type { InfoView, SectionLayout } from "@/lib/circles/layout";
 export type PersonRole = "owner" | "renter" | "household";
 
 export interface Person {
@@ -64,6 +64,8 @@ export interface Circle {
   features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
   /** How its page is laid out (see `src/lib/circles/layout.ts`); unset is the default. */
   layout?: SectionLayout[];
+  /** How its Information section shows pages; unset is "summary". */
+  infoView?: InfoView;
   /** Wiki pages (their addresses) once pinned to the circle's page; carried over into pins (`pins.json`) when they're first read. */
   pinnedWiki?: string[];
   /** Pending applications; only the circle's members, the Board, and admins see them. */

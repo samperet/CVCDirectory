@@ -49,7 +49,18 @@ export const noteStyle = (color: string | null | undefined) => NOTE_STYLES[(NOTE
 /** A pin, ready to show: its note, where it is, and whether you can take it down. */
 export interface PinView {
   id: string;
-  note: { circleId: string; circleName: string; pageId: string; slug: string; title: string; excerpt: string; color: NoteColor; href: string };
+  note: {
+    circleId: string;
+    circleName: string;
+    pageId: string;
+    slug: string;
+    title: string;
+    excerpt: string;
+    color: NoteColor;
+    href: string;
+    /** The whole page (Markdown), when asked for (`full`). */
+    body?: string;
+  };
   target: PinTarget & { label: string; href: string; external?: boolean };
   pinnedBy: { name: string };
   pinnedAt: string;

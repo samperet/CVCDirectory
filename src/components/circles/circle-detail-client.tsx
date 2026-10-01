@@ -532,7 +532,7 @@ export function CircleDetailClient({ id }: { id: string }) {
   // The page's sections: those this circle has, in the order (and sizes) it chose.
   const icon = (Icon: typeof BookOpen) => <Icon className="h-5 w-5 text-primary" aria-hidden />;
   const sections: Partial<Record<SectionId, SectionDefinition>> = {
-    ...(featureEnabled(circle, "wiki") ? { information: { title: "Information", icon: icon(BookOpen), content: <CircleInformation circle={circle} /> } } : {}),
+    ...(featureEnabled(circle, "wiki") ? { information: { title: "Information", icon: icon(BookOpen), content: <CircleInformation circle={circle} canArrange={canManage} /> } } : {}),
     ...(community
       ? {}
       : { members: { title: "Members", icon: icon(Users), content: <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> } }),

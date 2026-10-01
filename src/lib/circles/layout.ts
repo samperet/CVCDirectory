@@ -19,6 +19,12 @@ export interface SectionLayout {
 export const SIZE_LABELS: Record<SectionSize, string> = { small: "⅓", medium: "½", large: "⅔", full: "Full" };
 export const SIZE_NAMES: Record<SectionSize, string> = { small: "A third", medium: "Half", large: "Two thirds", full: "Full width" };
 
+/** How the Information section shows its pages: in full, as cards with their opening lines, or as a list of titles. */
+export const INFO_VIEWS = ["full", "summary", "titles"] as const;
+export type InfoView = (typeof INFO_VIEWS)[number];
+export const INFO_VIEW_LABELS: Record<InfoView, string> = { full: "Full", summary: "Summary", titles: "Titles only" };
+export const DEFAULT_INFO_VIEW: InfoView = "summary";
+
 export const DEFAULT_LAYOUT: SectionLayout[] = [
   { id: "information", size: "large" },
   { id: "members", size: "small" },

@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { SECTION_IDS, SECTION_SIZES, type SectionLayout } from "./layout";
+import { INFO_VIEWS, SECTION_IDS, SECTION_SIZES, type InfoView, type SectionLayout } from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
@@ -44,6 +44,8 @@ export const circleUpdateSchema = circleInputSchema
       .array(z.object({ id: z.enum(SECTION_IDS), size: z.enum(SECTION_SIZES) }))
       .max(SECTION_IDS.length)
       .refine((entries) => new Set(entries.map((entry) => entry.id)).size === entries.length, "Each section once"),
+    /** How the Information section shows its pages. */
+    infoView: z.enum(INFO_VIEWS),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -162,6 +164,7 @@ export function updateCircle(
     kind: "circle" | "club";
     features: { documents?: boolean; wiki?: boolean; tasks?: boolean };
     layout: SectionLayout[];
+    infoView: InfoView;
   }>
 ) {
   return mutate(imported, (circles) => {

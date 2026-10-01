@@ -144,9 +144,9 @@ export function excerptOf(markdown: string, length = 400, polls: Map<string, str
 /**
  * Pins ready to show. Pins whose note or target has gone are left out, as are
  * pins on people the viewer can't see. `resolved` can supply targets already
- * looked up.
+ * looked up; `full` includes each page's whole text.
  */
-export async function pinViews(user: Viewer, directory: DirectoryDocument, pins: Pin[], resolved: ResolvedTarget[] = []): Promise<PinView[]> {
+export async function pinViews(user: Viewer, directory: DirectoryDocument, pins: Pin[], resolved: ResolvedTarget[] = [], { full = false } = {}): Promise<PinView[]> {
   const visible = pins.filter((pin) => canSeePin(user, pin));
   const circleIds = Array.from(new Set(visible.map((pin) => pin.note.circleId)));
   const pages = new Map<string, WikiPage[]>(await Promise.all(circleIds.map(async (id) => [id, await readPages(id)] as [string, WikiPage[]])));
@@ -177,6 +177,7 @@ export async function pinViews(user: Viewer, directory: DirectoryDocument, pins:
         excerpt: excerptOf(page.body, 400, questions),
         color: pageColor(page),
         href: `/circles/${pin.note.circleId}/wiki/${page.slug}`,
+        ...(full ? { body: page.body } : {}),
       },
       target: { kind: pin.target.kind, id: pin.target.id, label: target.label, href: target.href, ...(target.external ? { external: true } : {}) },
       pinnedBy: { name: pin.pinnedBy.name },

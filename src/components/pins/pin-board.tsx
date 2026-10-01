@@ -6,6 +6,8 @@ import { Pin } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { targetKey, type PinTarget, type PinView } from "@/lib/pins/shared";
 import { StickyNote } from "@/components/pins/sticky-note";
+import { FullNote, TitleList } from "@/components/pins/note-views";
+import type { InfoView } from "@/lib/circles/layout";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +15,10 @@ export type BoardResponse = { pins: PinView[]; canPin: boolean; label?: string; 
 
 const SHOWN = 6;
 
-export const pinsQuery = (target: PinTarget) => ({
-  queryKey: ["pins", targetKey(target)],
-  queryFn: () => apiFetch<BoardResponse>(`/api/pins?target=${encodeURIComponent(targetKey(target))}`),
+/** `full`: with each page's whole text (for showing pages in full). */
+export const pinsQuery = (target: PinTarget, { full = false } = {}) => ({
+  queryKey: ["pins", targetKey(target), ...(full ? ["full"] : [])],
+  queryFn: () => apiFetch<BoardResponse>(`/api/pins?target=${encodeURIComponent(targetKey(target))}${full ? "&full=1" : ""}`),
 });
 
 export function useUnpin(done = "Unpinned") {
@@ -32,11 +35,15 @@ export function useUnpin(done = "Unpinned") {
   });
 }
 
-/** Pages as cards: the first six, then "+N more". */
+/**
+ * Pages as cards (the first six, then "+N more") — or, by `view`, each in
+ * full (the first three), or just their titles (all of them).
+ */
 export function StickyGrid({
   pins,
   circleId,
   layout = "grid",
+  view = "summary",
   onUnpin,
   busy,
 }: {
@@ -44,21 +51,32 @@ export function StickyGrid({
   /** The circle this is in: its pages don't need their circle named. */
   circleId?: string;
   layout?: "grid" | "stack";
+  view?: InfoView;
   onUnpin: (pin: PinView) => void;
   busy: boolean;
 }) {
   const [all, setAll] = useState(false);
-  const shown = all ? pins : pins.slice(0, SHOWN);
+  if (view === "titles") return <TitleList pins={pins} circleId={circleId} onUnpin={onUnpin} busy={busy} />;
+  const limit = view === "full" ? 3 : SHOWN;
+  const shown = all ? pins : pins.slice(0, limit);
   return (
     <>
-      <div className={cn("grid gap-4", layout === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1")}>
-        {shown.map((pin) => (
-          <StickyNote key={pin.id} pin={pin} showCircle={pin.note.circleId !== circleId} onUnpin={pin.canUnpin ? () => onUnpin(pin) : undefined} busy={busy} />
-        ))}
-      </div>
-      {pins.length > SHOWN ? (
+      {view === "full" ? (
+        <div className="flex flex-col gap-4">
+          {shown.map((pin) => (
+            <FullNote key={pin.id} pin={pin} showCircle={pin.note.circleId !== circleId} onUnpin={pin.canUnpin ? () => onUnpin(pin) : undefined} busy={busy} />
+          ))}
+        </div>
+      ) : (
+        <div className={cn("grid gap-4", layout === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1")}>
+          {shown.map((pin) => (
+            <StickyNote key={pin.id} pin={pin} showCircle={pin.note.circleId !== circleId} onUnpin={pin.canUnpin ? () => onUnpin(pin) : undefined} busy={busy} />
+          ))}
+        </div>
+      )}
+      {pins.length > limit ? (
         <button type="button" onClick={() => setAll(!all)} className="w-fit text-sm font-medium text-secondary-foreground hover:underline" aria-expanded={all}>
-          {all ? "Show fewer" : `+${pins.length - SHOWN} more`}
+          {all ? "Show fewer" : `+${pins.length - limit} more`}
         </button>
       ) : null}
     </>
