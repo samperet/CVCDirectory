@@ -3,7 +3,7 @@ import { listDocuments } from "@/lib/documents/store";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { listPins } from "./store";
-import { pageColor, resolveTarget } from "./server";
+import { excerptOf, pageColor, resolveTarget } from "./server";
 import type { NoteColor, PinKind } from "./shared";
 
 /**
@@ -24,6 +24,12 @@ export interface GraphNode {
   /** A note's (or task's, or document's) circle. */
   circleId?: string;
   color?: NoteColor;
+  /** A page's opening lines, for the map's hover card. */
+  excerpt?: string;
+  /** The page it was started from (a node id). */
+  parent?: string;
+  /** Who last edited a page, and when. */
+  edited?: { by: string; at: string };
 }
 
 export interface GraphEdge {
@@ -68,7 +74,18 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
     if (pages.length) addCircle(circle.id);
     for (const page of pages) {
       const id = noteId(circle.id, page.id);
-      nodes.set(id, { id, kind: "note", label: page.title, href: `/circles/${circle.id}/wiki/${page.slug}`, circleId: circle.id, color: pageColor(page) });
+      const parent = page.parentId && pages.some((entry) => entry.id === page.parentId) ? noteId(circle.id, page.parentId) : undefined;
+      nodes.set(id, {
+        id,
+        kind: "note",
+        label: page.title,
+        href: `/circles/${circle.id}/wiki/${page.slug}`,
+        circleId: circle.id,
+        color: pageColor(page),
+        excerpt: excerptOf(page.body, 220),
+        ...(parent ? { parent } : {}),
+        edited: { by: page.updatedBy.name, at: page.updatedAt },
+      });
       byTitle.set(`${circle.id}|${page.title.toLowerCase()}`, page);
     }
     // A page started from another hangs off that page; the rest belong to the circle.

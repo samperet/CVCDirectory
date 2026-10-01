@@ -303,10 +303,14 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   pinned to is deleted. When circles' information moved to pins, every existing page that wasn't
   started from another page was listed on its circle.
 - **Wiki map** (admins only, `/admin/wiki-map`, from the user menu or **Map** on a circle's
-  information) – a self-arranging map of every page, its circle (or the page it was started from),
-  the pages and documents it links to, and everywhere it's pinned. Hover to light up a page's
-  connections, click to open, shift-click (or **Focus on**) to see one page's neighbourhood one or
-  two steps out; filter by circle and by kind. Built from `GET /api/admin/wiki-graph`.
+  information) – **Islands**: each circle is a soft island (in its own colour) holding its pages —
+  pages started from another page sit inside it — and its documents and tasks; people, discussions,
+  and the dashboard that pages are pinned to gather on their own island. Links and pins arc between
+  them. Hover anything for a card (its opening lines, what it links to and from, where it's pinned,
+  who last edited it); click a circle to zoom in, a page to open it (on phones, a tap shows the card
+  with an **Open** button). **3D** shows the same as a turnable globe, each circle a sphere with
+  its pages gathered round it (three.js, loaded only when chosen). Filter by kind and connection;
+  **Find** zooms to anything. Built from `GET /api/admin/wiki-graph`.
 - **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
   that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
   can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
