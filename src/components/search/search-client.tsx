@@ -2,66 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  BookOpen,
-  BookUser,
-  ExternalLink,
-  FileText,
-  Layers,
-  Lightbulb,
-  ListChecks,
-  MessagesSquare,
-  Search,
-  Share2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { SearchGroup, SearchKind } from "@/lib/site-search";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-const ICONS: Record<SearchKind, typeof Search> = {
-  people: BookUser,
-  circles: Layers,
-  wiki: BookOpen,
-  forum: MessagesSquare,
-  documents: FileText,
-  tasks: ListChecks,
-  resources: Lightbulb,
-  library: Share2,
-};
-
-/** The words to mark in results: the query's terms (quoted phrases kept whole). */
-function termsOf(query: string) {
-  return Array.from(query.toLowerCase().matchAll(/"([^"]+)"|(\S+)/g), (match) =>
-    (match[1] ?? match[2]).trim()
-  ).filter(Boolean);
-}
-
-/** `text` with each of `terms` marked. */
-function Marked({ text, terms }: { text: string; terms: string[] }) {
-  if (!terms.length) return <>{text}</>;
-  const pattern = new RegExp(
-    `(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
-    "gi"
-  );
-  return (
-    <>
-      {text.split(pattern).map((part, index) =>
-        index % 2 ? (
-          <mark key={index} className="rounded bg-sun/25 px-0.5 text-inherit">
-            {part}
-          </mark>
-        ) : (
-          <Fragment key={index}>{part}</Fragment>
-        )
-      )}
-    </>
-  );
-}
+import { ResultBody, SEARCH_ICONS, termsOf } from "@/components/search/results";
 
 /**
  * Search the whole site: people (by name, bio, and skills), circles, wiki
@@ -171,7 +119,7 @@ export function SearchClient() {
       ) : (
         <div className={cn("flex flex-col gap-8 transition-opacity", isFetching && "opacity-60")}>
           {groups.map((group) => {
-            const Icon = ICONS[group.kind];
+            const Icon = SEARCH_ICONS[group.kind];
             return (
               <section
                 key={group.kind}
@@ -207,25 +155,7 @@ export function SearchClient() {
                           {...(result.external ? { target: "_blank", rel: "noopener" } : {})}
                           className="group -mx-3 flex flex-col gap-0.5 rounded-xl px-3 py-2.5 transition hover:bg-accent/70"
                         >
-                          <span className="flex items-center gap-1.5 font-medium text-foreground group-hover:underline">
-                            <Marked text={result.title} terms={terms} />
-                            {result.external ? (
-                              <ExternalLink
-                                className="h-3.5 w-3.5 shrink-0 text-muted"
-                                aria-label="(opens in a new tab)"
-                              />
-                            ) : null}
-                          </span>
-                          {result.meta ? (
-                            <span className="text-xs text-muted">
-                              <Marked text={result.meta} terms={terms} />
-                            </span>
-                          ) : null}
-                          {result.snippet ? (
-                            <span className="line-clamp-2 text-sm text-foreground-light">
-                              <Marked text={result.snippet} terms={terms} />
-                            </span>
-                          ) : null}
+                          <ResultBody result={result} terms={terms} />
                         </Anchor>
                       </li>
                     );

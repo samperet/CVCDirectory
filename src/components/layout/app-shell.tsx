@@ -20,7 +20,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchPalette } from "@/components/search/search-palette";
 import { UserMenu } from "@/components/auth/user-menu";
 import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
 import { useSession, useViewAs } from "@/lib/auth/client";
@@ -40,101 +40,33 @@ const links = [
   { href: "/resources", label: "Resources", icon: Lightbulb },
 ];
 
-/**
- * The header's magnifying glass: a small menu to search everything (Enter
- * goes to the full search) or browse all documents, which aren't in the
- * header themselves.
- */
-function SearchButton({ active }: { active: boolean }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const box = useRef<HTMLDivElement>(null);
-
-  // Close on a click outside, on Escape, and when the page changes.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (event: MouseEvent) => {
-      if (!box.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  useEffect(() => setOpen(false), [pathname]);
-
+/** The header's magnifying glass: opens the search bar (`SearchPalette`). */
+function SearchButton({
+  active,
+  open,
+  onOpen,
+}: {
+  active: boolean;
+  open: boolean;
+  onOpen: (button: HTMLButtonElement) => void;
+}) {
   return (
-    // On phones the menu spans the header's width (positioned from the header row); on wider screens it hangs under the button.
-    <div ref={box} className="sm:relative">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-label="Search"
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        title="Search ( / )"
-        className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
-          active || open
-            ? "bg-primary text-primary-foreground shadow-soft"
-            : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
-        )}
-      >
-        <Search className="h-4 w-4" />
-      </button>
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Search and browse"
-          className="absolute inset-x-4 top-full z-50 mt-1 rounded-2xl border border-border bg-surface p-2 shadow-elev sm:inset-x-auto sm:right-0 sm:mt-2 sm:w-[21rem]"
-        >
-          <form
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const q = text.trim();
-              setOpen(false);
-              router.push(q ? `/search?${new URLSearchParams({ q })}` : "/search");
-            }}
-            className="relative"
-          >
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-              aria-hidden
-            />
-            <Input
-              autoFocus
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder="Search everything…"
-              enterKeyHint="search"
-              className="h-11 bg-white pl-9"
-              aria-label="Search everything"
-            />
-          </form>
-          <div className="mt-2 border-t border-border pt-2">
-            <Link
-              href="/documents"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-accent"
-            >
-              <SectionArt href="/documents" size={32} />
-              <span className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">All documents</span>
-                <span className="text-xs text-muted">
-                  Browse every circle&apos;s, with filters and sorting
-                </span>
-              </span>
-            </Link>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      onClick={(event) => onOpen(event.currentTarget)}
+      aria-label="Search"
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      title="Search ( / )"
+      className={cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
+        active || open
+          ? "bg-primary text-primary-foreground shadow-soft"
+          : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
+      )}
+    >
+      <Search className="h-4 w-4" />
+    </button>
   );
 }
 
@@ -151,6 +83,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, viewAs, isLoading } = useSession();
   const exitView = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
+  // The search bar, and the button that opened it (focus goes back there when it closes).
+  const [searching, setSearching] = useState(false);
+  const opener = useRef<HTMLElement | null>(null);
+  const openSearch = (from: HTMLElement | null) => {
+    opener.current = from;
+    setSearching(true);
+  };
+  const closeSearch = () => {
+    setSearching(false);
+    opener.current?.focus();
+  };
+  useEffect(() => setSearching(false), [pathname]);
   const onLoginPage = pathname === "/login";
   // Signed out, "/" is the public front page, which has its own header and footer;
   // "/welcome" is the same page for anyone, including residents previewing it.
@@ -160,20 +104,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Register the service worker (installable app, notifications) and catch the install prompt.
   useEffect(() => setUpPwa(), []);
 
-  // "/" from anywhere that isn't a text box opens the whole-site search.
+  // "/" from anywhere that isn't a text box, or Ctrl+K (⌘K) from anywhere, opens the search bar.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing =
         !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
-      if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      const slash =
+        event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey;
+      const commandK = event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey);
+      if (slash || commandK) {
         event.preventDefault();
-        router.push("/search");
+        opener.current = document.activeElement as HTMLElement | null;
+        setSearching(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, []);
 
   // The middleware only checks the cookie's signature; if the account behind
   // it doesn't exist, send the visitor to sign in rather than show an empty app.
@@ -240,7 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Common Pastures
           </Link>
           <div className="flex items-center gap-2 xl:hidden">
-            <SearchButton active={pathname === "/search"} />
+            <SearchButton active={pathname === "/search"} open={searching} onOpen={openSearch} />
             <UserMenu />
             <Button
               variant="outline"
@@ -272,7 +220,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 ))}
             </nav>
-            <SearchButton active={pathname === "/search"} />
+            <SearchButton active={pathname === "/search"} open={searching} onOpen={openSearch} />
             <UserMenu />
           </div>
         </div>
@@ -309,6 +257,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <AppreciationsFooter />
+      {searching && user ? <SearchPalette onClose={closeSearch} /> : null}
     </div>
   );
 }

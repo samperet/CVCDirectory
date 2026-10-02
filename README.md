@@ -186,13 +186,14 @@ Authors always come from the signed-in session, never from the request body.
   entries ("Split entries", for different people who share a name) or combine entries whose names
   differ ("Same person listed elsewhere?"). "Remove from unit N" takes someone out of one of their
   households and keeps them in the others. Links to a combined entry open the one profile.
-- **Search** (`/search`, or "/" anywhere; the header's magnifying glass opens a menu with a search
-  box and **All documents**, the way to browse every circle's documents) – one search across the site
-  for residents: people (by name, bio, and skills), circles, wiki pages, forum discussions,
-  documents (their details and text), tasks, resources, and the loan library. Every word must
-  match somewhere in a result; titles count most. Results come in groups, best first, with the
-  matching passage quoted and the words marked, and **See all** for a group
-  (`GET /api/search?q=…&kind=…`). The query stays in the address, so a search can be shared.
+- **Search** – the header's magnifying glass, "/" anywhere, or Ctrl+K (⌘K) opens a large search bar
+  in the middle of the screen; results appear as you type (from two letters, grouped by kind), ↑/↓
+  and Enter open one, and **See all results** goes to the full page (`/search`) – one search across
+  the site for residents: people (by name, bio, and skills), circles, wiki pages, forum discussions,
+  documents (their details and text), tasks, resources, and the loan library. Every word must match
+  somewhere in a result; titles count most. Results come in groups, best first, with the matching
+  passage quoted and the words marked, and **See all** for a group (`GET /api/search?q=…&kind=…`).
+  The query stays in the address, so a search can be shared.
 - **Skills on profiles** – residents list their skills on their profile (**Your skills**); they
   show as chips on their directory page (each searching for everyone with that skill) and are
   searchable. They're the same skills as the Skills page, which still lists them all.
@@ -330,10 +331,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   aren't shown). Links arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
   right; a sheet along the bottom on phones) with its opening lines, who last edited it, what it
   links to and from — each clickable — plus **Open**, **Zoom to**, and
-  **Show connections** (fading everything else). Clicking a circle also zooms in. **3D** shows the
-  same as a turnable globe, each circle a sphere with its pages gathered round it (three.js, loaded
-  only when chosen); a click flies the camera there and opens the same panel. **Find** zooms to
-  anything. Built from `GET /api/wiki/graph` (`/wiki?map=1`;
+  **Show connections** (fading everything else). Clicking a circle also zooms in. **Find** zooms to
+  anything. Built from `GET /api/wiki/graph` (`/documents?map=1`;
   `/admin/wiki-map` redirects there).
 - **Wiki comments** – anyone signed in selects words on a page (any amount, a word to the whole
   page) and comments on them; there's no comment box for the page as a whole. Comments show as

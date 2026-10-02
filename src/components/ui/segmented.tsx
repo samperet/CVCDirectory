@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * A row of pills of which one is chosen: a filter ("Everyone / Mine"), a
- * view ("Islands / 3D"), a size. A radio group by default; `role="tablist"`
+ * view ("Month / Agenda"), a size. A radio group by default; `role="tablist"`
  * where the choice switches between sections of the page. Arrow keys move
  * the choice, so it works from the keyboard like a native radio group.
  */

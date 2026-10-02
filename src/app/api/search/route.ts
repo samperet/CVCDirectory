@@ -23,7 +23,8 @@ const KINDS: SearchKind[] = [
 export async function GET(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to search", 401);
-  if (!rateLimit(`search:${user.id}`))
+  // Searching as you type (the header's search bar) asks often, so more than other routes.
+  if (!rateLimit(`search:${user.id}`, 120))
     return problem("Too many searches — try again in a minute", 429);
   const directory = await readDirectory();
   if (!directory) return problem("The directory hasn't been imported yet", 503);

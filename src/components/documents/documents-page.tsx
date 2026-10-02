@@ -14,7 +14,7 @@ import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Button } from "@/components/ui/button";
 
-// The map of how pages link (d3, and three.js for 3D) loads in the browser only, when it's opened.
+// The map of how pages link (d3) loads in the browser only, when it's opened.
 const WikiMap = dynamic(
   () => import("@/components/wiki/map-client").then((module) => module.WikiMapClient),
   {

@@ -1,10 +1,9 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
+import { Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { EDGE_INFO, NodePanel, circleColors, nodeFill } from "@/components/wiki/map-shared";
@@ -13,23 +12,13 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ErrorCard } from "@/components/ui/status";
-import { SegmentedControl } from "@/components/ui/segmented";
-
-// The 3D view (three.js) loads only when it's chosen.
-const Globe3DView = dynamic(
-  () => import("@/components/wiki/map-3d").then((module) => module.Globe3DView),
-  {
-    ssr: false,
-    loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
-  }
-);
 
 const KINDS = new Set<GraphNodeKind>(["page"]);
 
 /**
  * The wiki map (opened from the wiki's Map button, for everyone — each sees
  * the pages they can): each circle an island holding its pages, with links
- * between them — or the same in 3D. Hover
+ * between them. Hover
  * for a name; click for details and to open it.
  */
 export function WikiMapClient() {
@@ -40,7 +29,6 @@ export function WikiMapClient() {
     queryKey: ["wiki-graph"],
     queryFn: () => apiFetch<WikiGraph>("/api/wiki/graph"),
   });
-  const [view, setView] = useState<"islands" | "3d">("islands");
   const kinds = KINDS;
   const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(
     () => new Set<GraphEdgeKind>(["link"])
@@ -65,7 +53,7 @@ export function WikiMapClient() {
   const select = (id: string | null, zoom = false) => {
     setSelected(id);
     if (!id) setConnections(false);
-    if (zoom && view === "islands") islands.current?.zoomTo(id);
+    if (zoom) islands.current?.zoomTo(id);
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && select(null);
@@ -105,16 +93,6 @@ export function WikiMapClient() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SegmentedControl
-            size="sm"
-            label="View"
-            value={view}
-            onChange={setView}
-            options={[
-              { value: "islands", label: "Islands", icon: MapIcon },
-              { value: "3d", label: "3D", icon: Box },
-            ]}
-          />
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
@@ -231,26 +209,16 @@ export function WikiMapClient() {
             <ErrorCard error={error} />
           ) : data && data.nodes.length ? (
             <div className="relative">
-              {view === "islands" ? (
-                <IslandsView
-                  ref={islands}
-                  graph={data}
-                  colors={colors}
-                  kinds={kinds}
-                  edgeKinds={edgeKinds}
-                  selected={selected}
-                  connections={connections}
-                  onSelect={(id) => select(id)}
-                />
-              ) : (
-                <Globe3DView
-                  graph={data}
-                  colors={colors}
-                  kinds={kinds}
-                  edgeKinds={edgeKinds}
-                  onSelect={(id) => select(id)}
-                />
-              )}
+              <IslandsView
+                ref={islands}
+                graph={data}
+                colors={colors}
+                kinds={kinds}
+                edgeKinds={edgeKinds}
+                selected={selected}
+                connections={connections}
+                onSelect={(id) => select(id)}
+              />
               {chosen ? (
                 // Docked on the right on wider screens; a sheet along the bottom on phones.
                 <div className="absolute inset-x-2 bottom-2 z-20 flex max-h-[60%] flex-col sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-12 sm:max-h-[calc(100%-4rem)] sm:w-80">
@@ -261,9 +229,7 @@ export function WikiMapClient() {
                     connections={connections}
                     onSelect={(id) => select(id, true)}
                     onOpen={open}
-                    onZoom={
-                      view === "islands" ? () => islands.current?.zoomTo(chosen.id) : undefined
-                    }
+                    onZoom={() => islands.current?.zoomTo(chosen.id)}
                     onToggleConnections={() => setConnections(!connections)}
                     onClose={() => select(null)}
                   />
@@ -276,9 +242,8 @@ export function WikiMapClient() {
             </Card>
           )}
           <p className="mt-2 text-xs text-muted">
-            {view === "islands"
-              ? "Scroll or pinch to zoom, drag to pan. Hover for a name; click anything for details and to open it."
-              : "Drag to turn, scroll to zoom. Hover for a name; click for details."}
+            Scroll or pinch to zoom, drag to pan. Hover for a name; click anything for details and
+            to open it.
           </p>
         </div>
       </div>
