@@ -20,6 +20,7 @@ import { categorySlug } from "@/lib/resources/slug";
 import { useConfirm } from "@/components/ui/confirm";
 import { CommentForm } from "@/components/comments/comment-form";
 import { CommentTree } from "@/components/comments/comment-tree";
+import { Loading, ErrorCard } from "@/components/ui/status";
 
 const KEY = ["resources"];
 
@@ -490,11 +491,9 @@ export function ResourcesClient({ category: slug }: { category?: string }) {
   }, [items, query]);
 
   const status = isLoading ? (
-    <p className="text-sm text-muted">Loading recommendations…</p>
+    <Loading>Loading recommendations…</Loading>
   ) : error ? (
-    <Card>
-      <p className="text-sm text-foreground">{(error as Error).message}</p>
-    </Card>
+    <ErrorCard error={error} />
   ) : null;
 
   const addButton = !adding ? (

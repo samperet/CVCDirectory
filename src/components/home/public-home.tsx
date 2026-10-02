@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LandMap } from "@/components/home/land-map";
 import { ArrowLeft, ExternalLink, Home, Mail, MapPin, Phone, Sun, Trees } from "lucide-react";
 import { type HomeListing, homePhotoUrl } from "@/lib/homes/store";
+import { Pill } from "@/components/ui/pill";
 
 /**
  * The public front page for CVC, shown at "/" to
@@ -114,11 +115,7 @@ function HomesForSale({ homes }: { homes: HomeListing[] }) {
                 <div className="flex flex-1 flex-col gap-2 p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-semibold text-foreground">{home.title}</h3>
-                    {home.status === "pending" ? (
-                      <span className="rounded-full bg-sun/30 px-2 py-0.5 text-xs font-medium text-foreground">
-                        Sale pending
-                      </span>
-                    ) : null}
+                    {home.status === "pending" ? <Pill tone="sun">Sale pending</Pill> : null}
                   </div>
                   {home.price || home.details || home.unit ? (
                     <p className="text-sm font-medium text-foreground-light">

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 /**
  * Add a document while writing a wiki page: it's uploaded to the circle's
@@ -157,10 +158,9 @@ export function AddDocumentDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
                 Type
-                <select
+                <Select
                   value={chosenType}
                   onChange={(event) => setType(event.target.value)}
-                  className={field}
                   disabled={busy}
                 >
                   {types.map((option) => (
@@ -168,7 +168,7 @@ export function AddDocumentDialog({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
                 Meeting date <span className="sr-only">(optional)</span>

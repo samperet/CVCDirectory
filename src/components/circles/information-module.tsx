@@ -13,6 +13,8 @@ import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useCircles } from "@/components/directory/use-directory";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Loading } from "@/components/ui/status";
 
 /**
  * The pages a filter picks, of those you can see: chosen ones in their
@@ -69,11 +71,9 @@ export function InformationModule({
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold text-foreground">
-          <ModuleToggle />
-          <BookOpen className="h-5 w-5 shrink-0 text-primary" aria-hidden />{" "}
+        <SectionHeading icon={BookOpen} toggle={<ModuleToggle />}>
           <span className="min-w-0 break-words">{moduleTitle(module)}</span>
-        </h2>
+        </SectionHeading>
         {canAdd && ownPages ? (
           <Button className="gap-1" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4" /> Add Information
@@ -81,7 +81,7 @@ export function InformationModule({
         ) : null}
       </div>
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : pages.length ? (
         <PageGrid
           pages={pages}

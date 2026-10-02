@@ -9,9 +9,12 @@ import { OPEN_EVENT } from "@/components/appreciations/appreciations-footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
 
 /** Every appreciation, newest first. Anyone can remove one. */
 export function AppreciationsPage() {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
@@ -49,11 +52,9 @@ export function AppreciationsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading appreciations…</p>
+        <Loading>Loading appreciations…</Loading>
       ) : error ? (
-        <Card>
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        </Card>
+        <ErrorCard error={error} />
       ) : items.length ? (
         <ul className="flex flex-col gap-3">
           {items.map((item) => (
@@ -74,8 +75,14 @@ export function AppreciationsPage() {
                   size="icon"
                   className="h-8 w-8 shrink-0 text-muted hover:text-destructive"
                   disabled={remove.isPending && remove.variables === item.id}
-                  onClick={() => {
-                    if (window.confirm("Remove this appreciation for everyone?"))
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        title: "Remove this appreciation for everyone?",
+                        confirmLabel: "Remove",
+                        destructive: true,
+                      })
+                    )
                       remove.mutate(item.id);
                   }}
                   aria-label="Remove this appreciation"

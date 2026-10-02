@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +20,9 @@ import { ON_HOVER } from "@/components/ui/hover";
 import { useConfirm } from "@/components/ui/confirm";
 import { CommentForm } from "@/components/comments/comment-form";
 import { CommentTree } from "@/components/comments/comment-tree";
+import { Loading } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
+import { NotFoundCard } from "@/components/ui/status";
 
 /** Mutations that return the updated thread write it straight into the cache. */
 function useThreadMutation<T>(
@@ -243,17 +245,17 @@ function OpeningPost({
         {topics.length > 1 ? (
           <label className="flex items-center gap-2 text-sm text-foreground">
             Topic
-            <select
+            <Select
               value={topicId}
               onChange={(event) => setTopicChoice(event.target.value)}
-              className="h-9 rounded-lg border border-border bg-white px-2 text-sm"
+              className="h-9 px-2"
             >
               {topics.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
         <Textarea
@@ -378,18 +380,14 @@ export function ThreadClient({ id }: { id: string }) {
   // Authors manage their own comments; admins can moderate any.
   const mine = (entry: ForumReply) => (!!user && entry.authorId === user.id) || !!user?.isAdmin;
 
-  if (isLoading) return <p className="text-sm text-muted">Loading discussion…</p>;
+  if (isLoading) return <Loading>Loading discussion…</Loading>;
   if (error || !data) {
     return (
-      <Card className="flex flex-col gap-2">
-        <p className="text-sm text-foreground">This discussion could not be found.</p>
-        <Link
-          href="/forum"
-          className="text-sm font-medium text-secondary-foreground underline underline-offset-4"
-        >
-          Back to the forum
-        </Link>
-      </Card>
+      <NotFoundCard
+        message="This discussion could not be found."
+        href="/forum"
+        label="Back to the forum"
+      />
     );
   }
 

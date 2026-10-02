@@ -21,6 +21,11 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/profile/avatar";
 import { useSession } from "@/lib/auth/client";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Pill } from "@/components/ui/pill";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 type Tab = "residents" | "carsheds";
 
@@ -81,14 +86,14 @@ export function RoleTag({ person }: { person: Person }) {
   return (
     <span className="flex flex-wrap gap-1">
       {person.role !== "household" ? (
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium capitalize text-secondary-foreground">
+        <Pill size="xs" className="capitalize">
           {person.role}
-        </span>
+        </Pill>
       ) : null}
       {person.resident === false ? (
-        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+        <Pill tone="outline" size="xs" className="font-normal">
           Not living on site
-        </span>
+        </Pill>
       ) : null}
     </span>
   );
@@ -201,15 +206,11 @@ function AddPerson({ onDone }: { onDone: () => void }) {
           </label>
           <label className={field}>
             Role
-            <select
-              value={form.role}
-              onChange={set("role")}
-              className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-            >
+            <Select value={form.role} onChange={set("role")}>
               <option value="owner">Owner</option>
               <option value="renter">Renter</option>
               <option value="household">Household member</option>
-            </select>
+            </Select>
           </label>
           <label className={field}>
             Mobile phone <span className="text-xs font-normal text-muted">(how they sign in)</span>
@@ -244,32 +245,22 @@ function AddPerson({ onDone }: { onDone: () => void }) {
           <fieldset className={field}>
             <legend className="mb-1">Birthday</legend>
             <div className="flex gap-2">
-              <select
-                value={form.month}
-                onChange={set("month")}
-                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-                aria-label="Birthday month"
-              >
+              <Select value={form.month} onChange={set("month")} aria-label="Birthday month">
                 <option value="">Month</option>
                 {MONTHS.map((month) => (
                   <option key={month} value={month}>
                     {month}
                   </option>
                 ))}
-              </select>
-              <select
-                value={form.day}
-                onChange={set("day")}
-                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-                aria-label="Birthday day"
-              >
+              </Select>
+              <Select value={form.day} onChange={set("day")} aria-label="Birthday day">
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((day) => (
                   <option key={day} value={day}>
                     {day}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </fieldset>
         </div>
@@ -444,9 +435,9 @@ function Carsheds({ doc }: { doc: DirectoryDocument }) {
       <div className="grid gap-4 md:grid-cols-2">
         {rows.map(({ row, slots }) => (
           <Card key={row} className="flex flex-col gap-3 p-5">
-            <h2 className="flex items-center gap-2 text-lg font-semibold capitalize text-foreground">
-              <Car className="h-5 w-5 text-primary" /> {row} car sheds
-            </h2>
+            <SectionHeading icon={Car} className="capitalize">
+              {row} car sheds
+            </SectionHeading>
             <p className="text-xs text-muted">Listed left to right.</p>
             <ul className="divide-y divide-border">
               {slots.map((slot) => (
@@ -488,37 +479,18 @@ export function DirectoryClient() {
         </div>
       </div>
 
-      <div
+      <SegmentedControl
         role="tablist"
-        aria-label="Directory sections"
-        className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1"
-      >
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            role="tab"
-            aria-selected={tab === item.id}
-            onClick={() => setTab(item.id)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition",
-              tab === item.id
-                ? "bg-primary text-primary-foreground shadow-soft"
-                : "text-foreground/70 hover:bg-accent"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+        label="Directory sections"
+        value={tab}
+        onChange={setTab}
+        options={TABS.map((item) => ({ value: item.id, label: item.label }))}
+      />
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading the directory…</p>
+        <Loading>Loading the directory…</Loading>
       ) : error || !data ? (
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "The directory is unavailable."}
-          </p>
-        </Card>
+        <ErrorCard error={error} fallback="The directory is unavailable." />
       ) : tab === "residents" ? (
         <Residents people={data.people} circles={data.circles} />
       ) : (

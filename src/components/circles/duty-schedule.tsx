@@ -33,6 +33,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ModuleToggle } from "@/components/circles/circle-modules";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Pill } from "@/components/ui/pill";
+import { ErrorCard } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
 
 export interface ScheduleResponse {
   schedule: DutySchedule | null;
@@ -163,10 +167,10 @@ function DayEditor({
         </p>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <select
+        <Select
           value={householdId}
           onChange={(event) => setHouseholdId(event.target.value)}
-          className="h-10 rounded-lg border border-border bg-white px-3 text-sm sm:w-56"
+          className="sm:w-56"
           aria-label="On duty"
         >
           {schedule.households.map((household) => (
@@ -176,7 +180,7 @@ function DayEditor({
             </option>
           ))}
           <option value="">Needs cover</option>
-        </select>
+        </Select>
         <Input
           placeholder={
             householdId === "" ? "Why? e.g. away Oct 3–10" : "Note, e.g. swapped with Fayre"
@@ -255,11 +259,7 @@ export function DutyScheduleModule({
 
   if (isLoading) return null;
   if (error) {
-    return (
-      <Card>
-        <p className="text-sm text-foreground">{(error as Error).message}</p>
-      </Card>
-    );
+    return <ErrorCard error={error} />;
   }
   if (!data) return null;
 
@@ -377,10 +377,7 @@ export function DutyScheduleModule({
     <Card className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-            <ModuleToggle />
-            {schedule.title}
-          </h2>
+          <SectionHeading toggle={<ModuleToggle />}>{schedule.title}</SectionHeading>
           <p className="text-sm text-muted">
             {data.canChangeDays
               ? "Tap a day to record a swap or cover."
@@ -607,9 +604,9 @@ export function DutyScheduleModule({
                   <span>
                     {item.title}
                     {item.months?.length && current ? (
-                      <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                      <Pill size="xs" className="ml-2">
                         Now
-                      </span>
+                      </Pill>
                     ) : null}
                   </span>
                   <ChevronDown className="h-4 w-4 text-muted transition group-open:rotate-180" />

@@ -47,6 +47,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useDirectory } from "@/components/directory/use-directory";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Loading, NotFoundCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
 
 const SAVE_AFTER_MS = 1200;
 
@@ -584,6 +587,7 @@ function AddProposal({
  * (typed or transcribed), and the proposals brought to it.
  */
 export function MinutesMaker({ circleId, meetingId }: { circleId: string; meetingId: string }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -636,16 +640,12 @@ export function MinutesMaker({ circleId, meetingId }: { circleId: string; meetin
   );
 
   const back = <BackLink href={`/circles/${circleId}`} label={circle?.name ?? "Circle"} />;
-  if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
+  if (isLoading) return <Loading />;
   if (error || !data) {
     return (
       <div className="flex flex-col gap-4">
         {back}
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "That meeting wasn't found."}
-          </p>
-        </Card>
+        <NotFoundCard error={error} message="That meeting wasn't found." />
       </div>
     );
   }
@@ -703,9 +703,12 @@ export function MinutesMaker({ circleId, meetingId }: { circleId: string; meetin
               variant="ghost"
               className="ml-auto gap-1.5 text-muted hover:text-destructive"
               disabled={remove.isPending}
-              onClick={() => {
+              onClick={async () => {
                 if (
-                  window.confirm(`Delete the minutes of “${meeting.title}”? This can't be undone.`)
+                  await confirm({
+                    title: `Delete the minutes of “${meeting.title}”?`,
+                    destructive: true,
+                  })
                 )
                   remove.mutate();
               }}
@@ -732,9 +735,7 @@ export function MinutesMaker({ circleId, meetingId }: { circleId: string; meetin
 
       <Card className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Send className="h-5 w-5 text-primary" aria-hidden /> Proposals
-          </h2>
+          <SectionHeading icon={Send}>Proposals</SectionHeading>
           {canEdit && !addingProposal ? (
             <Button
               size="sm"

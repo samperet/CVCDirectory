@@ -12,7 +12,6 @@ import {
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import { select } from "d3-selection";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { PAGE_STYLES } from "@/lib/wiki/colors";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/wiki/map-shared";
 

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Loading } from "@/components/ui/status";
 
 interface SkillListing {
   id: string;
@@ -90,15 +92,13 @@ export function MySkills() {
   return (
     <Card className="flex flex-col gap-3">
       <div>
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Sparkles className="h-5 w-5 text-primary" aria-hidden /> Your skills
-        </h2>
+        <SectionHeading icon={Sparkles}>Your skills</SectionHeading>
         <p className="text-sm text-muted">
           What you could help neighbors with. They show on your directory page and in search.
         </p>
       </div>
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : mine.length ? (
         <ul className="flex flex-wrap gap-1.5">
           {mine.map((skill) => (

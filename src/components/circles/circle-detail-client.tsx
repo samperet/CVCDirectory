@@ -43,6 +43,12 @@ import { useToast } from "@/components/ui/use-toast";
 import { timeAgo } from "@/lib/time";
 import { BOARD_ID, isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Pill } from "@/components/ui/pill";
+import { Loading } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
+import { Select } from "@/components/ui/select";
+import { NotFoundCard } from "@/components/ui/status";
 
 const ROLES = [
   "Member",
@@ -121,6 +127,7 @@ function MemberRow({
   person?: Person;
   canManage: boolean;
 }) {
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [position, setPosition] = useState(seat.position ?? "");
   const [termEnds, setTermEnds] = useState(seat.termEnds ?? "");
@@ -177,8 +184,14 @@ function MemberRow({
               size="icon"
               variant="ghost"
               className="h-8 w-8 text-muted hover:text-destructive"
-              onClick={() => {
-                if (window.confirm(`Remove ${name} from ${circle.name}?`)) remove.mutate(undefined);
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: `Remove ${name} from ${circle.name}?`,
+                    confirmLabel: "Remove",
+                  })
+                )
+                  remove.mutate(undefined);
               }}
               disabled={remove.isPending}
               aria-label={`Remove ${name}`}
@@ -359,6 +372,7 @@ function JoinControls({
   isMember: boolean;
   mine: CircleApplication | null;
 }) {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const [applying, setApplying] = useState(false);
   const [message, setMessage] = useState("");
@@ -393,8 +407,9 @@ function JoinControls({
         variant="ghost"
         className="w-fit gap-1.5 text-muted hover:text-destructive"
         disabled={leave.isPending}
-        onClick={() => {
-          if (window.confirm(`Leave ${circle.name}?`)) leave.mutate(undefined);
+        onClick={async () => {
+          if (await confirm({ title: `Leave ${circle.name}?`, confirmLabel: "Leave" }))
+            leave.mutate(undefined);
         }}
       >
         <LogOut className="h-4 w-4" /> Leave circle
@@ -480,15 +495,15 @@ function JoinPolicySetting({ circle }: { circle: Circle }) {
   return (
     <label className="flex flex-col gap-1 text-xs font-medium text-muted">
       Who can join
-      <select
+      <Select
         value={circle.joinPolicy ?? "apply"}
         onChange={(event) => save.mutate(event.target.value as JoinPolicy)}
         disabled={save.isPending}
-        className="h-9 rounded-lg border border-border bg-white px-2 text-sm font-normal text-foreground"
+        className="h-9 px-2 font-normal"
       >
         <option value="open">Anyone can join</option>
         <option value="apply">Members approve applications</option>
-      </select>
+      </Select>
     </label>
   );
 }
@@ -502,6 +517,7 @@ function ApplicationRow({
   application: CircleApplication;
   person?: Person;
 }) {
+  const confirm = useConfirm();
   const decide = useCircleMutation(
     (approve: boolean) =>
       apiFetch(`/api/circles/${circle.id}/applications/${application.id}`, {
@@ -543,8 +559,14 @@ function ApplicationRow({
           variant="outline"
           className="h-8"
           disabled={decide.isPending}
-          onClick={() => {
-            if (window.confirm(`Decline ${application.name}'s application?`)) decide.mutate(false);
+          onClick={async () => {
+            if (
+              await confirm({
+                title: `Decline ${application.name}'s application?`,
+                confirmLabel: "Decline",
+              })
+            )
+              decide.mutate(false);
           }}
         >
           Decline
@@ -578,10 +600,9 @@ function MembersModule({
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-            <ModuleToggle />
-            Members <span className="text-sm font-normal text-muted">({members.length})</span>
-          </h2>
+          <SectionHeading toggle={<ModuleToggle />} count={members.length}>
+            Members
+          </SectionHeading>
           <EmailCircleButton circle={circle} people={people} className="-mr-2" />
         </div>
         {!canManage ? (
@@ -640,6 +661,7 @@ function MembersModule({
 }
 
 export function CircleDetailClient({ id }: { id: string }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const { user } = useSession();
   const [editingDetails, setEditingDetails] = useState(false);
@@ -682,20 +704,15 @@ export function CircleDetailClient({ id }: { id: string }) {
     () => setPageDraft(null)
   );
 
-  if (isLoading) return <p className="text-sm text-muted">Loading circle…</p>;
+  if (isLoading) return <Loading>Loading circle…</Loading>;
   if (error || !data || !circle) {
     return (
-      <Card className="flex flex-col gap-2">
-        <p className="text-sm text-foreground">
-          {(error as Error | null)?.message ?? "That circle wasn't found."}
-        </p>
-        <Link
-          href="/circles"
-          className="text-sm font-medium text-secondary-foreground underline underline-offset-4"
-        >
-          All circles
-        </Link>
-      </Card>
+      <NotFoundCard
+        error={error}
+        message="That circle wasn't found."
+        href="/circles"
+        label="All circles"
+      />
     );
   }
 
@@ -780,9 +797,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           icon: icon(module),
           content: (
             <Card className="flex flex-col gap-4">
-              <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-                <ModuleToggle /> {title}
-              </h2>
+              <SectionHeading toggle={<ModuleToggle />}>{title}</SectionHeading>
               <DocumentsPanel
                 circleId={id}
                 circleName={circle.name}
@@ -819,11 +834,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           ) : (
             <>
               <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
-              {circle.kind === "club" ? (
-                <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                  Social club
-                </span>
-              ) : null}
+              {circle.kind === "club" ? <Pill className="w-fit">Social club</Pill> : null}
               {circle.description ? (
                 <p className="whitespace-pre-wrap text-sm text-foreground-light">
                   {circle.description}
@@ -859,8 +870,8 @@ export function CircleDetailClient({ id }: { id: string }) {
                   size="sm"
                   variant="ghost"
                   className="gap-1.5 text-muted hover:text-destructive"
-                  onClick={() => {
-                    if (window.confirm(`Delete ${circle.name}? This can't be undone.`))
+                  onClick={async () => {
+                    if (await confirm({ title: `Delete ${circle.name}?`, destructive: true }))
                       remove.mutate(undefined);
                   }}
                   disabled={remove.isPending}

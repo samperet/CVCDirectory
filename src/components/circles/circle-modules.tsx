@@ -19,6 +19,8 @@ import {
 } from "@/lib/circles/layout";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 /**
  * A circle page's modules, laid out as the circle chose: in its order, each
@@ -194,6 +196,7 @@ export function ModuleEditor({
   onChange: (modules: CircleModule[]) => void;
   onSettings: (module: CircleModule) => void;
 }) {
+  const confirm = useConfirm();
   const [dragging, setDragging] = useState<string | null>(null);
   const move = (from: number, to: number) => {
     if (to < 0 || to >= layout.length || from === to) return;
@@ -293,11 +296,13 @@ export function ModuleEditor({
                     control,
                     "w-auto gap-1.5 px-2.5 text-sm text-muted hover:text-destructive"
                   )}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      window.confirm(
-                        `Remove ${section.title} from this page?${REMOVE_NOTE[module.type] ?? ""}`
-                      )
+                      await confirm({
+                        title: `Remove ${section.title} from this page?`,
+                        body: REMOVE_NOTE[module.type]?.trim(),
+                        confirmLabel: "Remove",
+                      })
                     )
                       remove(id);
                   }}
@@ -308,30 +313,17 @@ export function ModuleEditor({
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span>Size</span>
-                <div
-                  className="inline-flex rounded-full border border-border bg-white p-0.5"
-                  role="radiogroup"
-                  aria-label={`${section.title} size`}
-                >
-                  {MODULE_SIZES.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={size === option}
-                      title={SIZE_NAMES[option]}
-                      onClick={() => resize(id, option)}
-                      className={cn(
-                        "min-w-[2.25rem] rounded-full px-2 py-0.5 text-xs font-medium transition",
-                        size === option
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      {SIZE_LABELS[option]}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  size="xs"
+                  label={`${section.title} size`}
+                  value={size}
+                  onChange={(option) => resize(id, option)}
+                  options={MODULE_SIZES.map((option) => ({
+                    value: option,
+                    label: SIZE_LABELS[option],
+                    title: SIZE_NAMES[option],
+                  }))}
+                />
               </div>
             </Card>
           </div>

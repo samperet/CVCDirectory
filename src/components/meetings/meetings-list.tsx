@@ -16,6 +16,7 @@ import { useNewMeeting } from "@/components/meetings/meetings-module";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useDirectory } from "@/components/directory/use-directory";
+import { Loading, ErrorCard } from "@/components/ui/status";
 
 /** All of a circle's meetings (newest first) and every proposal brought to them. */
 export function MeetingsListClient({ circleId }: { circleId: string }) {
@@ -38,13 +39,9 @@ export function MeetingsListClient({ circleId }: { circleId: string }) {
         ) : null}
       </div>
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : error || !data ? (
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "Meetings are unavailable."}
-          </p>
-        </Card>
+        <ErrorCard error={error} fallback="Meetings are unavailable." />
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <Card className="flex flex-col gap-2">

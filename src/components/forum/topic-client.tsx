@@ -17,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import type { ForumTopic } from "@/lib/forum/topics";
+import { Loading } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
 
 /** A topic, with how many discussions it holds and its most recently active one. */
 export type TopicSummary = ForumTopic & {
@@ -90,6 +92,7 @@ function TopicEditor({ topic, onDone }: { topic: ForumTopic; onDone: () => void 
 
 /** One forum topic: its discussions, most recently active first, and starting a new one. */
 export function TopicClient({ topicId }: { topicId: string }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -146,7 +149,7 @@ export function TopicClient({ topicId }: { topicId: string }) {
       }),
   });
 
-  if (topics.isLoading) return <p className="text-sm text-muted">Loading…</p>;
+  if (topics.isLoading) return <Loading />;
   if (!topic) {
     return (
       <Card className="flex flex-col gap-2">
@@ -183,11 +186,13 @@ export function TopicClient({ topicId }: { topicId: string }) {
                   type="button"
                   className="inline-flex items-center gap-1 font-medium text-muted hover:text-destructive hover:underline"
                   disabled={removeTopic.isPending}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      window.confirm(
-                        `Remove the “${topic.name}” topic? Its discussions move to General.`
-                      )
+                      await confirm({
+                        title: `Remove the “${topic.name}” topic?`,
+                        body: "Its discussions move to General.",
+                        confirmLabel: "Remove",
+                      })
                     )
                       removeTopic.mutate();
                   }}
@@ -240,7 +245,7 @@ export function TopicClient({ topicId }: { topicId: string }) {
       ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading discussions…</p>
+        <Loading>Loading discussions…</Loading>
       ) : threads.length ? (
         <ul className="flex flex-col gap-3">
           {threads.map((thread) => (

@@ -9,12 +9,10 @@ import {
   ArrowUpDown,
   BadgeCheck,
   Download,
-  FileText,
   History,
   MessagesSquare,
   Pencil,
   Search,
-  StickyNote,
   Tags,
   Trash2,
   Upload,
@@ -43,6 +41,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
 import { searchTerms } from "@/lib/search";
+import { Loading } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
+import { Select } from "@/components/ui/select";
 
 type ListResponse = {
   documents: DocumentListing[];
@@ -145,17 +146,13 @@ function DetailsFields({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Type
-          <select
-            value={form.type}
-            onChange={set("type")}
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-          >
+          <Select value={form.type} onChange={set("type")}>
             {types.map((type) => (
               <option key={type.id} value={type.id}>
                 {type.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Meeting date{" "}
@@ -218,6 +215,7 @@ function DocumentRow({
   terms: string[];
   showCircle: boolean;
 }) {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const replaceInput = useRef<HTMLInputElement>(null);
@@ -420,13 +418,14 @@ function DocumentRow({
             consent === "consented" ? (
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      `Withdraw the record that ${doc.circleName || "the circle"} consented to “${
-                        doc.title
-                      }”?`
-                    )
+                    await confirm({
+                      title: `Withdraw the record that ${
+                        doc.circleName || "the circle"
+                      } consented to “${doc.title}”?`,
+                      confirmLabel: "Withdraw",
+                    })
                   )
                     withdraw.mutate();
                 }}
@@ -492,13 +491,14 @@ function DocumentRow({
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      `Delete “${doc.title}” and all ${
+                    await confirm({
+                      title: `Delete “${doc.title}” and all ${
                         doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"
-                      }? This can't be undone.`
-                    )
+                      }?`,
+                      destructive: true,
+                    })
                   )
                     remove.mutate();
                 }}
@@ -634,7 +634,7 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
       toast({ title: "Could not save types", description: err.message, variant: "destructive" }),
   });
 
-  if (!rows) return <p className="text-sm text-muted">Loading types…</p>;
+  if (!rows) return <Loading>Loading types…</Loading>;
   const move = (index: number, delta: number) =>
     setRows((current) => {
       if (!current) return current;
@@ -899,10 +899,9 @@ export function DocumentsPanel({
           />
         </div>
         {!circleId && circles ? (
-          <select
+          <Select
             value={circle}
             onChange={(event) => setCircle(event.target.value)}
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
             aria-label="Circle"
           >
             <option value="">All circles</option>
@@ -911,21 +910,16 @@ export function DocumentsPanel({
                 {entry.name}
               </option>
             ))}
-          </select>
+          </Select>
         ) : null}
-        <select
-          value={type}
-          onChange={(event) => setType(event.target.value)}
-          className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-          aria-label="Type"
-        >
+        <Select value={type} onChange={(event) => setType(event.target.value)} aria-label="Type">
           <option value="">All types</option>
           {typeOptions.map((entry) => (
             <option key={entry} value={entry}>
               {entry}
             </option>
           ))}
-        </select>
+        </Select>
         <label
           className={cn(
             "flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-sm transition",
@@ -948,26 +942,21 @@ export function DocumentsPanel({
           Consented only
         </label>
         {!circleId && yearOptions.length > 1 ? (
-          <select
-            value={year}
-            onChange={(event) => setYear(event.target.value)}
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-            aria-label="Year"
-          >
+          <Select value={year} onChange={(event) => setYear(event.target.value)} aria-label="Year">
             <option value="">All years</option>
             {yearOptions.map((entry) => (
               <option key={entry} value={entry}>
                 {entry}
               </option>
             ))}
-          </select>
+          </Select>
         ) : null}
         <label className="flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white pl-3 text-sm text-muted">
           <ArrowUpDown className="h-4 w-4" aria-hidden />
-          <select
+          <Select
             value={sort}
             onChange={(event) => setSort(event.target.value)}
-            className="h-full rounded-lg bg-transparent pr-2 text-foreground focus:outline-none"
+            className="h-full border-0 bg-transparent px-0 pr-2 focus:outline-none"
             aria-label="Sort"
           >
             <option value="">{debounced ? "Best match" : "Newest"}</option>
@@ -975,7 +964,7 @@ export function DocumentsPanel({
             <option value="oldest">Oldest</option>
             <option value="title">Title A–Z</option>
             <option value="updated">Recently updated</option>
-          </select>
+          </Select>
         </label>
         {filtered || sort ? (
           <button
@@ -1021,7 +1010,7 @@ export function DocumentsPanel({
       ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading documents…</p>
+        <Loading>Loading documents…</Loading>
       ) : error ? (
         <p className="text-sm text-foreground">{(error as Error).message}</p>
       ) : data && data.documents.length ? (

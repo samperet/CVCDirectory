@@ -26,6 +26,7 @@ import { AppreciationsFooter } from "@/components/appreciations/appreciations-fo
 import { useSession, useViewAs } from "@/lib/auth/client";
 import { setUpPwa } from "@/components/notifications/pwa";
 import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
+import { Loading } from "@/components/ui/status";
 
 const links = [
   { href: "/", label: "Dashboard", icon: Grid },
@@ -197,7 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-          {onLoginPage ? children : <p className="text-sm text-muted">Loading…</p>}
+          {onLoginPage ? children : <Loading />}
         </main>
       </div>
     );

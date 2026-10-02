@@ -41,6 +41,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { isCommunity } from "@/lib/circles/ids";
 import { useCircles } from "@/components/directory/use-directory";
+import { Select } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 /** Adding a module to a circle's page, and setting up an Information module's pages. */
 
@@ -295,7 +297,6 @@ export function InformationSettings({
     next.splice(to, 0, entry);
     setPageIds(next);
   };
-  const select = "h-10 rounded-lg border border-border bg-white px-2 text-sm text-foreground";
   const small =
     "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground disabled:opacity-40";
 
@@ -446,26 +447,26 @@ export function InformationSettings({
           ) : kind === "circle" ? (
             <label className="flex flex-col gap-1 text-xs font-medium text-muted">
               Circle
-              <select
+              <Select
                 value={circleId}
                 onChange={(event) => setCircleId(event.target.value)}
-                className={select}
+                className="px-2"
               >
                 {circles.map((entry) => (
                   <option key={entry.id} value={entry.id}>
                     {entry.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           ) : (
             <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
               <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                 How many
-                <select
+                <Select
                   value={limit}
                   onChange={(event) => setLimit(Number(event.target.value))}
-                  className={select}
+                  className="px-2"
                 >
                   {Array.from(
                     { length: RECENT_LIMITS.max - RECENT_LIMITS.min + 1 },
@@ -475,14 +476,14 @@ export function InformationSettings({
                       {count}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                 From
-                <select
+                <Select
                   value={recentCircle}
                   onChange={(event) => setRecentCircle(event.target.value)}
-                  className={select}
+                  className="px-2"
                 >
                   <option value="">The whole wiki</option>
                   {circles.map((entry) => (
@@ -490,7 +491,7 @@ export function InformationSettings({
                       {entry.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
           )}
@@ -507,32 +508,17 @@ export function InformationSettings({
 
         <fieldset className="flex flex-col gap-1.5">
           <legend className="mb-1 text-sm font-medium text-foreground">Show pages as</legend>
-          <div
-            className="inline-flex w-fit rounded-full border border-border bg-surface p-0.5 text-xs"
-            role="radiogroup"
-            aria-label="Show pages as"
-          >
-            {INFO_VIEWS.map((option) => {
-              const Icon = VIEW_ICONS[option];
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={view === option}
-                  onClick={() => setView(option)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition",
-                    view === option
-                      ? "bg-primary text-primary-foreground shadow-soft"
-                      : "text-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden /> {INFO_VIEW_LABELS[option]}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            size="xs"
+            label="Show pages as"
+            value={view}
+            onChange={setView}
+            options={INFO_VIEWS.map((option) => ({
+              value: option,
+              label: INFO_VIEW_LABELS[option],
+              icon: VIEW_ICONS[option],
+            }))}
+          />
         </fieldset>
 
         <div className="flex justify-end gap-2 pt-1">

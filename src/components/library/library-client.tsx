@@ -12,6 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { Pill } from "@/components/ui/pill";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
+import { useConfirm } from "@/components/ui/confirm";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 interface LibraryListing extends LoanItem {
   ownerUnit: number | null;
@@ -61,6 +66,7 @@ function AskToBorrow({ item }: { item: LibraryListing }) {
 }
 
 function OwnerControls({ item }: { item: LibraryListing }) {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [lending, setLending] = useState(false);
@@ -136,8 +142,15 @@ function OwnerControls({ item }: { item: LibraryListing }) {
         size="sm"
         variant="ghost"
         className="gap-1.5 text-muted hover:text-destructive"
-        onClick={() => {
-          if (window.confirm(`Remove "${item.title}" from the library?`)) remove.mutate();
+        onClick={async () => {
+          if (
+            await confirm({
+              title: `Remove “${item.title}” from the library?`,
+              confirmLabel: "Remove",
+              destructive: true,
+            })
+          )
+            remove.mutate();
         }}
         disabled={remove.isPending}
       >
@@ -284,8 +297,7 @@ export function LibraryClient() {
             aria-label="Search the loan library"
           />
         </div>
-        <select
-          className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground"
+        <Select
           value={categoryFilter}
           onChange={(event) => setCategoryFilter(event.target.value)}
           aria-label="Filter by category"
@@ -296,35 +308,17 @@ export function LibraryClient() {
               {cat}
             </option>
           ))}
-        </select>
-        <div
-          role="group"
-          aria-label="Filter by availability"
-          className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1"
-        >
-          {(
-            [
-              ["all", "All"],
-              ["available", "Available"],
-              ["lent", "Lent out"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={availability === value}
-              onClick={() => setAvailability(value)}
-              className={cn(
-                "rounded-full px-3 py-1 text-sm transition",
-                availability === value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground/70 hover:bg-accent"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        </Select>
+        <SegmentedControl
+          label="Filter by availability"
+          value={availability}
+          onChange={setAvailability}
+          options={[
+            { value: "all", label: "All" },
+            { value: "available", label: "Available" },
+            { value: "lent", label: "Lent out" },
+          ]}
+        />
         <label className="flex items-center gap-2 text-sm text-foreground-light">
           <input
             type="checkbox"
@@ -336,11 +330,9 @@ export function LibraryClient() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading the library…</p>
+        <Loading>Loading the library…</Loading>
       ) : error ? (
-        <Card>
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        </Card>
+        <ErrorCard error={error} />
       ) : visible.length ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {visible.map((item) => (
@@ -353,16 +345,9 @@ export function LibraryClient() {
                   <h2 className="font-semibold text-foreground">{item.title}</h2>
                   <p className="text-xs text-muted">{item.category}</p>
                 </div>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                    item.available
-                      ? "bg-secondary text-secondary-foreground"
-                      : "border border-border text-muted"
-                  )}
-                >
+                <Pill size="xs" tone={item.available ? "secondary" : "outline"}>
                   {item.available ? "Available" : "Lent out"}
-                </span>
+                </Pill>
               </div>
               {item.description ? (
                 <p className="whitespace-pre-wrap text-sm text-foreground-light">

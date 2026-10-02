@@ -7,16 +7,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
-import {
-  EDGE_INFO,
-  KIND_INFO,
-  NodePanel,
-  circleColors,
-  nodeFill,
-} from "@/components/wiki/map-shared";
+import { EDGE_INFO, NodePanel, circleColors, nodeFill } from "@/components/wiki/map-shared";
 import { IslandsView, type IslandsHandle } from "@/components/wiki/map-islands";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { ErrorCard } from "@/components/ui/status";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 // The 3D view (three.js) loads only when it's chosen.
 const Globe3DView = dynamic(
@@ -101,43 +98,23 @@ export function WikiMapClient() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Network className="h-5 w-5 text-primary" aria-hidden /> Map
-          </h2>
+          <SectionHeading icon={Network}>Map</SectionHeading>
           <p className="text-sm text-muted">
             The wiki&apos;s pages (those you can see) by parent circle, and how they link to each
             other.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div
-            className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm"
-            role="radiogroup"
-            aria-label="View"
-          >
-            {(
-              [
-                ["islands", "Islands", MapIcon],
-                ["3d", "3D", Box],
-              ] as const
-            ).map(([value, label, Icon]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={view === value}
-                onClick={() => setView(value)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition",
-                  view === value
-                    ? "bg-primary text-primary-foreground shadow-soft"
-                    : "text-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" /> {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            size="sm"
+            label="View"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "islands", label: "Islands", icon: MapIcon },
+              { value: "3d", label: "3D", icon: Box },
+            ]}
+          />
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
@@ -251,9 +228,7 @@ export function WikiMapClient() {
           {isLoading ? (
             <p className="text-sm text-muted">Drawing the map…</p>
           ) : error ? (
-            <Card>
-              <p className="text-sm text-foreground">{(error as Error).message}</p>
-            </Card>
+            <ErrorCard error={error} />
           ) : data && data.nodes.length ? (
             <div className="relative">
               {view === "islands" ? (

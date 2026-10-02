@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 type Setup = Omit<DutySchedule, "overrides" | "updatedAt">;
 
@@ -354,7 +355,7 @@ export function ScheduleEditor({
                   {turn.map((id, index) => (
                     <span key={index} className="flex items-center gap-1">
                       {index > 0 ? <span className="text-xs text-muted">then</span> : null}
-                      <select
+                      <Select
                         value={id}
                         onChange={(event) =>
                           setTurn(
@@ -362,7 +363,7 @@ export function ScheduleEditor({
                             turn.map((entry, i) => (i === index ? event.target.value : entry))
                           )
                         }
-                        className="h-9 rounded-lg border border-border bg-white px-2 text-sm"
+                        className="h-9 px-2"
                         aria-label={`${dayName}, turn ${index + 1}`}
                       >
                         {draft.households.map((household) => (
@@ -370,7 +371,7 @@ export function ScheduleEditor({
                             {household.name || "Unnamed household"}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                       <button
                         type="button"
                         className="rounded-full p-1 text-muted hover:bg-accent hover:text-foreground"

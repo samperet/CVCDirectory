@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
 
 interface SkillListing {
   id: string;
@@ -41,6 +43,7 @@ interface GroupedSkill {
 }
 
 export function SkillsClient() {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
@@ -206,11 +209,9 @@ export function SkillsClient() {
         </div>
 
         {isLoading ? (
-          <p className="text-sm text-muted">Loading skills…</p>
+          <Loading>Loading skills…</Loading>
         ) : error ? (
-          <Card>
-            <p className="text-sm text-foreground">{(error as Error).message}</p>
-          </Card>
+          <ErrorCard error={error} />
         ) : grouped.length ? (
           grouped.map(([cat, groups]) => (
             <section key={cat} className="flex flex-col gap-3">
@@ -232,14 +233,15 @@ export function SkillsClient() {
                           {user?.isAdmin ? (
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (
-                                  window.confirm(
-                                    `Remove “${group.name}” from ${member.personName}'s skills?`
-                                  )
-                                ) {
+                                  await confirm({
+                                    title: `Remove “${group.name}” from ${member.personName}'s skills?`,
+                                    confirmLabel: "Remove",
+                                    destructive: true,
+                                  })
+                                )
                                   remove.mutate(member.skillId);
-                                }
                               }}
                               disabled={remove.isPending}
                               className="ml-auto rounded-full p-1 text-muted hover:bg-accent hover:text-foreground"

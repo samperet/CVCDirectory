@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 import { useCircles } from "@/components/directory/use-directory";
+import { Loading } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
 
 // The map (d3, and three.js for 3D) loads in the browser only, when it's opened.
 const WikiMap = dynamic(
@@ -96,17 +98,17 @@ export function NewPageForm({
       {!from && keepers.length > 1 ? (
         <label className="flex flex-wrap items-center gap-2 text-sm text-muted">
           Parent circle
-          <select
+          <Select
             value={keeper}
             onChange={(event) => setChosen(event.target.value)}
-            className="h-9 rounded-md border border-border bg-white px-2 text-sm text-foreground"
+            className="h-9 rounded-md px-2"
           >
             {keepers.map((circle) => (
               <option key={circle.id} value={circle.id}>
                 {circle.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : null}
       <div className="flex gap-2">
@@ -251,12 +253,12 @@ export function WikiHomeClient() {
               aria-label="Find a page"
             />
           </div>
-          <select
+          <Select
             value={keeperFilter}
             onChange={(event) =>
               router.replace(event.target.value ? `/wiki?keeper=${event.target.value}` : "/wiki")
             }
-            className="h-10 rounded-md border border-border bg-white px-2 text-sm text-foreground"
+            className="rounded-md px-2"
             aria-label="Parent circle"
           >
             <option value="">Every parent circle</option>
@@ -265,10 +267,10 @@ export function WikiHomeClient() {
                 {circleName(id)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         {isLoading ? (
-          <p className="text-sm text-muted">Loading…</p>
+          <Loading />
         ) : error ? (
           <p className="text-sm text-foreground">{(error as Error).message}</p>
         ) : !listed.length ? (

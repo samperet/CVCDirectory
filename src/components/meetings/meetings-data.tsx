@@ -12,6 +12,7 @@ import {
   type ProposalSummary,
 } from "@/lib/meetings/shared";
 import { cn } from "@/lib/utils";
+import { Pill, type PillTone } from "@/components/ui/pill";
 
 export type MeetingsResponse = {
   meetings: MeetingSummary[];
@@ -76,12 +77,12 @@ export function useNow() {
   return now;
 }
 
-const STATE_STYLES: Record<ProposalState, string> = {
-  draft: "bg-accent text-foreground",
-  review: "bg-sun/15 text-[#7a5200]",
-  paused: "bg-destructive/10 text-destructive",
-  consented: "bg-primary/25 text-pine",
-  withdrawn: "bg-black/5 text-muted",
+const STATE_TONES: Record<ProposalState, PillTone> = {
+  draft: "accent",
+  review: "amber",
+  paused: "destructive",
+  consented: "pine",
+  withdrawn: "muted",
 };
 
 /** Where a proposal stands, as a pill: "3 days left", "Paused: 1 objection", "Consented". */
@@ -98,15 +99,8 @@ export function ProposalBadge({
 }) {
   const state = proposalState(proposal, now);
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold",
-        STATE_STYLES[state],
-        className
-      )}
-      data-state={state}
-    >
+    <Pill tone={STATE_TONES[state]} className={cn("font-semibold", className)} data-state={state}>
       {statusLine(proposal, objections, now)}
-    </span>
+    </Pill>
   );
 }

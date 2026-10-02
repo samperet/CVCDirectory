@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
+import { Loading, ErrorCard } from "@/components/ui/status";
 
 /** Start a social club — or, for the Board and admins, an official circle. */
 function NewCircleForm({
@@ -184,7 +185,7 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
     return (
       <>
         {top()}
-        <p className="text-sm text-muted">Loading circles…</p>
+        <Loading>Loading circles…</Loading>
       </>
     );
   }
@@ -192,11 +193,7 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
     return (
       <>
         {top()}
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "Circles are unavailable."}
-          </p>
-        </Card>
+        <ErrorCard error={error} fallback="Circles are unavailable." />
       </>
     );
   }

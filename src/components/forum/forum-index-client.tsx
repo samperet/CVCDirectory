@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { Loading, ErrorCard } from "@/components/ui/status";
 
 /** Add a forum topic (admins). */
 function NewTopicForm({ onDone }: { onDone: () => void }) {
@@ -101,11 +102,9 @@ export function ForumIndexClient() {
       {adding ? <NewTopicForm onDone={() => setAdding(false)} /> : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading topics…</p>
+        <Loading>Loading topics…</Loading>
       ) : error ? (
-        <Card>
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        </Card>
+        <ErrorCard error={error} />
       ) : (
         <ul className="flex flex-col gap-3">
           {topics.map((topic) => (

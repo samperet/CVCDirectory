@@ -39,6 +39,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useDirectory } from "@/components/directory/use-directory";
+import { Loading, NotFoundCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
+import { Select } from "@/components/ui/select";
+import { pillTone } from "@/components/ui/pill";
 
 function TitleEditor({
   task,
@@ -242,6 +246,7 @@ function Checklist({
  * them, its status, owner, due date, priority, and what's happened to it.
  */
 export function TaskPageClient({ circleId, number }: { circleId: string; number: number }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -279,16 +284,12 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
     />
   );
   const task = data?.task;
-  if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
+  if (isLoading) return <Loading />;
   if (error || !task) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         {back}
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "That task wasn't found."}
-          </p>
-        </Card>
+        <NotFoundCard error={error} message="That task wasn't found." />
       </div>
     );
   }
@@ -408,7 +409,7 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                       task.status === status
                         ? cn(
                             "border-transparent",
-                            STATUS_STYLES[status].pill,
+                            pillTone(STATUS_STYLES[status].pill),
                             "font-semibold shadow-soft"
                           )
                         : "border-border bg-white text-muted enabled:hover:text-foreground"
@@ -483,17 +484,17 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
               <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 Priority
                 {canEdit ? (
-                  <select
+                  <Select
                     value={task.priority}
                     onChange={(e) => save({ priority: e.target.value as TaskPriority })}
-                    className="h-9 rounded-lg border border-border bg-white px-2 text-sm font-normal normal-case tracking-normal text-foreground"
+                    className="h-9 px-2 font-normal normal-case tracking-normal"
                   >
                     {TASK_PRIORITIES.map((value) => (
                       <option key={value} value={value}>
                         {PRIORITY_LABELS[value]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
                   <span className="text-sm font-normal normal-case tracking-normal text-foreground">
                     {PRIORITY_LABELS[task.priority]}
@@ -511,9 +512,12 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                 type="button"
                 className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted hover:text-destructive"
                 disabled={remove.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(`Delete “${task.title}” and its comments? This can't be undone.`)
+                    await confirm({
+                      title: `Delete “${task.title}” and its comments?`,
+                      destructive: true,
+                    })
                   )
                     remove.mutate();
                 }}

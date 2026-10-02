@@ -17,11 +17,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
+import { Loading } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
+import { Select } from "@/components/ui/select";
 
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** One resident's page: contact details, birthday, bio, and circles — and, for directory managers, editing and removal. */
 export function PersonClient({ personId: requested }: { personId: string }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -95,7 +99,7 @@ export function PersonClient({ personId: requested }: { personId: string }) {
       toast({ title: "Could not remove", description: err.message, variant: "destructive" }),
   });
 
-  if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
+  if (isLoading) return <Loading />;
   if (error || !person) {
     return (
       <Card className="flex flex-col gap-2">
@@ -238,11 +242,13 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                 variant="outline"
                 className="gap-1.5"
                 disabled={split.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      `Split ${person.displayName} back into ${combinedFrom} separate entries, one per listing? Do this only if they're different people.`
-                    )
+                    await confirm({
+                      title: `Split ${person.displayName} back into ${combinedFrom} separate entries?`,
+                      body: "One per listing. Do this only if they're different people.",
+                      confirmLabel: "Split",
+                    })
                   )
                     split.mutate();
                 }}
@@ -258,15 +264,13 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                     variant="outline"
                     className="gap-1.5"
                     disabled={leave.isPending}
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        window.confirm(
-                          `Take ${
-                            person.displayName
-                          } out of unit ${unit}? They'll stay listed in the other${
-                            units.length > 2 ? "s" : ""
-                          }.`
-                        )
+                        await confirm({
+                          title: `Take ${person.displayName} out of unit ${unit}?`,
+                          body: `They'll stay listed in the other${units.length > 2 ? "s" : ""}.`,
+                          confirmLabel: "Take out",
+                        })
                       )
                         leave.mutate(unit);
                     }}
@@ -281,14 +285,16 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                 variant="ghost"
                 className="gap-1.5 text-muted hover:text-destructive"
                 disabled={remove.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      `Remove ${person.displayName} from the directory? They'll leave their circles and won't be able to sign in. This can't be undone.`
-                    )
-                  ) {
+                    await confirm({
+                      title: `Remove ${person.displayName} from the directory?`,
+                      body: "They'll leave their circles and won't be able to sign in. This can't be undone.",
+                      confirmLabel: "Remove",
+                      destructive: true,
+                    })
+                  )
                     remove.mutate();
-                  }
                 }}
               >
                 <Trash2 className="h-4 w-4" />{" "}
@@ -301,28 +307,29 @@ export function PersonClient({ personId: requested }: { personId: string }) {
         {canManage && data ? (
           <form
             className="flex flex-col gap-2 rounded-lg border border-border bg-accent/40 p-3 sm:flex-row sm:items-center"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
               const other = data.people.find((entry) => entry.id === combining);
               if (
                 other &&
-                window.confirm(
-                  `Combine ${other.displayName} (unit ${unitsOf(other).join(" & ")}) into ${
+                (await confirm({
+                  title: `Combine ${other.displayName} (unit ${unitsOf(other).join(" & ")}) into ${
                     person.displayName
-                  }'s profile? They'll be listed under both units.`
-                )
-              ) {
+                  }'s profile?`,
+                  body: "They'll be listed under both units.",
+                  confirmLabel: "Combine",
+                }))
+              )
                 combine.mutate(combining);
-              }
             }}
           >
             <span className="flex items-center gap-1.5 text-sm text-foreground-light">
               <Merge className="h-4 w-4 text-muted" /> Same person listed elsewhere?
             </span>
-            <select
+            <Select
               value={combining}
               onChange={(event) => setCombining(event.target.value)}
-              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-white px-2 text-sm"
+              className="h-9 min-w-0 flex-1 px-2"
               aria-label="Entry to combine"
             >
               <option value="">Choose their other entry…</option>
@@ -334,7 +341,7 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                     {entry.displayName} — unit {unitsOf(entry).join(" & ")}
                   </option>
                 ))}
-            </select>
+            </Select>
             <Button
               type="submit"
               size="sm"

@@ -17,6 +17,8 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useDirectory } from "@/components/directory/use-directory";
+import { Pill, type PillTone } from "@/components/ui/pill";
+import { Select } from "@/components/ui/select";
 
 /** `canEdit`: change any task; `canAdd`: add one (any resident, where the circle's Tasks module allows). */
 export type TasksResponse = {
@@ -67,29 +69,19 @@ export const canMoveTask = (
   personId: string | null | undefined
 ) => canEdit || (!!personId && task.ownerId === personId);
 
-export const STATUS_STYLES: Record<TaskStatus, { dot: string; pill: string; column: string }> = {
-  todo: { dot: "bg-moss", pill: "bg-accent text-foreground", column: "border-t-moss" },
-  doing: { dot: "bg-sun", pill: "bg-sun/15 text-[#7a5200]", column: "border-t-sun" },
-  blocked: {
-    dot: "bg-destructive",
-    pill: "bg-destructive/10 text-destructive",
-    column: "border-t-destructive",
-  },
-  done: { dot: "bg-pine", pill: "bg-primary/25 text-pine", column: "border-t-pine" },
+export const STATUS_STYLES: Record<TaskStatus, { dot: string; pill: PillTone; column: string }> = {
+  todo: { dot: "bg-moss", pill: "accent", column: "border-t-moss" },
+  doing: { dot: "bg-sun", pill: "amber", column: "border-t-sun" },
+  blocked: { dot: "bg-destructive", pill: "destructive", column: "border-t-destructive" },
+  done: { dot: "bg-pine", pill: "pine", column: "border-t-pine" },
 };
 
 export function StatusPill({ status, className }: { status: TaskStatus; className?: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold",
-        STATUS_STYLES[status].pill,
-        className
-      )}
-    >
+    <Pill tone={STATUS_STYLES[status].pill} className={cn("gap-1.5 font-semibold", className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_STYLES[status].dot)} aria-hidden />
       {STATUS_LABELS[status]}
-    </span>
+    </Pill>
   );
 }
 
@@ -105,15 +97,12 @@ export function StatusSelect({
   className?: string;
 }) {
   return (
-    <select
+    <Select
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value as TaskStatus)}
       onClick={(event) => event.stopPropagation()}
-      className={cn(
-        "h-8 rounded-md border border-border bg-white px-2 text-xs font-medium text-foreground",
-        className
-      )}
+      className={cn("h-8 rounded-md px-2 text-xs font-medium", className)}
       aria-label="Status"
     >
       {TASK_STATUSES.map((status) => (
@@ -121,7 +110,7 @@ export function StatusSelect({
           {STATUS_LABELS[status]}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -240,14 +229,11 @@ export function OwnerSelect({
     };
   }, [directory, circle]);
   return (
-    <select
+    <Select
       value={value ?? ""}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value || null)}
-      className={cn(
-        "h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground",
-        className
-      )}
+      className={className}
       aria-label="Owner"
     >
       <option value="">Unassigned</option>
@@ -267,6 +253,6 @@ export function OwnerSelect({
           </option>
         ))}
       </optgroup>
-    </select>
+    </Select>
   );
 }

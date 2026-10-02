@@ -12,6 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { SectionArt } from "@/components/layout/section-art";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
 
 const photoUrl = (photo: Photo) => `/api/photos/${photo.id}`;
 
@@ -131,6 +133,7 @@ function Viewer({
   onIndex: (index: number) => void;
   onClose: () => void;
 }) {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
@@ -305,8 +308,14 @@ function Viewer({
                 </button>
               ) : null}
               <button
-                onClick={() => {
-                  if (window.confirm("Remove this photo for everyone? This can't be undone."))
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: "Remove this photo for everyone?",
+                      confirmLabel: "Remove",
+                      destructive: true,
+                    })
+                  )
                     remove.mutate();
                 }}
                 disabled={remove.isPending}
@@ -379,11 +388,9 @@ export function PhotosClient() {
       ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading photos…</p>
+        <Loading>Loading photos…</Loading>
       ) : error ? (
-        <Card>
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        </Card>
+        <ErrorCard error={error} />
       ) : photos.length ? (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {photos.map((photo, index) => (

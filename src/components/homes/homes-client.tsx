@@ -15,6 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { Pill } from "@/components/ui/pill";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
+import { Select } from "@/components/ui/select";
 
 const KEY = ["homes"];
 export const STATUS_LABELS: Record<HomeStatus, string> = {
@@ -282,17 +286,13 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
           />
         </Field>
         <Field label="Status">
-          <select
-            value={form.status}
-            onChange={set("status")}
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-          >
+          <Select value={form.status} onChange={set("status")}>
             {(Object.keys(STATUS_LABELS) as HomeStatus[]).map((status) => (
               <option key={status} value={status}>
                 {STATUS_LABELS[status]}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
 
@@ -309,6 +309,7 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
 }
 
 function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }) {
+  const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const setStatus = useMutation({
@@ -350,18 +351,13 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-semibold text-foreground">{home.title}</h2>
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs font-medium",
-              home.status === "available"
-                ? "bg-primary/30 text-primary-foreground"
-                : home.status === "pending"
-                  ? "bg-sun/30 text-foreground"
-                  : "bg-border text-muted"
-            )}
+          <Pill
+            tone={
+              home.status === "available" ? "primary" : home.status === "pending" ? "sun" : "muted"
+            }
           >
             {STATUS_LABELS[home.status]}
-          </span>
+          </Pill>
         </div>
         <p className="text-sm text-foreground-light">
           {[home.unit ? `Unit ${home.unit}` : null, home.price, home.details]
@@ -390,11 +386,11 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
           <Button size="sm" variant="outline" className="gap-1.5" onClick={onEdit}>
             <Pencil className="h-4 w-4" /> Edit
           </Button>
-          <select
+          <Select
             value={home.status}
             onChange={(event) => setStatus.mutate(event.target.value as HomeStatus)}
             disabled={setStatus.isPending}
-            className="h-9 rounded-lg border border-border bg-white px-2 text-sm"
+            className="h-9 px-2"
             aria-label={`Status of ${home.title}`}
           >
             {(Object.keys(STATUS_LABELS) as HomeStatus[]).map((status) => (
@@ -402,14 +398,21 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
                 {STATUS_LABELS[status]}
               </option>
             ))}
-          </select>
+          </Select>
           <Button
             size="sm"
             variant="ghost"
             className="gap-1.5 text-muted hover:text-destructive"
             disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(`Remove the listing “${home.title}”?`)) remove.mutate();
+            onClick={async () => {
+              if (
+                await confirm({
+                  title: `Remove the listing “${home.title}”?`,
+                  confirmLabel: "Remove",
+                  destructive: true,
+                })
+              )
+                remove.mutate();
             }}
           >
             <Trash2 className="h-4 w-4" /> Remove
@@ -473,11 +476,9 @@ export function HomesClient() {
         </Card>
       ) : null}
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : error ? (
-        <Card>
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        </Card>
+        <ErrorCard error={error} />
       ) : homes.length ? (
         <div className="flex flex-col gap-3">
           {homes.map((home) => (

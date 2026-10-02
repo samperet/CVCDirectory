@@ -57,6 +57,8 @@ import { CommentForm } from "@/components/comments/comment-form";
 import { CommentTree } from "@/components/comments/comment-tree";
 import { cn } from "@/lib/utils";
 import { useDirectory } from "@/components/directory/use-directory";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Loading, NotFoundCard } from "@/components/ui/status";
 
 type Change = { proposal: Proposal; comment?: ProposalComment | null };
 
@@ -421,16 +423,12 @@ export function ProposalPageClient({
     ? { href: meetingHref(circleId, data.meeting.id), label: data.meeting.title }
     : { href: `/circles/${circleId}`, label: circle?.name ?? "Circle" };
   const back = <BackLink href={fallback.href} label={fallback.label} />;
-  if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
+  if (isLoading) return <Loading />;
   if (error || !data) {
     return (
       <div className="flex flex-col gap-4">
         {back}
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "That proposal wasn't found."}
-          </p>
-        </Card>
+        <NotFoundCard error={error} message="That proposal wasn't found." />
       </div>
     );
   }
@@ -697,9 +695,7 @@ export function ProposalPageClient({
 
       {proposal.events.length ? (
         <Card className="flex flex-col gap-2">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <History className="h-5 w-5 text-primary" aria-hidden /> History
-          </h2>
+          <SectionHeading icon={History}>History</SectionHeading>
           <ol className="flex flex-col gap-1.5 text-sm">
             {proposal.events.map((entry, index) => (
               <li key={index} className="flex flex-wrap gap-x-2 text-foreground-light">

@@ -10,6 +10,8 @@ import { liveComments } from "@/lib/comments/shared";
 import { CommentForm } from "@/components/comments/comment-form";
 import { CommentTree } from "@/components/comments/comment-tree";
 import { useToast } from "@/components/ui/use-toast";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Loading } from "@/components/ui/status";
 
 type CommentsResponse = { comments: TaskComment[]; canModerate: boolean };
 
@@ -70,10 +72,9 @@ export function TaskComments({
 
   return (
     <section id="comments" className="flex scroll-mt-24 flex-col gap-3">
-      <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-        <MessageSquare className="h-5 w-5 text-primary" aria-hidden /> Comments{" "}
-        {count ? <span className="text-sm font-normal text-muted">({count})</span> : null}
-      </h2>
+      <SectionHeading icon={MessageSquare} count={count}>
+        Comments
+      </SectionHeading>
       {canComment ? (
         <CommentForm
           placeholder="Add a comment — questions, updates, what you found"
@@ -83,7 +84,7 @@ export function TaskComments({
         />
       ) : null}
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : (
         <CommentTree
           comments={comments}

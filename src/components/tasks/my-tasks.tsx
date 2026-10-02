@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { STATUS_LABELS, type Task } from "@/lib/tasks/shared";
 import { DueLabel, PriorityFlag, ProgressBar, STATUS_STYLES } from "@/components/tasks/task-bits";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/ui/section-heading";
 
 type MyTask = Omit<Task, "activity" | "description"> & { circleId: string; circleName: string };
 
@@ -20,9 +21,7 @@ export function MyTasks() {
   if (!tasks.length) return null;
   return (
     <section className="flex flex-col gap-3 rounded-card border border-border bg-surface p-5 shadow-soft">
-      <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-        <ListChecks className="h-5 w-5 text-primary" aria-hidden /> Your tasks
-      </h2>
+      <SectionHeading icon={ListChecks}>Your tasks</SectionHeading>
       <ul className="flex flex-col divide-y divide-border">
         {tasks.slice(0, 6).map((task) => (
           <li

@@ -16,6 +16,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/lib/auth/client";
 import { MySkills } from "@/components/skills/person-skills";
 import { AppSettings } from "@/components/notifications/app-settings";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
 
 function splitBirthday(value: string | null) {
   const match = value?.match(/^([A-Za-z]+) (\d{1,2})$/);
@@ -121,15 +123,9 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
   });
 
   if (isLoading || (profile && !form))
-    return <p className="text-sm text-muted">Loading {own ? "your profile" : "profile"}…</p>;
+    return <Loading>Loading {own ? "your profile" : "profile"}…</Loading>;
   if (error || !profile || !form) {
-    return (
-      <Card>
-        <p className="text-sm text-foreground">
-          {(error as Error | null)?.message ?? "Your profile is unavailable."}
-        </p>
-      </Card>
-    );
+    return <ErrorCard error={error} fallback="Your profile is unavailable." />;
   }
 
   // Admins can reset phone numbers without knowing the current one.
@@ -236,15 +232,11 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
               </label>
               <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
                 Role
-                <select
-                  value={form.role}
-                  onChange={set("role")}
-                  className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-                >
+                <Select value={form.role} onChange={set("role")}>
                   <option value="owner">Owner</option>
                   <option value="renter">Renter</option>
                   <option value="household">Household member</option>
-                </select>
+                </Select>
               </label>
               <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2">
                 <input
@@ -344,32 +336,22 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
           <fieldset className="flex flex-col gap-1 text-sm font-medium text-foreground">
             <legend className="mb-1">Birthday</legend>
             <div className="flex gap-2">
-              <select
-                value={form.month}
-                onChange={set("month")}
-                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-                aria-label="Birthday month"
-              >
+              <Select value={form.month} onChange={set("month")} aria-label="Birthday month">
                 <option value="">Month</option>
                 {MONTHS.map((month) => (
                   <option key={month} value={month}>
                     {month}
                   </option>
                 ))}
-              </select>
-              <select
-                value={form.day}
-                onChange={set("day")}
-                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-                aria-label="Birthday day"
-              >
+              </Select>
+              <Select value={form.day} onChange={set("day")} aria-label="Birthday day">
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((day) => (
                   <option key={day} value={day}>
                     {day}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </fieldset>
 

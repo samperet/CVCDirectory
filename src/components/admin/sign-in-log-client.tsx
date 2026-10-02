@@ -7,7 +7,8 @@ import { apiFetch } from "@/lib/api-client";
 import type { SignInEntry } from "@/lib/auth/sign-in-log";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Loading, ErrorCard } from "@/components/ui/status";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 type View = "all" | "people";
 
@@ -90,32 +91,16 @@ export function SignInLogClient() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div
-          className="inline-flex w-fit rounded-full border border-border bg-surface p-1"
+        <SegmentedControl
           role="tablist"
-        >
-          {(
-            [
-              ["all", "All sign-ins"],
-              ["people", "By resident"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              role="tab"
-              aria-selected={view === value}
-              onClick={() => setView(value)}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium transition",
-                view === value
-                  ? "bg-primary text-primary-foreground shadow-soft"
-                  : "text-foreground/70 hover:text-foreground"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          label="Sign-ins"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "all", label: "All sign-ins" },
+            { value: "people", label: "By resident" },
+          ]}
+        />
         <div className="relative sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
@@ -129,11 +114,9 @@ export function SignInLogClient() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : error ? (
-        <Card>
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        </Card>
+        <ErrorCard error={error} />
       ) : !entries.length ? (
         <Card>
           <p className="text-sm text-muted">

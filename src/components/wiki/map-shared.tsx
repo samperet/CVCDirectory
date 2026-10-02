@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CircleDot, FileText, Users, X } from "lucide-react";
+import { BookOpen, CircleDot, X } from "lucide-react";
 import { pageStyle } from "@/lib/wiki/colors";
 import type {
   GraphEdge,

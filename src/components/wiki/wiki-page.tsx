@@ -39,6 +39,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
+import { Pill } from "@/components/ui/pill";
+import { Loading, NotFoundCard } from "@/components/ui/status";
+import { useConfirm } from "@/components/ui/confirm";
+import { Select } from "@/components/ui/select";
 
 const NO_THREADS: never[] = [];
 
@@ -79,6 +83,7 @@ function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: bool
  * edit, restore a version, or delete it.
  */
 export function WikiPageClient({ slug }: { slug: string }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const params = useSearchParams();
   const { toast } = useToast();
@@ -237,16 +242,12 @@ export function WikiPageClient({ slug }: { slug: string }) {
 
   const back = <BackLink href="/wiki" label="Wiki" />;
   const paper = pageStyle(page?.color);
-  if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
+  if (isLoading) return <Loading />;
   if (error || !page) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         {back}
-        <Card>
-          <p className="text-sm text-foreground">
-            {(error as Error | null)?.message ?? "That page wasn't found."}
-          </p>
-        </Card>
+        <NotFoundCard error={error} message="That page wasn't found." />
       </div>
     );
   }
@@ -267,18 +268,18 @@ export function WikiPageClient({ slug }: { slug: string }) {
             {canManage ? (
               <label className="flex items-center gap-2">
                 Parent circle
-                <select
+                <Select
                   value={page.keeper}
                   onChange={(event) => rehome.mutate(event.target.value)}
                   disabled={rehome.isPending}
-                  className="h-8 max-w-[12rem] rounded-md border border-border bg-white px-1.5 text-xs text-foreground"
+                  className="h-8 max-w-[12rem] rounded-md px-1.5 text-xs"
                 >
                   {(circles ?? []).map((entry) => (
                     <option key={entry.id} value={entry.id}>
                       {entry.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             ) : (
               <span>Parent circle {circle?.name ?? "—"}</span>
@@ -335,11 +336,13 @@ export function WikiPageClient({ slug }: { slug: string }) {
                           type="button"
                           className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline"
                           disabled={restore.isPending}
-                          onClick={() => {
+                          onClick={async () => {
                             if (
-                              window.confirm(
-                                "Make this version the current one? (The current one stays in the history.)"
-                              )
+                              await confirm({
+                                title: "Make this version the current one?",
+                                body: "The current one stays in the history.",
+                                confirmLabel: "Restore",
+                              })
                             )
                               restore.mutate(index);
                           }}
@@ -413,14 +416,11 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 ) : null}
                 {" · "}Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
                 {othersEditing.length ? (
-                  <span
-                    className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary"
-                    data-live-editors
-                  >
+                  <Pill tone="live" className="ml-1.5" data-live-editors>
                     <Pencil className="h-3 w-3" aria-hidden />{" "}
                     {othersEditing.map((editor) => editor.name).join(", ")}{" "}
                     {othersEditing.length === 1 ? "is" : "are"} editing
-                  </span>
+                  </Pill>
                 ) : null}
               </p>
             </div>
@@ -453,11 +453,13 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 type="button"
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-destructive"
                 disabled={remove.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
-                      `Delete “${page.title}”, its history, and its comments? This can't be undone.`
-                    )
+                    await confirm({
+                      title: `Delete “${page.title}”?`,
+                      body: "Its history and comments go with it. This can't be undone.",
+                      destructive: true,
+                    })
                   )
                     remove.mutate();
                 }}

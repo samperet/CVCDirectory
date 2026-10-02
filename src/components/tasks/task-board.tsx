@@ -38,6 +38,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import { useDirectory } from "@/components/directory/use-directory";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Pill } from "@/components/ui/pill";
+import { Loading } from "@/components/ui/status";
+import { Select } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 /** Open tasks first by status, then high priority, then soonest due, then oldest. */
 const byUrgency = (a: TaskSummary, b: TaskSummary) =>
@@ -191,17 +196,13 @@ export function NewTaskForm({
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted">
             Priority
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground"
-            >
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
               {TASK_PRIORITIES.map((value) => (
                 <option key={value} value={value}>
                   {PRIORITY_LABELS[value]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
       ) : null}
@@ -343,35 +344,17 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div
-          className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm"
-          role="tablist"
-          aria-label="Whose tasks"
-        >
-          {(
-            [
-              ["everyone", "Everyone"],
-              ["mine", "Mine"],
-              ["unassigned", "Unassigned"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={who === value}
-              onClick={() => setWho(value)}
-              className={cn(
-                "rounded-full px-3 py-1 font-medium transition",
-                who === value
-                  ? "bg-primary text-primary-foreground shadow-soft"
-                  : "text-muted hover:text-foreground"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          size="sm"
+          label="Whose tasks"
+          value={who}
+          onChange={setWho}
+          options={[
+            { value: "everyone", label: "Everyone" },
+            { value: "mine", label: "Mine" },
+            { value: "unassigned", label: "Unassigned" },
+          ]}
+        />
         <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
@@ -386,7 +369,7 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : error ? (
         <p className="text-sm text-foreground">{(error as Error).message}</p>
       ) : (
@@ -409,9 +392,9 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
             >
               <h2 className="flex items-center justify-between px-1 text-sm font-semibold text-foreground">
                 {STATUS_LABELS[status]}{" "}
-                <span className="rounded-full bg-accent px-2 text-xs font-medium text-muted">
+                <Pill tone="accent" className="py-0 text-muted">
                   {total}
-                </span>
+                </Pill>
               </h2>
               {tasks.map((task) => (
                 <TaskCard
@@ -460,13 +443,11 @@ export function TasksModule({ circle }: { circle: Circle }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <ModuleToggle />
-          <ListChecks className="h-5 w-5 text-primary" aria-hidden />
+        <SectionHeading icon={ListChecks} toggle={<ModuleToggle />}>
           <Link href={`/circles/${circle.id}/tasks`} className="hover:underline">
             Tasks
           </Link>
-        </h2>
+        </SectionHeading>
         {canAdd && !adding ? (
           <Button className="gap-1" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4" /> New task
@@ -481,7 +462,7 @@ export function TasksModule({ circle }: { circle: Circle }) {
         />
       ) : null}
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : open.length ? (
         <>
           <p className="text-sm text-muted">

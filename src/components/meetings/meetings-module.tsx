@@ -19,6 +19,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Loading } from "@/components/ui/status";
 
 const SHOWN = 5;
 
@@ -62,10 +64,9 @@ export function MeetingsModule({ circle, title }: { circle: Circle; title: strin
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <ModuleToggle />
-          <ClipboardList className="h-5 w-5 text-primary" aria-hidden /> {title}
-        </h2>
+        <SectionHeading icon={ClipboardList} toggle={<ModuleToggle />}>
+          {title}
+        </SectionHeading>
         {data?.canEdit ? (
           <Button className="gap-1" onClick={() => create.mutate()} disabled={create.isPending}>
             <Plus className="h-4 w-4" /> {create.isPending ? "Starting…" : "New meeting"}
@@ -73,7 +74,7 @@ export function MeetingsModule({ circle, title }: { circle: Circle; title: strin
         ) : null}
       </div>
       {isLoading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Loading />
       ) : (
         <>
           {open.length ? (

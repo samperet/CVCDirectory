@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 const MAX_FILES = 50;
 
@@ -191,28 +192,26 @@ export function BulkUpload({
         {single ? null : (
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
             Circle
-            <select
+            <Select
               value={circleId}
               onChange={(event) => setCircleId(event.target.value)}
               disabled={running}
-              className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
             >
               {circles.map((circle) => (
                 <option key={circle.id} value={circle.id}>
                   {circle.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         {rows.length > 1 && pending.length ? (
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
             Set every file&apos;s type
-            <select
+            <Select
               value=""
               onChange={(event) => event.target.value && setAllTypes(event.target.value)}
               disabled={running || !types.length}
-              className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
             >
               <option value="">Choose a type…</option>
               {types.map((type) => (
@@ -220,7 +219,7 @@ export function BulkUpload({
                   {type.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
       </div>
@@ -319,11 +318,11 @@ export function BulkUpload({
                       aria-label={`Title for ${row.file.name}`}
                       placeholder="Title"
                     />
-                    <select
+                    <Select
                       value={row.type}
                       onChange={(event) => update(row.key, { type: event.target.value })}
                       disabled={locked}
-                      className="h-9 rounded-lg border border-border bg-white px-2 text-sm"
+                      className="h-9 px-2"
                       aria-label={`Type for ${row.file.name}`}
                     >
                       {types.map((type) => (
@@ -331,7 +330,7 @@ export function BulkUpload({
                           {type.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <Input
                       type="date"
                       value={row.meetingDate}
