@@ -2,7 +2,7 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MessageSquare, RotateCcw, X } from "lucide-react";
+import { Check, MessageSquare, RotateCcw } from "lucide-react";
 import { CommentTree } from "@/components/comments/comment-tree";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
@@ -167,9 +167,9 @@ function ThreadCard({
   return (
     <li
       className={cn(
-        "flex scroll-mt-24 flex-col gap-2 rounded-lg border bg-white p-3 transition",
-        active ? "border-sun ring-1 ring-sun" : "border-border",
-        resolved && "opacity-75"
+        "sticky-note flex scroll-mt-24 flex-col gap-2 p-3 pt-4",
+        active && "sticky-note-active",
+        resolved && "sticky-note-resolved"
       )}
       data-thread={root.id}
     >
@@ -177,7 +177,7 @@ function ThreadCard({
         <button
           type="button"
           onClick={onActivate}
-          className="border-l-4 border-sun/70 pl-2 text-left text-xs italic text-foreground-light hover:text-foreground"
+          className="border-l-4 border-black/15 pl-2 text-left text-xs italic text-foreground-light hover:text-foreground"
           title={quoteFound ? "Show this passage" : "This passage has since changed"}
         >
           “{root.quote.length > 160 ? `${root.quote.slice(0, 160)}…` : root.quote}”
@@ -241,8 +241,9 @@ function ThreadCard({
 }
 
 /**
- * A page's comments: start one on the whole page (or on a passage selected
- * on the page), reply, resolve. Open threads first; resolved ones folded away.
+ * A page's comments, as sticky notes: select words on the page (any amount)
+ * and a note appears here to write on; reply, resolve. Open threads first;
+ * resolved ones folded away. (Older comments on the whole page still show.)
  */
 export function WikiComments({
   circleId,
@@ -280,12 +281,16 @@ export function WikiComments({
   useEffect(() => {
     if (pendingQuote) input.current?.focus();
   }, [pendingQuote]);
+  const cancel = () => {
+    setText("");
+    onClearQuote();
+  };
 
   const post = useMutation({
     mutationFn: () =>
       apiFetch<{ comment: WikiComment }>(`/api/wiki/pages/${slug}/comments`, {
         method: "POST",
-        body: JSON.stringify({ body: text, quote: pendingQuote ?? undefined }),
+        body: JSON.stringify({ body: text, quote: pendingQuote }),
       }),
     onSuccess: ({ comment }) => {
       setText("");
@@ -321,46 +326,45 @@ export function WikiComments({
         {open.length ? <span className="font-normal text-muted">({open.length} open)</span> : null}
       </h2>
       {canComment ? (
-        <div className="flex flex-col gap-2">
-          {pendingQuote ? (
-            <div className="flex items-start gap-2 rounded-md border-l-4 border-sun/70 bg-white px-2 py-1 text-xs italic text-foreground-light">
-              <span className="flex-1">
-                “{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”
-              </span>
-              <button
-                type="button"
-                onClick={onClearQuote}
-                aria-label="Comment on the whole page instead"
-                className="not-italic text-muted hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <p className="text-xs text-muted">Select text on the page to comment on a passage.</p>
-          )}
-          <Textarea
-            ref={input}
-            rows={2}
-            placeholder={pendingQuote ? "Comment on this passage…" : "Comment on this page…"}
-            value={text}
-            maxLength={2000}
-            onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && text.trim())
-                post.mutate();
-            }}
-            className="bg-white text-sm"
-          />
-          <Button
-            size="sm"
-            className="w-fit"
-            disabled={!text.trim() || post.isPending}
-            onClick={() => post.mutate()}
+        pendingQuote ? (
+          <div
+            className="sticky-note sticky-note-active flex flex-col gap-2 p-3 pt-4"
+            data-comment-draft
           >
-            {post.isPending ? "Posting…" : "Comment"}
-          </Button>
-        </div>
+            <p className="border-l-4 border-black/15 pl-2 text-xs italic text-foreground-light">
+              “{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”
+            </p>
+            <Textarea
+              ref={input}
+              rows={3}
+              aria-label="Your comment"
+              placeholder="Add a comment…"
+              value={text}
+              maxLength={2000}
+              onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && text.trim())
+                  post.mutate();
+                if (event.key === "Escape") cancel();
+              }}
+              className="border-black/10 bg-white/70 text-sm"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                disabled={!text.trim() || post.isPending}
+                onClick={() => post.mutate()}
+              >
+                {post.isPending ? "Posting…" : "Comment"}
+              </Button>
+              <Button size="sm" variant="ghost" className="hover:bg-black/5" onClick={cancel}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted">Select words on the page to add a comment.</p>
+        )
       ) : null}
       {open.length ? (
         <ul className="flex flex-col gap-2">{open.map(card)}</ul>

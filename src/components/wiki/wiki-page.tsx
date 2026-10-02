@@ -58,7 +58,7 @@ function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: bool
       const range = selection.getRangeAt(0);
       if (!container.contains(range.commonAncestorContainer)) return setPrompt(null);
       const text = selection.toString().replace(/\s+/g, " ").trim();
-      if (!text || text.length > 300) return setPrompt(null);
+      if (!text) return setPrompt(null);
       const rect = range.getBoundingClientRect();
       setPrompt({
         text,
@@ -77,9 +77,51 @@ function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: bool
 }
 
 /**
- * One wiki page: read it (with "On this page" for longer pages), comment on
- * it or on a passage, look back through its versions, and — for its editors —
- * edit, restore a version, or delete it.
+ * Which of the page's headings you're reading under: the last one scrolled up
+ * past the top of the window (at the very bottom, the last one in view).
+ */
+function useActiveHeading(ids: string[], enabled: boolean) {
+  const [active, setActive] = useState<string | null>(null);
+  const key = enabled ? ids.join("\n") : "";
+  useEffect(() => {
+    const list = key ? key.split("\n") : [];
+    if (!list.length) return setActive(null);
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      // Just below the sticky site header.
+      const line = 112;
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      let current: string | null = null;
+      for (const id of list) {
+        const top = document.getElementById(id)?.getBoundingClientRect().top;
+        if (top === undefined) continue;
+        if (top <= line || (atBottom && top < window.innerHeight)) current = id;
+        else if (!atBottom) break;
+      }
+      setActive(current);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [key]);
+  return active;
+}
+
+/**
+ * One wiki page: read it (with "On this page" for longer pages, the section
+ * you're in shown in bold), select words to leave a comment on them, look
+ * back through its versions, and — for its editors — edit, restore a
+ * version, or delete it.
  */
 export function WikiPageClient({ slug }: { slug: string }) {
   const confirm = useConfirm();
@@ -119,6 +161,8 @@ export function WikiPageClient({ slug }: { slug: string }) {
   );
   const [prompt, dismissPrompt] = useSelectionPrompt(article, reading && wikiOn && !!user);
   const toc = useMemo(() => (page ? tableOfContents(page.body) : []), [page]);
+  const tocIds = useMemo(() => toc.map((heading) => heading.id), [toc]);
+  const readingAt = useActiveHeading(tocIds, reading && toc.length >= 3);
   // While reading: others' saves appear without reloading, and who's editing shows.
   const live = useQuery({
     queryKey: ["wiki-live", slug],
@@ -449,7 +493,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
                   <ListTree className="h-3.5 w-3.5" /> On this page
                 </p>
-                <TocList toc={toc} />
+                <TocList toc={toc} active={readingAt} />
               </nav>
             ) : null}
 
@@ -481,7 +525,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
           ) : null}
         </article>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:-mx-2 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:px-2 lg:pb-4 lg:pt-2">
           {toc.length >= 3 ? (
             <nav
               className="hidden rounded-lg border border-border bg-surface p-3 text-sm lg:block"
@@ -490,7 +534,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
                 <ListTree className="h-3.5 w-3.5" /> On this page
               </p>
-              <TocList toc={toc} />
+              <TocList toc={toc} active={readingAt} />
             </nav>
           ) : null}
           <LinkedFrom circleId={circleId} slug={slug} />
@@ -565,14 +609,26 @@ function LinkedFrom({ circleId, slug }: { circleId: string; slug: string }) {
   );
 }
 
-function TocList({ toc }: { toc: { level: number; text: string; id: string }[] }) {
+/** "On this page": the page's headings, the one you're reading under in bold. */
+function TocList({
+  toc,
+  active,
+}: {
+  toc: { level: number; text: string; id: string }[];
+  active: string | null;
+}) {
   return (
     <ul className="flex flex-col gap-0.5">
       {toc.map((heading, index) => (
         <li key={`${heading.id}-${index}`} style={{ paddingLeft: (heading.level - 1) * 12 }}>
           <a
             href={`#${heading.id}`}
-            className="text-foreground-light hover:text-foreground hover:underline"
+            aria-current={heading.id === active ? "location" : undefined}
+            className={
+              heading.id === active
+                ? "font-semibold text-foreground hover:underline"
+                : "text-foreground-light hover:text-foreground hover:underline"
+            }
           >
             {heading.text}
           </a>

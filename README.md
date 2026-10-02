@@ -314,9 +314,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   only when chosen); a click flies the camera there and opens the same panel. **Find** zooms to
   anything. Built from `GET /api/wiki/graph` (`/wiki?map=1`;
   `/admin/wiki-map` redirects there).
-- **Wiki comments** – anyone signed in comments on a page, or selects a passage and comments on
-  that (the passage is highlighted; clicking either jumps to the other). Threads take replies and
-  can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
+- **Wiki comments** – anyone signed in selects words on a page (any amount, a word to the whole
+  page) and comments on them; there's no comment box for the page as a whole. Comments show as
+  yellow sticky notes beside the page, and the passage is highlighted (clicking either jumps to the
+  other). While reading, "On this page" shows the section you're in in bold. Threads take replies
+  and can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
   edit and delete their own (admins any). The page's writers and the thread's participants are
   notified (the "wiki" notification setting). Stored page by page in `wiki/comments/<pageId>.json`;
   a page's comments go with it.

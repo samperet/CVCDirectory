@@ -246,6 +246,48 @@ mark.wiki-mark {
   margin: 0;
 }
 
+/*
+ * Wiki comments are yellow sticky notes: a little tilted (alternately), with a
+ * strip of tape on top; the one you're looking at sits straight.
+ */
+.sticky-note {
+  position: relative;
+  border-radius: 2px 2px 4px 4px;
+  background: linear-gradient(180deg, #fff7b0 0%, #fdee8c 100%);
+  color: theme("colors.foreground");
+  box-shadow:
+    0 1px 1px rgb(80 64 0 / 0.08),
+    0 10px 16px -10px rgb(80 64 0 / 0.45);
+  transform: rotate(-0.6deg);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.sticky-note:nth-child(even) {
+  transform: rotate(0.5deg);
+}
+.sticky-note::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 3.25rem;
+  height: 14px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: rgb(255 255 255 / 0.55);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.04);
+}
+.sticky-note.sticky-note-active {
+  transform: none;
+  box-shadow:
+    0 0 0 2px #e2c20f,
+    0 12px 20px -10px rgb(80 64 0 / 0.5);
+}
+.sticky-note.sticky-note-resolved {
+  background: #fdf7d2;
+  opacity: 0.8;
+}
+
 /* A passage someone commented on (CSS Custom Highlight API; browsers without it just don't highlight). */
 ::highlight(wiki-comment) {
   background-color: rgb(250 204 21 / 0.35);

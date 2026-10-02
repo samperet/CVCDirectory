@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: Params) {
   );
 }
 
-/** Comment on the page (optionally on a passage, `quote`), or reply in a thread (`parentId`): anyone who can see it. */
+/** Comment on a passage of the page (`quote`), or reply in a thread (`parentId`): anyone who can see it. */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "wiki-comment");
   if (limited) return limited;
