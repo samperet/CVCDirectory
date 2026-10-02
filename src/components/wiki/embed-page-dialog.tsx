@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpen, LayoutList } from "lucide-react";
+import { BookOpen, LayoutList, Link2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { wikiPageQuery } from "@/components/wiki/link-data";
 import { embedText, tableOfContents } from "@/lib/wiki/sections";
+import { pageLinkText } from "@/lib/wiki/links";
+import { SegmentedControl } from "@/components/ui/segmented";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +16,11 @@ import { cn } from "@/lib/utils";
 type Found = { circleId: string; circleName: string; title: string; slug: string };
 
 /**
- * Show another page — or one section of it — inside the page being written:
- * find it in the wiki, choose the whole page or a section, and an
- * embed goes where the cursor was. It always shows that page's current text.
+ * Show another page — or one section of it — inside the page being written,
+ * or just link to it: find it in the wiki, then either choose the whole page
+ * or a section (an embed, always showing that page's current text) or "Just
+ * a link" (`[[Title]]`; links go to the whole page). It goes where the
+ * cursor was.
  */
 export function EmbedPageDialog({
   circle,
@@ -27,14 +31,15 @@ export function EmbedPageDialog({
   circle: { id: string; name: string };
   /** The page being written (left out of the results). */
   pageId: string;
-  /** The directive to put in the page, `::embed{…}`. */
-  onChosen: (directive: string) => void;
+  /** What to put in the page: an embed (`::embed{…}`) or a link (`[[Title]]`). */
+  onChosen: (markdown: string, kind: "embed" | "link") => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<Found | null>(null);
   const [section, setSection] = useState("");
+  const [as, setAs] = useState<"embed" | "link">("embed");
   useEffect(() => {
     const timer = setTimeout(() => setSearch(query.trim()), 150);
     return () => clearTimeout(timer);
@@ -56,18 +61,19 @@ export function EmbedPageDialog({
   const headings = page.data ? tableOfContents(page.data.page.body) : [];
   const insert = () => {
     if (!chosen) return;
-    onChosen(embedText(chosen.title, section || undefined));
+    if (as === "link") onChosen(pageLinkText(chosen.title), "link");
+    else onChosen(embedText(chosen.title, section || undefined), "embed");
   };
 
   return (
     <Dialog
-      title="Show a page here"
+      title="Show or link a page"
       icon={<LayoutList className="h-5 w-5 text-primary" />}
       onClose={onClose}
     >
       <p className="text-sm text-muted">
-        Another page — or one section of it — shows inside this one, always as it currently reads.
-        It&apos;s still edited where it lives.
+        Show another page — or one section of it — inside this one, always as it currently reads
+        (it&apos;s still edited where it lives), or just add a link to it.
       </p>
       {chosen ? (
         <div className="flex flex-col gap-3">
@@ -85,41 +91,57 @@ export function EmbedPageDialog({
               Change
             </button>
           </div>
-          <fieldset className="flex flex-col gap-1">
-            <legend className="mb-1 text-sm font-semibold text-foreground">Show</legend>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="embed-section"
-                checked={!section}
-                onChange={() => setSection("")}
-                className="accent-[#3f7d5c]"
-              />{" "}
-              The whole page
-            </label>
-            {page.isLoading ? <p className="text-xs text-muted">Finding its sections…</p> : null}
-            {headings.map((heading) => (
-              <label
-                key={heading.id}
-                className="flex items-center gap-2 text-sm"
-                style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}
-              >
+          <SegmentedControl
+            label="Add it as"
+            value={as}
+            onChange={setAs}
+            options={[
+              { value: "embed", label: "Show it here", icon: LayoutList },
+              { value: "link", label: "Just a link", icon: Link2 },
+            ]}
+            className="self-start"
+          />
+          {as === "link" ? (
+            <p className="text-sm text-foreground-light" data-link-note>
+              Adds a link to “{chosen.title}” where the cursor is.
+            </p>
+          ) : (
+            <fieldset className="flex flex-col gap-1">
+              <legend className="mb-1 text-sm font-semibold text-foreground">Show</legend>
+              <label className="flex items-center gap-2 text-sm">
                 <input
                   type="radio"
                   name="embed-section"
-                  checked={section === heading.text}
-                  onChange={() => setSection(heading.text)}
+                  checked={!section}
+                  onChange={() => setSection("")}
                   className="accent-[#3f7d5c]"
                 />{" "}
-                Just “{heading.text}”
+                The whole page
               </label>
-            ))}
-          </fieldset>
+              {page.isLoading ? <p className="text-xs text-muted">Finding its sections…</p> : null}
+              {headings.map((heading) => (
+                <label
+                  key={heading.id}
+                  className="flex items-center gap-2 text-sm"
+                  style={{ paddingLeft: `${(heading.level - 1) * 0.75}rem` }}
+                >
+                  <input
+                    type="radio"
+                    name="embed-section"
+                    checked={section === heading.text}
+                    onChange={() => setSection(heading.text)}
+                    className="accent-[#3f7d5c]"
+                  />{" "}
+                  Just “{heading.text}”
+                </label>
+              ))}
+            </fieldset>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={insert}>Show it here</Button>
+            <Button onClick={insert}>{as === "link" ? "Add link" : "Show it here"}</Button>
           </div>
         </div>
       ) : (

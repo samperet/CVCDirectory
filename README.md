@@ -258,7 +258,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `[[O&M:Page title]]` still works) and `[[doc:Document title]]` (`[[doc:O&M:Document title]]` for
   one circle's); any of them takes `|shown text`. **Renaming a page updates the links and embeds
   that point to it.** **Embeds** (`::embed{page="Title" section="Heading"}`) show another page, or
-  one section of it, inline and always current, labelled with the circle that keeps it. Changes
+  one section of it, inline and always current, labelled with the circle that keeps it; the
+  toolbar's **Show or link another page** button adds one, or just a link to the page. Changes
   **save as you type**, and several people can edit at once (others' saves merge in paragraph by
   paragraph). Each page keeps its last 25 versions (`wiki/history/<pageId>.json`), and its address
   when renamed. Pages are stored together in `wiki/pages.json` (`/api/wiki/pages`,

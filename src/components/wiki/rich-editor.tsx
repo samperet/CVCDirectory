@@ -11,12 +11,18 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { $createTextNode, $getNodeByKey, type LexicalEditor, type LexicalNode } from "lexical";
+import {
+  $createTextNode,
+  $getNodeByKey,
+  $getSelection,
+  $isRangeSelection,
+  type LexicalEditor,
+  type LexicalNode,
+} from "lexical";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
-  AtSign,
   BarChart3,
   ChevronDown,
   ChevronsUpDown,
@@ -553,6 +559,26 @@ export const RichEditor = forwardRef<
       preventScroll: true,
     });
   };
+  /** A link in the running text, with a space before it unless one's there already (inserted Markdown loses its spaces). */
+  const insertLink = (link: string) => {
+    editor.current?.focus(
+      () => {
+        lexical.current?.update(
+          () => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection) || !selection.isCollapsed()) return;
+            const { anchor } = selection;
+            const before =
+              anchor.type === "text" ? anchor.getNode().getTextContent()[anchor.offset - 1] : "";
+            if (before && !/\s/.test(before)) selection.insertText(" ");
+          },
+          { discrete: true }
+        );
+        editor.current?.insertMarkdown(protectWikiLinks(link));
+      },
+      { preventScroll: true }
+    );
+  };
   return (
     <WikiCircleContext.Provider value={wiki}>
       <MDXEditor
@@ -615,12 +641,6 @@ export const RichEditor = forwardRef<
                 <ListsToggle options={["bullet", "number", "check"]} />
                 <Separator />
                 <CreateLink />
-                <ButtonWithTooltip
-                  title="Link a page or document (or type @)"
-                  onClick={() => insert(" @")}
-                >
-                  <AtSign className="h-5 w-5" />
-                </ButtonWithTooltip>
                 <Separator />
                 <InsertImage />
                 {documentsOn ? (
@@ -629,7 +649,7 @@ export const RichEditor = forwardRef<
                   </ButtonWithTooltip>
                 ) : null}
                 <ButtonWithTooltip
-                  title="Show another page here"
+                  title="Show or link another page"
                   onClick={() => setEmbedding(true)}
                 >
                   <LayoutList className="h-5 w-5" />
@@ -657,7 +677,7 @@ export const RichEditor = forwardRef<
           onClose={() => setAddingDocument(false)}
           onAdded={(link) => {
             setAddingDocument(false);
-            insert(` ${link} `);
+            insertLink(link);
           }}
         />
       ) : null}
@@ -666,9 +686,10 @@ export const RichEditor = forwardRef<
           circle={{ id: circleId, name: circleName }}
           pageId={pageId}
           onClose={() => setEmbedding(false)}
-          onChosen={(directive) => {
+          onChosen={(markdown, kind) => {
             setEmbedding(false);
-            insert(directive);
+            if (kind === "link") insertLink(markdown);
+            else insert(markdown);
           }}
         />
       ) : null}
