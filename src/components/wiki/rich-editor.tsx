@@ -4,20 +4,14 @@ import "@mdxeditor/editor/style.css";
 import {
   forwardRef,
   useContext,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type MutableRefObject,
 } from "react";
-import {
-  $createTextNode,
-  $getNodeByKey,
-  $getSelection,
-  $isRangeSelection,
-  type LexicalEditor,
-  type LexicalNode,
-} from "lexical";
+import { $createTextNode, $getNodeByKey, type LexicalEditor, type LexicalNode } from "lexical";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -90,6 +84,12 @@ import {
   type HighlightColor,
 } from "@/lib/wiki/colors";
 import { cn } from "@/lib/utils";
+import {
+  MARK_ACTION,
+  contextMenuPlugin,
+  highlightMarkdown,
+  type MarkAction,
+} from "@/components/wiki/editor-context-menu";
 
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */
@@ -333,8 +333,25 @@ function MarkEditor({ mdastNode, lexicalNode, parentEditor }: DirectiveEditorPro
       words.slice(1).reduce((previous, next) => previous.insertAfter(next), words[0]);
     });
   const keep = (event: React.MouseEvent) => event.preventDefault();
+  // The right-click menu changes or removes this highlight through a DOM event.
+  const host = useRef<HTMLSpanElement>(null);
+  const actions = useRef({ recolor, unwrap });
+  actions.current = { recolor, unwrap };
+  useEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    const onAction = (event: Event) => {
+      const action = (event as CustomEvent<MarkAction>).detail;
+      if (action === "remove") actions.current.unwrap();
+      else actions.current.recolor(action);
+    };
+    element.addEventListener(MARK_ACTION, onAction);
+    return () => element.removeEventListener(MARK_ACTION, onAction);
+  }, []);
   return (
     <span
+      ref={host}
+      data-mark-host={color}
       className="group/mark relative"
       onKeyDownCapture={(event) => {
         if (event.key === "Enter") {
@@ -398,9 +415,6 @@ const markDirective: DirectiveDescriptor<TextDirective> = {
   Editor: MarkEditor,
 };
 
-/** The selected words as a highlight's label: Markdown's punctuation escaped, so they stay as written. */
-const markLabel = (text: string) => text.replace(/[\\`*_[\]:<>~|#!]/g, "\\$&");
-
 /**
  * The toolbar's highlighter: choose a colour, and the selected words (within
  * one paragraph) are highlighted in it. Inside a highlight, its own palette
@@ -428,22 +442,9 @@ function HighlightButton({ onApply }: { onApply: (markdown: string) => void }) {
           toast({ title: "Change this highlight with the colours just above it" });
           return;
         }
-        const text =
-          active?.getEditorState().read(() => {
-            const selection = $getSelection();
-            return $isRangeSelection(selection) && !selection.isCollapsed()
-              ? selection.getTextContent()
-              : "";
-          }) ?? "";
-        if (!text.trim()) {
-          toast({ title: "Select the words to highlight first" });
-          return;
-        }
-        if (text.includes("\n")) {
-          toast({ title: "Highlight within one paragraph at a time" });
-          return;
-        }
-        onApply(`:mark[${markLabel(text)}]{color="${highlightColor(color)}"}`);
+        const result = highlightMarkdown(active, color);
+        if ("problem" in result) toast({ title: result.problem });
+        else onApply(result.markdown);
       }}
     >
       <Highlighter className="h-5 w-5" />
@@ -477,8 +478,9 @@ const otherDirectives: DirectiveDescriptor = {
 
 /**
  * The wiki's visual editor (MDXEditor): a simple formatting toolbar (with a
- * highlighter), lists, tables, photos, collapsible sections, polls, and
- * Markdown shortcuts as you type (`#`, `-`, `**`), saving plain Markdown. Typing @ links a page or
+ * highlighter), a right-click menu (`editor-context-menu.tsx`), lists, tables,
+ * photos, collapsible sections, polls, and Markdown shortcuts as you type
+ * (`#`, `-`, `**`), saving plain Markdown. Typing @ links a page or
  * a document — or a new page. HTML tags stay as text.
  */
 export const RichEditor = forwardRef<
@@ -593,6 +595,7 @@ export const RichEditor = forwardRef<
           }),
           wikiLinkPlugin(),
           editorBridgePlugin({ target: lexical }),
+          contextMenuPlugin(),
           mentionPlugin({
             circleId,
             circleName,

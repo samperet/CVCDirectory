@@ -299,11 +299,14 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
   images from other websites show only as their description.
 - **Highlights** – select words in the editor and choose a colour from the highlighter in the
-  toolbar (yellow, green, blue, pink, or orange); while the cursor is in highlighted words, their
-  colours and an eraser show just above them. They're kept in the page as
-  `:mark[the words]{color="green"}`. (Pages used to have a colour of their own, and to be **pinned** to circles, the dashboard, people, tasks,
-  documents, and discussions; pinning has been removed. The old `pins.json` is left in storage,
-  unused.)
+  toolbar or the right-click menu (yellow, green, blue, pink, or orange); while the cursor is in
+  highlighted words, their colours and an eraser show just above them. They're drawn like a
+  highlighter pen and kept in the page as `:mark[the words]{color="green"}`. (Pages used to have a
+  colour of their own, and to be **pinned** to circles, the dashboard, people, tasks, documents, and
+  discussions; pinning has been removed. The old `pins.json` is left in storage, unused.)
+- **Right-click menu** – in the editor, right-clicking offers cut, copy, paste, bold, italic,
+  strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link, and
+  clear formatting. Shift + right-click opens the browser's own menu, for spelling suggestions.
 - **Wiki map** (the **Map** button at the top of `/wiki`, for everyone — each sees only the pages they can) –
   **Islands**: each parent circle is a soft island (in its own colour) holding its pages (documents
   aren't shown). Links arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
