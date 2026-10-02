@@ -193,7 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground"
             >
               <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
-              CVC Directory
+              Common Pastures
             </Link>
           </div>
         </header>
@@ -234,7 +234,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground"
           >
             <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
-            CVC Directory
+            Common Pastures
           </Link>
           <div className="flex items-center gap-2 xl:hidden">
             <SearchButton active={pathname === "/search"} />

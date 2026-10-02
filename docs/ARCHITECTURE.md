@@ -1,6 +1,6 @@
 # Architecture
 
-How the CVC Directory is put together, for someone reading the code for the first time. The README
+How Common Pastures (the CVC community app) is put together, for someone reading the code for the first time. The README
 describes each feature as a user sees it; this describes the shape underneath.
 
 ## In one paragraph

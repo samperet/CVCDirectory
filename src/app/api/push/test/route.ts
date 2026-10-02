@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   await notify({
     topic: "discussions",
     title: "Notifications are working",
-    body: `You'll hear from CVC Directory here, ${user.name.split(" ")[0]}.`,
+    body: `You'll hear from Common Pastures here, ${user.name.split(" ")[0]}.`,
     url: "/profile",
     tag: "test",
     exceptUserId: null,

@@ -17,10 +17,10 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "CVC Directory",
+  title: "Common Pastures",
   description:
     "Collaborative directory for members, sociocratic circles, shared skills, and the community loan library.",
-  applicationName: "CVC Directory",
+  applicationName: "Common Pastures",
   manifest: "/manifest.json",
   icons: {
     icon: "/CVC.png",

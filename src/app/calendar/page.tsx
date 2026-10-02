@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CalendarEmbed } from "@/components/calendar/calendar-embed";
 
 export const metadata: Metadata = {
-  title: "Calendar · CVC Directory",
+  title: "Calendar · Common Pastures",
 };
 
 export default function CalendarPage() {

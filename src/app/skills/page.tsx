@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { SectionArt } from "@/components/layout/section-art";
 
 export const metadata: Metadata = {
-  title: "Skills · CVC Directory",
+  title: "Skills · Common Pastures",
 };
 
 export default function SkillsPage() {

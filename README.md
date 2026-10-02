@@ -1,4 +1,4 @@
-# CVC Directory
+# Common Pastures
 
 A mobile-first community directory for residents, sociocratic circles, shared skills, and the loan library. Built with Next.js 14 App Router and Tailwind CSS, with data stored as JSON documents in Cloudflare R2.
 

@@ -3,7 +3,7 @@ import { SectionArt } from "@/components/layout/section-art";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Loan Library · CVC Directory",
+  title: "Loan Library · Common Pastures",
 };
 
 export default function LibraryPage() {

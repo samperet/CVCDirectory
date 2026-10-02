@@ -1,5 +1,5 @@
 /*
- * CVC Directory service worker: makes the app installable and shows push
+ * Common Pastures service worker: makes the app installable and shows push
  * notifications. It deliberately caches nothing — every page needs a
  * signed-in, up-to-date response — so there is no stale content to manage.
  */
@@ -17,7 +17,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "CVC Directory";
+  const title = data.title || "Common Pastures";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

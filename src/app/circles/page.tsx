@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { SectionArt } from "@/components/layout/section-art";
 
 export const metadata: Metadata = {
-  title: "Circles · CVC Directory",
+  title: "Circles · Common Pastures",
 };
 
 export default function CirclesPage() {

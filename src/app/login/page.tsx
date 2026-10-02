@@ -1,7 +1,7 @@
 import { LoginClient } from "@/components/auth/login-client";
 
 export const metadata = {
-  title: "Sign In · CVC Directory",
+  title: "Sign In · Common Pastures",
 };
 
 export default function LoginPage() {

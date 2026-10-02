@@ -1,4 +1,4 @@
-# Working on the CVC Directory
+# Working on Common Pastures (the CVC Directory)
 
 Notes for anyone — person or AI — picking this codebase up. The longer tour is in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); the feature-by-feature reference is the README.
