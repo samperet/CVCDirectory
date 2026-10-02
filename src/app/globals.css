@@ -185,28 +185,54 @@ select {
   min-height: 60vh;
 }
 
-/* Highlighted text in wiki pages (`:mark[text]{color="…"}`); the colours match `lib/wiki/colors.ts`. */
-.wiki-mark {
-  padding: 0 0.15em;
-  border-radius: 0.2em;
-  color: inherit;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-}
+/*
+ * Highlighted text in wiki pages (`:mark[text]{color="…"}`); the colours match
+ * `lib/wiki/colors.ts`. `--hl` is the ink; on their own (the palette swatches)
+ * the classes fill the box.
+ */
 .hl-yellow {
-  background: #f7e27c;
+  --hl: #f7e27c;
+  background-color: var(--hl);
 }
 .hl-green {
-  background: #bfe0a8;
+  --hl: #bfe0a8;
+  background-color: var(--hl);
 }
 .hl-blue {
-  background: #b4d4f0;
+  --hl: #b4d4f0;
+  background-color: var(--hl);
 }
 .hl-pink {
-  background: #f3bccb;
+  --hl: #f3bccb;
+  background-color: var(--hl);
 }
 .hl-orange {
-  background: #f6c89e;
+  --hl: #f6c89e;
+  background-color: var(--hl);
+}
+/*
+ * A highlighted run of words looks drawn with a marker: the ink sits a little
+ * low, its ends are cut on a slant, and each line of a run that wraps gets its
+ * own stroke.
+ */
+mark.wiki-mark {
+  margin: 0 -0.12em;
+  padding: 0 0.32em;
+  border-radius: 0.2em 0.1em;
+  color: inherit;
+  background-color: transparent;
+  background-image: linear-gradient(
+    102deg,
+    transparent 0.22em,
+    var(--hl) 0.3em,
+    var(--hl) calc(100% - 0.3em),
+    transparent calc(100% - 0.22em)
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 82%;
+  background-position: 0 65%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 /* While editing, a highlight's words have their own little editor, which flows inline with the text. */
 .wiki-prose .wiki-mark-editor {
