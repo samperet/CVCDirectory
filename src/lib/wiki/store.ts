@@ -5,6 +5,7 @@ import { readDirectory } from "@/lib/directory/store";
 import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "@/lib/wiki/colors";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 import type { Actor } from "@/lib/auth/actor";
+import type { PageConsent } from "./consent";
 
 /**
  * The wiki: one for all of CVC. Every page, written in Markdown, has a
@@ -59,6 +60,8 @@ export interface WikiPage {
   historyCount: number;
   /** Its colour (as a card, and as a page); unset is white. */
   color?: PageColor;
+  /** The parent circle's consent to the page (see `consent.ts`). */
+  consent?: PageConsent | null;
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
   autosaved?: boolean;
   /** Its addresses from when each circle had its own wiki, so old links still arrive. */
@@ -67,7 +70,16 @@ export interface WikiPage {
 
 export type WikiPageSummary = Pick<
   WikiPage,
-  "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "keeper" | "view" | "edit"
+  | "id"
+  | "slug"
+  | "title"
+  | "updatedAt"
+  | "updatedBy"
+  | "color"
+  | "keeper"
+  | "view"
+  | "edit"
+  | "consent"
 > & {
   /** Its opening lines, as plain text (in the page list, for cards). */
   excerpt?: string;
@@ -120,6 +132,11 @@ export const pageUpdateSchema = z
     keeper: circleIdSchema.optional(),
     view: viewSchema.optional(),
     edit: editSchema.optional(),
+    /** Record the parent circle's consent (the date), or withdraw it (null). */
+    consent: z
+      .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the date it was consented") })
+      .nullable()
+      .optional(),
   })
   .refine(
     (value) => Object.values(value).some((entry) => entry !== undefined),
@@ -142,6 +159,7 @@ export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   view: page.view,
   edit: page.edit,
   ...(page.color ? { color: page.color } : {}),
+  ...(page.consent ? { consent: page.consent } : {}),
 });
 
 type Stored = { version: number; pages: WikiPage[] };
@@ -381,6 +399,7 @@ type PageUpdate = {
   keeper?: string;
   view?: PageView;
   edit?: PageEdit;
+  consent?: { date: string } | null;
 };
 
 export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate) {
@@ -389,11 +408,23 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its colour, keeper, and who can see or edit it aren't new versions.
+    // Its colour, keeper, who can see or edit it, and its consent aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.keeper ? { keeper: update.keeper } : {}),
       ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),
+      ...(update.consent === null
+        ? { consent: null }
+        : update.consent
+          ? {
+              consent: {
+                date: update.consent.date,
+                recordedBy: { userId: editor.userId, name: editor.name },
+                recordedAt: new Date().toISOString(),
+                version: page.updatedAt,
+              },
+            }
+          : {}),
     };
     if (update.color && update.color !== (page.color ?? DEFAULT_PAGE_COLOR)) {
       const { color: _old, ...rest } = page;

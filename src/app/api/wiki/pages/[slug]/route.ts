@@ -36,8 +36,8 @@ export async function GET(_request: Request, { params }: Params) {
 
 /**
  * Save a new version (title and/or body), a new colour (its editors), or
- * its settings — keeper, who sees it, who edits it (its keeper circle).
- * Polls newly in the page are announced.
+ * its settings — keeper, who sees it, who edits it, the circle's consent
+ * (its keeper circle). Polls newly in the page are announced.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await pageContext(params.slug, "edit");
@@ -46,10 +46,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in parsed) return parsed.error;
   const update = parsed.data;
   const settings =
-    update.keeper !== undefined || update.view !== undefined || update.edit !== undefined;
+    update.keeper !== undefined ||
+    update.view !== undefined ||
+    update.edit !== undefined ||
+    update.consent !== undefined;
   if (settings && !ctx.canManage)
     return problem(
-      "Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it",
+      "Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it, or record its consent",
       403
     );
   const known = new Set(ctx.directory.circles.map((circle) => circle.id));

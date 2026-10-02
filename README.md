@@ -16,7 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📚 **One wiki** – Pages with parent circles, each with its own view and edit settings: a visual editor, editing together, embeds, history, and comments on pages or passages.
+- 📚 **One wiki** – Pages with parent circles, each with its own view and edit settings: a visual editor, editing together, embeds, history, and comments on pages or passages. A page reads as a document — its circle's icon, title, date and consent status in the header — and its parent circle can record when it consented to it.
 - 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 

@@ -150,10 +150,36 @@ select {
   background-color: #fff;
   color: theme("colors.foreground");
 }
+/* Wiki pages as documents: a white sheet with margins, the text in a readable column. */
+.document-sheet {
+  background: #fff;
+  border: 1px solid theme("colors.border");
+  border-radius: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+.document-body {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  font-size: 1.0625rem;
+}
+@media (min-width: 640px) {
+  .document-body {
+    padding: 2.5rem 3.5rem 4rem;
+  }
+}
+/* Editing: the toolbar stays in view under the editor's title bar (whose height the editor measures). */
 .wiki-editor .wiki-toolbar {
-  border-radius: 0.5rem 0.5rem 0 0;
-  background: theme("colors.accent");
+  position: sticky;
+  top: calc(4rem + var(--docs-bar, 0px));
+  z-index: 10;
   flex-wrap: wrap;
+  border-radius: 1rem 1rem 0 0;
+  border-bottom: 1px solid theme("colors.border");
+  background: theme("colors.background");
+}
+.wiki-editor .document-body {
+  min-height: 60vh;
 }
 
 /* A passage someone commented on (CSS Custom Highlight API; browsers without it just don't highlight). */

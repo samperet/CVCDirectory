@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -12,6 +12,8 @@ import { blockStarts, mergeText } from "@/lib/wiki/merge";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import type { RichEditorHandle } from "@/components/wiki/rich-editor";
 import { Button } from "@/components/ui/button";
+import { CircleIcon } from "@/components/circles/circle-icon";
+import type { Circle } from "@/lib/circles/types";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { clearDraft, readDraft, writeDraft, type Draft } from "@/components/wiki/draft-storage";
@@ -52,14 +54,20 @@ const LIVE_MS = 4000;
 export function WikiEditor({
   circleId,
   circleName,
+  circle,
   page: initial,
   pages,
+  tools,
   onDone,
 }: {
   circleId: string;
   circleName: string;
+  /** The parent circle, for its icon in the title bar. */
+  circle?: Pick<Circle, "name" | "iconUrl"> | null;
   page: WikiPage;
   pages: WikiPageSummary[];
+  /** The page's settings (parent circle, colour, who can see it, history), shown under the title. */
+  tools?: ReactNode;
   /** Finished editing: the page as it now stands. */
   onDone: (page: WikiPage) => void;
 }) {
@@ -408,6 +416,17 @@ export function WikiEditor({
   };
   const onCreatePage = useCallback((wanted: string) => newPages.current.add(wanted), []);
 
+  // The title bar stays in view; the editor's toolbar sticks just under it (see `--docs-bar` in globals.css).
+  const bar = useRef<HTMLDivElement>(null);
+  const [barHeight, setBarHeight] = useState(0);
+  useEffect(() => {
+    const element = bar.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setBarHeight(element.offsetHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const status = failure ? (
     <span className="flex items-center gap-1 text-destructive">
       <AlertTriangle className="h-3.5 w-3.5" /> {failure}
@@ -425,7 +444,50 @@ export function WikiEditor({
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className="flex flex-col gap-3"
+      style={{ "--docs-bar": `${barHeight}px` } as React.CSSProperties}
+      data-wiki-editor
+    >
+      {/* The title bar: like a document's, with the save state and Done. */}
+      <div
+        ref={bar}
+        className="sticky top-16 z-20 flex flex-col gap-2 rounded-xl border border-border bg-background/95 px-3 py-2 shadow-soft backdrop-blur"
+      >
+        <div className="flex items-center gap-3">
+          {circle ? (
+            <CircleIcon circle={circle} size={36} className="hidden rounded-full sm:inline-flex" />
+          ) : null}
+          <Input
+            value={title}
+            maxLength={120}
+            onChange={(event) => setTitle(event.target.value)}
+            className="h-auto min-w-0 flex-1 border-0 bg-transparent px-1 py-1 font-display text-xl font-semibold shadow-none focus-visible:ring-2 sm:text-2xl"
+            aria-label="Title"
+            placeholder="Untitled page"
+          />
+          <p className="hidden shrink-0 text-xs text-muted sm:block" data-save-status>
+            {status}
+          </p>
+          <Button
+            size="sm"
+            className="shrink-0"
+            onClick={() => void finish()}
+            disabled={finishing || !title.trim()}
+          >
+            {finishing ? "Saving…" : "Done"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted sm:hidden" data-save-status>
+          {status}
+        </p>
+        {tools ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/70 pt-2 text-xs text-muted">
+            {tools}
+          </div>
+        ) : null}
+      </div>
+
       {offerDraft ? (
         <DraftBanner
           draft={offerDraft}
@@ -448,68 +510,55 @@ export function WikiEditor({
         />
       ))}
 
-      <Input
-        value={title}
-        maxLength={120}
-        onChange={(event) => setTitle(event.target.value)}
-        className="bg-white text-lg font-semibold"
-        aria-label="Title"
-      />
+      <div className="document-sheet" data-page-sheet>
+        {mode === "visual" ? (
+          <div
+            onKeyDownCapture={touch}
+            onInputCapture={touch}
+            onPasteCapture={touch}
+            onPointerDownCapture={touch}
+            onDropCapture={touch}
+          >
+            <RichEditor
+              key={editorKey}
+              control={rich}
+              markdown={body}
+              circleId={circleId}
+              circleName={circleName}
+              pageId={initial.id}
+              pageSlug={initial.slug}
+              onChange={setBody}
+              onCreatePage={onCreatePage}
+              onError={() => {
+                setMode("markdown");
+                toast({
+                  title: "Opened as plain text",
+                  description: "Part of this page can't be shown in the visual editor.",
+                });
+              }}
+            />
+          </div>
+        ) : (
+          <div className="p-4 sm:p-8">
+            <MarkdownPane
+              circleId={circleId}
+              circleName={circleName}
+              pageSlug={initial.slug}
+              pages={pages}
+              body={body}
+              getBody={() => bodyRef.current}
+              setBody={setBody}
+              touch={touch}
+              textareaRef={textarea}
+            />
+          </div>
+        )}
+      </div>
 
-      <p className="-mt-1 text-xs text-muted" data-save-status>
-        {status}
-      </p>
-
-      {mode === "visual" ? (
-        <div
-          onKeyDownCapture={touch}
-          onInputCapture={touch}
-          onPasteCapture={touch}
-          onPointerDownCapture={touch}
-          onDropCapture={touch}
-        >
-          <RichEditor
-            key={editorKey}
-            control={rich}
-            markdown={body}
-            circleId={circleId}
-            circleName={circleName}
-            pageId={initial.id}
-            pageSlug={initial.slug}
-            onChange={setBody}
-            onCreatePage={onCreatePage}
-            onError={() => {
-              setMode("markdown");
-              toast({
-                title: "Opened as plain text",
-                description: "Part of this page can't be shown in the visual editor.",
-              });
-            }}
-          />
-        </div>
-      ) : (
-        <MarkdownPane
-          circleId={circleId}
-          circleName={circleName}
-          pageSlug={initial.slug}
-          pages={pages}
-          body={body}
-          getBody={() => bodyRef.current}
-          setBody={setBody}
-          touch={touch}
-          textareaRef={textarea}
-        />
-      )}
-
-      <p className="text-xs text-muted">
+      <p className="text-center text-xs text-muted">
         Changes save as you go, and others can edit at the same time. Type @ to link a page or a
         document — or to start a new page.
       </p>
-      <div className="flex gap-2">
-        <Button onClick={() => void finish()} disabled={finishing || !title.trim()}>
-          {finishing ? "Saving…" : "Done"}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -21,7 +21,7 @@ import { useSession } from "@/lib/auth/client";
 import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
-import { timeAgo } from "@/lib/time";
+import { shortDate, timeAgo } from "@/lib/time";
 import { DEFAULT_PAGE_COLOR, pageStyle, type PageColor } from "@/lib/wiki/colors";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
 import { ColorSwatches } from "@/components/wiki/color-swatches";
@@ -36,7 +36,8 @@ import { useWikiPages } from "@/components/wiki/wiki-client";
 import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { CircleIcon } from "@/components/circles/circle-icon";
+import { ConsentControls, ConsentPill } from "@/components/wiki/page-consent";
 import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
 import { Pill } from "@/components/ui/pill";
@@ -254,201 +255,229 @@ export function WikiPageClient({ slug }: { slug: string }) {
 
   if (mode === "edit" && canEdit) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         {back}
-        <Card
-          className="flex flex-col gap-3"
-          style={{ backgroundColor: paper.paper, borderColor: paper.edge }}
-        >
-          {/* The page's settings and tools, while editing it. */}
-          <div
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 pb-3 text-xs text-muted"
-            data-page-tools
-          >
-            {canManage ? (
-              <label className="flex items-center gap-2">
-                Parent circle
-                <Select
-                  value={page.keeper}
-                  onChange={(event) => rehome.mutate(event.target.value)}
-                  disabled={rehome.isPending}
-                  className="h-8 max-w-[12rem] rounded-md px-1.5 text-xs"
-                >
-                  {(circles ?? []).map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            ) : (
-              <span>Parent circle {circle?.name ?? "—"}</span>
-            )}
-            <span className="flex items-center gap-2">
-              Colour{" "}
-              <ColorSwatches
-                size="sm"
-                value={page.color ?? DEFAULT_PAGE_COLOR}
-                onChange={(color) => recolor.mutate(color)}
-                disabled={recolor.isPending}
-              />
-            </span>
-            <span className="flex flex-wrap items-center gap-2">
-              {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
-              {history.length ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => setShowHistory(!showHistory)}
-                  aria-expanded={showHistory}
-                >
-                  {showHistory ? <X className="h-4 w-4" /> : <HistoryIcon className="h-4 w-4" />}{" "}
-                  {showHistory ? "Close history" : `History (${history.length})`}
-                </Button>
-              ) : null}
-            </span>
-          </div>
-          {showHistory ? (
-            <div className="flex flex-col gap-3 rounded-lg border border-border bg-accent/40 p-3">
-              <h2 className="text-sm font-semibold text-foreground">Earlier versions</h2>
-              <ul className="flex flex-col gap-1.5 text-sm">
-                {history
-                  .map((version, index) => ({ version, index }))
-                  .reverse()
-                  .map(({ version, index }) => (
-                    <li key={index} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="text-foreground">
-                        {version.editedBy.name} · {timeAgo(version.editedAt)}
-                        {version.title !== page.title ? (
-                          <span className="text-muted"> — “{version.title}”</span>
-                        ) : null}
-                      </span>
+        {showHistory ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-accent/40 p-3">
+            <h2 className="text-sm font-semibold text-foreground">Earlier versions</h2>
+            <ul className="flex flex-col gap-1.5 text-sm">
+              {history
+                .map((version, index) => ({ version, index }))
+                .reverse()
+                .map(({ version, index }) => (
+                  <li key={index} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-foreground">
+                      {version.editedBy.name} · {timeAgo(version.editedAt)}
+                      {version.title !== page.title ? (
+                        <span className="text-muted"> — “{version.title}”</span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-secondary-foreground hover:underline"
+                      onClick={() => setViewing(viewing === index ? null : index)}
+                    >
+                      {viewing === index ? "Hide" : "View"}
+                    </button>
+                    {canEdit ? (
                       <button
                         type="button"
-                        className="text-xs font-medium text-secondary-foreground hover:underline"
-                        onClick={() => setViewing(viewing === index ? null : index)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline"
+                        disabled={restore.isPending}
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: "Make this version the current one?",
+                              body: "The current one stays in the history.",
+                              confirmLabel: "Restore",
+                            })
+                          )
+                            restore.mutate(index);
+                        }}
                       >
-                        {viewing === index ? "Hide" : "View"}
+                        <RotateCcw className="h-3 w-3" /> Restore
                       </button>
-                      {canEdit ? (
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline"
-                          disabled={restore.isPending}
-                          onClick={async () => {
-                            if (
-                              await confirm({
-                                title: "Make this version the current one?",
-                                body: "The current one stays in the history.",
-                                confirmLabel: "Restore",
-                              })
-                            )
-                              restore.mutate(index);
-                          }}
-                        >
-                          <RotateCcw className="h-3 w-3" /> Restore
-                        </button>
-                      ) : null}
-                    </li>
-                  ))}
-              </ul>
-              {viewing !== null && history[viewing] ? (
-                <div className="rounded-lg border border-border bg-white p-4">
-                  <p className="mb-2 text-xs font-medium text-muted">
-                    Version from {timeAgo(history[viewing].editedAt)}
-                  </p>
-                  <WikiMarkdown source={history[viewing].body} circleId={circleId} pages={pages} />
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <WikiEditor
-            circleId={circleId}
-            circleName={circle?.name ?? ""}
-            page={page}
-            pages={pages}
-            onDone={(updated) => {
-              // The editor's copy has the text; settings changed while editing (colour, parent circle, who can see it) are newer here.
-              saved({
-                ...page,
-                title: updated.title,
-                body: updated.body,
-                updatedAt: updated.updatedAt,
-                updatedBy: updated.updatedBy,
-                historyCount: updated.historyCount,
-              });
-              exitEdit();
-            }}
-          />
-        </Card>
+                    ) : null}
+                  </li>
+                ))}
+            </ul>
+            {viewing !== null && history[viewing] ? (
+              <div className="rounded-lg border border-border bg-white p-4">
+                <p className="mb-2 text-xs font-medium text-muted">
+                  Version from {timeAgo(history[viewing].editedAt)}
+                </p>
+                <WikiMarkdown source={history[viewing].body} circleId={circleId} pages={pages} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <WikiEditor
+          circleId={circleId}
+          circleName={circle?.name ?? ""}
+          circle={circle}
+          page={page}
+          pages={pages}
+          tools={
+            <>
+              {canManage ? (
+                <label className="flex items-center gap-2">
+                  Parent circle
+                  <Select
+                    value={page.keeper}
+                    onChange={(event) => rehome.mutate(event.target.value)}
+                    disabled={rehome.isPending}
+                    className="h-8 max-w-[12rem] rounded-md px-1.5 text-xs"
+                  >
+                    {(circles ?? []).map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              ) : (
+                <span>Parent circle {circle?.name ?? "—"}</span>
+              )}
+              <span className="flex items-center gap-2">
+                Colour{" "}
+                <ColorSwatches
+                  size="sm"
+                  value={page.color ?? DEFAULT_PAGE_COLOR}
+                  onChange={(color) => recolor.mutate(color)}
+                  disabled={recolor.isPending}
+                />
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
+                {history.length ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => setShowHistory(!showHistory)}
+                    aria-expanded={showHistory}
+                  >
+                    {showHistory ? <X className="h-4 w-4" /> : <HistoryIcon className="h-4 w-4" />}{" "}
+                    {showHistory ? "Close history" : `History (${history.length})`}
+                  </Button>
+                ) : null}
+              </span>
+            </>
+          }
+          onDone={(updated) => {
+            // The editor's copy has the text; settings changed while editing (colour, parent circle, who can see it) are newer here.
+            saved({
+              ...page,
+              title: updated.title,
+              body: updated.body,
+              updatedAt: updated.updatedAt,
+              updatedBy: updated.updatedBy,
+              historyCount: updated.historyCount,
+            });
+            exitEdit();
+          }}
+        />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {back}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {back}
+        {canEdit ? (
+          <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
+            <Pencil className="h-4 w-4" /> Edit
+          </Button>
+        ) : null}
+      </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card
-          className="flex min-w-0 flex-col gap-4"
-          style={{ backgroundColor: paper.paper, borderColor: paper.edge }}
+        <article
+          className="document-sheet flex min-w-0 flex-col"
+          style={{ borderTopWidth: 4, borderTopColor: paper.edge }}
+          data-page-sheet
         >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
-              <p className="text-xs text-muted">
-                Parent circle{" "}
-                {circle ? (
-                  <Link href={`/circles/${circle.id}`} className="font-medium hover:underline">
-                    {circle.name}
-                  </Link>
-                ) : (
-                  "—"
-                )}
-                {page.view.kind !== "everyone" ? (
+          {/* The page's head: its circle, title, date, and where it stands with the circle. */}
+          <header className="flex flex-col items-center gap-3 border-b border-border/70 px-6 pb-7 pt-9 text-center sm:px-14">
+            {circle ? (
+              <Link
+                href={`/circles/${circle.id}`}
+                title={circle.name}
+                className="rounded-full ring-4 ring-white shadow-soft transition hover:scale-105"
+              >
+                <CircleIcon circle={circle} size={72} className="rounded-full" />
+              </Link>
+            ) : null}
+            <h1 className="font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+              {page.title}
+            </h1>
+            <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted">
+              {circle ? (
+                <Link href={`/circles/${circle.id}`} className="font-medium hover:underline">
+                  {circle.name}
+                </Link>
+              ) : (
+                "—"
+              )}
+              <span aria-hidden>·</span>
+              <time
+                dateTime={page.updatedAt}
+                title={`Last edited by ${page.updatedBy.name} · ${timeAgo(page.updatedAt)}`}
+              >
+                {shortDate(page.updatedAt, true)}
+              </time>
+              {page.view.kind !== "everyone" ? (
+                <>
+                  <span aria-hidden>·</span>
                   <span
-                    className="ml-1 inline-flex items-center gap-0.5"
+                    className="inline-flex items-center gap-0.5"
                     title={viewLabel(page.view, circles)}
                   >
                     <Lock className="h-3 w-3" aria-hidden /> {viewLabel(page.view, circles)}
                   </span>
-                ) : null}
-                {" · "}Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
-                {othersEditing.length ? (
-                  <Pill tone="live" className="ml-1.5" data-live-editors>
-                    <Pencil className="h-3 w-3" aria-hidden />{" "}
-                    {othersEditing.map((editor) => editor.name).join(", ")}{" "}
-                    {othersEditing.length === 1 ? "is" : "are"} editing
-                  </Pill>
-                ) : null}
-              </p>
+                </>
+              ) : null}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <ConsentPill page={page} />
+              {othersEditing.length ? (
+                <Pill tone="live" data-live-editors>
+                  <Pencil className="h-3 w-3" aria-hidden />{" "}
+                  {othersEditing.map((editor) => editor.name).join(", ")}{" "}
+                  {othersEditing.length === 1 ? "is" : "are"} editing
+                </Pill>
+              ) : null}
             </div>
-            {canEdit ? (
-              <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
-                <Pencil className="h-4 w-4" /> Edit
-              </Button>
+            {canManage ? (
+              <ConsentControls
+                page={page}
+                slug={slug}
+                circleName={circle?.name ?? "The circle"}
+                onSaved={saved}
+              />
             ) : null}
-          </div>
+          </header>
 
-          {toc.length >= 3 ? (
-            <nav
-              className="rounded-lg border border-border bg-accent/30 p-3 text-sm lg:hidden"
-              aria-label="On this page"
-            >
-              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
-                <ListTree className="h-3.5 w-3.5" /> On this page
-              </p>
-              <TocList toc={toc} />
-            </nav>
-          ) : null}
+          <div className="document-body w-full">
+            {toc.length >= 3 ? (
+              <nav
+                className="mb-6 rounded-lg border border-border bg-accent/30 p-3 text-sm lg:hidden"
+                aria-label="On this page"
+              >
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
+                  <ListTree className="h-3.5 w-3.5" /> On this page
+                </p>
+                <TocList toc={toc} />
+              </nav>
+            ) : null}
 
-          <div ref={article} onClick={onArticleClick}>
-            <WikiMarkdown source={page.body} circleId={circleId} pages={pages} pageId={page.id} />
+            <div ref={article} onClick={onArticleClick}>
+              <WikiMarkdown source={page.body} circleId={circleId} pages={pages} pageId={page.id} />
+            </div>
           </div>
 
           {canManage ? (
-            <div className="border-t border-border pt-3">
+            <footer className="flex justify-end border-t border-border/70 px-6 py-3 sm:px-14">
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-destructive"
@@ -466,9 +495,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete page
               </button>
-            </div>
+            </footer>
           ) : null}
-        </Card>
+        </article>
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
           {toc.length >= 3 ? (

@@ -367,8 +367,8 @@ export const RichEditor = forwardRef<
         onChange={(value) => onChange(normalizeWikiLinks(value))}
         onError={onError}
         suppressHtmlProcessing
-        className="wiki-editor rounded-lg border border-border bg-white"
-        contentEditableClassName="wiki-prose min-h-[20rem] px-4 py-3"
+        className="wiki-editor"
+        contentEditableClassName="wiki-prose document-body"
         placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
         plugins={[
           headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),

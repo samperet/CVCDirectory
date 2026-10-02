@@ -120,7 +120,13 @@ in code and storage; the UI calls it the **parent circle** — and its own view/
 (`lib/wiki/links.ts`, `sections.ts`). Edits autosave and merge paragraph by paragraph
 (`lib/wiki/merge.ts`, `mergeText(base, mine, theirs)`), with presence via `wiki/presence.json`.
 Colours are `lib/wiki/colors.ts`; the map (`components/wiki/map-*.tsx`) is built by
-`lib/wiki/graph.ts` from the pages the viewer can see.
+`lib/wiki/graph.ts` from the pages the viewer can see. A page is shown as a document
+(`components/wiki/wiki-page.tsx`: the keeper's icon, title, date and consent in a centred header
+over a `.document-sheet` with `.document-body` margins); the editor (`wiki-editor.tsx`) has a
+sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
+A page's **consent** (`lib/wiki/consent.ts`, `page.consent`) is the keeper circle's, recorded with
+a date by whoever manages the page (`PATCH {consent: {date}}`, or `null` to withdraw) against the
+version current then; `consentState()` reads "changed" once the page is edited again.
 
 ## Meetings and proposals
 
