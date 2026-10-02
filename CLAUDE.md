@@ -35,15 +35,27 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/<feature>/access.ts` | Who may do what (pure predicates) |
 | `src/lib/<feature>/http.ts` | Route helpers: the feature's context loader and failure → `problem()` |
 | `src/lib/storage.ts` | R2 (or `.data/`): `readJson`, `writeJson`, `mutateJson`, binaries |
-| `src/lib/http.ts` | `problem`, `readBody`, `throttled` — every route uses these |
+| `src/lib/http.ts` | `problem`, `readBody`, `throttled`, `notFound`/`forbidden`/`full` — every route uses these |
+| `src/lib/auth/actor.ts` | `Actor` (`userId`, `personId`, `name`, `admin`) and `actorOf(user)`: who is acting, as stores see them |
+| `src/lib/comments/` | The one comment system: `CommentRecord` (`shared.ts`) and the add/edit/delete rules (`store.ts`) every feature's comments follow |
+| `src/components/comments/` | `CommentTree`, `CommentForm`, `CommentByline` — how comments are shown everywhere |
+| `src/components/ui/` | The primitives: `Pill`, `SectionHeading`, `SegmentedControl`, `Loading`/`ErrorCard`/`NotFoundCard`, `Select`, `ActionLink`, `Dialog`, and `useConfirm()` |
+| `src/lib/circles/types.ts` | `Circle`, `CircleSeat`, `CircleApplication`, `CircleKind`, `JoinPolicy` |
+| `src/lib/text.ts` | `sentence`, `initials`, `listNames`, `likedByLabel` |
 | `src/lib/circles/ids.ts` | `COMMUNITY_ID`, `BOARD_ID`, `isCommunity`, `sitsOnBoard` (importable anywhere) |
 | `src/lib/time.ts` | `TIME_ZONE` (Vermont), `todayInVermont`, `timeAgo` |
 
 ## Conventions that matter
 
-- **Writes go through `mutateJson(key, change)`** (an R2 conditional put with retries) so two Vercel
-  instances can't overwrite each other. Older stores still use `enqueue` + `readJson`/`writeJson`,
-  which only serialises within one instance — prefer `mutateJson` for anything new.
+- **Every write goes through `mutateJson(key, change)`** (an R2 conditional put with retries) so two
+  Vercel instances can't overwrite each other. `change` is synchronous and may run more than once:
+  no I/O inside it, and return `{ write: false }` when nothing changes. `enqueue` is only for deletes.
+- **Who is acting is an `Actor`** (`actorOf(user)` or `ctx.actor`); stores take `Pick<Actor, …>` and
+  never store it whole. Each store exports its `Failure` union; the feature's `<feature>Problem()`
+  maps it to responses.
+- **Comments** on anything use `lib/comments` and `components/comments`, never a new shape.
+- **Confirmations** use `useConfirm()` from `components/ui/confirm.tsx`, never `window.confirm`;
+  pages show `Loading`, `ErrorCard` and `NotFoundCard` from `components/ui/status.tsx`.
 - **Permissions are decided on the server**, in the feature's `access.ts`/`http.ts`; the API tells
   the client what it may do (`canEdit`, `canAdd`, …) and components only hide or show controls.
 - **Admins** are `ADMIN_PERSON_IDS` (`isAdmin`); **the Board** can manage every circle
@@ -68,6 +80,11 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
   `circle-detail-client.tsx`.
 - **A notification topic**: `TOPICS` and `DEFAULT_PREFERENCES` in `src/lib/push/store.ts`; send with
   `notify()`.
+- **Comments on something new**: extend `CommentRecord` with the feature's fields, call
+  `addComment`/`editComment`/`deleteComment` from the store's `mutate()`, map `normalizeComment` over
+  what's read, and render with `CommentTree`.
+- **A label, a heading, a choice of two or three**: `Pill`, `SectionHeading`, `SegmentedControl` —
+  don't hand-roll the classes again.
 
 ## Rules
 

@@ -24,11 +24,15 @@ browser component ──apiFetch──▶ /api/... route ──▶ lib/<feature>
 - `src/lib/api-client.ts` `apiFetch` throws the route's `detail` as an `Error`, so a mutation's
   `onError` can show it in a toast as it is.
 - `src/lib/http.ts`: `problem(detail, status)` (RFC 9457 body), `readBody(request, schema)`,
-  `throttled(request, key)`.
+  `throttled(request, key)`, and the wording helpers `notFound(what)`, `forbidden(detail)`,
+  `full(detail)`.
 - Each feature's `http.ts` has a context loader (`circleContext`, `tasksContext`, `meetingsContext`,
   `wikiSession`/`pageContext`, …) returning either `{ error: NextResponse }` or what the route needs
-  (user, directory, the thing, and what the user may do), plus a `<feature>Problem(reason)` that
-  maps the store's failure reasons to responses.
+  (user, `actor`, directory, the thing, and what the user may do), plus a `<feature>Problem(reason)`
+  that maps the store's exported `Failure` union to responses. Routes without a context helper
+  build the actor with `actorOf(user)`.
+- Image uploads (profile and home photos, circle icons, wiki and gallery photos) are the raw
+  request body, read with `readImageUpload(request, { maxBytes, label })` in `lib/images.ts`.
 
 ## Storage
 
@@ -38,11 +42,14 @@ browser component ──apiFetch──▶ /api/... route ──▶ lib/<feature>
 - `readJson(key)` / `writeJson(key, value)` / `deleteJson(key)`; `readBinary`/`writeBinary` for
   files and images; `presignedDownloadUrl` for document downloads.
 - **`mutateJson(key, change)`** reads with an ETag and writes only if unchanged, retrying a few
-  times — safe across several server instances. The wiki, its comments and polls, presence, and
-  meetings use it. **`enqueue(key, fn)`** only queues writes within one instance; older stores
-  (circles, tasks, documents, forum, …) still use it and are the first candidates to migrate.
-- A store keeps one key pattern, a `normalize(raw)` that tolerates old shapes, and a `mutate()`
-  wrapper that returns `{ ok: true, … } | { ok: false, reason }`.
+  times — safe across several server instances. **Every store writes through it.** `change` is
+  synchronous and may run more than once, so it does no I/O; a no-write result is `{ write: false }`.
+  `readOrSeedJson(key, parse, seed)` writes a first version only if none exists (the circles seed).
+  **`enqueue(key, fn)`** only queues within one instance and remains around deletes and the VAPID
+  keys. A binary beside an index (a photo, a wiki image, a document's file) is written first and
+  taken back if the index refuses it.
+- A store keeps one key pattern, a `normalize(raw)` that tolerates old shapes, an exported
+  `Failure` union, and a `mutate()` wrapper that returns `{ ok: true, … } | { ok: false, reason }`.
 
 Main documents (see each store's `KEY`):
 
@@ -71,6 +78,28 @@ Main documents (see each store's `KEY`):
 
 Access logic lives in `lib/<feature>/access.ts` (pure, testable) and is applied in `http.ts`. The
 API's responses carry `canEdit`/`canAdd`/`canReview`-style flags so the UI matches the server.
+
+Who is acting reaches a store as an **`Actor`** (`lib/auth/actor.ts`: `userId`, `personId`,
+`name`, `admin`), built once by `actorOf(user)` or a context helper; a store takes the fields it
+needs (`Pick<Actor, "userId" | "admin">`), so ownership checks read the same everywhere, and what it
+writes down about who did something (`createdBy`, `uploadedBy`, `proposer`) is picked out field by
+field — `admin` is never stored. The circle types (`Circle`, `CircleSeat`, …) are in
+`lib/circles/types.ts`; the rest of the directory's in `lib/directory/types.ts`.
+
+## Comments
+
+Tasks, wiki pages, forum discussions (their replies), recommendations and proposals all use one
+comment system. `lib/comments/shared.ts` has the record (`CommentRecord`: `parentId`,
+`authorId`/`authorPersonId`/`authorName`, `body`, `editedAt`, `deletedAt`) and the grouping
+helpers; `lib/comments/store.ts` has the rules as pure list operations — `addComment` (nesting
+"none", "one" or "any", a limit, and `among` when one document holds several things' comments),
+`editComment` and `deleteComment` (the author or a moderator; a comment with replies becomes a
+placeholder, pruned once nothing hangs off it). Each feature's store applies them to its own
+document and adds its own fields (a wiki comment's quote, a proposal comment's kind, a reply's
+likes); `normalizeComment` fills in what older records lack as they are read.
+`components/comments` shows them: `CommentTree` (replies, folding, edit and delete with the Confirm
+dialog, `#comment-<id>` links), `CommentForm`, `CommentByline`; features pass what differs
+(`renderBody`, `renderExtras`, `renderActions`).
 
 ## Circles and their pages
 
@@ -125,11 +154,22 @@ field) or `todayInVermont()` too, not the device's zone.
 - `components/layout/back-link.tsx`: "← …" links go back to the page you came from (a trail in
   session storage), falling back to a fixed place.
 - `components/layout/app-shell.tsx`: navigation; `src/app/page.tsx`: the dashboard cards.
+- `components/ui` holds the primitives every page is built from: `Button`, `Card`, `Input`,
+  `Textarea`, `Select`, `Dialog`, `Pill` (status and count labels), `SectionHeading` (icon, title,
+  count, a module's fold toggle), `SegmentedControl` (a radio group or tab list of pills),
+  `Loading`/`ErrorCard`/`NotFoundCard` (the three page states), `ActionLink`, and the **Confirm
+  dialog**: `useConfirm()` returns `confirm({ title, body?, destructive? }) => Promise<boolean>` —
+  nothing uses `window.confirm`.
+- Small text helpers live once: `lib/text.ts` (`sentence`, `initials`, `listNames`,
+  `likedByLabel`), `lib/time.ts` (`timeAgo`, `shortDate`).
+- A page's component stays about its layout and data; its pieces live beside it in their own
+  files (`documents/document-row.tsx`, `circles/members-module.tsx`, `wiki/markdown-pane.tsx`,
+  `forum/opening-post.tsx`, `resources/recommendation-card.tsx`, …).
 
 ## Testing
 
 - `npm test` runs vitest over `src/**/*.test.ts` — pure logic (merge, review clock, modules, route
-  helpers). Add a test beside anything with rules in it.
+  helpers, the comment rules). Add a test beside anything with rules in it.
 - End-to-end checks run against a real build: seed synthetic data into `.data/`, start with
   `AUTH_SECRET=local-test ADMIN_PERSON_IDS=<id> next start`, sign in through
   `POST /api/auth/login {personId, phone}`, then curl the API and drive the UI with Playwright

@@ -525,8 +525,10 @@ bulk: `{"residents": [{"personId", "resident"}], "leaveUnit": [{"personId", "uni
 ```
 src/
   app/              # Pages (thin server shells) and the API (app/api/**/route.ts)
-  components/       # Client components by feature; ui/ holds the primitives
+  components/       # Client components by feature; ui/ holds the primitives, comments/ the shared comment tree
   lib/<feature>/    # shared.ts (types, pure helpers) · store.ts (R2 JSON) · access.ts (who may) · http.ts (route helpers)
+  lib/auth/actor.ts # Who is acting (account, resident, name, admin), as every store sees them
+  lib/comments/     # The one comment system: the record and the add/edit/delete rules
   lib/storage.ts    # The only module that talks to R2 (or ./.data/ locally)
   lib/http.ts       # problem(), readBody(), throttled() — used by every route
   middleware.ts     # Sends signed-out visitors to the sign-in page
@@ -538,7 +540,7 @@ docs/ARCHITECTURE.md     # How it fits together; CLAUDE.md has the conventions f
 
 - `npm run check` runs lint, the type-check, and the unit tests (`npm test`: vitest over
   `src/**/*.test.ts`, kept beside the code — the paragraph merge, the proposal review clock, circle
-  modules, the route helpers).
+  modules, the route helpers, the comment rules).
 - End to end: `npm run seed`, then either `npm run dev` or `npm run build && npm start` with
   `AUTH_SECRET` and `ADMIN_PERSON_IDS` set; sign in through the UI or `POST /api/auth/login
   {personId, phone}` and exercise the API with curl and the pages with Playwright. Fixtures are
