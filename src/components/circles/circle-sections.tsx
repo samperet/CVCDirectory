@@ -34,6 +34,7 @@ export type ModuleSections = Record<string, SectionDefinition | undefined>;
 
 const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   information: " Its pages stay in the wiki.",
+  meetings: " The circle's minutes and proposals are kept, and come back if you add Meetings again.",
   tasks: " The circle's tasks are kept, and come back if you add Tasks again.",
   documents: " The circle's documents are kept, and come back if you add Documents again.",
 };

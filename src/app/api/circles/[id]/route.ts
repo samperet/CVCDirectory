@@ -3,6 +3,7 @@ import { moveCircleDocuments } from "@/lib/documents/store";
 import { handOverPages } from "@/lib/wiki/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
+import { deleteCircleMeetings } from "@/lib/meetings/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { BOARD_ID, circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -55,5 +56,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   await handOverPages(params.id, BOARD_ID);
   await deleteCircleTasks(params.id);
   await deleteCircleTaskComments(params.id);
+  await deleteCircleMeetings(params.id);
   return NextResponse.json({ ok: true });
 }

@@ -18,6 +18,7 @@ import { AddModuleDialog, InformationSettings, MODULE_ICONS, describeFilter } fr
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { InformationModule } from "@/components/wiki/information-module";
+import { MeetingsModule } from "@/components/meetings/meetings-module";
 import { TasksSection } from "@/components/tasks/task-board";
 import { moduleTitle, modulesFor, type CircleModule } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
@@ -526,6 +527,8 @@ export function CircleDetailClient({ id }: { id: string }) {
         };
       case "members":
         return community ? undefined : { title, icon: icon(module), content: <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> };
+      case "meetings":
+        return community ? undefined : { title, icon: icon(module), content: <MeetingsModule circle={circle} title={title} /> };
       case "schedule":
         return schedule ? { title, icon: icon(module), content: <DutyScheduleModule circleId={id} people={people} /> } : undefined;
       case "tasks":

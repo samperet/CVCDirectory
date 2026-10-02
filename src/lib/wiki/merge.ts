@@ -92,12 +92,14 @@ function matchPairs(a: string[], b: string[]): [number, number][] {
 }
 
 const same = (x: string[], y: string[]) => x.length === y.length && x.every((value, index) => value === y[index]);
+const startsWith = (x: string[], prefix: string[]) => x.length > prefix.length && prefix.every((value, index) => value === x[index]);
 
 /**
  * Merge `mine` and `theirs`, both edited from `base`. Where only one side
  * changed a stretch, that change is kept; where both added new blocks in the
- * same place, both are kept (mine first); an edit beats a deletion; where both
- * edited the same block differently, mine is kept and it's reported.
+ * same place, both are kept (mine first); an edit beats a deletion; where one
+ * side changed blocks that the other only added after, both are kept; where
+ * both edited the same block differently, mine is kept and it's reported.
  */
 export function mergeText(base: string, mine: string, theirs: string): MergeResult {
   const O = splitBlocks(base);
@@ -136,6 +138,14 @@ export function mergeText(base: string, mine: string, theirs: string): MergeResu
       // Both added here: keep both.
       takeMine(a0, a);
       out.push(...bChunk);
+    } else if (startsWith(bChunk, oChunk)) {
+      // They only added after these blocks, which I changed: my change, then their additions.
+      takeMine(a0, a);
+      out.push(...bChunk.slice(oChunk.length));
+    } else if (startsWith(aChunk, oChunk)) {
+      // I only added after these blocks, which they changed: their change, then my additions.
+      out.push(...bChunk);
+      takeMine(a0 + oChunk.length, a);
     } else {
       takeMine(a0, a);
       conflicts.push({ mine: aChunk.join("\n\n"), theirs: bChunk.join("\n\n") });

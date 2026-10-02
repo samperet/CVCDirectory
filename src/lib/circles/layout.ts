@@ -5,7 +5,7 @@
  * up to each reader, on their own device.
  */
 
-export const SECTION_IDS = ["information", "members", "schedule", "tasks", "documents"] as const;
+export const SECTION_IDS = ["information", "members", "meetings", "schedule", "tasks", "documents"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 export const SECTION_SIZES = ["small", "medium", "large", "full"] as const;
@@ -28,6 +28,7 @@ export const DEFAULT_INFO_VIEW: InfoView = "summary";
 export const DEFAULT_LAYOUT: SectionLayout[] = [
   { id: "information", size: "large" },
   { id: "members", size: "small" },
+  { id: "meetings", size: "full" },
   { id: "schedule", size: "full" },
   { id: "tasks", size: "full" },
   { id: "documents", size: "full" },
@@ -53,11 +54,19 @@ export function layoutFor(stored: SectionLayout[] | undefined, available: Sectio
 /**
  * A circle's page is built from modules, each a size wide. Information
  * modules show a chosen set of wiki pages (there can be several); the
- * others (members, the duty schedule, tasks, documents) appear once each.
+ * others (members, meetings, the duty schedule, tasks, documents) appear
+ * once each.
  */
 export const MODULE_TYPES = SECTION_IDS;
 export type ModuleType = SectionId;
-export const MODULE_NAMES: Record<ModuleType, string> = { information: "Information", members: "Members", schedule: "Duty schedule", tasks: "Tasks", documents: "Documents" };
+export const MODULE_NAMES: Record<ModuleType, string> = {
+  information: "Information",
+  members: "Members",
+  meetings: "Meetings",
+  schedule: "Duty schedule",
+  tasks: "Tasks",
+  documents: "Documents",
+};
 
 /** Which pages an Information module shows: chosen ones (in order), all of a circle's, or the most recently edited (of a circle, or the whole wiki). */
 export type InfoFilter = { kind: "pages"; pageIds: string[] } | { kind: "circle"; circleId: string } | { kind: "recent"; limit: number; circleId?: string };
@@ -82,9 +91,9 @@ export const moduleTitle = (module: Pick<CircleModule, "type" | "title">, schedu
 /**
  * The page's modules: those the circle saved — or, until it saves any, its
  * sections as they were (in their order and sizes): Information as all of
- * the circle's own pages, shown as it chose; Members (but not on Community,
- * which is everyone); the duty schedule if it has one; Tasks and Documents
- * unless it turned them off.
+ * the circle's own pages, shown as it chose; Members and Meetings (but not
+ * on Community, which is everyone); the duty schedule if it has one; Tasks
+ * and Documents unless it turned them off.
  */
 export function modulesFor(
   circle: { id: string; modules?: CircleModule[]; layout?: SectionLayout[]; features?: { documents?: boolean; wiki?: boolean; tasks?: boolean }; infoView?: InfoView },
@@ -94,7 +103,7 @@ export function modulesFor(
   const on = (feature: "documents" | "wiki" | "tasks") => circle.features?.[feature] ?? true;
   const available: SectionId[] = [
     ...(on("wiki") ? (["information"] as const) : []),
-    ...(circle.id !== "community" ? (["members"] as const) : []),
+    ...(circle.id !== "community" ? (["members", "meetings"] as const) : []),
     ...(hasSchedule ? (["schedule"] as const) : []),
     ...(on("tasks") ? (["tasks"] as const) : []),
     ...(on("documents") ? (["documents"] as const) : []),

@@ -315,8 +315,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   notified (the "wiki" notification setting). Stored page by page in `wiki/comments/<pageId>.json`;
   a page's comments go with it.
 - **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
-  **Members** (not on Community, which is everyone), the **duty schedule** where there is one,
-  **Tasks**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
+  **Members** and **Meetings** (not on Community, which is everyone), the **duty schedule** where
+  there is one, **Tasks**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
   and admins) adds modules (**Add module**), removes them, drags them into order — or moves them
   with arrows, on phones — and sizes each to a third, half, two thirds, or the full width of wider
   screens; phones stack them. Everyone sees the circle's page as it was saved (stored on the
@@ -330,11 +330,12 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     pages they can. A module listing this circle's own pages has **Add Information** for whoever
     can start pages for the circle.
   - Removing **Tasks** or **Documents** turns them off for the circle (its existing tasks and
-    documents are kept, and return when the module is added back). With Documents off, no new
+    documents are kept, and return when the module is added back); removing **Meetings** keeps its
+    minutes and proposals the same way. With Documents off, no new
     documents can be added; its existing ones stay searchable.
   - A circle that hasn't saved its page yet shows what it had before: an Information module with
-    all of its own pages, Members, its duty schedule, and Tasks and Documents unless they were
-    turned off (from the older `layout`, `features`, and `infoView`).
+    all of its own pages, Members, Meetings, its duty schedule, and Tasks and Documents unless they
+    were turned off (from the older `layout`, `features`, and `infoView`).
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);
@@ -404,6 +405,29 @@ from then on, so re-importing the directory never overwrites circle changes.
   specific to the circles that need one — today only the Chicken Tenders — so there's no button to
   add one elsewhere; a new one is set up with `PUT /api/admin/schedules` (with `ADMIN_TOKEN`).
   Stored in `circles/schedules/<id>.json`.
+- **Meetings & minutes** – a circle's **Meetings** module (on by default; not on Community) lists
+  its proposals in review and its latest minutes, with **New meeting** for its members, the Board,
+  and admins. A meeting's page (`/circles/<id>/meetings/<meetingId>`) is the **Minutes Maker**:
+  - **Present** – the circle's members as chips to tick (**All members present** ticks them all),
+    plus **Add someone** for any other resident, or a guest by name.
+  - **Notes** – Markdown, saved as you type; several people can take notes at once (their changes
+    are merged paragraph by paragraph, the same way wiki pages are). **Transcribe** writes down
+    what's said using the browser's own speech recognition (Chrome, Edge, Safari — not Firefox),
+    adding each phrase as a sentence; it needs no account or key, and labels no speakers. Chrome and
+    Edge send the audio to Google or Microsoft to be recognised. **Preview** renders the notes.
+  - **Proposals** – added to the meeting as drafts, then **sent for review**: a **5-day consent
+    review** (`/circles/<id>/proposals/<proposalId>`), announced to the circle's members (the
+    "proposals" notification setting). During it, the circle's own members **log tensions** (with
+    replies; marked **addressed** by any member) and can raise a **Reasoned Objection** (a reason
+    of at least 10 characters), which **pauses the review**, holding the time it had left. Only the
+    objector (or an admin) **withdraws** it, optionally saying what resolved it; once no objection
+    stands, the review **resumes with the time it had left**. When the time runs out with no
+    objection standing, the proposal is **consented** (worked out as it's read, so nothing has to
+    run on a schedule; the members are told once). Proposals can be edited until consented (edits
+    during the review are noted in the history), or withdrawn. Everyone signed in can read
+    meetings and proposals; a meeting with a proposal that went for review can't be deleted.
+  - Stored per circle in `meetings/<circleId>.json` (meetings and proposals together, so an
+    objection and the clock it pauses change in one write); deleted with the circle.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.

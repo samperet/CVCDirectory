@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, BookOpen, CalendarDays, FileText, LayoutGrid, List, ListChecks, Plus, Search, Settings2, Users, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, CalendarDays, ClipboardList, FileText, LayoutGrid, List, ListChecks, Plus, Search, Settings2, Users, X } from "lucide-react";
 import {
   DEFAULT_INFO_VIEW,
   INFO_VIEWS,
@@ -26,11 +26,19 @@ import { cn } from "@/lib/utils";
 
 /** Adding a module to a circle's page, and setting up an Information module's pages. */
 
-export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = { information: BookOpen, members: Users, schedule: CalendarDays, tasks: ListChecks, documents: FileText };
+export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
+  information: BookOpen,
+  members: Users,
+  meetings: ClipboardList,
+  schedule: CalendarDays,
+  tasks: ListChecks,
+  documents: FileText,
+};
 
 const MODULE_HINTS: Record<ModuleType, string> = {
   information: "Wiki pages: chosen ones, all of a circle's, or the latest edited. Add as many as you like.",
   members: "Who's in the circle, and joining it.",
+  meetings: "Minutes of the circle's meetings — who was there, notes, and proposals in their consent review.",
   schedule: "The circle's duty schedule.",
   tasks: "The circle's tasks.",
   documents: "The circle's documents.",
@@ -70,10 +78,10 @@ export function AddModuleDialog({
   onAdd: (module: CircleModule) => void;
   onClose: () => void;
 }) {
-  const offered = (["information", "members", "schedule", "tasks", "documents"] as const).filter((type) => {
+  const offered = (["information", "members", "meetings", "schedule", "tasks", "documents"] as const).filter((type) => {
     if (type === "information") return true;
     if (modules.some((module) => module.type === type)) return false;
-    if (type === "members") return circle.id !== "community";
+    if (type === "members" || type === "meetings") return circle.id !== "community";
     if (type === "schedule") return hasSchedule;
     return true;
   });
