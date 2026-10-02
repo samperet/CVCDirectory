@@ -315,11 +315,6 @@ export function deletePage(slug: string) {
   });
 }
 
-/** Every page back to the default colour (white), keeping each page's own colour choice from now on. */
-export function clearColours() {
-  return mutate((pages) => ({ page: null, pages: pages.map((page) => (page.color ? (({ color: _old, ...rest }) => rest)(page) : page)) }));
-}
-
 /** When a circle is deleted, the Board keeps its pages (as with its documents), and no page is shown only to it any more. */
 export function handOverPages(fromCircleId: string, toCircleId: string) {
   return mutate((pages) => ({

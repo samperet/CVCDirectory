@@ -42,13 +42,13 @@ export function applyCircleIcon(circle: Circle, meta: IconMeta | undefined): Cir
   return { ...circle, iconUrl: meta ? `/api/circles/${circle.id}/icon?v=${encodeURIComponent(meta.updatedAt)}` : null };
 }
 
-/** Whether a resident may manage a circle (details, members, icon): they're in it, or on the Board. */
 /** Whether a person holds a seat on a circle whose position matches (e.g. /secretary/i). */
 export function holdsSeat(directory: DirectoryDocument, circleId: string, personId: string, position: RegExp): boolean {
   const circle = directory.circles.find((entry) => entry.id === circleId);
   return !!circle?.seats.some((seat) => seat.personId === personId && position.test(seat.position ?? ""));
 }
 
+/** Whether a resident may manage a circle (details, members, icon): they're in it, or on the Board. */
 export function canManageCircle(directory: DirectoryDocument, circleId: string, personId: string): boolean {
   return directory.circles.some(
     (circle) =>

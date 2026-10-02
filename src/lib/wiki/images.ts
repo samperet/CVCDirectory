@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { deleteBinary, deleteJson, enqueue, readBinary, readJson, writeBinary, writeJson } from "@/lib/storage";
+import { enqueue, readBinary, readJson, writeBinary, writeJson } from "@/lib/storage";
 
 /**
  * Photos in a circle's wiki pages. Each is stored on its own
@@ -43,10 +43,3 @@ export function readWikiImage(circleId: string, id: string) {
   return readBinary(imageKey(circleId, id));
 }
 
-/** Remove a circle's wiki photos (when the circle is deleted). */
-export async function deleteWikiImages(circleId: string) {
-  await enqueue(listKey(circleId), async () => {
-    for (const image of normalize(await readJson(listKey(circleId)))) await deleteBinary(imageKey(circleId, image.id));
-    await deleteJson(listKey(circleId));
-  });
-}

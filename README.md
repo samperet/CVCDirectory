@@ -47,7 +47,6 @@ Accounts and admin:
 - `AUTH_SECRET` – Signs session cookies. Set it in production (see Signing In below).
 - `ADMIN_TOKEN` – Enables the admin API (directory import, photo seeding); leave unset to disable it.
 - `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins (see Admins).
-- `NEXT_PUBLIC_APP_TITLE` – Optional override for the UI title.
 
 ### Installation
 

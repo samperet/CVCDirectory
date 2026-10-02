@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, SECTION_IDS, SECTION_SIZES, TASK_ADDERS, type CircleModule, type InfoView, type SectionLayout } from "./layout";
+import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, SECTION_SIZES, TASK_ADDERS, type CircleModule } from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
@@ -67,14 +67,7 @@ export const circleUpdateSchema = circleInputSchema
   .extend({
     joinPolicy: z.enum(["open", "apply"]),
     kind,
-    features: z.object({ documents: z.boolean().optional(), wiki: z.boolean().optional(), tasks: z.boolean().optional() }),
-    /** The page's sections, in order, with their sizes. */
-    layout: z
-      .array(z.object({ id: z.enum(SECTION_IDS), size: z.enum(SECTION_SIZES) }))
-      .max(SECTION_IDS.length)
-      .refine((entries) => new Set(entries.map((entry) => entry.id)).size === entries.length, "Each section once"),
-    /** How the Information section shows its pages. */
-    infoView: z.enum(INFO_VIEWS),
+    /** The page, as modules (see `src/lib/circles/layout.ts`). */
     modules: modulesSchema,
   })
   .partial()
@@ -192,9 +185,6 @@ export function updateCircle(
     description: string | null;
     joinPolicy: "open" | "apply";
     kind: "circle" | "club";
-    features: { documents?: boolean; wiki?: boolean; tasks?: boolean };
-    layout: SectionLayout[];
-    infoView: InfoView;
     modules: CircleModule[];
   }>
 ) {
@@ -212,13 +202,11 @@ export function updateCircle(
     next[index] = {
       ...next[index],
       ...update,
-      ...(update.features ? { features: { ...next[index].features, ...update.features } } : {}),
       // Tasks and documents are on exactly when their modules are on the page (which is what lets the circle use them).
       ...(update.modules
         ? {
             features: {
               ...next[index].features,
-              ...update.features,
               tasks: update.modules.some((module) => module.type === "tasks"),
               documents: update.modules.some((module) => module.type === "documents"),
             },

@@ -13,7 +13,7 @@
 # Production
 /build
 
-# Local proposal state fallback (used when R2 is not configured)
+# Local JSON/file storage, used when R2 is not configured (see src/lib/storage.ts)
 /.data
 
 # Community directory exports hold residents' contact details. This repository
@@ -32,7 +32,6 @@ directory.json
 .env.production.local
 
 # Prisma
-/prisma/generated
 
 # VS Code
 .vscode

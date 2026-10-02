@@ -66,7 +66,6 @@ export async function addSkill(
   });
 }
 
-/** Removes a skill only if it belongs to the given person. */
 /** Remove a skill you offer; admins can remove anyone's. */
 export async function removeSkill(
   actor: { personId: string; admin: boolean },

@@ -1,11 +1,12 @@
 import type { Circle } from "@/lib/directory/types";
 
 /**
- * Sections a circle can turn on or off for itself: its information (the
- * wiki, polls included), tasks, and documents. Each is on unless the circle
- * turns it off.
+ * What a circle has turned on for itself: tasks and documents, each on
+ * unless turned off. Since circle pages became modules these follow from the
+ * page (saving modules sets them), and gate the task and document APIs.
+ * `features.wiki`, from before, is read only by `modulesFor`.
  */
-export type CircleFeature = "documents" | "wiki" | "tasks";
+export type CircleFeature = "documents" | "tasks";
 
 export const featureEnabled = (circle: Pick<Circle, "id" | "features"> | undefined, feature: CircleFeature) => circle?.features?.[feature] ?? true;
 
