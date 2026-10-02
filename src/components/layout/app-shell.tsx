@@ -17,10 +17,17 @@ import {
   Lightbulb,
   Eye,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { SearchPalette } from "@/components/search/search-palette";
+import {
+  CirclesMenuItems,
+  DocumentsMenuItems,
+  MobileCircleLinks,
+  MobileDocumentsLinks,
+  NavMenu,
+} from "@/components/layout/nav-menu";
 import { UserMenu } from "@/components/auth/user-menu";
 import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
 import { useSession, useViewAs } from "@/lib/auth/client";
@@ -204,21 +211,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {/* The logo leads to the dashboard, so the desktop bar leaves it out to fit every section. */}
               {links
                 .filter((link) => link.href !== "/")
-                .map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    aria-current={isActive(pathname, link.href) ? "page" : undefined}
-                    className={cn(
-                      "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
-                      isActive(pathname, link.href)
-                        ? "bg-primary text-primary-foreground shadow-soft"
-                        : "text-foreground/70 hover:bg-accent hover:text-foreground"
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                .map((link) =>
+                  link.href === "/documents" || link.href === "/circles" ? (
+                    <NavMenu
+                      key={link.href}
+                      href={link.href}
+                      label={link.label}
+                      active={isActive(pathname, link.href)}
+                    >
+                      {(close) =>
+                        link.href === "/documents" ? (
+                          <DocumentsMenuItems close={close} />
+                        ) : (
+                          <CirclesMenuItems close={close} />
+                        )
+                      }
+                    </NavMenu>
+                  ) : (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      aria-current={isActive(pathname, link.href) ? "page" : undefined}
+                      className={cn(
+                        "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
+                        isActive(pathname, link.href)
+                          ? "bg-primary text-primary-foreground shadow-soft"
+                          : "text-foreground/70 hover:bg-accent hover:text-foreground"
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                  )
+                )}
             </nav>
             <SearchButton active={pathname === "/search"} open={searching} onOpen={openSearch} />
             <UserMenu />
@@ -228,26 +252,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="border-t border-border bg-background px-4 pb-4 pt-2 xl:hidden">
             <nav className="flex flex-col gap-2">
               {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-                    isActive(pathname, link.href)
-                      ? "bg-primary text-primary-foreground shadow-soft"
-                      : "text-foreground/70 hover:bg-accent hover:text-foreground"
-                  )}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {hasSectionArt(link.href) ? (
-                    <SectionArt href={link.href} size={24} />
-                  ) : (
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center">
-                      <link.icon className="h-4 w-4" />
-                    </span>
-                  )}
-                  {link.label}
-                </Link>
+                <Fragment key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
+                      isActive(pathname, link.href)
+                        ? "bg-primary text-primary-foreground shadow-soft"
+                        : "text-foreground/70 hover:bg-accent hover:text-foreground"
+                    )}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {hasSectionArt(link.href) ? (
+                      <SectionArt href={link.href} size={24} />
+                    ) : (
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+                        <link.icon className="h-4 w-4" />
+                      </span>
+                    )}
+                    {link.label}
+                  </Link>
+                  {link.href === "/documents" ? (
+                    <MobileDocumentsLinks onChoose={() => setMenuOpen(false)} />
+                  ) : link.href === "/circles" ? (
+                    <MobileCircleLinks onChoose={() => setMenuOpen(false)} />
+                  ) : null}
+                </Fragment>
               ))}
             </nav>
           </div>

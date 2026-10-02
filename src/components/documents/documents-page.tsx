@@ -4,13 +4,10 @@ import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Network, X } from "lucide-react";
-import { useSession } from "@/lib/auth/client";
-import { featureEnabled } from "@/lib/circles/features";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
+import { useUploadCircles } from "@/components/documents/use-upload-circles";
 import { Card } from "@/components/ui/card";
 import { SectionArt } from "@/components/layout/section-art";
-import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
-import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Button } from "@/components/ui/button";
 
@@ -27,12 +24,11 @@ const WikiMap = dynamic(
  * Every circle's documents in one place — the pages written here and the
  * files uploaded — searchable by title and contents. `?circle=` starts on
  * one circle's; `?new=Title&from=<pageId>` opens "Write a page" (a link to a
- * page that doesn't exist yet); the Map button (`?map=1`, with `focus` or
+ * page that doesn't exist yet, or the header's New document); `?upload=1`
+ * opens the upload form; the Map button (`?map=1`, with `focus` or
  * `circle`) shows how the pages link to each other.
  */
 export function DocumentsPage() {
-  const { data } = useDirectoryQuery();
-  const { user } = useSession();
   const params = useSearchParams();
   const router = useRouter();
   const keepers = useWikiPages().data?.keepers ?? [];
@@ -46,29 +42,7 @@ export function DocumentsPage() {
     } else next.set("map", "1");
     router.replace(next.toString() ? `/documents?${next}` : "/documents");
   };
-  const circles = (data?.circles ?? [])
-    .map((circle) => ({ id: circle.id, name: circle.name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  // Where this resident can add documents: their own circles — or every circle, for the Board and admins.
-  const inCircle = (circleId: string) =>
-    !!user?.personId &&
-    !!data?.circles.some(
-      (circle) =>
-        circle.id === circleId && circle.seats.some((seat) => seat.personId === user.personId)
-    );
-  // Everyone is in the Community circle.
-  const documentsOn = new Set(
-    (data?.circles ?? [])
-      .filter((circle) => featureEnabled(circle, "documents"))
-      .map((circle) => circle.id)
-  );
-  const uploadCircles = (
-    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId)
-      ? circles
-      : circles.filter(
-          (circle) => inCircle(circle.id) || (isCommunity(circle.id) && !!user?.personId)
-        )
-  ).filter((circle) => documentsOn.has(circle.id));
+  const { circles, uploadCircles } = useUploadCircles();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -102,6 +76,7 @@ export function DocumentsPage() {
           uploadCircles={uploadCircles}
           canWrite={keepers.length > 0}
           initialCircle={params.get("circle") ?? ""}
+          startUpload={params.get("upload") === "1"}
           newPage={
             requested !== null
               ? { title: requested, from: params.get("from") ?? undefined }

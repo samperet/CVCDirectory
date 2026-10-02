@@ -194,6 +194,10 @@ Authors always come from the signed-in session, never from the request body.
   somewhere in a result; titles count most. Results come in groups, best first, with the matching
   passage quoted and the words marked, and **See all** for a group (`GET /api/search?q=…&kind=…`).
   The query stays in the address, so a search can be shared.
+- **Header menus** – **Documents** and **Circles** in the header have menus (pointing at them, or
+  their arrow): Documents offers **All documents**, **New document** (`/documents?new=`), and
+  **Upload a file** (`/documents?upload=1`); Circles lists **Your circles**, then the others, each
+  with its icon. Their labels still go to the page. On phones they show under those links.
 - **Skills on profiles** – residents list their skills on their profile (**Your skills**); they
   show as chips on their directory page (each searching for everyone with that skill) and are
   searchable. They're the same skills as the Skills page, which still lists them all.

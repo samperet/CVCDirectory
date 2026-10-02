@@ -86,6 +86,7 @@ export function DocumentsPanel({
   canEditTypes = canUpload,
   initialCircle = "",
   newPage,
+  startUpload = false,
 }: {
   circleId?: string;
   /** On a circle's page: its name, for the upload form. */
@@ -104,6 +105,8 @@ export function DocumentsPanel({
   initialCircle?: string;
   /** Open "Write a page" at once — from a link to a page that doesn't exist yet. */
   newPage?: { title: string; from?: string };
+  /** Open the upload form at once (the header's Upload a file). */
+  startUpload?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -119,6 +122,9 @@ export function DocumentsPanel({
   useEffect(() => {
     if (asked) setWriting(true);
   }, [asked]);
+  useEffect(() => {
+    if (startUpload && uploadCircles.length) setBulk(true);
+  }, [startUpload, uploadCircles.length]);
   const [adding, setAdding] = useState(false);
   const [editingTypes, setEditingTypes] = useState(false);
   const [bulk, setBulk] = useState(false);
