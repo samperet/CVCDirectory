@@ -389,7 +389,10 @@ export function PublicHome({
 
       <footer className="border-t border-border bg-background">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted sm:flex-row sm:items-center sm:justify-between md:px-6">
-          <p>© {new Date().getFullYear()} CVC · Charlotte, Vermont 05445</p>
+          <p>
+            © {new Date().getFullYear()} Common Pastures Homeowners&apos; Association, INC. ·
+            Charlotte, Vermont 05445
+          </p>
           <div className="flex gap-4">
             <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground">
               Contact
