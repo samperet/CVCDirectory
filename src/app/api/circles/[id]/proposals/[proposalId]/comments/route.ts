@@ -3,8 +3,7 @@ import { addProposalComment, proposalCommentSchema } from "@/lib/meetings/store"
 import { meetingsContext, meetingsProblem, memberUserIds, proposalUrl, reviewProblem } from "@/lib/meetings/http";
 import { formatDuration, reviewTimeLeft } from "@/lib/meetings/shared";
 import { excerpt, notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +11,13 @@ type Params = { params: { id: string; proposalId: string } };
 
 /** Log a tension, raise a Reasoned Objection (which pauses the review), or reply: the circle's members. */
 export async function POST(request: NextRequest, { params }: Params) {
-  if (!rateLimit(`proposal-comment:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "proposal-comment");
+  if (limited) return limited;
   const ctx = await meetingsContext(params.id);
   if ("error" in ctx) return ctx.error;
   if (!ctx.canReview) return reviewProblem();
-  const parsed = proposalCommentSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, proposalCommentSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await addProposalComment(params.id, params.proposalId, ctx.actor, parsed.data);
   if (!result.ok) return meetingsProblem(result.reason);
   const { proposal, comment } = result.value;

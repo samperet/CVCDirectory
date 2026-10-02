@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) {
-    return problem("Sign in to view the directory", 401, "Unauthorized");
+    return problem("Sign in to view the directory", 401);
   }
   const directory = await readDirectory();
   if (!directory) {
-    return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
+    return problem("The directory hasn't been imported yet", 503);
   }
   // Applications to join a circle are for that circle's members (GET /api/circles/<id>/applications).
   const circles = directory.circles.map(({ applications: _applications, ...circle }) => circle);

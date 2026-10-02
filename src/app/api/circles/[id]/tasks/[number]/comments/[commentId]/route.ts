@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/lib/tasks/store";
 import { deleteTaskComment, editTaskComment, taskCommentUpdateSchema } from "@/lib/tasks/comments";
 import { parseNumber, taskProblem, tasksContext } from "@/lib/tasks/http";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +18,14 @@ async function load(params: Params["params"]) {
 }
 
 const failure = (reason: string) =>
-  reason === "forbidden" ? problem("Only the comment's author can do that", 403, "Forbidden") : problem("That comment no longer exists", 404, "Not Found");
+  reason === "forbidden" ? problem("Only the comment's author can do that", 403) : problem("That comment no longer exists", 404);
 
 /** Edit your comment. */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await load(params);
   if ("error" in ctx) return ctx.error;
-  const parsed = taskCommentUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, taskCommentUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await editTaskComment(params.id, ctx.task.id, params.commentId, { id: ctx.user.id }, parsed.data.body);
   return result.ok ? NextResponse.json({ comment: result.comment }) : failure(result.reason);
 }

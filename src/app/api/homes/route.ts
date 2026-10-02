@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHome, homeInputSchema, listHomes } from "@/lib/homes/store";
 import { homesManager } from "@/lib/homes/access";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const ctx = await homesManager();
   if ("error" in ctx) return ctx.error;
-  const parsed = homeInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, homeInputSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await createHome(parsed.data, ctx.user.name);
-  return result.ok ? NextResponse.json({ home: result.home }, { status: 201 }) : problem("There are too many listings — remove sold ones first", 409, "Conflict");
+  return result.ok ? NextResponse.json({ home: result.home }, { status: 201 }) : problem("There are too many listings — remove sold ones first", 409);
 }

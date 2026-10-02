@@ -3,8 +3,7 @@ import { isAdmin } from "@/lib/auth/admins";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { canManageCircle } from "@/lib/circles/icons";
 import { BOARD_ID, circleInputSchema, createCircle } from "@/lib/circles/store";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +13,16 @@ export const dynamic = "force-dynamic";
  * can start a social club.
  */
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`circles:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "circles");
+  if (limited) return limited;
   const ctx = await circleContext();
   if ("error" in ctx) return ctx.error;
 
-  const parsed = circleInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, circleInputSchema);
+  if ("error" in parsed) return parsed.error;
 
   if (parsed.data.kind === "circle" && !isAdmin(ctx.user) && !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)) {
-    return problem("Only the Board can form an official circle — start a social club instead", 403, "Forbidden");
+    return problem("Only the Board can form an official circle — start a social club instead", 403);
   }
 
   const founder = ctx.directory.people.find((person) => person.id === ctx.personId);

@@ -29,23 +29,23 @@ export async function pageContext(slug: string, need: "view" | "edit" | "manage"
   if (!page || !canViewPage(ctx.user, ctx.directory, page)) return { error: wikiProblem("not_found") };
   const canEdit = canEditPage(ctx.user, ctx.directory, page);
   const canManage = canManagePage(ctx.user, ctx.directory, page);
-  if (need === "edit" && !canEdit) return { error: problem("Only those this page is open to can edit it", 403, "Forbidden") };
-  if (need === "manage" && !canManage) return { error: problem("Only the circle that keeps this page (or the Board) can change that", 403, "Forbidden") };
+  if (need === "edit" && !canEdit) return { error: problem("Only those this page is open to can edit it", 403) };
+  if (need === "manage" && !canManage) return { error: problem("Only the circle that keeps this page (or the Board) can change that", 403) };
   return { ...ctx, page, canEdit, canManage };
 }
 
 export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict") {
   switch (reason) {
     case "not_found":
-      return problem("That page no longer exists", 404, "Not Found");
+      return problem("That page no longer exists", 404);
     case "exists":
-      return problem("A page with that title already exists", 409, "Conflict");
+      return problem("A page with that title already exists", 409);
     case "full":
-      return problem("The wiki has as many pages as it can hold", 409, "Conflict");
+      return problem("The wiki has as many pages as it can hold", 409);
     case "no_version":
-      return problem("That version no longer exists", 404, "Not Found");
+      return problem("That version no longer exists", 404);
     case "conflict":
-      return problem("Someone else saved this page while you were editing it", 409, "Conflict");
+      return problem("Someone else saved this page while you were editing it", 409);
   }
 }
 

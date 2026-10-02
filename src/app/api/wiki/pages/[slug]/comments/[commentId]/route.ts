@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 type Params = { params: { slug: string; commentId: string } };
 
 function commentProblem(reason: "not_found" | "forbidden" | "full" | "unknown_thread") {
-  if (reason === "forbidden") return problem("You can't change that comment", 403, "Forbidden");
-  return problem("That comment no longer exists", 404, "Not Found");
+  if (reason === "forbidden") return problem("You can't change that comment", 403);
+  return problem("That comment no longer exists", 404);
 }
 
 /** Edit your comment (`body`), or resolve / reopen a thread (`resolved`: its author, the page's editors, admins). */

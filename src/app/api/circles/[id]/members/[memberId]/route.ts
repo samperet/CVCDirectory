@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { memberUpdateSchema, removeMember, updateMember } from "@/lib/circles/store";
-import { problem } from "@/lib/http";
+import { readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "member-or-board" });
   if ("error" in ctx) return ctx.error;
 
-  const parsed = memberUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, memberUpdateSchema);
+  if ("error" in parsed) return parsed.error;
 
   const result = await updateMember(ctx.imported, params.id, params.memberId, parsed.data);
   return result.ok ? NextResponse.json({ circle: result.value }) : circleProblem(result.reason);

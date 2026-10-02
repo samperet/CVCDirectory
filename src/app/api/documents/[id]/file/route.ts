@@ -15,13 +15,13 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to open documents", 401, "Unauthorized");
+  if (!user) return problem("Sign in to open documents", 401);
   const doc = isDocumentId(params.id) ? await getDocument(params.id) : null;
-  if (!doc) return problem("Document not found", 404, "Not Found");
+  if (!doc) return problem("Document not found", 404);
 
   const wanted = Number(request.nextUrl.searchParams.get("v"));
   const version = wanted ? doc.versions.find((entry) => entry.number === wanted) : currentVersion(doc);
-  if (!version) return problem("That version doesn't exist", 404, "Not Found");
+  if (!version) return problem("That version doesn't exist", 404);
   const inline = version.viewable && request.nextUrl.searchParams.get("download") !== "1";
   const key = fileKey(doc.id, version.number);
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   // Without R2 (local development), serve the file directly.
   const file = await readBinary(key);
-  if (!file) return problem("File not found", 404, "Not Found");
+  if (!file) return problem("File not found", 404);
   return new NextResponse(file.bytes as unknown as BodyInit, {
     headers: {
       "Content-Type": version.contentType,

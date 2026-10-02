@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/auth/admins";
 import { moveTopicThreads } from "@/lib/forum/store";
 import { GENERAL_TOPIC_ID, deleteTopic, isTopicId, updateTopic, topicUpdateSchema } from "@/lib/forum/topics";
 import { topicProblem } from "@/lib/forum/topics-http";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,8 @@ type Params = { params: { topicId: string } };
 
 async function adminOnly() {
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to continue", 401, "Unauthorized");
-  if (!isAdmin(user)) return problem("Only admins can change forum topics", 403, "Forbidden");
+  if (!user) return problem("Sign in to continue", 401);
+  if (!isAdmin(user)) return problem("Only admins can change forum topics", 403);
   return null;
 }
 
@@ -22,8 +22,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const denied = await adminOnly();
   if (denied) return denied;
   if (!isTopicId(params.topicId)) return topicProblem("not_found");
-  const parsed = topicUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, topicUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await updateTopic(params.topicId, parsed.data);
   return result.ok ? NextResponse.json({ topic: result.value }) : topicProblem(result.reason);
 }

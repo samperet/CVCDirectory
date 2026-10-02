@@ -3,8 +3,7 @@ import { deleteProposal, editProposal, proposalUpdateSchema, readCircleMeetings,
 import { announceConsents, editProblem, meetingsContext, meetingsProblem, memberUserIds, proposalUrl } from "@/lib/meetings/http";
 import { summarizeMeeting } from "@/lib/meetings/shared";
 import { notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +28,13 @@ export async function GET(_request: Request, { params }: Params) {
 
 /** Reword it, send it for review, or withdraw it (the circle's members, the Board, admins). */
 export async function PATCH(request: NextRequest, { params }: Params) {
-  if (!rateLimit(`proposal-edit:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "proposal-edit");
+  if (limited) return limited;
   const ctx = await meetingsContext(params.id);
   if ("error" in ctx) return ctx.error;
   if (!ctx.canEdit) return editProblem();
-  const parsed = proposalUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, proposalUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const input = parsed.data;
   const result =
     "action" in input

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   }
 
   const imported = await readImportedDirectory();
-  if (!imported) return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
+  if (!imported) return problem("The directory hasn't been imported yet", 503);
   const results: string[] = [];
   // Re-read before each change: each one can combine, move, or drop entries.
   const lookup = async (personId: string) => {

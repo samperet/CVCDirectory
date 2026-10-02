@@ -36,26 +36,26 @@ export async function meetingsContext(circleId: string) {
 export function meetingsProblem(reason: Failure) {
   switch (reason) {
     case "not_found":
-      return problem("That meeting, proposal, or comment no longer exists", 404, "Not Found");
+      return problem("That meeting, proposal, or comment no longer exists", 404);
     case "forbidden":
-      return problem("You can't change that", 403, "Forbidden");
+      return problem("You can't change that", 403);
     case "full":
-      return problem("There's no room for more here", 409, "Conflict");
+      return problem("There's no room for more here", 409);
     case "closed":
-      return problem("This proposal's review is over", 409, "Conflict");
+      return problem("This proposal's review is over", 409);
     case "not_in_review":
-      return problem("Objections are raised once a proposal is sent for review", 409, "Conflict");
+      return problem("Objections are raised once a proposal is sent for review", 409);
     case "has_proposals":
-      return problem("This meeting has proposals that went for review, so it's kept", 409, "Conflict");
+      return problem("This meeting has proposals that went for review, so it's kept", 409);
     case "unknown_thread":
-      return problem("That comment no longer exists", 404, "Not Found");
+      return problem("That comment no longer exists", 404);
     case "too_short":
-      return problem("Give the reason for your objection", 400, "Bad Request");
+      return problem("Give the reason for your objection");
   }
 }
 
-export const editProblem = () => problem("Only this circle's members, the Board, and admins can take its minutes", 403, "Forbidden");
-export const reviewProblem = () => problem("Only this circle's members review its proposals", 403, "Forbidden");
+export const editProblem = () => problem("Only this circle's members, the Board, and admins can take its minutes", 403);
+export const reviewProblem = () => problem("Only this circle's members review its proposals", 403);
 
 export const proposalUrl = (circleId: string, proposalId: string) => `/circles/${circleId}/proposals/${proposalId}`;
 

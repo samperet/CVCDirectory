@@ -14,7 +14,7 @@ export function canManageHomes(user: { personId?: string | null }, directory: Di
 /** The signed-in admin or Board member, or the response refusing everyone else. */
 export async function homesManager() {
   const user = await getSessionUser();
-  if (!user) return { error: problem("Sign in to continue", 401, "Unauthorized") } as const;
-  if (!canManageHomes(user, await readDirectory())) return { error: problem("Only admins and the Board can manage homes for sale", 403, "Forbidden") } as const;
+  if (!user) return { error: problem("Sign in to continue", 401) } as const;
+  if (!canManageHomes(user, await readDirectory())) return { error: problem("Only admins and the Board can manage homes for sale", 403) } as const;
   return { user } as const;
 }

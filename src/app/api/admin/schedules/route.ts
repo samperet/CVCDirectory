@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const circleId = request.nextUrl.searchParams.get("circleId");
   if (circleId) {
     const schedule = await readSchedule(circleId);
-    return schedule ? NextResponse.json({ circleId, schedule }) : problem("That circle has no schedule", 404, "Not Found");
+    return schedule ? NextResponse.json({ circleId, schedule }) : problem("That circle has no schedule", 404);
   }
   const directory = await readDirectory();
   const circles = await Promise.all(
@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as { circleId?: unknown } | null;
   const circleId = typeof body?.circleId === "string" ? body.circleId : "";
   const directory = await readDirectory();
-  if (!directory?.circles.some((circle) => circle.id === circleId)) return problem("Circle not found", 404, "Not Found");
+  if (!directory?.circles.some((circle) => circle.id === circleId)) return problem("Circle not found", 404);
   const parsed = scheduleDocumentSchema.safeParse(body);
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
   // Without `overrides`, the one-off changes already recorded stay as they are.

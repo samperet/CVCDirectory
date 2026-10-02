@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
@@ -54,6 +59,7 @@
     "prettier": "3.1.0",
     "tailwindcss": "3.3.5",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

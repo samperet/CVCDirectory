@@ -3,8 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { excerpt, notify } from "@/lib/push/notify";
 import { createThread, listThreads, threadInputSchema, topicOf } from "@/lib/forum/store";
 import { getTopic, listTopics } from "@/lib/forum/topics";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -17,22 +16,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`forum:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "forum");
+  if (limited) return limited;
 
   const user = await getSessionUser();
   if (!user) {
-    return problem("Sign in to start a discussion", 401, "Unauthorized");
+    return problem("Sign in to start a discussion", 401);
   }
 
-  const parsed = threadInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const parsed = await readBody(request, threadInputSchema);
+  if ("error" in parsed) return parsed.error;
 
   const topic = await getTopic(parsed.data.topicId);
-  if (!topic) return problem("That topic no longer exists", 404, "Not Found");
+  if (!topic) return problem("That topic no longer exists", 404);
 
   const doc = await createThread({ id: user.id, name: user.name }, parsed.data);
   await notify({

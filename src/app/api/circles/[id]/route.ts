@@ -10,7 +10,7 @@ import { canManageCircle } from "@/lib/circles/icons";
 import { isAdmin } from "@/lib/auth/admins";
 import { iconKey, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary } from "@/lib/storage";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +25,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "member-or-board" });
   if ("error" in ctx) return ctx.error;
 
-  const parsed = circleUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, circleUpdateSchema);
+  if ("error" in parsed) return parsed.error;
 
   if (parsed.data.kind !== undefined) {
     if (params.id === BOARD_ID || params.id === "community") return problem("The Board and Community circles can't become social clubs");
     if (!isAdmin(ctx.user) && !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)) {
-      return problem("Only the Board can change whether this is a circle or a social club", 403, "Forbidden");
+      return problem("Only the Board can change whether this is a circle or a social club", 403);
     }
   }
 
@@ -43,8 +43,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "board" });
   if ("error" in ctx) return ctx.error;
-  if (params.id === "board") return problem("The Board can't be deleted", 409, "Conflict");
-  if (params.id === "community") return problem("The Community circle can't be deleted", 409, "Conflict");
+  if (params.id === "board") return problem("The Board can't be deleted", 409);
+  if (params.id === "community") return problem("The Community circle can't be deleted", 409);
 
   const result = await deleteCircle(ctx.imported, params.id);
   if (!result.ok) return circleProblem(result.reason);

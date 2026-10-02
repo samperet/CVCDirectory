@@ -8,8 +8,7 @@ import { entriesOf } from "@/lib/directory/manage";
 import { deleteBinary, writeBinary } from "@/lib/storage";
 import { ProfileOverride, isPersonId, photoKey, updateProfile } from "@/lib/profiles/store";
 import { formatPhone, normalizeBirthday, profileUpdateSchema } from "@/lib/profiles/validation";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 import { MAX_IMAGE_BYTES, sniffImageType } from "@/lib/images";
 
 /**
@@ -24,20 +23,20 @@ type Target = string | null;
 
 async function resolve(target: Target) {
   const user = await getSessionUser();
-  if (!user?.personId) return { error: problem("Sign in to view profiles", 401, "Unauthorized") } as const;
+  if (!user?.personId) return { error: problem("Sign in to view profiles", 401) } as const;
   const requested = target ?? user.personId;
-  if (!isPersonId(requested)) return { error: problem("Profile not found", 404, "Not Found") } as const;
+  if (!isPersonId(requested)) return { error: problem("Profile not found", 404) } as const;
   const directory = await readDirectory();
-  if (!directory) return { error: problem("Directory entry not found", 404, "Not Found") } as const;
+  if (!directory) return { error: problem("Directory entry not found", 404) } as const;
   // An entry combined into another profile (listed in two households) edits that profile.
   const personId = directory.aliases?.[requested] ?? requested;
   // "admin" here: may edit anyone's entry, including unit, role, and phone numbers without the current one.
   const admin = canManageDirectory(user, directory);
   if (personId !== user.personId && !admin) {
-    return { error: problem("You can only change your own profile", 403, "Forbidden") } as const;
+    return { error: problem("You can only change your own profile", 403) } as const;
   }
   const person = directory.people.find((entry) => entry.id === personId);
-  if (!person) return { error: problem("Directory entry not found", 404, "Not Found") } as const;
+  if (!person) return { error: problem("Directory entry not found", 404) } as const;
   return { user, admin, directory, person } as const;
 }
 
@@ -54,15 +53,14 @@ export async function getProfile(target: Target) {
  * sign in.
  */
 export async function patchProfile(request: NextRequest, target: Target) {
-  if (!rateLimit(`profile:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "profile");
+  if (limited) return limited;
   const found = await resolve(target);
   if ("error" in found) return found.error;
   const { admin, directory, person } = found;
 
-  const parsed = profileUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, profileUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const input = parsed.data;
   const patch: Omit<Partial<ProfileOverride>, "updatedAt"> = {};
 
@@ -73,7 +71,7 @@ export async function patchProfile(request: NextRequest, target: Target) {
     const taken = directory.people.some(
       (other) => other.id !== person.id && other.displayName.localeCompare(displayName, undefined, { sensitivity: "base" }) === 0
     );
-    if (taken) return problem("Another resident already uses that name", 409, "Conflict");
+    if (taken) return problem("Another resident already uses that name", 409);
     patch.firstName = firstName;
     patch.lastName = lastName;
   }
@@ -89,7 +87,7 @@ export async function patchProfile(request: NextRequest, target: Target) {
   }
   if (patch.phone !== undefined || patch.landline !== undefined) {
     if (!admin && (!input.currentPhone || !phoneMatches(input.currentPhone, [person.phone, person.landline]))) {
-      return problem("Enter your current phone number to change your phone numbers", 403, "Forbidden");
+      return problem("Enter your current phone number to change your phone numbers", 403);
     }
     const phone = patch.phone !== undefined ? patch.phone : person.phone;
     const landline = patch.landline !== undefined ? patch.landline : person.landline;
@@ -108,7 +106,7 @@ export async function patchProfile(request: NextRequest, target: Target) {
 
   // Unit and owner/renter are the directory managers' to change.
   if (input.unit !== undefined || input.role !== undefined || input.resident !== undefined) {
-    if (!admin) return problem("Only the Board Secretary and admins can change a unit, role, or where someone lives", 403, "Forbidden");
+    if (!admin) return problem("Only the Board Secretary and admins can change a unit, role, or where someone lives", 403);
     if (input.resident !== undefined && input.resident !== (person.resident !== false)) patch.resident = input.resident;
     if (input.unit !== undefined && input.unit !== person.unit) patch.unit = input.unit;
     if (input.role !== undefined && input.role !== person.role) patch.role = input.role;
@@ -129,20 +127,19 @@ export async function patchProfile(request: NextRequest, target: Target) {
 
 /** Upload a profile photo as the raw request body (JPEG, PNG, or WebP). */
 export async function uploadProfilePhoto(request: NextRequest, target: Target) {
-  if (!rateLimit(`photo:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "photo");
+  if (limited) return limited;
   const found = await resolve(target);
   if ("error" in found) return found.error;
   const { person } = found;
 
   const declared = Number(request.headers.get("content-length") ?? 0);
-  if (declared > MAX_IMAGE_BYTES) return problem("Photo must be 1 MB or smaller", 413, "Payload Too Large");
+  if (declared > MAX_IMAGE_BYTES) return problem("Photo must be 1 MB or smaller", 413);
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) return problem("Photo must be 1 MB or smaller", 413, "Payload Too Large");
+  if (bytes.length > MAX_IMAGE_BYTES) return problem("Photo must be 1 MB or smaller", 413);
 
   const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415, "Unsupported Media Type");
+  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
 
   await writeBinary(photoKey(person.id), { bytes, contentType });
   const profile = await updateProfile(person.id, { photo: { contentType, updatedAt: new Date().toISOString() } });

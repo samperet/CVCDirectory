@@ -7,7 +7,7 @@ import { problem } from "@/lib/http";
 /** Shared handler for the like routes: PUT likes a post, DELETE takes the like back. */
 export async function likeHandler(threadId: string, replyId: string | null, liked: boolean) {
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to like posts", 401, "Unauthorized");
+  if (!user) return problem("Sign in to like posts", 401);
   const result = await setLike(threadId, replyId, { id: user.id, name: user.name }, liked);
   return result.ok ? NextResponse.json(result.doc) : forumProblem(result.reason);
 }

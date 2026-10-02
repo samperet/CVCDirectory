@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createWikiPoll, listWikiPolls, pollAccess, wikiPollInputSchema } from "@/lib/polls/wiki";
 import { pageContext, wikiSession } from "@/lib/wiki/http";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +23,8 @@ export async function GET() {
  * holding it is saved.
  */
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`wiki-poll:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "wiki-poll");
+  if (limited) return limited;
   const body = (await request.json().catch(() => null)) as { page?: unknown } | null;
   const ctx = await pageContext(typeof body?.page === "string" ? body.page : "", "edit");
   if ("error" in ctx) return ctx.error;

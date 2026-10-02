@@ -12,10 +12,10 @@ type Params = { params: { personId: string } };
 
 async function managerContext() {
   const user = await getSessionUser();
-  if (!user) return { error: problem("Sign in to continue", 401, "Unauthorized") } as const;
+  if (!user) return { error: problem("Sign in to continue", 401) } as const;
   const directory = await readDirectory();
-  if (!directory) return { error: problem("The directory hasn't been imported yet", 503, "Service Unavailable") } as const;
-  if (!canManageDirectory(user, directory)) return { error: problem("Only the Board Secretary and admins can do that", 403, "Forbidden") } as const;
+  if (!directory) return { error: problem("The directory hasn't been imported yet", 503) } as const;
+  if (!canManageDirectory(user, directory)) return { error: problem("Only the Board Secretary and admins can do that", 403) } as const;
   return { user, directory } as const;
 }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const keep = directory.aliases?.[params.personId] ?? params.personId;
   const other = directory.aliases?.[parsed.data.otherId] ?? parsed.data.otherId;
   if (!directory.people.some((person) => person.id === keep) || !directory.people.some((person) => person.id === other)) {
-    return problem("Person not found", 404, "Not Found");
+    return problem("Person not found", 404);
   }
   if (keep === other) return problem("Those are already the same profile");
   await mergePeople(other, keep);

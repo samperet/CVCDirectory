@@ -149,16 +149,16 @@ export function pollAccess(user: { id: string; personId?: string | null; isAdmin
 export function pollProblem(reason: PollFailure) {
   switch (reason) {
     case "not_found":
-      return problem("That poll no longer exists", 404, "Not Found");
+      return problem("That poll no longer exists", 404);
     case "forbidden":
-      return problem("Only the poll's author or the wiki's moderators can do that", 403, "Forbidden");
+      return problem("Only the poll's author or the wiki's moderators can do that", 403);
     case "poll_closed":
-      return problem("This poll is closed", 409, "Conflict");
+      return problem("This poll is closed", 409);
     case "invalid_vote":
       return problem("Choose one of the poll's options");
     case "no_new_options":
-      return problem("This poll doesn't take new options", 409, "Conflict");
+      return problem("This poll doesn't take new options", 409);
     case "options_full":
-      return problem("This poll has as many options as it can hold", 409, "Conflict");
+      return problem("This poll has as many options as it can hold", 409);
   }
 }

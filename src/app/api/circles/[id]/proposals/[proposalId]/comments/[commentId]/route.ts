@@ -3,8 +3,7 @@ import { deleteProposalComment, editProposalComment, proposalCommentUpdateSchema
 import { meetingsContext, meetingsProblem, memberUserIds, proposalUrl, reviewProblem } from "@/lib/meetings/http";
 import { formatDuration, proposalState, reviewTimeLeft } from "@/lib/meetings/shared";
 import { notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +15,12 @@ type Params = { params: { id: string; proposalId: string; commentId: string } };
  * review carries on.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
-  if (!rateLimit(`proposal-comment-edit:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "proposal-comment-edit");
+  if (limited) return limited;
   const ctx = await meetingsContext(params.id);
   if ("error" in ctx) return ctx.error;
-  const parsed = proposalCommentUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, proposalCommentUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const input = parsed.data;
   if ("withdrawn" in input) {
     const result = await withdrawObjection(params.id, params.proposalId, params.commentId, { ...ctx.actor, admin: ctx.admin }, input.note);

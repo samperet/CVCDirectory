@@ -8,10 +8,10 @@ export const dynamic = "force-dynamic";
 
 export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   const user = await getSessionUser();
-  if (!user?.personId) return problem("Sign in to remove a skill", 401, "Unauthorized");
+  if (!user?.personId) return problem("Sign in to remove a skill", 401);
 
   const result = await removeSkill({ personId: user.personId, admin: isAdmin(user) }, params.id);
-  if (result === "not_found") return problem("Skill not found", 404, "Not Found");
-  if (result === "forbidden") return problem("You can only remove your own skills", 403, "Forbidden");
+  if (result === "not_found") return problem("Skill not found", 404);
+  if (result === "forbidden") return problem("You can only remove your own skills", 403);
   return NextResponse.json({ ok: true });
 }

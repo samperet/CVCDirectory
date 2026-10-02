@@ -5,7 +5,7 @@ import { personName, taskProblem, tasksContext } from "@/lib/tasks/http";
 import type { TaskSummary } from "@/lib/tasks/shared";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await tasksContext(params.id, { write: true });
   if ("error" in ctx) return ctx.error;
   if (!ctx.canAdd) return taskProblem("forbidden");
-  const parsed = taskInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, taskInputSchema);
+  if ("error" in parsed) return parsed.error;
   const ownerName = personName(ctx.directory, parsed.data.ownerId);
   if (parsed.data.ownerId && !ownerName) return problem("That person isn't in the directory");
   const author = { userId: ctx.user.id, personId: ctx.user.personId ?? null, name: ctx.user.name };

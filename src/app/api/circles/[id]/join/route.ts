@@ -3,7 +3,7 @@ import { userIdsForPeople } from "@/lib/auth/users";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { joinInputSchema, leaveCircle, requestToJoin } from "@/lib/circles/store";
 import { excerpt, notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
+import { readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ type Params = { params: { id: string } };
 export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id });
   if ("error" in ctx) return ctx.error;
-  const parsed = joinInputSchema.safeParse(await request.json().catch(() => ({})));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, joinInputSchema, {});
+  if ("error" in parsed) return parsed.error;
 
   const person = ctx.directory.people.find((entry) => entry.id === ctx.personId);
   const name = person?.displayName ?? ctx.user.name;

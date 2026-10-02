@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: { params: { id: string;
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx.error;
   const image = isImageId(params.imageId) ? await readWikiImage(params.id, params.imageId) : null;
-  if (!image) return problem("Photo not found", 404, "Not Found");
+  if (!image) return problem("Photo not found", 404);
   return new NextResponse(image.bytes as unknown as BodyInit, {
     headers: { "Content-Type": image.contentType, ...PRIVATE_IMAGE_HEADERS, "Cache-Control": "private, max-age=31536000, immutable" },
   });

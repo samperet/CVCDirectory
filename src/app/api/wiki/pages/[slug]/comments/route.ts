@@ -3,8 +3,7 @@ import { addComment, commentInputSchema, listComments } from "@/lib/wiki/comment
 import { pageAudience, pageContext } from "@/lib/wiki/http";
 import { getHistory } from "@/lib/wiki/store";
 import { excerpt, notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +18,14 @@ export async function GET(_request: Request, { params }: Params) {
 
 /** Comment on the page (optionally on a passage, `quote`), or reply in a thread (`parentId`): anyone who can see it. */
 export async function POST(request: NextRequest, { params }: Params) {
-  if (!rateLimit(`wiki-comment:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "wiki-comment");
+  if (limited) return limited;
   const ctx = await pageContext(params.slug);
   if ("error" in ctx) return ctx.error;
-  const parsed = commentInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, commentInputSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await addComment(ctx.page.id, { id: ctx.user.id, name: ctx.user.name }, parsed.data);
-  if (!result.ok) return result.reason === "unknown_thread" ? problem("That comment thread no longer exists", 404, "Not Found") : problem("This page has too many comments", 409, "Conflict");
+  if (!result.ok) return result.reason === "unknown_thread" ? problem("That comment thread no longer exists", 404) : problem("This page has too many comments", 409);
 
   // Tell the people who wrote the page, and the others in this thread (who can still see it).
   const history = await getHistory(ctx.page.id);

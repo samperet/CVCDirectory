@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { recommendationUpdateSchema, removeRecommendation, updateRecommendation } from "@/lib/resources/store";
-import { invalid, resourceActor, resourceResponse } from "@/lib/resources/http";
+import { resourceActor, resourceResponse } from "@/lib/resources/http";
+import { readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,8 @@ type Params = { params: { id: string } };
 export async function PATCH(request: NextRequest, { params }: Params) {
   const found = await resourceActor();
   if ("error" in found) return found.error;
-  const parsed = recommendationUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return invalid(parsed.error);
+  const parsed = await readBody(request, recommendationUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   return resourceResponse(await updateRecommendation(params.id, found.actor, parsed.data));
 }
 

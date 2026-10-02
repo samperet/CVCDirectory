@@ -3,8 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { readDirectory } from "@/lib/directory/store";
 import { excerpt, notify } from "@/lib/push/notify";
 import { addLoanItem, listLoanItems, loanItemInputSchema } from "@/lib/library/store";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to view the loan library", 401, "Unauthorized");
+  if (!user) return problem("Sign in to view the loan library", 401);
 
   const [items, directory] = await Promise.all([listLoanItems(), readDirectory()]);
   const people = new Map((directory?.people ?? []).map((person) => [person.id, person]));
@@ -38,17 +37,16 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`library:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "library");
+  if (limited) return limited;
   const user = await getSessionUser();
-  if (!user?.personId) return problem("Sign in to list an item", 401, "Unauthorized");
+  if (!user?.personId) return problem("Sign in to list an item", 401);
 
-  const parsed = loanItemInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, loanItemInputSchema);
+  if ("error" in parsed) return parsed.error;
 
   const item = await addLoanItem({ personId: user.personId, name: user.name }, parsed.data);
-  if (item === "limit") return problem("You can list up to 50 items", 409, "Conflict");
+  if (item === "limit") return problem("You can list up to 50 items", 409);
   await notify({
     topic: "library",
     title: `${user.name} is lending: ${item.title}`,

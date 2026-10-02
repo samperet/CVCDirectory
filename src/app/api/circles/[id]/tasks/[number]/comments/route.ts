@@ -4,8 +4,7 @@ import { addTaskComment, ancestors, listTaskComments, taskCommentInputSchema } f
 import { parseNumber, taskProblem, tasksContext } from "@/lib/tasks/http";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { excerpt, notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +28,14 @@ export async function GET(_request: Request, { params }: Params) {
 
 /** Comment on a task, or reply to a comment (`parentId`): any resident. */
 export async function POST(request: NextRequest, { params }: Params) {
-  if (!rateLimit(`task-comment:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "task-comment");
+  if (limited) return limited;
   const ctx = await load(params, true);
   if ("error" in ctx) return ctx.error;
-  const parsed = taskCommentInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, taskCommentInputSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await addTaskComment(params.id, ctx.task.id, { id: ctx.user.id, name: ctx.user.name }, parsed.data);
-  if (!result.ok) return result.reason === "unknown_parent" ? problem("That comment no longer exists", 404, "Not Found") : problem("This circle's tasks have too many comments", 409, "Conflict");
+  if (!result.ok) return result.reason === "unknown_parent" ? problem("That comment no longer exists", 404) : problem("This circle's tasks have too many comments", 409);
 
   // Tell the task's owner and whoever added it, and those in the conversation above this reply.
   const above = ancestors(result.comments, result.comment!).map((entry) => entry.authorId);

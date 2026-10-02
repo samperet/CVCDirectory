@@ -3,7 +3,7 @@ import { deleteJson } from "@/lib/storage";
 import { deletePage, getHistory, pageUpdateSchema, updatePage, type WikiPage } from "@/lib/wiki/store";
 import { deletePageComments } from "@/lib/wiki/comments";
 import { pageAudience, pageContext, wikiProblem } from "@/lib/wiki/http";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 import { claimAnnouncements, pollIdsIn } from "@/lib/polls/wiki";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
@@ -30,14 +30,14 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await pageContext(params.slug, "edit");
   if ("error" in ctx) return ctx.error;
-  const parsed = pageUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, pageUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const update = parsed.data;
   const settings = update.keeper !== undefined || update.view !== undefined || update.edit !== undefined;
-  if (settings && !ctx.canManage) return problem("Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it", 403, "Forbidden");
+  if (settings && !ctx.canManage) return problem("Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it", 403);
   const known = new Set(ctx.directory.circles.map((circle) => circle.id));
-  if (update.keeper && !known.has(update.keeper)) return problem("That circle doesn't exist", 404, "Not Found");
-  if (update.view?.kind === "circles" && update.view.circles.some((id) => !known.has(id))) return problem("One of those circles doesn't exist", 404, "Not Found");
+  if (update.keeper && !known.has(update.keeper)) return problem("That circle doesn't exist", 404);
+  if (update.view?.kind === "circles" && update.view.circles.some((id) => !known.has(id))) return problem("One of those circles doesn't exist", 404);
 
   const before = ctx.page;
   const result = await updatePage(params.slug, { userId: ctx.user.id, name: ctx.user.name }, update);

@@ -5,7 +5,7 @@ import { canEditPage, circlesYouKeep, visiblePages } from "@/lib/wiki/access";
 import { wikiProblem, wikiSession } from "@/lib/wiki/http";
 import { COMMUNITY_ID } from "@/lib/circles/store";
 import { canUploadTo } from "@/lib/documents/access";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -30,15 +30,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx.error;
-  const parsed = pageInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, pageInputSchema);
+  if ("error" in parsed) return parsed.error;
   const { from, keeper: asked, ...input } = parsed.data;
   const source = from && !asked ? await getPageById(from) : null;
   const keeper = asked ?? (source && canEditPage(ctx.user, ctx.directory, source) ? source.keeper : COMMUNITY_ID);
-  if (!ctx.directory.circles.some((circle) => circle.id === keeper)) return problem("Choose the circle that keeps it", 404, "Not Found");
+  if (!ctx.directory.circles.some((circle) => circle.id === keeper)) return problem("Choose the circle that keeps it", 404);
   // Your own circles' — or, started from a page you can edit, that page's circle.
   if (!canUploadTo(ctx.user, ctx.directory, keeper) && !(source && source.keeper === keeper)) {
-    return problem("You can only start pages kept by your own circles", 403, "Forbidden");
+    return problem("You can only start pages kept by your own circles", 403);
   }
   const result = await createPage({ userId: ctx.user.id, name: ctx.user.name }, { ...input, keeper });
   return result.ok ? NextResponse.json({ page: result.page }, { status: 201 }) : wikiProblem(result.reason);

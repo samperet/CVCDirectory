@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const circle = request.nextUrl.searchParams.get("circle");
   if (circle) {
     const icon = isCircleId(circle) ? await readBinary(iconKey(circle)) : null;
-    if (!icon) return problem("Icon not found", 404, "Not Found");
+    if (!icon) return problem("Icon not found", 404);
     return new NextResponse(icon.bytes as unknown as BodyInit, { headers: { "Content-Type": icon.contentType, "Cache-Control": "private, no-store" } });
   }
   return NextResponse.json({ icons: await readCircleIcons() });
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const parsed = copySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem("Give `from` and `to` circle ids");
   const icon = await readBinary(iconKey(parsed.data.from));
-  if (!icon) return problem(`${parsed.data.from} has no icon`, 404, "Not Found");
+  if (!icon) return problem(`${parsed.data.from} has no icon`, 404);
   await writeBinary(iconKey(parsed.data.to), icon);
   await setCircleIcon(parsed.data.to, { contentType: icon.contentType, updatedAt: new Date().toISOString() });
   return NextResponse.json({ ok: true, copied: parsed.data, bytes: icon.bytes.length });
@@ -47,9 +47,9 @@ export async function PUT(request: NextRequest) {
   const circle = request.nextUrl.searchParams.get("circle") ?? "";
   if (!isCircleId(circle)) return problem("Give ?circle=<id>");
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) return problem("Icon must be 1 MB or smaller", 413, "Payload Too Large");
+  if (bytes.length > MAX_IMAGE_BYTES) return problem("Icon must be 1 MB or smaller", 413);
   const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415, "Unsupported Media Type");
+  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
   await writeBinary(iconKey(circle), { bytes, contentType });
   await setCircleIcon(circle, { contentType, updatedAt: new Date().toISOString() });
   return NextResponse.json({ ok: true, circle, bytes: bytes.length });

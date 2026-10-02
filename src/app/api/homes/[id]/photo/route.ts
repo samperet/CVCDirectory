@@ -8,7 +8,7 @@ import { problem } from "@/lib/http";
 export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string } };
-const notFound = () => problem("Photo not found", 404, "Not Found");
+const notFound = () => problem("Photo not found", 404);
 
 /** A listing's photo — public (it's on the public homepage); once the home has sold, only admins and the Board see it. */
 export async function GET(_request: Request, { params }: Params) {
@@ -33,11 +33,11 @@ export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await homesManager();
   if ("error" in ctx) return ctx.error;
   if (!isHomeId(params.id) || !(await getHome(params.id))) return notFound();
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413, "Payload Too Large");
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413);
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413, "Payload Too Large");
+  if (bytes.length > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413);
   const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415, "Unsupported Media Type");
+  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
   const result = await setHomePhoto(params.id, { bytes, contentType }, ctx.user.name);
   return result.ok ? NextResponse.json({ home: result.home }, { status: 201 }) : notFound();
 }

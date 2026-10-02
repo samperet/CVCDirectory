@@ -9,7 +9,7 @@ import { DocumentRecord, consentState, documentDate } from "@/lib/documents/type
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
 import { notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 // Finishing an upload reassembles the file and reads its text, which can take a while for a large PDF.
@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
   const context = await circleContext();
   if ("error" in context) return context.error;
   const { user, directory } = context;
-  const parsed = finishSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, finishSchema);
+  if ("error" in parsed) return parsed.error;
   const grant = readUploadToken(parsed.data.token, user.id);
-  if (!grant) return problem("This upload has expired — please start again", 403, "Forbidden");
+  if (!grant) return problem("This upload has expired — please start again", 403);
 
   const count = chunkCount(grant.size);
   const keys = Array.from({ length: count }, (_, index) => chunkKey(grant.uploadId, index));
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
   const identified = identifyDocument(bytes, grant.fileName);
   if (!identified) {
     await cleanUp();
-    return problem("That file isn't a PDF, Word, Excel, PowerPoint, text, or image file we can accept", 415, "Unsupported Media Type");
+    return problem("That file isn't a PDF, Word, Excel, PowerPoint, text, or image file we can accept", 415);
   }
   const text = await extractText(bytes, identified.kind);
   const file = { bytes, fileName: grant.fileName, contentType: identified.contentType, viewable: identified.viewable, text };
@@ -117,21 +117,21 @@ export async function POST(request: NextRequest) {
     const existing = await getDocument(grant.replaces);
     if (!existing || !canManageDocument(user, directory, existing)) {
       await cleanUp();
-      return problem("You can't replace this document", 403, "Forbidden");
+      return problem("You can't replace this document", 403);
     }
     result = await addVersion(grant.replaces, file, uploader);
   } else {
     if (!parsed.data.details) return problem("Give the document a title and type");
     if (!canUploadTo(user, directory, grant.circleId)) {
       await cleanUp();
-      return problem("Only this circle's members, the Board, and admins can add its documents", 403, "Forbidden");
+      return problem("Only this circle's members, the Board, and admins can add its documents", 403);
     }
     const option = typesFor(grant.circleId, await readTypeMap()).find((entry) => entry.id === parsed.data.details!.type);
     if (!option) return problem("Choose one of this circle's document types");
     result = await createDocument(grant.circleId, { ...parsed.data.details, typeLabel: option.label }, file, uploader);
   }
   await cleanUp();
-  if (!result.ok) return problem(result.reason === "full" ? "The document library is full" : "That document no longer exists", 409, "Conflict");
+  if (!result.ok) return problem(result.reason === "full" ? "The document library is full" : "That document no longer exists", 409);
 
   const doc = result.value;
   const circleName = directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "the Board";

@@ -11,21 +11,21 @@ type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member"
 export function circleProblem(reason: Failure) {
   switch (reason) {
     case "not_found":
-      return problem("That circle or member no longer exists", 404, "Not Found");
+      return problem("That circle or member no longer exists", 404);
     case "exists":
-      return problem("A circle with that name already exists", 409, "Conflict");
+      return problem("A circle with that name already exists", 409);
     case "duplicate_member":
-      return problem("That resident is already in this circle", 409, "Conflict");
+      return problem("That resident is already in this circle", 409);
     case "last_board_member":
-      return problem("The Board needs at least one member", 409, "Conflict");
+      return problem("The Board needs at least one member", 409);
     case "already_applied":
-      return problem("You've already applied to this circle", 409, "Conflict");
+      return problem("You've already applied to this circle", 409);
     case "not_member":
-      return problem("You're not in this circle", 409, "Conflict");
+      return problem("You're not in this circle", 409);
     case "everyone":
-      return problem("Everyone at CVC is already in the Community circle", 409, "Conflict");
+      return problem("Everyone at CVC is already in the Community circle", 409);
     case "full":
-      return problem("This circle has too many open applications — ask a member", 409, "Conflict");
+      return problem("This circle has too many open applications — ask a member", 409);
   }
 }
 
@@ -36,21 +36,21 @@ export function circleProblem(reason: Failure) {
  */
 export async function circleContext(options: { circleId?: string; require?: "member-or-board" | "board" } = {}) {
   const user = await getSessionUser();
-  if (!user?.personId) return { error: problem("Sign in to manage circles", 401, "Unauthorized") } as const;
+  if (!user?.personId) return { error: problem("Sign in to manage circles", 401) } as const;
   const [directory, imported] = await Promise.all([readDirectory(), readImportedDirectory()]);
-  if (!directory || !imported) return { error: problem("The directory hasn't been imported yet", 503, "Service Unavailable") } as const;
+  if (!directory || !imported) return { error: problem("The directory hasn't been imported yet", 503) } as const;
 
   const { circleId, require } = options;
   if (circleId !== undefined) {
     if (!isCircleId(circleId) || !directory.circles.some((circle) => circle.id === circleId)) {
-      return { error: problem("Circle not found", 404, "Not Found") } as const;
+      return { error: problem("Circle not found", 404) } as const;
     }
     const admin = isAdmin(user);
     if (require === "member-or-board" && !admin && !canManageCircle(directory, circleId, user.personId)) {
-      return { error: problem("Only this circle's members or the Board can change it", 403, "Forbidden") } as const;
+      return { error: problem("Only this circle's members or the Board can change it", 403) } as const;
     }
     if (require === "board" && !admin && !canManageCircle(directory, BOARD_ID, user.personId)) {
-      return { error: problem("Only the Board can do that", 403, "Forbidden") } as const;
+      return { error: problem("Only the Board can do that", 403) } as const;
     }
   }
   return { user, personId: user.personId, directory, imported: imported.circles } as const;

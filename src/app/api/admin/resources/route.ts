@@ -30,10 +30,10 @@ export async function POST(request: NextRequest) {
   const parsed = seedSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(parsed.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; "));
   const person = (await readDirectory())?.people.find((entry) => entry.id === parsed.data.submittedByPersonId);
-  if (!person) return problem("That resident isn't in the directory", 404, "Not Found");
+  if (!person) return problem("That resident isn't in the directory", 404);
   const result = await addRecommendations(
     parsed.data.recommendations.map((entry) => ({ ...entry, submittedBy: { personId: person.id, name: person.displayName } }))
   );
-  if (!result.ok) return problem("There's no room for more recommendations", 409, "Conflict");
+  if (!result.ok) return problem("There's no room for more recommendations", 409);
   return NextResponse.json({ added: result.value.length, submittedBy: person.displayName }, { status: 201 });
 }

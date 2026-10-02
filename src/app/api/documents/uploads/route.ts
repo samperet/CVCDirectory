@@ -29,23 +29,23 @@ export async function POST(request: NextRequest) {
   const { circleId, fileName, size, replaces } = parsed.data;
 
   if (!ACCEPTED_EXTENSIONS.some((extension) => fileName.toLowerCase().endsWith(extension))) {
-    return problem("Upload a PDF, Word, Excel, PowerPoint, text, or image file", 415, "Unsupported Media Type");
+    return problem("Upload a PDF, Word, Excel, PowerPoint, text, or image file", 415);
   }
-  if (size > MAX_DOCUMENT_BYTES) return problem("Documents must be 50 MB or smaller", 413, "Payload Too Large");
+  if (size > MAX_DOCUMENT_BYTES) return problem("Documents must be 50 MB or smaller", 413);
 
   if (replaces) {
     const doc = await getDocument(replaces);
-    if (!doc) return problem("That document no longer exists", 404, "Not Found");
-    if (!canManageDocument(context.user, context.directory, doc)) return problem("You can't replace this document", 403, "Forbidden");
+    if (!doc) return problem("That document no longer exists", 404);
+    if (!canManageDocument(context.user, context.directory, doc)) return problem("You can't replace this document", 403);
     const { token } = createUploadToken({ userId: context.user.id, circleId: doc.circleId, fileName, size, replaces });
     return NextResponse.json({ token, chunkSize: UPLOAD_CHUNK_BYTES, chunks: chunkCount(size) });
   }
 
   const circle = context.directory.circles.find((entry) => entry.id === circleId);
-  if (!circle) return problem("Circle not found", 404, "Not Found");
-  if (!featureEnabled(circle, "documents")) return problem(`${circle.name} has turned documents off`, 409, "Conflict");
+  if (!circle) return problem("Circle not found", 404);
+  if (!featureEnabled(circle, "documents")) return problem(`${circle.name} has turned documents off`, 409);
   if (!canUploadTo(context.user, context.directory, circleId)) {
-    return problem("Only this circle's members, the Board, and admins can add its documents", 403, "Forbidden");
+    return problem("Only this circle's members, the Board, and admins can add its documents", 403);
   }
   const { token } = createUploadToken({ userId: context.user.id, circleId, fileName, size, replaces: null });
   return NextResponse.json({ token, chunkSize: UPLOAD_CHUNK_BYTES, chunks: chunkCount(size) });

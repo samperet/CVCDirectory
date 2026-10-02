@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { excerpt, notify } from "@/lib/push/notify";
 import { MAX_APPRECIATIONS, addAppreciation, appreciationInputSchema, listAppreciations } from "@/lib/appreciations/store";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -14,19 +13,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`appreciation:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "appreciation");
+  if (limited) return limited;
 
   const user = await getSessionUser();
   if (!user) {
-    return problem("Sign in to share an appreciation", 401, "Unauthorized");
+    return problem("Sign in to share an appreciation", 401);
   }
 
-  const parsed = appreciationInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const parsed = await readBody(request, appreciationInputSchema);
+  if ("error" in parsed) return parsed.error;
 
   const appreciation = await addAppreciation({ id: user.id, name: user.name }, parsed.data);
   await notify({

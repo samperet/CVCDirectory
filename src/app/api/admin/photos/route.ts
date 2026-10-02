@@ -26,6 +26,6 @@ export async function POST(request: NextRequest) {
   if ("error" in upload) return upload.error;
 
   const photo = await addPhoto(null, upload.file, upload.caption);
-  if (photo === "full") return problem("The photo gallery is full", 409, "Conflict");
+  if (photo === "full") return problem("The photo gallery is full", 409);
   return NextResponse.json({ photo: { id: photo.id, caption: photo.caption } }, { status: 201 });
 }

@@ -20,7 +20,7 @@ export async function tasksContext(circleId: string, { write = false } = {}) {
   if ("error" in ctx) return { error: ctx.error as NextResponse };
   const circle = ctx.directory.circles.find((entry) => entry.id === circleId)!;
   const enabled = featureEnabled(circle, "tasks");
-  if (write && !enabled) return { error: problem(`${circle.name} has turned its tasks off`, 409, "Conflict") };
+  if (write && !enabled) return { error: problem(`${circle.name} has turned its tasks off`, 409) };
   const canEdit = enabled && canUploadTo(ctx.user, ctx.directory, circleId);
   const canAdd = canEdit || (enabled && anyoneAddsTasks(circle));
   const ownTask = (task: { createdBy: { userId: string } }) => canEdit || (canAdd && task.createdBy.userId === ctx.user.id);
@@ -36,10 +36,10 @@ export const parseNumber = (value: string) => (/^\d{1,6}$/.test(value) ? Number(
 export function taskProblem(reason: "not_found" | "full" | "forbidden") {
   switch (reason) {
     case "not_found":
-      return problem("That task no longer exists", 404, "Not Found");
+      return problem("That task no longer exists", 404);
     case "full":
-      return problem("This circle has as many tasks as it can hold", 409, "Conflict");
+      return problem("This circle has as many tasks as it can hold", 409);
     case "forbidden":
-      return problem("Only this circle's members, the Board, and admins can change that", 403, "Forbidden");
+      return problem("Only this circle's members, the Board, and admins can change that", 403);
   }
 }

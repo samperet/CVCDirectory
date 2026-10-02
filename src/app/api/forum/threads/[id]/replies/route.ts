@@ -3,25 +3,21 @@ import { getSessionUser } from "@/lib/auth/session";
 import { excerpt, notify } from "@/lib/push/notify";
 import { addReply, replyInputSchema } from "@/lib/forum/store";
 import { forumProblem } from "@/lib/forum/http";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  if (!rateLimit(`forum:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "forum");
+  if (limited) return limited;
 
   const user = await getSessionUser();
   if (!user) {
-    return problem("Sign in to reply", 401, "Unauthorized");
+    return problem("Sign in to reply", 401);
   }
 
-  const parsed = replyInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const parsed = await readBody(request, replyInputSchema);
+  if ("error" in parsed) return parsed.error;
 
   const result = await addReply(params.id, { id: user.id, name: user.name }, parsed.data);
   if (!result.ok) return forumProblem(result.reason);

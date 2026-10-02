@@ -15,13 +15,13 @@ const schema = z.object({ personId: z.string().regex(/^[a-f0-9]{12}$/, "Choose a
  */
 export async function POST(request: NextRequest) {
   const admin = await getRealSessionUser();
-  if (!admin) return problem("Sign in to continue", 401, "Unauthorized");
-  if (!isAdmin(admin)) return problem("Only admins can view the app as someone else", 403, "Forbidden");
+  if (!admin) return problem("Sign in to continue", 401);
+  if (!isAdmin(admin)) return problem("Only admins can view the app as someone else", 403);
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(parsed.error.errors[0].message);
   const person = (await readDirectory())?.people.find((entry) => entry.id === parsed.data.personId);
-  if (!person) return problem("That resident isn't in the directory", 404, "Not Found");
+  if (!person) return problem("That resident isn't in the directory", 404);
   if (person.id === admin.personId) return problem("That's you — choose someone else");
 
   const response = NextResponse.json({ viewingAs: person.displayName });

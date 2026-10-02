@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const denied = authorize(request);
   if (denied) return denied;
   const loaded = await circles();
-  if (!loaded) return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
+  if (!loaded) return problem("The directory hasn't been imported yet", 503);
   return NextResponse.json({
     circles: loaded.list.map((circle) => ({ id: circle.id, name: circle.name, kind: circle.kind ?? "circle", members: circle.seats.length })),
   });
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem("Give `kind` and `names`");
   const loaded = await circles();
-  if (!loaded) return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
+  if (!loaded) return problem("The directory hasn't been imported yet", 503);
   const results: string[] = [];
   for (const name of parsed.data.names) {
     const circle = loaded.list.find((entry) => entry.name.toLowerCase() === name.toLowerCase());

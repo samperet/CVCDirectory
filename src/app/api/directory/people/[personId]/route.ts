@@ -16,13 +16,13 @@ export const dynamic = "force-dynamic";
  */
 export async function DELETE(_request: Request, { params }: { params: { personId: string } }) {
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to continue", 401, "Unauthorized");
+  if (!user) return problem("Sign in to continue", 401);
   const [directory, imported] = await Promise.all([readDirectory(), readImportedDirectory()]);
-  if (!directory || !imported) return problem("The directory hasn't been imported yet", 503, "Service Unavailable");
-  if (!canManageDirectory(user, directory)) return problem("Only the Board Secretary and admins can remove people", 403, "Forbidden");
-  if (!isPersonId(params.personId)) return problem("Person not found", 404, "Not Found");
+  if (!directory || !imported) return problem("The directory hasn't been imported yet", 503);
+  if (!canManageDirectory(user, directory)) return problem("Only the Board Secretary and admins can remove people", 403);
+  if (!isPersonId(params.personId)) return problem("Person not found", 404);
   const person = findPerson(directory, params.personId);
-  if (!person) return problem("Person not found", 404, "Not Found");
+  if (!person) return problem("Person not found", 404);
   if (person.id === user.personId) return problem("You can't remove yourself from the directory");
 
   await removeFromDirectory(directory, imported.circles, person);

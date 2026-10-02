@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const directory = await readDirectory();
   if (!directory) {
-    return problem("Sign-in is unavailable until the resident directory is imported", 503, "Service Unavailable");
+    return problem("Sign-in is unavailable until the resident directory is imported", 503);
   }
   const people = directory.people
     .filter((person) => person.phone || person.landline)

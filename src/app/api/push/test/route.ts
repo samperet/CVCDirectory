@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
 /** Send yourself a test notification on every device you've turned them on for. */
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`push-test:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "push-test");
+  if (limited) return limited;
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to continue", 401, "Unauthorized");
+  if (!user) return problem("Sign in to continue", 401);
   await notify({
     topic: "discussions",
     title: "Notifications are working",

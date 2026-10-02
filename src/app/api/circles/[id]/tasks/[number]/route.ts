@@ -5,7 +5,7 @@ import { parseNumber, personName, taskProblem, tasksContext } from "@/lib/tasks/
 import type { Task } from "@/lib/tasks/shared";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +32,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const number = parseNumber(params.number);
   if (!number) return taskProblem("not_found");
-  const parsed = taskUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, taskUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const ownerName = personName(ctx.directory, parsed.data.ownerId ?? null);
   if (parsed.data.ownerId && !ownerName) return problem("That person isn't in the directory");
 

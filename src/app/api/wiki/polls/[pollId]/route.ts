@@ -3,7 +3,7 @@ import { getWikiPoll, pollAccess, pollProblem, setWikiPollClosed, voteInWikiPoll
 import { pollUpdateSchema, voteSchema } from "@/lib/polls/server";
 import { wikiSession } from "@/lib/wiki/http";
 import type { DirectoryDocument } from "@/lib/directory/types";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,12 @@ const withAccess = (user: { id: string; personId?: string | null }, directory: D
 export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx.error;
-  const parsed = voteSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, voteSchema);
+  if ("error" in parsed) return parsed.error;
   const entry = await getWikiPoll(params.pollId);
   if (!entry) return pollProblem("not_found");
   const access = pollAccess(ctx.user, ctx.directory, entry);
-  if (!access.canVote) return problem(`Only ${access.circleName}'s members can vote in this poll`, 403, "Forbidden");
+  if (!access.canVote) return problem(`Only ${access.circleName}'s members can vote in this poll`, 403);
   const result = await voteInWikiPoll(params.pollId, { id: ctx.user.id, name: ctx.user.name }, parsed.data.optionIds, parsed.data.newOption);
   return result.ok ? NextResponse.json({ poll: withAccess(ctx.user, ctx.directory, result.poll) }) : pollProblem(result.reason);
 }

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteMeeting, meetingUpdateSchema, readCircleMeetings, updateMeeting } from "@/lib/meetings/store";
 import { announceConsents, editProblem, meetingsContext, meetingsProblem } from "@/lib/meetings/http";
 import { summarizeProposal } from "@/lib/meetings/shared";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +29,13 @@ export async function GET(_request: Request, { params }: Params) {
 
 /** Change the title, date, who was there, or the notes (merged with anyone else's changes to them). */
 export async function PATCH(request: NextRequest, { params }: Params) {
-  if (!rateLimit(`meeting-edit:${request.ip ?? "anonymous"}`)) return problem("Too many requests", 429, "Too Many Requests");
+  const limited = throttled(request, "meeting-edit");
+  if (limited) return limited;
   const ctx = await meetingsContext(params.id);
   if ("error" in ctx) return ctx.error;
   if (!ctx.canEdit) return editProblem();
-  const parsed = meetingUpdateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  const parsed = await readBody(request, meetingUpdateSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await updateMeeting(params.id, params.meetingId, { userId: ctx.user.id, name: ctx.user.name }, parsed.data);
   return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
 }

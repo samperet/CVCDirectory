@@ -3,8 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { excerpt, notify } from "@/lib/push/notify";
 import { addPhoto, listPhotos } from "@/lib/photos/store";
 import { readPhotoUpload } from "@/lib/photos/upload";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +13,16 @@ export async function GET() {
 
 /** Add a photo: the image as the raw request body, with an optional `?caption=`. */
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`photos:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many requests", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "photos");
+  if (limited) return limited;
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to add photos", 401, "Unauthorized");
+  if (!user) return problem("Sign in to add photos", 401);
 
   const upload = await readPhotoUpload(request);
   if ("error" in upload) return upload.error;
 
   const photo = await addPhoto({ id: user.id, name: user.name }, upload.file, upload.caption);
-  if (photo === "full") return problem("The photo gallery is full", 409, "Conflict");
+  if (photo === "full") return problem("The photo gallery is full", 409);
   // Several photos added at once replace each other on a device rather than piling up.
   await notify({
     topic: "photos",

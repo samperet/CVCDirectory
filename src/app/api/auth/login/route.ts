@@ -6,8 +6,7 @@ import { recordSignIn } from "@/lib/auth/sign-in-log";
 import { toPublicUser, userForPerson } from "@/lib/auth/users";
 import { createSessionValue, sessionCookieOptions } from "@/lib/auth/session";
 import { loginSchema } from "@/lib/auth/validation";
-import { problem } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -19,23 +18,20 @@ const MISMATCH = "That phone number doesn't match our records for this name";
  * attempts lock the account for 15 minutes.
  */
 export async function POST(request: NextRequest) {
-  if (!rateLimit(`login:${request.ip ?? "anonymous"}`)) {
-    return problem("Too many sign-in attempts. Please wait a minute.", 429, "Too Many Requests");
-  }
+  const limited = throttled(request, "login", "Too many sign-in attempts. Please wait a minute.");
+  if (limited) return limited;
 
-  const parsed = loginSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  }
+  const parsed = await readBody(request, loginSchema);
+  if ("error" in parsed) return parsed.error;
 
   const directory = await readDirectory();
   if (!directory) {
-    return problem("Sign-in is unavailable until the resident directory is imported", 503, "Service Unavailable");
+    return problem("Sign-in is unavailable until the resident directory is imported", 503);
   }
 
   const person = directory.people.find((entry) => entry.id === parsed.data.personId);
   if (!person || !(person.phone || person.landline)) {
-    return problem(MISMATCH, 401, "Unauthorized");
+    return problem(MISMATCH, 401);
   }
 
   const lockedMs = await lockedForMs(person.id);
@@ -51,7 +47,7 @@ export async function POST(request: NextRequest) {
   if (!phoneMatches(parsed.data.phone, [person.phone, person.landline])) {
     await recordFailure(person.id);
     await new Promise((resolve) => setTimeout(resolve, 400));
-    return problem(MISMATCH, 401, "Unauthorized");
+    return problem(MISMATCH, 401);
   }
 
   await clearFailures(person.id);
@@ -61,7 +57,7 @@ export async function POST(request: NextRequest) {
     session = createSessionValue(user.id);
   } catch {
     console.error("[auth] cannot sign sessions: set AUTH_SECRET");
-    return problem("Sign-in is temporarily unavailable", 503, "Service Unavailable");
+    return problem("Sign-in is temporarily unavailable", 503);
   }
   await recordSignIn(person);
   const response = NextResponse.json({ user: toPublicUser(user) });

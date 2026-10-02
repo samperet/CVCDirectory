@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/auth/admins";
 import { listThreads, topicOf } from "@/lib/forum/store";
 import { createTopic, listTopics, topicInputSchema } from "@/lib/forum/topics";
 import { topicProblem } from "@/lib/forum/topics-http";
-import { problem } from "@/lib/http";
+import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +29,10 @@ export async function GET() {
 /** Add a topic (admins). */
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
-  if (!user) return problem("Sign in to continue", 401, "Unauthorized");
-  if (!isAdmin(user)) return problem("Only admins can add forum topics", 403, "Forbidden");
-  const parsed = topicInputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
+  if (!user) return problem("Sign in to continue", 401);
+  if (!isAdmin(user)) return problem("Only admins can add forum topics", 403);
+  const parsed = await readBody(request, topicInputSchema);
+  if ("error" in parsed) return parsed.error;
   const result = await createTopic(parsed.data);
   return result.ok ? NextResponse.json({ topic: result.value }, { status: 201 }) : topicProblem(result.reason);
 }
