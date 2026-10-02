@@ -3,6 +3,7 @@ import { moveCircleDocuments } from "@/lib/documents/store";
 import { handOverPages } from "@/lib/wiki/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
+import { deleteCircleLog } from "@/lib/log/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -59,5 +60,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   await deleteCircleTaskComments(params.id);
   // What's left of its old meetings and proposals (no longer shown) goes with it.
   await deleteJson(`meetings/${params.id}.json`);
+  await deleteCircleLog(params.id);
   return NextResponse.json({ ok: true });
 }

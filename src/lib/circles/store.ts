@@ -8,6 +8,7 @@ import {
   RECENT_LIMITS,
   MODULE_SIZES,
   TASK_ADDERS,
+  LOG_POSTERS,
   type CircleModule,
 } from "./layout";
 import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
@@ -66,6 +67,7 @@ const moduleSchema = z
       .transform((value) => value || undefined),
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
+    log: z.object({ post: z.enum(LOG_POSTERS) }).optional(),
   })
   .refine(
     (module) => (module.type === "information") === !!module.info,
@@ -75,12 +77,17 @@ const moduleSchema = z
     (module) => module.type === "tasks" || !module.tasks,
     "Only a Tasks module says who can add tasks"
   )
+  .refine(
+    (module) => module.type === "log" || !module.log,
+    "Only a Log module says who can post to it"
+  )
   .transform(
-    ({ title, info, tasks, ...module }): CircleModule => ({
+    ({ title, info, tasks, log, ...module }): CircleModule => ({
       ...module,
       ...(title ? { title } : {}),
       ...(info ? { info } : {}),
       ...(tasks ? { tasks } : {}),
+      ...(log ? { log } : {}),
     })
   );
 
@@ -97,7 +104,7 @@ export const modulesSchema = z
       .filter((module) => module.type !== "information")
       .map((module) => module.type);
     return new Set(others).size === others.length;
-  }, "Members, the duty schedule, tasks, and documents can each appear once");
+  }, "Members, the duty schedule, tasks, the log, and documents can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),

@@ -353,7 +353,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `wiki/comments/<pageId>.json`; a page's comments go with it.
 - **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
+  there is one, **Tasks**, **Log**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
   and admins) adds modules (**Add module**), removes them, drags them into order — or moves them
   with arrows, on phones — and sizes each to a third, half, two thirds, or the full width of wider
   screens; phones stack them. Everyone sees the circle's page as it was saved (stored on the
@@ -455,6 +455,14 @@ from then on, so re-importing the directory never overwrites circle changes.
     it comes (the page's `transcript`, not a new version, and searchable). Opened, it shows the
     whole transcript, with **Copy** and **Clear** while editing. Readers see the same folded line
     and can open it.
+- **Log** – a circle module for short updates, each with replies: a small forum of the circle's
+  own, kept apart from the Forum because it **never notifies or emails anyone**. Its **Settings**
+  say who can post updates (the circle's members and the Board, or any resident); anyone signed in
+  can reply. Updates show newest first, ten at a time (**Show older updates**). Authors edit and
+  delete their own; the circle's members, the Board, and admins can delete any. Posting needs a
+  Log module on the circle's page (`GET`/`POST /api/circles/<id>/log`,
+  `PATCH`/`DELETE …/log/<entryId>`; stored in `logs/<circleId>.json`, using the shared comment
+  rules; deleted with the circle).
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.

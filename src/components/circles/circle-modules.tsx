@@ -51,6 +51,7 @@ export type ModuleViews = Record<string, ModuleView | undefined>;
 const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   information: " Its pages stay in Documents.",
   tasks: " The circle's tasks are kept, and come back if you add Tasks again.",
+  log: " The circle's updates are kept, and come back if you add Log again.",
   documents: " The circle's documents are kept, and come back if you add Documents again.",
 };
 
@@ -278,7 +279,9 @@ export function ModuleEditor({
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {module.type === "information" || module.type === "tasks" ? (
+                {module.type === "information" ||
+                module.type === "tasks" ||
+                module.type === "log" ? (
                   <button
                     type="button"
                     className={cn(control, "w-auto gap-1.5 px-2.5 text-sm")}

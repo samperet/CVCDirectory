@@ -22,11 +22,14 @@ import {
   InformationSettings,
   MODULE_ICONS,
   TasksSettings,
+  LogSettings,
+  describeLog,
   describeFilter,
   describeTasks,
 } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { InformationModule } from "@/components/circles/information-module";
+import { LogModule } from "@/components/circles/log-module";
 import { TasksModule } from "@/components/tasks/task-board";
 import { type CircleModule, moduleTitle, modulesFor } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
@@ -162,6 +165,17 @@ export function CircleDetailClient({ id }: { id: string }) {
           content: (
             <Card>
               <TasksModule circle={circle} />
+            </Card>
+          ),
+        };
+      case "log":
+        return {
+          title,
+          icon: icon(module),
+          detail: describeLog(module),
+          content: (
+            <Card>
+              <LogModule circleId={circle.id} />
             </Card>
           ),
         };
@@ -305,6 +319,15 @@ export function CircleDetailClient({ id }: { id: string }) {
               onAdd={(module) => {
                 setPageDraft([...editing, module]);
                 setDialog(module.type === "information" ? { kind: "settings", module } : null);
+              }}
+            />
+          ) : dialog?.kind === "settings" && dialog.module.type === "log" ? (
+            <LogSettings
+              module={dialog.module}
+              onClose={() => setDialog(null)}
+              onSave={(module) => {
+                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setDialog(null);
               }}
             />
           ) : dialog?.kind === "settings" && dialog.module.type === "tasks" ? (

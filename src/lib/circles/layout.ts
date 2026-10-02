@@ -7,7 +7,14 @@ import { isCommunity } from "./ids";
  * up to each reader, on their own device.
  */
 
-export const MODULE_TYPES = ["information", "members", "schedule", "tasks", "documents"] as const;
+export const MODULE_TYPES = [
+  "information",
+  "members",
+  "schedule",
+  "tasks",
+  "log",
+  "documents",
+] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
 export const MODULE_SIZES = ["small", "medium", "large", "full"] as const;
@@ -70,7 +77,7 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
 /**
  * A circle's page is built from modules, each a size wide. Information
  * modules show a chosen set of wiki pages (there can be several); the
- * others (members, the duty schedule, tasks, documents) appear
+ * others (members, the duty schedule, tasks, the log, documents) appear
  * once each.
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
@@ -78,6 +85,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   members: "Members",
   schedule: "Duty schedule",
   tasks: "Tasks",
+  log: "Log",
   documents: "Documents",
 };
 
@@ -97,6 +105,14 @@ export const TASK_ADDER_LABELS: Record<TaskAdders, string> = {
   anyone: "Any resident",
 };
 
+/** Who can post updates to a circle's Log: its members (and the Board and admins), or any resident. */
+export const LOG_POSTERS = ["members", "anyone"] as const;
+export type LogPosters = (typeof LOG_POSTERS)[number];
+export const LOG_POSTER_LABELS: Record<LogPosters, string> = {
+  members: "The circle's members (and the Board)",
+  anyone: "Any resident",
+};
+
 export interface CircleModule {
   id: string;
   type: ModuleType;
@@ -107,6 +123,8 @@ export interface CircleModule {
   info?: { filter: InfoFilter; view: InfoView };
   /** A Tasks module's setting: who can add tasks (unset: the circle's members). */
   tasks?: { add: TaskAdders };
+  /** A Log module's setting: who can post updates (unset: the circle's members). */
+  log?: { post: LogPosters };
 }
 
 export const MAX_MODULES = 20;

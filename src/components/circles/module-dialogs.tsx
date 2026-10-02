@@ -11,6 +11,7 @@ import {
   List,
   ListChecks,
   Plus,
+  ScrollText,
   Search,
   Settings2,
   Users,
@@ -25,6 +26,8 @@ import {
   RECENT_LIMITS,
   TASK_ADDERS,
   TASK_ADDER_LABELS,
+  LOG_POSTERS,
+  LOG_POSTER_LABELS,
   type CircleModule,
   type InfoFilter,
   type InfoView,
@@ -49,6 +52,7 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   members: Users,
   schedule: CalendarDays,
   tasks: ListChecks,
+  log: ScrollText,
   documents: FileText,
 };
 
@@ -58,6 +62,7 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   members: "Who's in the circle, and joining it.",
   schedule: "The circle's duty schedule.",
   tasks: "The circle's tasks.",
+  log: "Short updates, with replies — a small forum of the circle's own that never notifies or emails anyone.",
   documents:
     "The circle's documents — pages written here and files uploaded — searchable, with New to add one.",
 };
@@ -80,6 +85,63 @@ export const newInformationModule = (circle: Circle, taken: CircleModule[]): Cir
   size: "full",
   info: { filter: { kind: "circle", circleId: circle.id }, view: DEFAULT_INFO_VIEW },
 });
+
+/** What a Log module allows, in a few words. */
+export const describeLog = (module: CircleModule) =>
+  module.log?.post === "anyone" ? "Any resident can post" : "Members post updates";
+
+/** Setting up a Log module: who can post updates (anyone signed in can reply). */
+export function LogSettings({
+  module,
+  onSave,
+  onClose,
+}: {
+  module: CircleModule;
+  onSave: (module: CircleModule) => void;
+  onClose: () => void;
+}) {
+  const [post, setPost] = useState(module.log?.post ?? "members");
+  return (
+    <Dialog
+      title="Log settings"
+      icon={<Settings2 className="h-5 w-5 text-primary" aria-hidden />}
+      onClose={onClose}
+    >
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({ ...module, log: { post } });
+        }}
+      >
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1 text-sm font-medium text-foreground">Who can post updates</legend>
+          {LOG_POSTERS.map((value) => (
+            <label key={value} className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="radio"
+                name="log-post"
+                checked={post === value}
+                onChange={() => setPost(value)}
+                className="h-4 w-4 accent-primary"
+              />
+              {LOG_POSTER_LABELS[value]}
+            </label>
+          ))}
+          <p className="text-xs text-muted">
+            Anyone signed in can reply. Nothing posted here notifies or emails anyone.
+          </p>
+        </fieldset>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Done</Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
 
 /** What a Tasks module allows, in a few words. */
 export const describeTasks = (module: CircleModule) =>
@@ -109,15 +171,15 @@ export function AddModuleDialog({
   onAdd: (module: CircleModule) => void;
   onClose: () => void;
 }) {
-  const offered = (["information", "members", "schedule", "tasks", "documents"] as const).filter(
-    (type) => {
-      if (type === "information") return true;
-      if (modules.some((module) => module.type === type)) return false;
-      if (type === "members") return !isCommunity(circle.id);
-      if (type === "schedule") return hasSchedule;
-      return true;
-    }
-  );
+  const offered = (
+    ["information", "members", "schedule", "tasks", "log", "documents"] as const
+  ).filter((type) => {
+    if (type === "information") return true;
+    if (modules.some((module) => module.type === type)) return false;
+    if (type === "members") return !isCommunity(circle.id);
+    if (type === "schedule") return hasSchedule;
+    return true;
+  });
   return (
     <Dialog
       title="Add a module"

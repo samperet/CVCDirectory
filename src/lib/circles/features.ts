@@ -13,6 +13,14 @@ export const featureEnabled = (
   feature: CircleFeature
 ) => circle?.features?.[feature] ?? true;
 
+/** Whether the circle has a Log module on its page (posting needs one; reading doesn't). */
+export const hasLog = (circle: Pick<Circle, "modules"> | undefined) =>
+  !!circle?.modules?.some((module) => module.type === "log");
+
+/** Whether the circle lets any resident post to its Log (its Log module's setting), rather than just its members. */
+export const anyonePostsToLog = (circle: Pick<Circle, "modules"> | undefined) =>
+  !!circle?.modules?.some((module) => module.type === "log" && module.log?.post === "anyone");
+
 /** Whether the circle lets any resident add tasks (its Tasks module's setting), rather than just its members. */
 export const anyoneAddsTasks = (circle: Pick<Circle, "modules"> | undefined) =>
   !!circle?.modules?.some((module) => module.type === "tasks" && module.tasks?.add === "anyone");
