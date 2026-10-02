@@ -191,43 +191,52 @@ select {
  * swatches) the classes fill the box with it.
  */
 .hl-yellow {
-  --hl-rgb: 255 225 0;
-  background-color: rgb(var(--hl-rgb) / 0.75);
+  --hl-rgb: 255 245 140;
+  background-color: rgb(var(--hl-rgb));
 }
 .hl-green {
-  --hl-rgb: 125 200 90;
-  background-color: rgb(var(--hl-rgb) / 0.75);
+  --hl-rgb: 176 245 160;
+  background-color: rgb(var(--hl-rgb));
 }
 .hl-blue {
-  --hl-rgb: 95 170 240;
-  background-color: rgb(var(--hl-rgb) / 0.75);
+  --hl-rgb: 166 210 255;
+  background-color: rgb(var(--hl-rgb));
 }
 .hl-pink {
-  --hl-rgb: 250 125 170;
-  background-color: rgb(var(--hl-rgb) / 0.75);
+  --hl-rgb: 255 170 208;
+  background-color: rgb(var(--hl-rgb));
 }
 .hl-orange {
-  --hl-rgb: 255 160 70;
-  background-color: rgb(var(--hl-rgb) / 0.75);
+  --hl-rgb: 255 200 150;
+  background-color: rgb(var(--hl-rgb));
 }
 /*
- * A highlighted run of words looks swiped with a highlighter pen (after
- * cassidoo's CodePen): the ink is lighter where the pen lands and stays
- * strong to the end, the ends are unevenly rounded, and each line of a run
- * that wraps gets its own stroke.
+ * A highlighted run of words looks swiped with a highlighter (after
+ * cassidoo's "Subtle text highlighter" CodePen): both ends are slanted and
+ * inked strongest, where the pen lands and lifts; the ink thins along the
+ * stroke, though far less than the pen's (it stays clearly coloured); and a
+ * faint wash runs along the top. Each line of a run that wraps gets its own
+ * stroke.
  */
 mark.wiki-mark {
-  margin: 0 -0.4em;
-  padding: 0.1em 0.4em;
-  border-radius: 0.8em 0.3em;
+  padding: 0 0.12em;
   color: inherit;
-  background: transparent;
+  background-color: transparent;
   background-image: linear-gradient(
-    to right,
-    rgb(var(--hl-rgb) / 0.35),
-    rgb(var(--hl-rgb) / 0.9) 4%,
-    rgb(var(--hl-rgb) / 0.6)
-  );
+      100deg,
+      rgb(var(--hl-rgb) / 0) 1%,
+      rgb(var(--hl-rgb) / 1) 2.5%,
+      rgb(var(--hl-rgb) / 0.6) 5.7%,
+      rgb(var(--hl-rgb) / 0.4) 93%,
+      rgb(var(--hl-rgb) / 0.85) 95%,
+      rgb(var(--hl-rgb) / 0) 98%
+    ),
+    linear-gradient(
+      182deg,
+      rgb(var(--hl-rgb) / 0),
+      rgb(var(--hl-rgb) / 0.35) 8%,
+      rgb(var(--hl-rgb) / 0) 15%
+    );
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
