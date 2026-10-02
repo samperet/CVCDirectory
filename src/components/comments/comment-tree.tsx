@@ -20,7 +20,10 @@ import { CommentForm } from "./comment-form";
  * promises, so a failed edit keeps its text). `renderBody`, `renderExtras`
  * and `renderActions` add the feature's own pieces: linkified text, likes,
  * "withdrawn by…" notes. `#<idPrefix>-<id>` in the address scrolls to that
- * comment and marks it, as does `flashId` (a comment just posted).
+ * comment and marks it, as does `flashId` (a comment just posted). `compact`
+ * (the wiki's sticky notes) shows writers by their initials and keeps reply,
+ * edit and delete out of sight until the pointer is over the comment (on
+ * touch screens they always show).
  */
 export interface CommentTreeProps<T extends CommentRecord> {
   comments: T[];
@@ -45,10 +48,14 @@ export interface CommentTreeProps<T extends CommentRecord> {
   deleteConfirm?: (comment: T) => { title: string; body?: string };
   flashId?: string | null;
   emptyLabel?: ReactNode;
+  compact?: boolean;
   className?: string;
 }
 
 const link = "inline-flex items-center gap-1 font-medium hover:text-foreground";
+/** In compact trees: hidden until the pointer is over the comment (or it has focus); always shown on touch screens. */
+const onHover =
+  "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/comment:opacity-100 [@media(hover:hover)]:group-focus-within/comment:opacity-100";
 
 export function CommentTree<T extends CommentRecord>({
   comments,
@@ -71,8 +78,10 @@ export function CommentTree<T extends CommentRecord>({
   deleteConfirm,
   flashId = null,
   emptyLabel = "No comments yet.",
+  compact = false,
   className,
 }: CommentTreeProps<T>) {
+  const tool = (classes: string) => cn(classes, compact && onHover);
   const confirm = useConfirm();
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -134,14 +143,14 @@ export function CommentTree<T extends CommentRecord>({
         <div
           id={anchor}
           className={cn(
-            "scroll-mt-28 rounded-lg px-3 py-2 transition-colors duration-1000",
+            "group/comment scroll-mt-28 rounded-lg px-3 py-2 transition-colors duration-1000",
             flash === comment.id ? "bg-sun/15" : "bg-transparent"
           )}
         >
           {deleted ? (
             <p className="text-sm italic text-muted">This comment was deleted.</p>
           ) : (
-            <CommentByline comment={comment} href={`#${anchor}`}>
+            <CommentByline comment={comment} href={`#${anchor}`} compact={compact}>
               {depth > maxIndent && parentName ? (
                 <span className="inline-flex items-center gap-1">
                   <CornerDownRight className="h-3 w-3" /> replying to {parentName}
@@ -199,13 +208,13 @@ export function CommentTree<T extends CommentRecord>({
               <button
                 type="button"
                 onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
-                className={link}
+                className={tool(link)}
               >
                 <Reply className="h-3.5 w-3.5" /> Reply
               </button>
             ) : null}
             {actions && onEdit && canEdit?.(comment) ? (
-              <button type="button" onClick={() => setEditing(comment.id)} className={link}>
+              <button type="button" onClick={() => setEditing(comment.id)} className={tool(link)}>
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </button>
             ) : null}
@@ -213,7 +222,9 @@ export function CommentTree<T extends CommentRecord>({
               <button
                 type="button"
                 onClick={() => void remove(comment)}
-                className="inline-flex items-center gap-1 font-medium hover:text-destructive"
+                className={tool(
+                  "inline-flex items-center gap-1 font-medium hover:text-destructive"
+                )}
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
@@ -240,7 +251,8 @@ export function CommentTree<T extends CommentRecord>({
           <ul
             className={cn(
               "flex flex-col gap-1",
-              depth < maxIndent && "ml-3 border-l-2 border-border pl-2 sm:ml-4 sm:pl-3"
+              depth < maxIndent &&
+                (compact ? "ml-3 pl-1" : "ml-3 border-l-2 border-border pl-2 sm:ml-4 sm:pl-3")
             )}
           >
             {replies.map((reply) => node(reply, depth + 1, deleted ? null : comment.authorName))}

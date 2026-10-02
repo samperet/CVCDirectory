@@ -319,12 +319,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `/admin/wiki-map` redirects there).
 - **Wiki comments** – anyone signed in selects words on a page (any amount, a word to the whole
   page) and comments on them; there's no comment box for the page as a whole. Comments show as
-  yellow sticky notes beside the page, and the passage is highlighted (clicking either jumps to the
-  other). While reading, "On this page" shows the section you're in in bold. Threads take replies
-  and can be resolved and reopened by whoever started them, the page's editors, or an admin; authors
-  edit and delete their own (admins any). The page's writers and the thread's participants are
-  notified (the "wiki" notification setting). Stored page by page in `wiki/comments/<pageId>.json`;
-  a page's comments go with it.
+  square yellow sticky notes beside the page (writers by their initials, their name on hover; reply,
+  edit and delete appear when the pointer is over a note), and the passage is highlighted (clicking
+  either jumps to the other). While reading, "On this page" shows the section you're in in bold.
+  Threads take replies and can be resolved and reopened by whoever started them, the page's editors,
+  or an admin; authors edit and delete their own (admins any). The page's writers and the thread's
+  participants are notified (the "wiki" notification setting). Stored page by page in
+  `wiki/comments/<pageId>.json`; a page's comments go with it.
 - **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
   **Members** and **Meetings** (not on Community, which is everyone), the **duty schedule** where
   there is one, **Tasks**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,

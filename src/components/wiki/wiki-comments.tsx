@@ -2,7 +2,7 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MessageSquare, RotateCcw } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 import { CommentTree } from "@/components/comments/comment-tree";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
@@ -167,7 +167,7 @@ function ThreadCard({
   return (
     <li
       className={cn(
-        "sticky-note flex scroll-mt-24 flex-col gap-2 p-3 pt-4",
+        "group/note sticky-note flex scroll-mt-24 flex-col gap-2 p-3 pt-4",
         active && "sticky-note-active",
         resolved && "sticky-note-resolved"
       )}
@@ -177,7 +177,7 @@ function ThreadCard({
         <button
           type="button"
           onClick={onActivate}
-          className="border-l-4 border-black/15 pl-2 text-left text-xs italic text-foreground-light hover:text-foreground"
+          className="text-left text-xs italic text-foreground-light hover:text-foreground"
           title={quoteFound ? "Show this passage" : "This passage has since changed"}
         >
           “{root.quote.length > 160 ? `${root.quote.slice(0, 160)}…` : root.quote}”
@@ -190,6 +190,7 @@ function ThreadCard({
         comments={[root, ...replies]}
         roots={[root]}
         nesting="one"
+        compact
         className="-mx-3"
         canReply={() => !!user && !resolved}
         canEdit={mine}
@@ -225,7 +226,7 @@ function ThreadCard({
           ) : null}
         </p>
       ) : mayResolve ? (
-        <div className="flex gap-3 text-xs">
+        <div className="flex gap-3 text-xs transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/note:opacity-100 [@media(hover:hover)]:group-hover/note:opacity-100">
           <button
             type="button"
             className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline"
@@ -321,17 +322,13 @@ export function WikiComments({
 
   return (
     <section id="comments" className="flex scroll-mt-24 flex-col gap-3" aria-label="Comments">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <MessageSquare className="h-4 w-4 text-primary" aria-hidden /> Comments
-        {open.length ? <span className="font-normal text-muted">({open.length} open)</span> : null}
-      </h2>
       {canComment ? (
         pendingQuote ? (
           <div
             className="sticky-note sticky-note-active flex flex-col gap-2 p-3 pt-4"
             data-comment-draft
           >
-            <p className="border-l-4 border-black/15 pl-2 text-xs italic text-foreground-light">
+            <p className="text-xs italic text-foreground-light">
               “{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”
             </p>
             <Textarea
@@ -347,7 +344,7 @@ export function WikiComments({
                   post.mutate();
                 if (event.key === "Escape") cancel();
               }}
-              className="border-black/10 bg-white/70 text-sm"
+              className="border-0 bg-white/60 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-black/20"
             />
             <div className="flex gap-2">
               <Button
@@ -362,15 +359,9 @@ export function WikiComments({
               </Button>
             </div>
           </div>
-        ) : (
-          <p className="text-xs text-muted">Select words on the page to add a comment.</p>
-        )
+        ) : null
       ) : null}
-      {open.length ? (
-        <ul className="flex flex-col gap-2">{open.map(card)}</ul>
-      ) : (
-        <p className="text-xs text-muted">No open comments.</p>
-      )}
+      {open.length ? <ul className="flex flex-col gap-4">{open.map(card)}</ul> : null}
       {resolved.length ? (
         <div className="flex flex-col gap-2">
           <button
@@ -380,7 +371,7 @@ export function WikiComments({
           >
             {showResolved ? "Hide" : "Show"} {resolved.length} resolved
           </button>
-          {showResolved ? <ul className="flex flex-col gap-2">{resolved.map(card)}</ul> : null}
+          {showResolved ? <ul className="flex flex-col gap-4">{resolved.map(card)}</ul> : null}
         </div>
       ) : null}
     </section>
