@@ -73,13 +73,21 @@ export type InfoFilter = { kind: "pages"; pageIds: string[] } | { kind: "circle"
 export const MAX_CHOSEN_PAGES = 12;
 export const RECENT_LIMITS = { min: 3, max: 12, default: 6 } as const;
 
+/** Who can add tasks to a circle: its members (and the Board and admins), or any resident. */
+export const TASK_ADDERS = ["members", "anyone"] as const;
+export type TaskAdders = (typeof TASK_ADDERS)[number];
+export const TASK_ADDER_LABELS: Record<TaskAdders, string> = { members: "The circle's members (and the Board)", anyone: "Any resident" };
+
 export interface CircleModule {
   id: string;
   type: ModuleType;
   size: SectionSize;
   /** A heading of its own (Information modules); unset is the type's name. */
   title?: string;
+  /** Which pages an Information module shows, and how. */
   info?: { filter: InfoFilter; view: InfoView };
+  /** A Tasks module's setting: who can add tasks (unset: the circle's members). */
+  tasks?: { add: TaskAdders };
 }
 
 export const MAX_MODULES = 20;

@@ -1,6 +1,6 @@
 import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
-import { featureEnabled } from "@/lib/circles/features";
+import { anyoneAddsTasks, featureEnabled } from "@/lib/circles/features";
 import { canUploadTo } from "@/lib/documents/access";
 import { isAdmin } from "@/lib/auth/admins";
 import { problem } from "@/lib/http";
@@ -8,10 +8,12 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 
 /**
  * Who may see and change a circle's tasks. Every signed-in resident sees
- * them and can comment; those who can add the circle's documents — its
- * members, the Board, and admins (anyone, for the Community circle) — add,
- * change, and delete them. A task's owner can also move it along (status and
- * checklist), and anyone can take on a task nobody has yet.
+ * them and can comment. The circle's editors — those who can add its
+ * documents: its members, the Board, and admins (anyone, for the Community
+ * circle) — add, change, and delete any task. A circle whose Tasks module
+ * lets any resident add tasks also lets each resident change and delete
+ * the tasks they added (`ownTask`). A task's owner can move it along (status
+ * and checklist), and anyone can take on a task nobody has yet.
  */
 export async function tasksContext(circleId: string, { write = false } = {}) {
   const ctx = await circleContext({ circleId });
@@ -20,7 +22,9 @@ export async function tasksContext(circleId: string, { write = false } = {}) {
   const enabled = featureEnabled(circle, "tasks");
   if (write && !enabled) return { error: problem(`${circle.name} has turned its tasks off`, 409, "Conflict") };
   const canEdit = enabled && canUploadTo(ctx.user, ctx.directory, circleId);
-  return { user: ctx.user, directory: ctx.directory, circle, enabled, canEdit, canModerate: canEdit || isAdmin(ctx.user) };
+  const canAdd = canEdit || (enabled && anyoneAddsTasks(circle));
+  const ownTask = (task: { createdBy: { userId: string } }) => canEdit || (canAdd && task.createdBy.userId === ctx.user.id);
+  return { user: ctx.user, directory: ctx.directory, circle, enabled, canEdit, canAdd, ownTask, canModerate: canEdit || isAdmin(ctx.user) };
 }
 
 /** A person's name from the directory, if they're in it. */

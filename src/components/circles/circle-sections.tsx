@@ -190,7 +190,7 @@ export function ArrangeSections({
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {module.type === "information" ? (
+                {module.type === "information" || module.type === "tasks" ? (
                   <button type="button" className={cn(control, "w-auto gap-1.5 px-2.5 text-sm")} onClick={() => onSettings(module)} aria-label={`Set up ${section.title}`}>
                     <Settings2 className="h-4 w-4" /> Settings
                   </button>

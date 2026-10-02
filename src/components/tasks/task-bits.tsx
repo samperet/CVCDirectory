@@ -9,8 +9,10 @@ import { STATUS_LABELS, TASK_STATUSES, checklistProgress, isOverdue, type Task, 
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
-export type TasksResponse = { tasks: TaskSummary[]; canEdit: boolean; enabled: boolean };
-export type TaskResponse = { task: Task; canEdit: boolean; enabled: boolean };
+/** `canEdit`: change any task; `canAdd`: add one (any resident, where the circle's Tasks module allows). */
+export type TasksResponse = { tasks: TaskSummary[]; canEdit: boolean; canAdd: boolean; enabled: boolean };
+/** `canEdit` here is for this task: the circle's editors, or whoever added it where any resident may. */
+export type TaskResponse = { task: Task; canEdit: boolean; canAdd: boolean; enabled: boolean };
 
 export const tasksQuery = (circleId: string) => ({
   queryKey: ["tasks", circleId],

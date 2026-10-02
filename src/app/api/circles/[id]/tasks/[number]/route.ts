@@ -18,13 +18,14 @@ export async function GET(_request: Request, { params }: Params) {
   const number = parseNumber(params.number);
   const task = number ? await getTask(params.id, number) : null;
   if (!task) return taskProblem("not_found");
-  return NextResponse.json({ task, canEdit: ctx.canEdit, enabled: ctx.enabled }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ task, canEdit: ctx.ownTask(task), canAdd: ctx.canAdd, enabled: ctx.enabled }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 /**
- * Change a task. The circle's editors change anything. The task's owner can
- * move it along (status, checklist ticks) or hand it back; anyone can take on
- * a task nobody has.
+ * Change a task. The circle's editors change anything (so can whoever added
+ * it, where any resident may add tasks). The task's owner can move it along
+ * (status, checklist ticks) or hand it back; anyone can take on a task
+ * nobody has.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await tasksContext(params.id, { write: true });
@@ -38,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const me = ctx.user.personId ?? null;
   const allowed = (task: Task, update: TaskUpdate) => {
-    if (ctx.canEdit) return true;
+    if (ctx.ownTask(task)) return true;
     const fields = Object.keys(update);
     const isOwner = !!me && task.ownerId === me;
     const claiming = fields.length === 1 && update.ownerId === me && !!me && !task.ownerId;
@@ -77,12 +78,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json({ task });
 }
 
+/** Delete a task: the circle's editors, or whoever added it where any resident may add tasks. */
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await tasksContext(params.id, { write: true });
   if ("error" in ctx) return ctx.error;
-  if (!ctx.canEdit) return taskProblem("forbidden");
   const number = parseNumber(params.number);
   if (!number) return taskProblem("not_found");
+  const existing = await getTask(params.id, number);
+  if (!existing) return taskProblem("not_found");
+  if (!ctx.ownTask(existing)) return taskProblem("forbidden");
   const result = await deleteTask(params.id, number);
   if (!result.ok) return taskProblem(result.reason);
   if (result.before) await deleteCommentsForTask(params.id, result.before.id);

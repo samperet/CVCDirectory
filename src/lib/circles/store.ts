@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, SECTION_IDS, SECTION_SIZES, type CircleModule, type InfoView, type SectionLayout } from "./layout";
+import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, SECTION_IDS, SECTION_SIZES, TASK_ADDERS, type CircleModule, type InfoView, type SectionLayout } from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
@@ -40,9 +40,11 @@ const moduleSchema = z
     size: z.enum(SECTION_SIZES),
     title: text(60, "A module's title").optional().transform((value) => value || undefined),
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
+    tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
   })
   .refine((module) => (module.type === "information") === !!module.info, "Information modules (only) choose which pages they show")
-  .transform(({ title, info, ...module }): CircleModule => ({ ...module, ...(title ? { title } : {}), ...(info ? { info } : {}) }));
+  .refine((module) => module.type === "tasks" || !module.tasks, "Only a Tasks module says who can add tasks")
+  .transform(({ title, info, tasks, ...module }): CircleModule => ({ ...module, ...(title ? { title } : {}), ...(info ? { info } : {}), ...(tasks ? { tasks } : {}) }));
 
 /** The page's modules, in order: any number of Information modules, the others once each. */
 export const modulesSchema = z

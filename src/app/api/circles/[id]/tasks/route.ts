@@ -19,14 +19,14 @@ export async function GET(_request: Request, { params }: Params) {
   const counts = new Map<string, number>();
   for (const comment of comments) if (!comment.deleted) counts.set(comment.taskId, (counts.get(comment.taskId) ?? 0) + 1);
   const summaries: TaskSummary[] = tasks.map(({ activity: _activity, description, ...task }) => ({ ...task, hasDescription: !!description.trim(), commentCount: counts.get(task.id) ?? 0 }));
-  return NextResponse.json({ tasks: summaries, canEdit: ctx.canEdit, enabled: ctx.enabled }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ tasks: summaries, canEdit: ctx.canEdit, canAdd: ctx.canAdd, enabled: ctx.enabled }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
-/** Add a task: the circle's members, the Board, and admins. */
+/** Add a task: the circle's members, the Board, and admins — or any resident, if the circle's Tasks module allows. */
 export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await tasksContext(params.id, { write: true });
   if ("error" in ctx) return ctx.error;
-  if (!ctx.canEdit) return taskProblem("forbidden");
+  if (!ctx.canAdd) return taskProblem("forbidden");
   const parsed = taskInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
   const ownerName = personName(ctx.directory, parsed.data.ownerId);

@@ -14,7 +14,7 @@ import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
 import { ArrangeSections, CircleSections, SectionToggle, type ModuleSections } from "@/components/circles/circle-sections";
-import { AddModuleDialog, InformationSettings, MODULE_ICONS, describeFilter } from "@/components/circles/module-dialogs";
+import { AddModuleDialog, InformationSettings, MODULE_ICONS, TasksSettings, describeFilter, describeTasks } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { InformationModule } from "@/components/wiki/information-module";
@@ -535,6 +535,7 @@ export function CircleDetailClient({ id }: { id: string }) {
         return {
           title,
           icon: icon(module),
+          detail: describeTasks(module),
           content: (
             <Card>
               <TasksSection circle={circle} />
@@ -645,6 +646,15 @@ export function CircleDetailClient({ id }: { id: string }) {
               onAdd={(module) => {
                 setArranging([...editing, module]);
                 setDialog(module.type === "information" ? { kind: "settings", module } : null);
+              }}
+            />
+          ) : dialog?.kind === "settings" && dialog.module.type === "tasks" ? (
+            <TasksSettings
+              module={dialog.module}
+              onClose={() => setDialog(null)}
+              onSave={(module) => {
+                setArranging(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setDialog(null);
               }}
             />
           ) : dialog?.kind === "settings" ? (

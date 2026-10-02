@@ -209,6 +209,7 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
   const [over, setOver] = useState<TaskStatus | null>(null);
   const enabled = featureEnabled(circle, "tasks");
   const canEdit = !!data?.canEdit && enabled;
+  const canAdd = !!data?.canAdd && enabled;
 
   const visible = useMemo(() => {
     const wanted = query.trim().toLowerCase();
@@ -243,7 +244,7 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
         <ListChecks className="h-6 w-6 text-primary" aria-hidden /> {circle ? `${circle.name} tasks` : "Tasks"}
       </h1>
       {circle && !enabled ? <p className="text-sm text-muted">{circle.name} has turned its tasks off; these are kept as they were.</p> : null}
-      {canEdit ? (
+      {canAdd ? (
         <Card>
           <NewTaskForm circle={circle} />
         </Card>
@@ -318,7 +319,7 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
 export function TasksSection({ circle }: { circle: Circle }) {
   const { data, isLoading } = useQuery(tasksQuery(circle.id));
   const [adding, setAdding] = useState(false);
-  const canEdit = !!data?.canEdit;
+  const canAdd = !!data?.canAdd;
   const tasks = data?.tasks ?? [];
   const open = tasks.filter((task) => task.status !== "done").sort(byUrgency);
   const counts = (["todo", "doing", "blocked"] as const).map((status) => ({ status, count: open.filter((task) => task.status === status).length })).filter((entry) => entry.count);
@@ -332,7 +333,7 @@ export function TasksSection({ circle }: { circle: Circle }) {
             Tasks
           </Link>
         </h2>
-        {canEdit && !adding ? (
+        {canAdd && !adding ? (
           <Button className="gap-1" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4" /> New task
           </Button>

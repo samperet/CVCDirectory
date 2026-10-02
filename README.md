@@ -271,7 +271,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   members-only poll). Stored together in `wiki/polls.json` (`/api/wiki/polls`), each with its
   circle. Circles no longer have a separate Polls section, and the forum no longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
-  on or off (by adding or removing its Tasks module under **Edit page**). A task has a title, Markdown details
+  on or off (by adding or removing its Tasks module under **Edit page**). The Tasks module's
+  **Settings** say **who can add tasks**: the circle's members (and the Board and admins; the
+  default) or **any resident** — who can then also change and delete the tasks they added. A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
   (anyone in the directory — the circle's members listed first), a due date, a priority, and a
   checklist whose progress shows as a bar. The board has a column per status (stacked on phones):

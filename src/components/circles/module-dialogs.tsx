@@ -9,6 +9,8 @@ import {
   MAX_CHOSEN_PAGES,
   MODULE_NAMES,
   RECENT_LIMITS,
+  TASK_ADDERS,
+  TASK_ADDER_LABELS,
   type CircleModule,
   type InfoFilter,
   type InfoView,
@@ -56,6 +58,9 @@ export const newInformationModule = (circle: Circle, taken: CircleModule[]): Cir
   size: "full",
   info: { filter: { kind: "circle", circleId: circle.id }, view: DEFAULT_INFO_VIEW },
 });
+
+/** What a Tasks module allows, in a few words. */
+export const describeTasks = (module: CircleModule) => (module.tasks?.add === "anyone" ? "Any resident can add tasks" : "Members add tasks");
 
 /** What an Information module shows, in a few words. */
 export function describeFilter(filter: InfoFilter, circleName: (id: string) => string | undefined) {
@@ -109,6 +114,43 @@ export function AddModuleDialog({
           );
         })}
       </ul>
+    </Dialog>
+  );
+}
+
+/** Setting up a Tasks module: who can add tasks. */
+export function TasksSettings({ module, onSave, onClose }: { module: CircleModule; onSave: (module: CircleModule) => void; onClose: () => void }) {
+  const [add, setAdd] = useState(module.tasks?.add ?? "members");
+  return (
+    <Dialog title="Tasks settings" icon={<Settings2 className="h-5 w-5 text-primary" aria-hidden />} onClose={onClose}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({ ...module, tasks: { add } });
+        }}
+      >
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1 text-sm font-medium text-foreground">Who can add tasks</legend>
+          {TASK_ADDERS.map((value) => (
+            <label key={value} className="flex items-center gap-2 text-sm text-foreground">
+              <input type="radio" name="tasks-add" checked={add === value} onChange={() => setAdd(value)} className="h-4 w-4 accent-primary" />
+              {TASK_ADDER_LABELS[value]}
+            </label>
+          ))}
+          <p className="text-xs text-muted">
+            {add === "anyone"
+              ? "Anyone signed in can add a task here, and change or delete the ones they added. The circle's members, the Board, and admins change any task."
+              : "The circle's members, the Board, and admins add and change tasks. Anyone can comment, and take on a task nobody has."}
+          </p>
+        </fieldset>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Done</Button>
+        </div>
+      </form>
     </Dialog>
   );
 }
