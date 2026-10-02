@@ -174,6 +174,7 @@ export async function searchSite(
       [page.title, 20],
       // Highlights match by their words, not their colour.
       [unmark(page.body), 1],
+      [page.transcript ?? "", 1],
     ],
     result: {
       title: page.title,

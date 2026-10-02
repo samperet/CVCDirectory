@@ -116,7 +116,7 @@ export interface RichEditorHandle {
   /** Replace the text with a merged version, keeping the cursor in its block (`mineAt` maps old blocks to new). */
   replace: (markdown: string, mineAt: number[] | null) => void;
   focus: () => void;
-  /** Put Markdown where the cursor is (a transcript, say). */
+  /** Put Markdown where the cursor is, as paragraphs of its own (a transcript, say). */
   insert: (markdown: string) => void;
 }
 
@@ -716,9 +716,22 @@ export const RichEditor = forwardRef<
     },
     focus: () => editor.current?.focus(),
     insert: (value) =>
-      editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(value)), {
-        preventScroll: true,
-      }),
+      editor.current?.focus(
+        () => {
+          // Start a fresh paragraph unless the cursor is in an empty one.
+          lexical.current?.update(
+            () => {
+              const selection = $getSelection();
+              if (!$isRangeSelection(selection)) return;
+              const block = selection.anchor.getNode().getTopLevelElement();
+              if (block && block.getTextContent().trim()) selection.insertParagraph();
+            },
+            { discrete: true }
+          );
+          editor.current?.insertMarkdown(protectWikiLinks(value));
+        },
+        { preventScroll: true }
+      ),
   };
   useImperativeHandle(ref, () => handle);
   if (control) control.current = handle;

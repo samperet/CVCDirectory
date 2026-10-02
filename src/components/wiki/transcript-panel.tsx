@@ -8,35 +8,37 @@ import { useToast } from "@/components/ui/use-toast";
 import { useConfirm } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 
-const storageKey = (pageId: string) => `wiki-transcript:${pageId}`;
-const readSaved = (pageId: string) => {
-  try {
-    return window.localStorage.getItem(storageKey(pageId)) ?? "";
-  } catch {
-    return "";
-  }
-};
+const SAVE_AFTER_MS = 1500;
 
 /**
  * The transcript beside a page being written — say, meeting notes taken by
  * hand while **Transcribe** writes down what's said (the browser's own speech
  * recognition: Chrome, Edge, Safari). It fills this panel, not the page, so
  * the notes stay the notes; **Add to page** puts the transcript where the
- * cursor is. It's kept in this browser (per page) until cleared, so closing
- * the editor or reloading loses nothing.
+ * cursor is. It's saved with the page as it fills (`onSave`, a moment after
+ * each phrase), where anyone reading the page can unfold it later.
  */
 export function TranscriptPanel({
-  pageId,
+  initial,
+  onSave,
   onInsert,
   onClose,
 }: {
-  pageId: string;
+  /** The page's transcript so far (new words are added to it). */
+  initial: string;
+  onSave: (text: string) => Promise<unknown>;
   onInsert: (text: string) => void;
   onClose: () => void;
 }) {
   const { toast } = useToast();
   const confirm = useConfirm();
-  const [text, setText] = useState(() => readSaved(pageId));
+  const [text, setText] = useState(initial);
+  const [status, setStatus] = useState<"saved" | "saving" | "unsaved" | "error">("saved");
+  const savedText = useRef(initial);
+  const latest = useRef(initial);
+  latest.current = text;
+  const save = useRef(onSave);
+  save.current = onSave;
   const box = useRef<HTMLDivElement>(null);
   const pause = useRef(false);
   const transcriber = useTranscriber((phrase) => {
@@ -50,14 +52,27 @@ export function TranscriptPanel({
   useEffect(() => {
     if (supported) start();
   }, [supported, start]);
-  useEffect(() => {
+  // Saved with the page a moment after it changes (and on closing).
+  const flush = async (value: string) => {
+    if (value === savedText.current) return;
+    setStatus("saving");
     try {
-      if (text) window.localStorage.setItem(storageKey(pageId), text);
-      else window.localStorage.removeItem(storageKey(pageId));
+      await save.current(value);
+      savedText.current = value;
+      setStatus("saved");
     } catch {
-      // Private browsing, say: the transcript just isn't kept.
+      setStatus("error");
+      // Try again shortly with whatever it says by then.
+      setTimeout(() => void flush(latest.current), 5000);
     }
-  }, [pageId, text]);
+  };
+  useEffect(() => {
+    if (text === savedText.current) return;
+    setStatus("unsaved");
+    const timer = setTimeout(() => void flush(text), SAVE_AFTER_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
   // Follow the newest words.
   useEffect(() => {
     box.current?.scrollTo({ top: box.current.scrollHeight });
@@ -81,6 +96,15 @@ export function TranscriptPanel({
           Transcript{" "}
           <span className="font-normal text-muted">
             {listening ? "· listening" : supported === false ? "· not available" : "· paused"}
+          </span>
+          <span className="block text-[11px] font-normal text-muted" data-transcript-status>
+            {status === "saving"
+              ? "Saving with the page…"
+              : status === "unsaved"
+                ? "Not saved yet"
+                : status === "error"
+                  ? "Couldn't save — it'll try again"
+                  : "Saved with the page"}
           </span>
         </h2>
         {supported ? (
@@ -106,11 +130,12 @@ export function TranscriptPanel({
           type="button"
           onClick={() => {
             stop();
+            void flush(text);
             onClose();
           }}
           className="rounded-full p-1 text-muted hover:bg-accent hover:text-foreground"
           aria-label="Close the transcript"
-          title="Close (the transcript is kept)"
+          title="Close (the transcript stays with the page)"
         >
           <X className="h-4 w-4" />
         </button>
@@ -171,9 +196,9 @@ export function TranscriptPanel({
           onClick={async () => {
             if (
               await confirm({
-                title: "Clear the transcript?",
+                title: "Clear the page's transcript?",
                 confirmLabel: "Clear",
-                body: "This can't be undone.",
+                body: "It's gone for everyone. This can't be undone.",
                 destructive: true,
               })
             )

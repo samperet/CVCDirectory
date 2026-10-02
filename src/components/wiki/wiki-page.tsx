@@ -19,7 +19,7 @@ import {
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { PagePerson, WikiPage } from "@/lib/wiki/store";
-import { PresentDialog, PresentLine } from "@/components/wiki/present-dialog";
+import { PageTranscript, PresentDialog, PresentLine } from "@/components/wiki/present-dialog";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { shortDate, timeAgo } from "@/lib/time";
@@ -534,6 +534,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <WikiMarkdown source={page.body} circleId={circleId} pages={pages} pageId={page.id} />
             </div>
           </div>
+          <PageTranscript transcript={page.transcript} />
 
           {canManage ? (
             <footer className="flex justify-end border-t border-border/70 px-6 py-3 sm:px-14">

@@ -450,9 +450,10 @@ from then on, so re-importing the directory never overwrites circle changes.
   - **Transcribe** (the microphone) – opens a **Transcript** panel beside the page that fills with
     what's said, using the browser's own speech recognition (Chrome, Edge, Safari — not Firefox;
     no account or key, no speaker labels; Chrome and Edge send the audio to Google or Microsoft to
-    be recognised), while you keep taking notes in the page. **Add to page** puts the transcript
-    where the cursor is; **Copy** and **Clear** too. It's kept in that browser, per page, until
-    cleared.
+    be recognised), while you keep taking notes in the page. The transcript is **saved with the
+    page** as it fills (the page's `transcript`, not a new version, and searchable) and shows at the
+    end of the page folded away — **Transcript · N words** — for anyone to open later. **Add to
+    page** also puts it where the cursor is; **Copy**; **Clear** removes it from the page.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.

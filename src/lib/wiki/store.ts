@@ -67,6 +67,8 @@ export interface WikiPage {
   consent?: PageConsent | null;
   /** Who was present (for a meeting's notes), shown under the title; set by its editors. */
   present?: PagePerson[];
+  /** What was said, transcribed while the notes were taken; shown folded away at the end of the page. */
+  transcript?: string;
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
   autosaved?: boolean;
   /** Its addresses from when each circle had its own wiki, so old links still arrive. */
@@ -143,6 +145,8 @@ export const pageUpdateSchema = z
       )
       .max(200)
       .optional(),
+    /** The whole transcript (empty to clear it). */
+    transcript: z.string().max(200_000, "The transcript is too long").optional(),
   })
   .refine(
     (value) => Object.values(value).some((entry) => entry !== undefined),
@@ -405,6 +409,7 @@ type PageUpdate = {
   edit?: PageEdit;
   consent?: { date: string } | null;
   present?: PagePerson[];
+  transcript?: string;
 };
 
 export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate) {
@@ -413,9 +418,10 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its keeper, who can see or edit it, its consent, and who was present aren't new versions.
+    // Its keeper, who can see or edit it, its consent, who was present, and the transcript aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.present ? { present: update.present } : {}),
+      ...(update.transcript !== undefined ? { transcript: update.transcript } : {}),
       ...(update.keeper ? { keeper: update.keeper } : {}),
       ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),

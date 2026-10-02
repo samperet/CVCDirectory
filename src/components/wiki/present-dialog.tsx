@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, UserPlus, Users, X } from "lucide-react";
+import { Check, ChevronRight, Mic, UserPlus, Users, X } from "lucide-react";
 import type { PagePerson } from "@/lib/wiki/store";
 import { NameCombobox } from "@/components/auth/name-combobox";
 import { useDirectory } from "@/components/directory/use-directory";
@@ -217,5 +217,33 @@ export function PresentLine({ present }: { present?: PagePerson[] }) {
       <span className="font-medium">Present:</span>
       {present.map((entry) => `${entry.name}${entry.personId ? "" : " (guest)"}`).join(", ")}
     </p>
+  );
+}
+
+/**
+ * The page's transcript, at its end, folded away: a single line saying it's
+ * there (and how long it is) until someone opens it.
+ */
+export function PageTranscript({ transcript }: { transcript?: string }) {
+  const text = transcript?.trim();
+  if (!text) return null;
+  const words = text.split(/\s+/).length;
+  return (
+    <details
+      className="group mx-6 mb-6 rounded-xl border border-border bg-surface/60 sm:mx-14"
+      data-page-transcript
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-foreground-light hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="h-4 w-4 shrink-0 transition group-open:rotate-90" aria-hidden />
+        <Mic className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        Transcript
+        <span className="font-normal text-muted">
+          · {words.toLocaleString()} {words === 1 ? "word" : "words"}
+        </span>
+      </summary>
+      <p className="whitespace-pre-wrap border-t border-border px-4 py-3 text-sm leading-relaxed text-foreground-light">
+        {text}
+      </p>
+    </details>
   );
 }

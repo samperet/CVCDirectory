@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { wikiPageQuery } from "@/components/wiki/link-data";
 import { useSession } from "@/lib/auth/client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import type { PageEditor } from "@/lib/wiki/presence";
@@ -603,7 +604,11 @@ export function WikiEditor({
       </p>
       {transcribing ? (
         <TranscriptPanel
-          pageId={initial.id}
+          initial={latest.current.transcript ?? ""}
+          onSave={async (transcript) => {
+            await apiFetch(url, { method: "PATCH", body: JSON.stringify({ transcript }) });
+            void queryClient.invalidateQueries({ queryKey: wikiPageQuery(initial.slug).queryKey });
+          }}
           onInsert={insertTranscript}
           onClose={() => setTranscribing(false)}
         />
