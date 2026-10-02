@@ -11,6 +11,8 @@ import type { PageEditor } from "@/lib/wiki/presence";
 import { blockStarts, mergeText } from "@/lib/wiki/merge";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import type { RichEditorHandle } from "@/components/wiki/rich-editor";
+import Link from "next/link";
+import { shortDate, timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import type { Circle } from "@/lib/circles/types";
@@ -58,6 +60,7 @@ export function WikiEditor({
   page: initial,
   pages,
   tools,
+  headerExtras,
   onDone,
 }: {
   circleId: string;
@@ -66,8 +69,10 @@ export function WikiEditor({
   circle?: Pick<Circle, "name" | "iconUrl"> | null;
   page: WikiPage;
   pages: WikiPageSummary[];
-  /** The page's settings (parent circle, colour, who can see it, history), shown under the title. */
+  /** The page's settings (parent circle, colour, who can see it, history), shown in the bar above the page. */
   tools?: ReactNode;
+  /** What the page's header shows under the title besides the date: the consent pill and controls. */
+  headerExtras?: ReactNode;
   /** Finished editing: the page as it now stands. */
   onDone: (page: WikiPage) => void;
 }) {
@@ -449,43 +454,23 @@ export function WikiEditor({
       style={{ "--docs-bar": `${barHeight}px` } as React.CSSProperties}
       data-wiki-editor
     >
-      {/* The title bar: like a document's, with the save state and Done. */}
+      {/* A slim bar that stays in view: the save state, the page's settings, and Done. */}
       <div
         ref={bar}
-        className="sticky top-16 z-20 flex flex-col gap-2 rounded-xl border border-border bg-background/95 px-3 py-2 shadow-soft backdrop-blur"
+        className="sticky top-16 z-20 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border bg-background/95 px-3 py-2 text-xs text-muted shadow-soft backdrop-blur"
       >
-        <div className="flex items-center gap-3">
-          {circle ? (
-            <CircleIcon circle={circle} size={36} className="hidden rounded-full sm:inline-flex" />
-          ) : null}
-          <Input
-            value={title}
-            maxLength={120}
-            onChange={(event) => setTitle(event.target.value)}
-            className="h-auto min-w-0 flex-1 border-0 bg-transparent px-1 py-1 font-display text-xl font-semibold shadow-none focus-visible:ring-2 sm:text-2xl"
-            aria-label="Title"
-            placeholder="Untitled page"
-          />
-          <p className="hidden shrink-0 text-xs text-muted sm:block" data-save-status>
-            {status}
-          </p>
-          <Button
-            size="sm"
-            className="shrink-0"
-            onClick={() => void finish()}
-            disabled={finishing || !title.trim()}
-          >
-            {finishing ? "Saving…" : "Done"}
-          </Button>
-        </div>
-        <p className="text-xs text-muted sm:hidden" data-save-status>
+        <p className="shrink-0" data-save-status>
           {status}
         </p>
-        {tools ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/70 pt-2 text-xs text-muted">
-            {tools}
-          </div>
-        ) : null}
+        {tools}
+        <Button
+          size="sm"
+          className="ml-auto shrink-0"
+          onClick={() => void finish()}
+          disabled={finishing || !title.trim()}
+        >
+          {finishing ? "Saving…" : "Done"}
+        </Button>
       </div>
 
       {offerDraft ? (
@@ -511,6 +496,44 @@ export function WikiEditor({
       ))}
 
       <div className="document-sheet" data-page-sheet>
+        {/* The page's head, as when reading it — with the title editable in place. */}
+        <header className="flex flex-col items-center gap-3 border-b border-border/70 px-6 pb-7 pt-9 text-center sm:px-14">
+          {circle ? (
+            <Link
+              href={`/circles/${circleId}`}
+              title={circle.name}
+              className="rounded-full shadow-soft ring-4 ring-white transition hover:scale-105"
+            >
+              <CircleIcon circle={circle} size={72} className="rounded-full" />
+            </Link>
+          ) : null}
+          <Input
+            value={title}
+            maxLength={120}
+            onChange={(event) => setTitle(event.target.value)}
+            className="h-auto w-full max-w-2xl border-0 bg-transparent px-2 py-1 text-center font-display text-3xl font-semibold leading-tight shadow-none hover:bg-accent/40 focus-visible:bg-white focus-visible:ring-2 sm:text-4xl"
+            aria-label="Title"
+            placeholder="Untitled page"
+          />
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted">
+            {circle ? (
+              <Link href={`/circles/${circleId}`} className="font-medium hover:underline">
+                {circle.name}
+              </Link>
+            ) : (
+              "—"
+            )}
+            <span aria-hidden>·</span>
+            <time
+              dateTime={synced.updatedAt}
+              title={`Last saved ${timeAgo(synced.updatedAt)}`}
+              data-page-date
+            >
+              {shortDate(synced.updatedAt, true)}
+            </time>
+          </p>
+          {headerExtras}
+        </header>
         {mode === "visual" ? (
           <div
             onKeyDownCapture={touch}

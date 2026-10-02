@@ -317,6 +317,21 @@ export function WikiPageClient({ slug }: { slug: string }) {
           circle={circle}
           page={page}
           pages={pages}
+          headerExtras={
+            <>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <ConsentPill page={page} />
+              </div>
+              {canManage ? (
+                <ConsentControls
+                  page={page}
+                  slug={slug}
+                  circleName={circle?.name ?? "The circle"}
+                  onSaved={saved}
+                />
+              ) : null}
+            </>
+          }
           tools={
             <>
               {canManage ? (
