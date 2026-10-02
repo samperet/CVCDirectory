@@ -52,7 +52,12 @@ Accounts and admin:
 
 ```bash
 npm install
+npm run seed   # sample residents and wiki pages in ./.data/ (no R2 needed)
+AUTH_SECRET=local-test ADMIN_PERSON_IDS=000000000006 npm run dev
 ```
+
+Sign in as any of the people the seed prints (Finn Fir is an admin). With no `R2_*` variables, all
+data lives in `./.data/`, which is gitignored.
 
 ### Development
 
@@ -519,17 +524,27 @@ bulk: `{"residents": [{"personId", "resident"}], "leaveUnit": [{"personId", "uni
 
 ```
 src/
-  app/           # Next.js App Router routes
-  components/    # Reusable UI and feature components
-  lib/           # Storage (R2), auth, feature stores, utilities
-  middleware.ts  # Sends signed-out visitors to the sign-in page
+  app/              # Pages (thin server shells) and the API (app/api/**/route.ts)
+  components/       # Client components by feature; ui/ holds the primitives
+  lib/<feature>/    # shared.ts (types, pure helpers) · store.ts (R2 JSON) · access.ts (who may) · http.ts (route helpers)
+  lib/storage.ts    # The only module that talks to R2 (or ./.data/ locally)
+  lib/http.ts       # problem(), readBody(), throttled() — used by every route
+  middleware.ts     # Sends signed-out visitors to the sign-in page
+scripts/seed-local.mjs   # Sample data for local work
+docs/ARCHITECTURE.md     # How it fits together; CLAUDE.md has the conventions for people and AIs working on it
 ```
 
-## Testing Notes
+## Testing
 
-- The repository uses React Query for optimistic updates.
-- API endpoints follow RESTful patterns with JSON problem details on error.
-- Rate limiting is intentionally lightweight and in-memory; adjust for production as needed.
+- `npm run check` runs lint, the type-check, and the unit tests (`npm test`: vitest over
+  `src/**/*.test.ts`, kept beside the code — the paragraph merge, the proposal review clock, circle
+  modules, the route helpers).
+- End to end: `npm run seed`, then either `npm run dev` or `npm run build && npm start` with
+  `AUTH_SECRET` and `ADMIN_PERSON_IDS` set; sign in through the UI or `POST /api/auth/login
+  {personId, phone}` and exercise the API with curl and the pages with Playwright. Fixtures are
+  synthetic: never put real residents in the repository.
+- API errors are JSON problem details (`{type, title, status, detail}`); rate limiting is in-memory
+  per server instance.
 
 ## License
 

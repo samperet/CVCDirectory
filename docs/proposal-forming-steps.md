@@ -1,9 +1,11 @@
 # Proposal-Forming
 
-The sociocratic proposal-forming steps our community follows. The interactive
-proposal pages in this app (see `/proposals`) are designed around this process:
-per-section questions surface *aspects of the issue*, and threaded responses
-work objections toward integration before consent rounds.
+The sociocratic proposal-forming steps our community follows. In the app, a
+proposal is brought to a circle meeting in the Minutes Maker (a circle's
+**Meetings** module → a meeting → **Add proposal**) and then sent for a 5-day
+consent review, where the circle's members log tensions and can raise a
+Reasoned Objection (see the README, "Meetings & minutes"). The steps below are
+the work that happens before and around that review.
 
 **1. Present the issue.** *(A problem or opportunity)*
 
