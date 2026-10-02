@@ -1,3 +1,5 @@
+import { TIME_ZONE, todayInVermont } from "@/lib/time";
+
 /**
  * Duty rotations for circles (e.g. the Chicken Tenders' daily chicken and
  * compost duty). A schedule assigns each weekday to one household, or to
@@ -9,7 +11,7 @@
  * taken in Eastern time, where the community is.
  */
 
-export const SCHEDULE_TIME_ZONE = "America/New_York";
+export const SCHEDULE_TIME_ZONE = TIME_ZONE;
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -89,9 +91,8 @@ export function weekdayOf(date: string) {
   return (((dayNumber(date) + 4) % 7) + 7) % 7;
 }
 
-export function todayIso(timeZone = SCHEDULE_TIME_ZONE) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-}
+/** Today, as the schedule counts it (YYYY-MM-DD in Vermont). */
+export const todayIso = () => todayInVermont();
 
 /** Who the weekly rotation puts on duty, ignoring one-off changes. */
 export function regularDuty(schedule: Pick<DutySchedule, "anchor" | "weekdays">, date: string): string | null {

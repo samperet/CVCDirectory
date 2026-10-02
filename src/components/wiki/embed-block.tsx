@@ -6,10 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Pencil } from "lucide-react";
 import { parseWikiLink } from "@/lib/wiki/links";
 import { headingSlug, sectionOf } from "@/lib/wiki/sections";
-import { noteStyle } from "@/lib/wiki/colors";
-import { pageTitled, useCircles, wikiPageQuery, wikiPagesQuery } from "@/components/wiki/link-data";
+import { pageStyle } from "@/lib/wiki/colors";
+import { pageTitled, wikiPageQuery, wikiPagesQuery } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiMarkdown } from "@/components/wiki/markdown";
+import { useCircles } from "@/components/directory/use-directory";
 
 /**
  * A page — or one section of it — shown inside another
@@ -71,7 +72,7 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
       </Notice>
     );
   }
-  const style = noteStyle(page.color);
+  const style = pageStyle(page.color);
   const keeper = circles.find((circle) => circle.id === page.keeper);
   const own = page.keeper === here?.circleId;
   return (

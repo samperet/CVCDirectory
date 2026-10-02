@@ -4,7 +4,7 @@ import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { excerptOf, pageColor } from "@/lib/wiki/excerpt";
-import type { NoteColor } from "@/lib/wiki/colors";
+import type { PageColor } from "@/lib/wiki/colors";
 
 /**
  * The map of how the wiki connects (for everyone, each seeing the pages
@@ -12,7 +12,7 @@ import type { NoteColor } from "@/lib/wiki/colors";
  * (or embeds).
  */
 
-export type GraphNodeKind = "note" | "circle";
+export type GraphNodeKind = "page" | "circle";
 export type GraphEdgeKind = "link" | "belongs";
 
 export interface GraphNode {
@@ -22,7 +22,7 @@ export interface GraphNode {
   href: string;
   /** A page's parent circle. */
   circleId?: string;
-  color?: NoteColor;
+  color?: PageColor;
   /** A page's opening lines, for the map's hover card. */
   excerpt?: string;
   /** Who last edited a page, and when. */
@@ -41,7 +41,7 @@ export interface WikiGraph {
   circles: { id: string; name: string }[];
 }
 
-const noteId = (pageId: string) => `note:${pageId}`;
+const pageNode = (pageId: string) => `page:${pageId}`;
 
 /** The map as `viewer` sees it: only the pages they can see (and so only the links between those). */
 export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiViewer): Promise<WikiGraph> {
@@ -66,9 +66,9 @@ export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiV
   const byTitle = new Map<string, WikiPage>();
   for (const page of pages) {
     addCircle(page.keeper);
-    nodes.set(noteId(page.id), {
-      id: noteId(page.id),
-      kind: "note",
+    nodes.set(pageNode(page.id), {
+      id: pageNode(page.id),
+      kind: "page",
       label: page.title,
       href: `/wiki/${page.slug}`,
       circleId: page.keeper,
@@ -79,14 +79,14 @@ export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiV
     byTitle.set(page.title.toLowerCase(), page);
   }
   // Each page belongs to its keeper.
-  for (const page of pages) addEdge(noteId(page.id), `circle:${page.keeper}`, "belongs");
+  for (const page of pages) addEdge(pageNode(page.id), `circle:${page.keeper}`, "belongs");
 
   // Links between pages (embeds count). Documents aren't on the map.
   for (const page of pages) {
     for (const link of [...wikiLinksIn(page.body, circles), ...embeddedPages(page.body, circles)]) {
       if (link.kind !== "page") continue;
       const target = byTitle.get(link.title.toLowerCase());
-      if (target) addEdge(noteId(page.id), noteId(target.id), "link");
+      if (target) addEdge(pageNode(page.id), pageNode(target.id), "link");
     }
   }
 

@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, SECTION_SIZES, TASK_ADDERS, type CircleModule } from "./layout";
+import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, MODULE_SIZES, TASK_ADDERS, type CircleModule } from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { BOARD_ID, COMMUNITY_ID, isCommunity } from "./ids";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
 /**
@@ -12,15 +13,13 @@ import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/type
  */
 
 const KEY = "circles/circles.json";
-export const BOARD_ID = "board";
+export { BOARD_ID, COMMUNITY_ID, isCommunity };
 /**
  * The Community circle: everyone who lives at CVC, without a member list.
  * It always exists, can't be deleted or joined, holds community documents
  * (any resident can add them), and has the Community Forum.
  */
-export const COMMUNITY_ID = "community";
 const COMMUNITY: Circle = { id: COMMUNITY_ID, name: "Community", description: "Everyone who lives at CVC.", seats: [] };
-export const isCommunity = (circleId: string) => circleId === COMMUNITY_ID;
 
 const text = (max: number, label: string) =>
   z.string().trim().max(max, `${label} must be ${max} characters or fewer`);
@@ -37,7 +36,7 @@ const moduleSchema = z
   .object({
     id,
     type: z.enum(MODULE_TYPES),
-    size: z.enum(SECTION_SIZES),
+    size: z.enum(MODULE_SIZES),
     title: text(60, "A module's title").optional().transform((value) => value || undefined),
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),

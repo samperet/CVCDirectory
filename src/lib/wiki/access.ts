@@ -1,9 +1,9 @@
 import { isAdmin } from "@/lib/auth/admins";
 import { canManageCircle } from "@/lib/circles/icons";
-import { BOARD_ID, COMMUNITY_ID } from "@/lib/circles/store";
 import { canUploadTo } from "@/lib/documents/access";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { WikiPageSummary } from "./store";
+import { COMMUNITY_ID, sitsOnBoard } from "@/lib/circles/ids";
 
 /**
  * Who can see, edit, and look after each wiki page. Each page sets its own
@@ -23,7 +23,7 @@ import type { WikiPageSummary } from "./store";
 export type WikiViewer = { id: string; personId?: string | null; isAdmin?: boolean };
 type Page = Pick<WikiPageSummary, "keeper" | "view" | "edit">;
 
-const onBoard = (user: WikiViewer, directory: DirectoryDocument) => isAdmin(user) || (!!user.personId && canManageCircle(directory, BOARD_ID, user.personId));
+const onBoard = (user: WikiViewer, directory: DirectoryDocument) => isAdmin(user) || sitsOnBoard(directory.circles, user.personId);
 
 /** Its keeper circle (its members, the Board, admins; anyone for Community). */
 export const keepsPage = (user: WikiViewer, directory: DirectoryDocument, page: Pick<Page, "keeper">) => canUploadTo(user, directory, page.keeper);

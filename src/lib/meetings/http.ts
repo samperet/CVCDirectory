@@ -7,6 +7,7 @@ import { notify } from "@/lib/push/notify";
 import { problem } from "@/lib/http";
 import type { Circle } from "@/lib/directory/types";
 import { claimConsents, type Failure, type ProposalActor } from "./store";
+import { proposalHref } from "./shared";
 
 /**
  * Who may do what with a circle's meetings. Every signed-in resident reads
@@ -57,8 +58,6 @@ export function meetingsProblem(reason: Failure) {
 export const editProblem = () => problem("Only this circle's members, the Board, and admins can take its minutes", 403);
 export const reviewProblem = () => problem("Only this circle's members review its proposals", 403);
 
-export const proposalUrl = (circleId: string, proposalId: string) => `/circles/${circleId}/proposals/${proposalId}`;
-
 /** The circle's members' accounts. */
 export const memberUserIds = (circle: Circle) => userIdsForPeople(circle.seats.map((seat) => seat.personId));
 
@@ -73,7 +72,7 @@ export async function announceConsents(circle: Circle) {
         topic: "proposals",
         title: `Consented: ${proposal.title}`,
         body: `${circle.name}'s proposal finished its review with no objections.`,
-        url: proposalUrl(circle.id, proposal.id),
+        url: proposalHref(circle.id, proposal.id),
         tag: `proposal-${proposal.id}`,
         exceptUserId: null,
         onlyUserIds: members,

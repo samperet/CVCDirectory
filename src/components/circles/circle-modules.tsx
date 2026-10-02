@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, Settings2, Trash2 } from "lucide-react";
-import { SECTION_SIZES, SIZE_LABELS, SIZE_NAMES, type CircleModule, type SectionSize } from "@/lib/circles/layout";
+import { MODULE_SIZES, SIZE_LABELS, SIZE_NAMES, type CircleModule, type ModuleSize } from "@/lib/circles/layout";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -14,14 +14,14 @@ import { cn } from "@/lib/utils";
  * the arrows), pick their sizes, set Information modules up, and remove them.
  */
 
-const SPAN: Record<SectionSize, string> = {
+const SPAN: Record<ModuleSize, string> = {
   small: "lg:col-span-2",
   medium: "lg:col-span-3",
   large: "lg:col-span-4",
   full: "lg:col-span-6",
 };
 
-export interface SectionDefinition {
+export interface ModuleView {
   title: string;
   icon?: React.ReactNode;
   content: React.ReactNode;
@@ -30,7 +30,7 @@ export interface SectionDefinition {
 }
 
 /** Each module's title, icon, and content, by module id (a module without one isn't shown). */
-export type ModuleSections = Record<string, SectionDefinition | undefined>;
+export type ModuleViews = Record<string, ModuleView | undefined>;
 
 const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   information: " Its pages stay in the wiki.",
@@ -39,12 +39,12 @@ const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   documents: " The circle's documents are kept, and come back if you add Documents again.",
 };
 
-type SectionState = { collapsed: boolean; toggle: () => void; title: string };
-const SectionContext = createContext<SectionState | null>(null);
+type ModuleState = { collapsed: boolean; toggle: () => void; title: string };
+const ModuleContext = createContext<ModuleState | null>(null);
 
-/** Fold or unfold the section a heading belongs to (nothing, outside a circle page's sections). */
-export function SectionToggle({ className }: { className?: string }) {
-  const section = useContext(SectionContext);
+/** Fold or unfold the module a heading belongs to (nothing, outside a circle page). */
+export function ModuleToggle({ className }: { className?: string }) {
+  const section = useContext(ModuleContext);
   if (!section) return null;
   return (
     <button
@@ -88,8 +88,8 @@ function useCollapsed(circleId: string) {
   return [folded, toggle] as const;
 }
 
-/** A folded section: its title, to unfold it. */
-function FoldedSection({ title, icon, onOpen }: { title: string; icon?: React.ReactNode; onOpen: () => void }) {
+/** A folded module: its title, to unfold it. */
+function FoldedModule({ title, icon, onOpen }: { title: string; icon?: React.ReactNode; onOpen: () => void }) {
   return (
     <Card className="p-0">
       <button type="button" onClick={onOpen} className="flex w-full items-center gap-2 rounded-2xl px-5 py-3.5 text-left hover:bg-accent/50" aria-expanded={false}>
@@ -101,7 +101,7 @@ function FoldedSection({ title, icon, onOpen }: { title: string; icon?: React.Re
   );
 }
 
-export function CircleSections({ circleId, modules, sections }: { circleId: string; modules: CircleModule[]; sections: ModuleSections }) {
+export function CircleModules({ circleId, modules, sections }: { circleId: string; modules: CircleModule[]; sections: ModuleViews }) {
   const [folded, toggle] = useCollapsed(circleId);
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-flow-row-dense lg:grid-cols-6">
@@ -110,10 +110,10 @@ export function CircleSections({ circleId, modules, sections }: { circleId: stri
         if (!section) return null;
         const collapsed = folded.includes(id);
         return (
-          <div key={id} id={id} className={cn("min-w-0 scroll-mt-24", SPAN[size])} data-section={type} data-module={id}>
-            <SectionContext.Provider value={{ collapsed, toggle: () => toggle(id), title: section.title }}>
-              {collapsed ? <FoldedSection title={section.title} icon={section.icon} onOpen={() => toggle(id)} /> : section.content}
-            </SectionContext.Provider>
+          <div key={id} id={id} className={cn("min-w-0 scroll-mt-24", SPAN[size])} data-module={type} data-module-id={id}>
+            <ModuleContext.Provider value={{ collapsed, toggle: () => toggle(id), title: section.title }}>
+              {collapsed ? <FoldedModule title={section.title} icon={section.icon} onOpen={() => toggle(id)} /> : section.content}
+            </ModuleContext.Provider>
           </div>
         );
       })}
@@ -126,14 +126,14 @@ export function CircleSections({ circleId, modules, sections }: { circleId: stri
  * moved with its arrows, on phones), sized for wider screens, set up (an
  * Information module's pages), or removed.
  */
-export function ArrangeSections({
+export function ModuleEditor({
   modules: layout,
   sections,
   onChange,
   onSettings,
 }: {
   modules: CircleModule[];
-  sections: ModuleSections;
+  sections: ModuleViews;
   onChange: (modules: CircleModule[]) => void;
   onSettings: (module: CircleModule) => void;
 }) {
@@ -146,7 +146,7 @@ export function ArrangeSections({
     onChange(next);
   };
   const remove = (id: string) => onChange(layout.filter((entry) => entry.id !== id));
-  const resize = (id: string, size: SectionSize) => onChange(layout.map((entry) => (entry.id === id ? { ...entry, size } : entry)));
+  const resize = (id: string, size: ModuleSize) => onChange(layout.map((entry) => (entry.id === id ? { ...entry, size } : entry)));
   const control = "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white text-foreground transition hover:bg-accent disabled:opacity-40";
   return (
     <div className="grid grid-cols-1 items-start gap-4 lg:grid-flow-row-dense lg:grid-cols-6">
@@ -157,8 +157,9 @@ export function ArrangeSections({
         return (
           <div
             key={id}
-            data-arrange={module.type}
-            data-module={id}
+            data-module={module.type}
+            data-module-id={id}
+            data-editing=""
             className={cn("min-w-0", SPAN[size])}
             draggable
             onDragStart={(event) => {
@@ -209,7 +210,7 @@ export function ArrangeSections({
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span>Size</span>
                 <div className="inline-flex rounded-full border border-border bg-white p-0.5" role="radiogroup" aria-label={`${section.title} size`}>
-                  {SECTION_SIZES.map((option) => (
+                  {MODULE_SIZES.map((option) => (
                     <button
                       key={option}
                       type="button"

@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle, DirectoryDocument } from "@/lib/directory/types";
 import type { DocumentListing } from "@/lib/documents/types";
 import type { WikiPage, WikiPageSummary, WikiVersion } from "@/lib/wiki/store";
 
@@ -18,11 +17,6 @@ export const wikiPagesQuery = () => ({
 /** The page a link's title names (titles are unique across the wiki). */
 export const pageTitled = (pages: WikiPageSummary[] | undefined, title: string) => pages?.find((page) => page.title.toLowerCase() === title.trim().toLowerCase());
 
-/** Every circle, from the directory — undefined until it loads. */
-export function useCircles(): Circle[] | undefined {
-  return useQuery({ queryKey: ["directory"], queryFn: () => apiFetch<DirectoryDocument>("/api/directory") }).data?.circles;
-}
-
 /** A document, as much as a link to it needs. */
 export interface DocRef {
   id: string;
@@ -34,7 +28,7 @@ export interface DocRef {
 /** Every document's title (fetched only when something needs them). */
 export function useDocTitles(enabled = true) {
   return useQuery({
-    queryKey: ["wiki-doc-titles"],
+    queryKey: ["documents", "titles"],
     enabled,
     staleTime: 60_000,
     queryFn: async (): Promise<DocRef[]> =>

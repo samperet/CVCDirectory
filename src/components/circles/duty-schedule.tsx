@@ -25,7 +25,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-import { SectionToggle } from "@/components/circles/circle-sections";
+import { ModuleToggle } from "@/components/circles/circle-modules";
 
 export interface ScheduleResponse {
   schedule: DutySchedule | null;
@@ -295,7 +295,7 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-            <SectionToggle />
+            <ModuleToggle />
             {schedule.title}
           </h2>
           <p className="text-sm text-muted">

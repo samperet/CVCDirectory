@@ -6,6 +6,7 @@ import { getPage, isSlug, type WikiPage } from "./store";
 import { userIdsForPeople } from "@/lib/auth/users";
 import type { Circle, DirectoryDocument } from "@/lib/directory/types";
 import type { CommunityUser } from "@/lib/auth/users";
+import { BOARD_ID, COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 
 /**
  * The wiki's routes: who's asking (any signed-in resident), and — for a
@@ -51,9 +52,9 @@ export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_versio
 
 /** Who should hear about a page: everyone (null), or — for a page not everyone can see — those who can. */
 export async function pageAudience(directory: DirectoryDocument, page: Pick<WikiPage, "keeper" | "view">): Promise<string[] | null> {
-  if (page.view.kind === "everyone" || page.keeper === "community") return null;
-  const circles = new Set([page.keeper, "board", ...(page.view.kind === "circles" ? page.view.circles : [])]);
-  if (circles.has("community")) return null;
+  if (page.view.kind === "everyone" || isCommunity(page.keeper)) return null;
+  const circles = new Set([page.keeper, BOARD_ID, ...(page.view.kind === "circles" ? page.view.circles : [])]);
+  if (circles.has(COMMUNITY_ID)) return null;
   const people = directory.circles.filter((circle) => circles.has(circle.id)).flatMap((circle) => circle.seats.map((seat) => seat.personId));
   return userIdsForPeople(people);
 }

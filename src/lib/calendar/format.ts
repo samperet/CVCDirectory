@@ -1,6 +1,6 @@
 import type { CalendarEvent } from "./events";
 
-const TIME_ZONE = "America/New_York";
+import { TIME_ZONE } from "@/lib/time";
 const DAY_MS = 86_400_000;
 
 const dateFormat = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, weekday: "long", month: "long", day: "numeric" });

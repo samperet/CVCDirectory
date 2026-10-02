@@ -17,14 +17,15 @@ import {
   type ModuleType,
 } from "@/lib/circles/layout";
 import type { Circle } from "@/lib/directory/types";
-import { noteStyle } from "@/lib/wiki/colors";
-import { pagesFor } from "@/components/wiki/information-module";
-import { useCircles } from "@/components/wiki/link-data";
+import { pageStyle } from "@/lib/wiki/colors";
+import { pagesFor } from "@/components/circles/information-module";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { isCommunity } from "@/lib/circles/ids";
+import { useCircles } from "@/components/directory/use-directory";
 
 /** Adding a module to a circle's page, and setting up an Information module's pages. */
 
@@ -86,7 +87,7 @@ export function AddModuleDialog({
   const offered = (["information", "members", "meetings", "schedule", "tasks", "documents"] as const).filter((type) => {
     if (type === "information") return true;
     if (modules.some((module) => module.type === type)) return false;
-    if (type === "members" || type === "meetings") return circle.id !== "community";
+    if (type === "members" || type === "meetings") return !isCommunity(circle.id);
     if (type === "schedule") return hasSchedule;
     return true;
   });
@@ -168,7 +169,7 @@ const FILTER_KINDS: [InfoFilter["kind"], string][] = [
 export function InformationSettings({ circle, module, onSave, onClose }: { circle: Circle; module: CircleModule; onSave: (module: CircleModule) => void; onClose: () => void }) {
   const { data: wiki } = useWikiPages();
   const pages = useMemo(() => wiki?.pages ?? [], [wiki]);
-  const circles = (useCircles() ?? []).slice().sort((a, b) => (a.id === "community" ? -1 : b.id === "community" ? 1 : a.name.localeCompare(b.name)));
+  const circles = (useCircles() ?? []).slice().sort((a, b) => (isCommunity(a.id) ? -1 : isCommunity(b.id) ? 1 : a.name.localeCompare(b.name)));
   const start = module.info ?? { filter: { kind: "circle" as const, circleId: circle.id }, view: DEFAULT_INFO_VIEW };
   const [title, setTitle] = useState(module.title ?? "");
   const [kind, setKind] = useState<InfoFilter["kind"]>(start.filter.kind);
@@ -241,7 +242,7 @@ export function InformationSettings({ circle, module, onSave, onClose }: { circl
                     const page = byId.get(id);
                     return (
                       <li key={id} className="flex items-center gap-1.5 rounded-md border border-border bg-white px-2 py-1 text-sm">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: noteStyle(page?.color).swatch }} aria-hidden />
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: pageStyle(page?.color).swatch }} aria-hidden />
                         <span className={cn("min-w-0 flex-1 truncate", !page && "italic text-muted")}>{page?.title ?? "A page you can't see"}</span>
                         <button type="button" className={small} onClick={() => moveChosen(index, index - 1)} disabled={index === 0} aria-label={`Move ${page?.title ?? "page"} up`}>
                           <ArrowUp className="h-3.5 w-3.5" />

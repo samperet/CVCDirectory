@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
-import { NameTip, nodeFill } from "@/components/admin/wiki-map-shared";
+import { NameTip, nodeFill } from "@/components/wiki/map-shared";
 
 /**
  * The wiki in 3D: each circle a glowing sphere with its pages gathered
@@ -58,7 +58,7 @@ export function Globe3DView({
         .showNavInfo(false)
         .graphData({ nodes, links })
         .nodeId("id")
-        .nodeVal((node: Node3D) => (node.kind === "circle" ? 28 : node.kind === "note" ? 4 : 2.5))
+        .nodeVal((node: Node3D) => (node.kind === "circle" ? 28 : node.kind === "page" ? 4 : 2.5))
         .nodeColor((node: Node3D) => (node.kind === "circle" ? hue(node) : nodeFill(node)))
         .nodeOpacity(0.92)
         .nodeResolution(24)

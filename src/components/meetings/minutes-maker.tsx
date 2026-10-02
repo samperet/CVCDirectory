@@ -10,7 +10,6 @@ import { mergeText } from "@/lib/wiki/merge";
 import { REVIEW_DAYS, proposalState, type Attendee, type Meeting, type Proposal } from "@/lib/meetings/shared";
 import { BackLink } from "@/components/layout/back-link";
 import { NameCombobox, type NameOption } from "@/components/auth/name-combobox";
-import { useDirectory } from "@/components/tasks/task-bits";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { ProposalBadge, meetingDate, meetingQuery, proposalHref, useNow, type MeetingResponse } from "@/components/meetings/meetings-data";
@@ -21,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { useDirectory } from "@/components/directory/use-directory";
 
 const SAVE_AFTER_MS = 1200;
 

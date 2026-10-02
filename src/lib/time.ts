@@ -1,4 +1,12 @@
 /** Compact relative time: "just now", "5m ago", "3h ago", "2d ago", then a date. */
+/** CVC's time zone: "today", calendars, and clocks are worked out in it, wherever the reader is. */
+export const TIME_ZONE = "America/New_York";
+
+/** Today in Vermont, as YYYY-MM-DD. */
+export function todayInVermont(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
 export function timeAgo(iso: string, now = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
   if (seconds < 60) return "just now";

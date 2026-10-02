@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { DEFAULT_NOTE_COLOR, type NoteColor } from "@/lib/wiki/colors";
+import { DEFAULT_PAGE_COLOR, type PageColor } from "@/lib/wiki/colors";
 import type { WikiPage } from "@/lib/wiki/store";
 import { ColorSwatches } from "@/components/wiki/color-swatches";
 import { Dialog } from "@/components/ui/dialog";
@@ -23,7 +23,7 @@ export function AddInformationDialog({ circle, onClose }: { circle: { id: string
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
-  const [color, setColor] = useState<NoteColor>(DEFAULT_NOTE_COLOR);
+  const [color, setColor] = useState<PageColor>(DEFAULT_PAGE_COLOR);
   const create = useMutation({
     mutationFn: () => apiFetch<{ page: WikiPage }>("/api/wiki/pages", { method: "POST", body: JSON.stringify({ title: title.trim(), body: "", color, keeper: circle.id }) }),
     onSuccess: ({ page }) => {

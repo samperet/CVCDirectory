@@ -32,8 +32,7 @@ export const proposalQuery = (circleId: string, proposalId: string) => ({
   queryFn: () => apiFetch<ProposalResponse>(`/api/circles/${circleId}/proposals/${proposalId}`),
 });
 
-export const meetingHref = (circleId: string, meetingId: string) => `/circles/${circleId}/meetings/${meetingId}`;
-export const proposalHref = (circleId: string, proposalId: string) => `/circles/${circleId}/proposals/${proposalId}`;
+export { meetingHref, proposalHref } from "@/lib/meetings/shared";
 
 /** "Thu, Oct 2, 2026", from YYYY-MM-DD. */
 export const meetingDate = (date: string) =>

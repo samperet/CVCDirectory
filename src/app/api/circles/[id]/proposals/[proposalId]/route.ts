@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProposal, editProposal, proposalUpdateSchema, readCircleMeetings, startReview, withdrawProposal } from "@/lib/meetings/store";
-import { announceConsents, editProblem, meetingsContext, meetingsProblem, memberUserIds, proposalUrl } from "@/lib/meetings/http";
-import { summarizeMeeting } from "@/lib/meetings/shared";
+import { announceConsents, editProblem, meetingsContext, meetingsProblem, memberUserIds } from "@/lib/meetings/http";
+import { proposalHref, summarizeMeeting } from "@/lib/meetings/shared";
 import { notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
+import { TIME_ZONE } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string; proposalId: string } };
 
-const longDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric" });
+const longDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: TIME_ZONE, weekday: "short", month: "short", day: "numeric" });
 
 /** A proposal with its review (comments, objections, history), the meeting it came from, and what you can do. */
 export async function GET(_request: Request, { params }: Params) {
@@ -49,7 +50,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       topic: "proposals",
       title: `For review: ${proposal.title}`,
       body: `${ctx.circle.name}: log any tensions or objections by ${longDate(proposal.review!.deadline!)}.`,
-      url: proposalUrl(params.id, proposal.id),
+      url: proposalHref(params.id, proposal.id),
       tag: `proposal-${proposal.id}`,
       exceptUserId: ctx.user.id,
       onlyUserIds: await memberUserIds(ctx.circle),

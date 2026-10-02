@@ -9,6 +9,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { PublicHome } from "@/components/home/public-home";
 import { publicHomes } from "@/lib/homes/store";
 import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
+import { TIME_ZONE } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export const metadata = {
 
 /** "Good morning", by the time of day in Vermont. */
 function greeting(now = new Date()) {
-  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "America/New_York" }).format(now));
+  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: TIME_ZONE }).format(now));
   return hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 }
 
@@ -69,7 +70,7 @@ export default async function HomePage() {
   if (!user) return <PublicHome homes={await publicHomes().catch(() => [])} />;
   const [nextEvent] = await getUpcomingEvents(1);
   const firstName = user.name.split(/\s+/)[0];
-  const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/New_York" }).format(new Date());
+  const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: TIME_ZONE }).format(new Date());
   return (
     <div className="flex flex-col gap-6">
       <section className="relative overflow-hidden rounded-2xl bg-forest px-6 py-7 text-white shadow-soft md:px-8 md:py-9">

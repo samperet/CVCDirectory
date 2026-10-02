@@ -1,17 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import { featureEnabled } from "@/lib/circles/features";
-import type { DirectoryDocument } from "@/lib/directory/types";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { Card } from "@/components/ui/card";
 import { SectionArt } from "@/components/layout/section-art";
+import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 /** Every circle's documents in one place, searchable by title and contents. */
 export function DocumentsPage() {
-  const { data } = useQuery({ queryKey: ["directory"], queryFn: () => apiFetch<DirectoryDocument>("/api/directory") });
+  const { data } = useDirectoryQuery();
   const { user } = useSession();
   const circles = (data?.circles ?? []).map((circle) => ({ id: circle.id, name: circle.name })).sort((a, b) => a.name.localeCompare(b.name));
   // Where this resident can add documents: their own circles — or every circle, for the Board and admins.
@@ -20,7 +19,7 @@ export function DocumentsPage() {
   // Everyone is in the Community circle.
   const documentsOn = new Set((data?.circles ?? []).filter((circle) => featureEnabled(circle, "documents")).map((circle) => circle.id));
   const uploadCircles = (
-    user?.isAdmin || inCircle("board") ? circles : circles.filter((circle) => inCircle(circle.id) || (circle.id === "community" && !!user?.personId))
+    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId) ? circles : circles.filter((circle) => inCircle(circle.id) || (isCommunity(circle.id) && !!user?.personId))
   ).filter((circle) => documentsOn.has(circle.id));
   return (
     <div className="flex flex-col gap-6">

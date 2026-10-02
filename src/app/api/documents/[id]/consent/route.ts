@@ -4,8 +4,8 @@ import { circleContext } from "@/lib/circles/access";
 import { canConsentDocument, toListing } from "@/lib/documents/access";
 import { getDocument, isDocumentId, setConsent } from "@/lib/documents/store";
 import { readTypeMap } from "@/lib/documents/type-store";
-import { todayInVermont } from "@/lib/tasks/shared";
 import { problem, readBody } from "@/lib/http";
+import { todayInVermont } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 

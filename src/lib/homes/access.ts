@@ -3,12 +3,12 @@ import { getSessionUser } from "@/lib/auth/session";
 import { readDirectory } from "@/lib/directory/store";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { problem } from "@/lib/http";
+import { sitsOnBoard } from "@/lib/circles/ids";
 
 /** Homes for sale are managed by admins and the Board. */
 export function canManageHomes(user: { personId?: string | null }, directory: DirectoryDocument | null) {
   if (isAdmin(user)) return true;
-  const board = directory?.circles.find((circle) => circle.id === "board");
-  return !!user.personId && !!board?.seats.some((seat) => seat.personId === user.personId);
+  return sitsOnBoard(directory?.circles ?? [], user.personId);
 }
 
 /** The signed-in admin or Board member, or the response refusing everyone else. */

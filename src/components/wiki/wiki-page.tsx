@@ -12,17 +12,18 @@ import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { timeAgo } from "@/lib/time";
-import { DEFAULT_NOTE_COLOR, noteStyle, type NoteColor } from "@/lib/wiki/colors";
+import { DEFAULT_PAGE_COLOR, pageStyle, type PageColor } from "@/lib/wiki/colors";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
 import { ColorSwatches } from "@/components/wiki/color-swatches";
 import { WikiComments, threadsOf, useComments, useQuoteHighlights } from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
 import { useWikiPages } from "@/components/wiki/wiki-client";
-import { useCircles, wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
+import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { useCircles } from "@/components/directory/use-directory";
 
 const NO_THREADS: never[] = [];
 
@@ -125,7 +126,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
     onError: (err: Error) => toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
   const recolor = useMutation({
-    mutationFn: (color: NoteColor) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
+    mutationFn: (color: PageColor) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
@@ -173,7 +174,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
   };
 
   const back = <BackLink href="/wiki" label="Wiki" />;
-  const paper = noteStyle(page?.color);
+  const paper = pageStyle(page?.color);
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (error || !page) {
     return (
@@ -213,7 +214,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <span>Parent circle {circle?.name ?? "—"}</span>
             )}
             <span className="flex items-center gap-2">
-              Colour <ColorSwatches size="sm" value={page.color ?? DEFAULT_NOTE_COLOR} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
+              Colour <ColorSwatches size="sm" value={page.color ?? DEFAULT_PAGE_COLOR} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
             </span>
             <span className="flex flex-wrap items-center gap-2">
               {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}

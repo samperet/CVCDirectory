@@ -24,13 +24,13 @@ import { BackLink } from "@/components/layout/back-link";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { ProposalBadge, dateTime, meetingDate, meetingHref, proposalQuery, useNow, type ProposalResponse } from "@/components/meetings/meetings-data";
-import { useDirectory } from "@/components/tasks/task-bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { useDirectory } from "@/components/directory/use-directory";
 
 type Change = { proposal: Proposal; comment?: ProposalComment | null };
 

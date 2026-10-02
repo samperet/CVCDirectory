@@ -10,7 +10,7 @@ import { $createWikiLinkNode } from "@/components/wiki/wiki-link-node";
 import { addComposerChild$, realmPlugin } from "@mdxeditor/editor";
 import { BookOpen, FileText, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { noteStyle } from "@/lib/wiki/colors";
+import { pageStyle } from "@/lib/wiki/colors";
 import { docLinkText, pageLinkText } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
 
@@ -132,7 +132,7 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
                       className={cn("flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5", selectedIndex === index ? "bg-accent text-foreground" : "text-foreground")}
                     >
                       {option.kind === "page" ? (
-                        <span className="h-3 w-3 shrink-0 rounded-sm border border-black/15" style={{ backgroundColor: noteStyle(option.color).swatch }} aria-hidden />
+                        <span className="h-3 w-3 shrink-0 rounded-sm border border-black/15" style={{ backgroundColor: pageStyle(option.color).swatch }} aria-hidden />
                       ) : (
                         <Icon className="h-4 w-4 shrink-0 text-muted" aria-hidden />
                       )}

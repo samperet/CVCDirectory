@@ -6,13 +6,13 @@ import { BookOpen, Plus } from "lucide-react";
 import { moduleTitle, type CircleModule, type InfoFilter } from "@/lib/circles/layout";
 import type { Circle } from "@/lib/directory/types";
 import type { WikiPageSummary } from "@/lib/wiki/store";
-import { SectionToggle } from "@/components/circles/circle-sections";
-import { AddInformationDialog } from "@/components/wiki/add-information-dialog";
+import { ModuleToggle } from "@/components/circles/circle-modules";
+import { AddInformationDialog } from "@/components/circles/add-information-dialog";
 import { PageGrid } from "@/components/wiki/page-cards";
-import { useCircles } from "@/components/wiki/link-data";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useCircles } from "@/components/directory/use-directory";
 
 /**
  * The pages a filter picks, of those you can see: chosen ones in their
@@ -56,7 +56,7 @@ export function InformationModule({ circle, module, canAdd, narrow }: { circle: 
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold text-foreground">
-          <SectionToggle />
+          <ModuleToggle />
           <BookOpen className="h-5 w-5 shrink-0 text-primary" aria-hidden /> <span className="min-w-0 break-words">{moduleTitle(module)}</span>
         </h2>
         {canAdd && ownPages ? (

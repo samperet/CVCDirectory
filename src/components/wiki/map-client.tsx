@@ -7,18 +7,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
-import { EDGE_INFO, KIND_INFO, NodePanel, circleColors, nodeFill } from "@/components/admin/wiki-map-shared";
-import { IslandsView, type IslandsHandle } from "@/components/admin/wiki-map-islands";
+import { EDGE_INFO, KIND_INFO, NodePanel, circleColors, nodeFill } from "@/components/wiki/map-shared";
+import { IslandsView, type IslandsHandle } from "@/components/wiki/map-islands";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 // The 3D view (three.js) loads only when it's chosen.
-const Globe3DView = dynamic(() => import("@/components/admin/wiki-map-3d").then((module) => module.Globe3DView), {
+const Globe3DView = dynamic(() => import("@/components/wiki/map-3d").then((module) => module.Globe3DView), {
   ssr: false,
   loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
 });
 
-const KINDS = new Set<GraphNodeKind>(["note"]);
+const KINDS = new Set<GraphNodeKind>(["page"]);
 
 /**
  * The wiki map (opened from the wiki's Map button, for everyone — each sees
@@ -73,7 +73,7 @@ export function WikiMapClient() {
   };
   const counts = useMemo(() => {
     const byCircle = new Map<string, number>();
-    for (const node of data?.nodes ?? []) if (node.kind === "note" && node.circleId) byCircle.set(node.circleId, (byCircle.get(node.circleId) ?? 0) + 1);
+    for (const node of data?.nodes ?? []) if (node.kind === "page" && node.circleId) byCircle.set(node.circleId, (byCircle.get(node.circleId) ?? 0) + 1);
     return byCircle;
   }, [data]);
 

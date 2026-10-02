@@ -5,12 +5,13 @@ import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { deleteCircleMeetings } from "@/lib/meetings/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
-import { BOARD_ID, circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
+import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
 import { isAdmin } from "@/lib/auth/admins";
 import { iconKey, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary } from "@/lib/storage";
 import { problem, readBody } from "@/lib/http";
+import { BOARD_ID, COMMUNITY_ID } from "@/lib/circles/ids";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +44,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "board" });
   if ("error" in ctx) return ctx.error;
-  if (params.id === "board") return problem("The Board can't be deleted", 409);
-  if (params.id === "community") return problem("The Community circle can't be deleted", 409);
+  if (params.id === BOARD_ID) return problem("The Board can't be deleted", 409);
+  if (params.id === COMMUNITY_ID) return problem("The Community circle can't be deleted", 409);
 
   const result = await deleteCircle(ctx.imported, params.id);
   if (!result.ok) return circleProblem(result.reason);

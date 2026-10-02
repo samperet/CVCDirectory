@@ -10,15 +10,17 @@ import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { useSession } from "@/lib/auth/client";
-import { noteStyle } from "@/lib/wiki/colors";
-import { useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
+import { pageStyle } from "@/lib/wiki/colors";
+import { wikiPagesQuery } from "@/components/wiki/link-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
+import { useCircles } from "@/components/directory/use-directory";
 
 // The map (d3, and three.js for 3D) loads in the browser only, when it's opened.
-const WikiMap = dynamic(() => import("@/components/admin/wiki-map-client").then((module) => module.WikiMapClient), {
+const WikiMap = dynamic(() => import("@/components/wiki/map-client").then((module) => module.WikiMapClient), {
   ssr: false,
   loading: () => <div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />,
 });
@@ -40,7 +42,7 @@ export function NewPageForm({ initialTitle = "", from, keeper: preferred, onCanc
   const keepers = useWikiPages().data?.keepers ?? [];
   const [title, setTitle] = useState(initialTitle);
   const [chosen, setChosen] = useState(preferred ?? "");
-  const keeper = chosen || (keepers.some((circle) => circle.id === "community") ? "community" : keepers[0]?.id) || "";
+  const keeper = chosen || (keepers.some((circle) => isCommunity(circle.id)) ? COMMUNITY_ID : keepers[0]?.id) || "";
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ page: WikiPage }>("/api/wiki/pages", {
@@ -90,7 +92,7 @@ function PageRow({ page, circleName }: { page: WikiPageSummary; circleName: (id:
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <Link href={`/wiki/${page.slug}`} className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline">
-        <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: noteStyle(page.color).swatch }} aria-hidden />
+        <span className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: pageStyle(page.color).swatch }} aria-hidden />
         <span className="truncate">{page.title}</span>
         {page.view.kind !== "everyone" ? <Lock className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Not everyone can see this page" /> : null}
       </Link>

@@ -9,12 +9,13 @@ import { remarkWikiDirectives } from "@/lib/wiki/directives";
 import { headingSlug } from "@/lib/wiki/sections";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleRef } from "@/lib/wiki/links";
-import { docFileUrl, findDoc, pageTitled, useCircles, useDocTitles, type DocRef } from "@/components/wiki/link-data";
+import { docFileUrl, findDoc, pageTitled, useDocTitles, type DocRef } from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
-import { DEFAULT_NOTE_COLOR } from "@/lib/wiki/colors";
+import { DEFAULT_PAGE_COLOR } from "@/lib/wiki/colors";
 import { EmbedBlock, EmbedChain } from "@/components/wiki/embed-block";
 import { cn } from "@/lib/utils";
+import { useCircles } from "@/components/directory/use-directory";
 
 export { headingSlug, tableOfContents } from "@/lib/wiki/sections";
 
@@ -54,7 +55,7 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
     if (!pages) return `[${text}](#${mdTitle("pending")})`;
     const page = pageTitled(pages, link.title);
     if (!page) return `[${text}](/wiki?new=${encodeURIComponent(link.title)}${pageId ? `&from=${pageId}` : ""}${mdTitle("missing")})`;
-    return `[${text}](/wiki/${page.slug}${mdTitle(`page:${page.color ?? DEFAULT_NOTE_COLOR}:`)})`;
+    return `[${text}](/wiki/${page.slug}${mdTitle(`page:${page.color ?? DEFAULT_PAGE_COLOR}:`)})`;
   });
 }
 

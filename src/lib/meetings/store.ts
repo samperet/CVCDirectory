@@ -2,8 +2,8 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, mutateJson, readJson } from "@/lib/storage";
 import { mergeText } from "@/lib/wiki/merge";
-import { todayInVermont } from "@/lib/tasks/shared";
 import { isIsoDate } from "@/lib/schedules/rotation";
+import { todayInVermont } from "@/lib/time";
 import {
   MIN_OBJECTION_REASON,
   REVIEW_MS,

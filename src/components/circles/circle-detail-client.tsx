@@ -8,18 +8,18 @@ import { BackLink } from "@/components/layout/back-link";
 import { Check, LayoutGrid, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { Circle, CircleApplication, CircleSeat, DirectoryDocument, JoinPolicy, Person } from "@/lib/directory/types";
+import type { Circle, CircleApplication, CircleSeat, JoinPolicy, Person } from "@/lib/directory/types";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
-import { ArrangeSections, CircleSections, SectionToggle, type ModuleSections } from "@/components/circles/circle-sections";
+import { ModuleEditor, CircleModules, ModuleToggle, type ModuleViews } from "@/components/circles/circle-modules";
 import { AddModuleDialog, InformationSettings, MODULE_ICONS, TasksSettings, describeFilter, describeTasks } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
-import { InformationModule } from "@/components/wiki/information-module";
+import { InformationModule } from "@/components/circles/information-module";
 import { MeetingsModule } from "@/components/meetings/meetings-module";
-import { TasksSection } from "@/components/tasks/task-board";
+import { TasksModule } from "@/components/tasks/task-board";
 import { moduleTitle, modulesFor, type CircleModule } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { timeAgo } from "@/lib/time";
+import { BOARD_ID, isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 const ROLES = ["Member", "Op leader", "Delegate", "Facilitator", "Secretary", "Treasurer", "President", "At-large"];
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -382,8 +384,8 @@ function ApplicationRow({ circle, application, person }: { circle: Circle; appli
   );
 }
 
-/** The side panel: joining, pending applications, and the members. */
-function MembersPanel({
+/** The Members module: joining, pending applications, and the members. */
+function MembersModule({
   circle,
   people,
   candidates,
@@ -407,7 +409,7 @@ function MembersPanel({
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-            <SectionToggle />
+            <ModuleToggle />
             Members <span className="text-sm font-normal text-muted">({members.length})</span>
           </h2>
           <EmailCircleButton circle={circle} people={people} className="-mr-2" />
@@ -458,21 +460,18 @@ export function CircleDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const { user } = useSession();
   const [editingDetails, setEditingDetails] = useState(false);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["directory"],
-    queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
-  });
+  const { data, isLoading, error } = useDirectoryQuery();
 
   const circle = data?.circles.find((entry) => entry.id === id);
   const people = useMemo(() => new Map((data?.people ?? []).map((person) => [person.id, person])), [data]);
   const inCircle = (circleId: string) =>
     !!user?.personId && !!data?.circles.some((c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId));
   // Admins can manage every circle, as the Board can.
-  const onBoard = inCircle("board") || !!user?.isAdmin;
+  const onBoard = sitsOnBoard(data?.circles ?? [], user?.personId) || !!user?.isAdmin;
   const isMember = inCircle(id);
   const canManage = onBoard || isMember;
   // The Community circle is everyone: no member list, and any resident adds its documents.
-  const community = id === "community";
+  const community = isCommunity(id);
   const canUpload = canManage || (community && !!user?.personId);
 
   const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>
@@ -481,12 +480,12 @@ export function CircleDetailClient({ id }: { id: string }) {
   const scheduleQuery = useCircleSchedule(id);
   const schedule = scheduleQuery.data?.schedule ?? null;
   // Editing the page: the modules being worked on, until they're saved — and the dialog open on them.
-  const [arranging, setArranging] = useState<CircleModule[] | null>(null);
+  const [pageDraft, setPageDraft] = useState<CircleModule[] | null>(null);
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "settings"; module: CircleModule } | null>(null);
   const saveModules = useCircleMutation(
     (modules: CircleModule[]) => apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ modules }) }),
     "Could not save the page",
-    () => setArranging(null)
+    () => setPageDraft(null)
   );
 
   if (isLoading) return <p className="text-sm text-muted">Loading circle…</p>;
@@ -526,7 +525,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           content: <InformationModule circle={circle} module={module} canAdd={canUpload} narrow={module.size === "small"} />,
         };
       case "members":
-        return community ? undefined : { title, icon: icon(module), content: <MembersPanel circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> };
+        return community ? undefined : { title, icon: icon(module), content: <MembersModule circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> };
       case "meetings":
         return community ? undefined : { title, icon: icon(module), content: <MeetingsModule circle={circle} title={title} /> };
       case "schedule":
@@ -538,7 +537,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           detail: describeTasks(module),
           content: (
             <Card>
-              <TasksSection circle={circle} />
+              <TasksModule circle={circle} />
             </Card>
           ),
         };
@@ -549,7 +548,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           content: (
             <Card className="flex flex-col gap-4">
               <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
-                <SectionToggle /> {title}
+                <ModuleToggle /> {title}
               </h2>
               <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
             </Card>
@@ -557,8 +556,8 @@ export function CircleDetailClient({ id }: { id: string }) {
         };
     }
   };
-  const sectionsOf = (list: CircleModule[]): ModuleSections => Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
-  const editing = arranging ?? [];
+  const sectionsOf = (list: CircleModule[]): ModuleViews => Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
+  const editing = pageDraft ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -573,7 +572,7 @@ export function CircleDetailClient({ id }: { id: string }) {
         <CircleIcon circle={circle} size={96} />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           {editingDetails ? (
-            <DetailsEditor circle={circle} canSetKind={onBoard && circle.id !== "board" && !community} onDone={() => setEditingDetails(false)} />
+            <DetailsEditor circle={circle} canSetKind={onBoard && circle.id !== BOARD_ID && !community} onDone={() => setEditingDetails(false)} />
           ) : (
             <>
               <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
@@ -593,10 +592,10 @@ export function CircleDetailClient({ id }: { id: string }) {
                 <Pencil className="h-4 w-4" /> Edit details
               </Button>
               <IconControls circle={circle} />
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setArranging(arranging ? null : modules)} aria-pressed={!!arranging} disabled={scheduleQuery.isLoading}>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPageDraft(pageDraft ? null : modules)} aria-pressed={!!pageDraft} disabled={scheduleQuery.isLoading}>
                 <LayoutGrid className="h-4 w-4" /> Edit page
               </Button>
-              {onBoard && circle.id !== "board" && !community ? (
+              {onBoard && circle.id !== BOARD_ID && !community ? (
                 <Button
                   size="sm"
                   variant="ghost"
@@ -614,7 +613,7 @@ export function CircleDetailClient({ id }: { id: string }) {
         </div>
       </Card>
 
-      {arranging ? (
+      {pageDraft ? (
         <>
           <div className="sticky top-16 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-primary/50 bg-accent px-4 py-3 shadow-soft">
             <p className="w-full text-sm text-foreground sm:w-auto sm:min-w-0 sm:flex-1">
@@ -623,15 +622,15 @@ export function CircleDetailClient({ id }: { id: string }) {
             <Button size="sm" variant="outline" className="gap-1" onClick={() => setDialog({ kind: "add" })}>
               <Plus className="h-4 w-4" /> Add module
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setArranging(null)}>
+            <Button size="sm" variant="ghost" onClick={() => setPageDraft(null)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={() => saveModules.mutate(arranging)} disabled={saveModules.isPending}>
+            <Button size="sm" onClick={() => saveModules.mutate(pageDraft)} disabled={saveModules.isPending}>
               {saveModules.isPending ? "Saving…" : "Save page"}
             </Button>
           </div>
           {editing.length ? (
-            <ArrangeSections modules={editing} sections={sectionsOf(editing)} onChange={setArranging} onSettings={(module) => setDialog({ kind: "settings", module })} />
+            <ModuleEditor modules={editing} sections={sectionsOf(editing)} onChange={setPageDraft} onSettings={(module) => setDialog({ kind: "settings", module })} />
           ) : (
             <Card>
               <p className="text-sm text-muted">Nothing on this page yet — add a module.</p>
@@ -644,7 +643,7 @@ export function CircleDetailClient({ id }: { id: string }) {
               hasSchedule={!!schedule}
               onClose={() => setDialog(null)}
               onAdd={(module) => {
-                setArranging([...editing, module]);
+                setPageDraft([...editing, module]);
                 setDialog(module.type === "information" ? { kind: "settings", module } : null);
               }}
             />
@@ -653,7 +652,7 @@ export function CircleDetailClient({ id }: { id: string }) {
               module={dialog.module}
               onClose={() => setDialog(null)}
               onSave={(module) => {
-                setArranging(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
                 setDialog(null);
               }}
             />
@@ -663,14 +662,14 @@ export function CircleDetailClient({ id }: { id: string }) {
               module={dialog.module}
               onClose={() => setDialog(null)}
               onSave={(module) => {
-                setArranging(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
                 setDialog(null);
               }}
             />
           ) : null}
         </>
       ) : (
-        <CircleSections circleId={circle.id} modules={modules} sections={sectionsOf(modules)} />
+        <CircleModules circleId={circle.id} modules={modules} sections={sectionsOf(modules)} />
       )}
     </div>
   );

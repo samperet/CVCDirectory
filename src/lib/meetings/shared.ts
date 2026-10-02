@@ -147,6 +147,9 @@ export function statusLine(proposal: Pick<Proposal, "review" | "consentedAt" | "
   return STATE_LABELS[state];
 }
 
+export const meetingHref = (circleId: string, meetingId: string) => `/circles/${circleId}/meetings/${meetingId}`;
+export const proposalHref = (circleId: string, proposalId: string) => `/circles/${circleId}/proposals/${proposalId}`;
+
 /** A meeting with just what lists need. */
 export type MeetingSummary = Pick<Meeting, "id" | "circleId" | "title" | "date" | "updatedAt"> & { present: number };
 

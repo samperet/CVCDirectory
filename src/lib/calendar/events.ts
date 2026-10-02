@@ -1,4 +1,5 @@
 import ICAL from "ical.js";
+import { TIME_ZONE } from "@/lib/time";
 
 /**
  * Upcoming events from the community's public Google Calendar, read from its
@@ -7,7 +8,7 @@ import ICAL from "ical.js";
  */
 
 export const CALENDAR_ID = "champlainvalleycohousinginfo@gmail.com";
-export const CALENDAR_TIME_ZONE = "America/New_York";
+export const CALENDAR_TIME_ZONE = TIME_ZONE;
 const FEED_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(CALENDAR_ID)}/public/basic.ics`;
 const REVALIDATE_SECONDS = 15 * 60;
 const HORIZON_DAYS = 400;

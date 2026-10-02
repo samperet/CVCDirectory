@@ -1,9 +1,9 @@
 import type { WikiPage } from "./store";
 import { POLL_DIRECTIVE } from "@/lib/polls/wiki";
 import { EMBED_DIRECTIVE } from "./sections";
-import { DEFAULT_NOTE_COLOR, NOTE_COLORS, type NoteColor } from "./colors";
+import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "./colors";
 
-export const pageColor = (page: Pick<WikiPage, "color">): NoteColor => ((NOTE_COLORS as readonly string[]).includes(page.color ?? "") ? (page.color as NoteColor) : DEFAULT_NOTE_COLOR);
+export const pageColor = (page: Pick<WikiPage, "color">): PageColor => ((PAGE_COLORS as readonly string[]).includes(page.color ?? "") ? (page.color as PageColor) : DEFAULT_PAGE_COLOR);
 
 /**
  * A page's opening, as plain text: links by their words, polls by their

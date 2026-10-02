@@ -111,13 +111,3 @@ export function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 }
-
-/** Split a search into terms; "quoted phrases" stay together. */
-export function searchTerms(query: string) {
-  const terms: string[] = [];
-  for (const match of query.toLowerCase().matchAll(/"([^"]+)"|(\S+)/g)) {
-    const term = (match[1] ?? match[2]).trim();
-    if (term) terms.push(term);
-  }
-  return terms.slice(0, 10);
-}

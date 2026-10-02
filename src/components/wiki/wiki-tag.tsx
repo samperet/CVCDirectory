@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BookOpen, FileText, Plus } from "lucide-react";
-import { noteStyle } from "@/lib/wiki/colors";
+import { pageStyle } from "@/lib/wiki/colors";
 import { cn } from "@/lib/utils";
 
 export type WikiTagKind = "page" | "doc" | "missing" | "doc-missing" | "pending";
@@ -31,7 +31,7 @@ export function WikiTag({
   newTab?: boolean;
   className?: string;
 }) {
-  const paper = noteStyle(color);
+  const paper = pageStyle(color);
   const Icon = kind === "doc" || kind === "doc-missing" ? FileText : kind === "missing" ? Plus : BookOpen;
   const base = cn(
     "mx-px inline-flex max-w-full items-baseline gap-1 whitespace-normal rounded-full border px-2 py-px align-baseline text-[0.92em] font-medium leading-snug !no-underline transition [&_*]:!no-underline",

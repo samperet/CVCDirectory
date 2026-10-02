@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createWikiPoll, listWikiPolls, pollAccess, wikiPollInputSchema } from "@/lib/polls/wiki";
 import { pageContext, wikiSession } from "@/lib/wiki/http";
 import { problem, throttled } from "@/lib/http";
+import { isCommunity } from "@/lib/circles/ids";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
   if ("error" in ctx) return ctx.error;
   const parsed = wikiPollInputSchema.safeParse(body);
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
-  const membersOnly = ctx.page.keeper !== "community" && parsed.data.membersOnly;
+  const membersOnly = !isCommunity(ctx.page.keeper) && parsed.data.membersOnly;
   const poll = await createWikiPoll(ctx.page.keeper, { id: ctx.user.id, name: ctx.user.name }, { ...parsed.data, membersOnly });
   return NextResponse.json({ poll: { ...poll, ...pollAccess(ctx.user, ctx.directory, poll), memberIds: undefined } }, { status: 201 });
 }

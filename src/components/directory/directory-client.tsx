@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Car, Search, UserPlus } from "lucide-react";
 import { SectionArt } from "@/components/layout/section-art";
 import { apiFetch } from "@/lib/api-client";
@@ -19,6 +19,7 @@ import { MONTHS } from "@/lib/profiles/months";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/profile/avatar";
 import { useSession } from "@/lib/auth/client";
+import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 type Tab = "residents" | "carsheds";
 
@@ -347,10 +348,7 @@ function Carsheds({ doc }: { doc: DirectoryDocument }) {
 
 export function DirectoryClient() {
   const [tab, setTab] = useState<Tab>("residents");
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["directory"],
-    queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
-  });
+  const { data, isLoading, error } = useDirectoryQuery();
 
   return (
     <div className="flex flex-col gap-6">

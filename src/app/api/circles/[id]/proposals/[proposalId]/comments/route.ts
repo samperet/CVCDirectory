@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addProposalComment, proposalCommentSchema } from "@/lib/meetings/store";
-import { meetingsContext, meetingsProblem, memberUserIds, proposalUrl, reviewProblem } from "@/lib/meetings/http";
-import { formatDuration, reviewTimeLeft } from "@/lib/meetings/shared";
+import { meetingsContext, meetingsProblem, memberUserIds, reviewProblem } from "@/lib/meetings/http";
+import { formatDuration, proposalHref, reviewTimeLeft } from "@/lib/meetings/shared";
 import { excerpt, notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const result = await addProposalComment(params.id, params.proposalId, ctx.actor, parsed.data);
   if (!result.ok) return meetingsProblem(result.reason);
   const { proposal, comment } = result.value;
-  const url = proposalUrl(params.id, proposal.id);
+  const url = proposalHref(params.id, proposal.id);
   if (comment!.kind === "objection" && comment!.parentId === null) {
     // Everyone in the circle, and whoever brought it.
     const left = reviewTimeLeft(proposal);

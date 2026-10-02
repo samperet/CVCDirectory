@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
-import { DEFAULT_NOTE_COLOR, NOTE_COLORS, type NoteColor } from "@/lib/wiki/colors";
+import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "@/lib/wiki/colors";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 
 /**
@@ -55,8 +55,8 @@ export interface WikiPage {
   edit: PageEdit;
   /** How many earlier versions it has kept. */
   historyCount: number;
-  /** Its colour (as a card, and as a page); unset is yellow. */
-  color?: NoteColor;
+  /** Its colour (as a card, and as a page); unset is white. */
+  color?: PageColor;
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
   autosaved?: boolean;
   /** Its addresses from when each circle had its own wiki, so old links still arrive. */
@@ -76,7 +76,7 @@ const historyKey = (pageId: string) => `wiki/history/${pageId}.json`;
 
 const title = z.string().trim().min(1, "Give the page a title").max(120, "Titles must be 120 characters or fewer");
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
-const color = z.enum(NOTE_COLORS);
+const color = z.enum(PAGE_COLORS);
 const circleIdSchema = z.string().min(1).max(80);
 export const viewSchema = z.union([
   z.object({ kind: z.literal("everyone") }),
@@ -200,7 +200,7 @@ export const slugFor = (text: string, taken: Set<string>) => {
 
 export function createPage(
   author: WikiAuthor,
-  input: { title: string; body: string; color?: NoteColor; keeper: string; view?: PageView; edit?: PageEdit }
+  input: { title: string; body: string; color?: PageColor; keeper: string; view?: PageView; edit?: PageEdit }
 ) {
   return mutate((pages) => {
     if (pages.some((page) => page.title.toLowerCase() === input.title.toLowerCase())) return "exists";
@@ -219,7 +219,7 @@ export function createPage(
       view: input.view ?? DEFAULT_VIEW,
       edit: input.edit ?? DEFAULT_EDIT,
       historyCount: 0,
-      ...(input.color && input.color !== DEFAULT_NOTE_COLOR ? { color: input.color } : {}),
+      ...(input.color && input.color !== DEFAULT_PAGE_COLOR ? { color: input.color } : {}),
     };
     return { pages: [...pages, page], page };
   });
@@ -263,7 +263,7 @@ export function renameLinks(markdown: string, from: string, to: string) {
     );
 }
 
-type PageUpdate = { title?: string; body?: string; color?: NoteColor; baseUpdatedAt?: string; autosave?: boolean; keeper?: string; view?: PageView; edit?: PageEdit };
+type PageUpdate = { title?: string; body?: string; color?: PageColor; baseUpdatedAt?: string; autosave?: boolean; keeper?: string; view?: PageView; edit?: PageEdit };
 
 export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate) {
   return mutate((found) => {
@@ -277,9 +277,9 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
       ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),
     };
-    if (update.color && update.color !== (page.color ?? DEFAULT_NOTE_COLOR)) {
+    if (update.color && update.color !== (page.color ?? DEFAULT_PAGE_COLOR)) {
       const { color: _old, ...rest } = page;
-      page = update.color === DEFAULT_NOTE_COLOR ? rest : { ...rest, color: update.color };
+      page = update.color === DEFAULT_PAGE_COLOR ? rest : { ...rest, color: update.color };
     }
     page = { ...page, ...settings };
     const current = page;
@@ -345,7 +345,7 @@ interface OldPage {
   updatedAt: string;
   updatedBy: WikiAuthor;
   history?: WikiVersion[];
-  color?: NoteColor;
+  color?: PageColor;
   parentId?: string;
   autosaved?: boolean;
 }

@@ -1,5 +1,6 @@
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import { BOARD_ID } from "./ids";
 
 /**
  * Circle icons: one uploaded image per circle, stored as a binary object with
@@ -52,6 +53,6 @@ export function holdsSeat(directory: DirectoryDocument, circleId: string, person
 export function canManageCircle(directory: DirectoryDocument, circleId: string, personId: string): boolean {
   return directory.circles.some(
     (circle) =>
-      (circle.id === circleId || circle.id === "board") && circle.seats.some((seat) => seat.personId === personId)
+      (circle.id === circleId || circle.id === BOARD_ID) && circle.seats.some((seat) => seat.personId === personId)
   );
 }

@@ -2,7 +2,7 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { featureEnabled } from "@/lib/circles/features";
 import { listDocuments, searchDocuments } from "@/lib/documents/store";
 import { readTypeMap, typeLabelFor } from "@/lib/documents/type-store";
-import { consentState, searchTerms, type DocumentRecord } from "@/lib/documents/types";
+import { consentState, type DocumentRecord } from "@/lib/documents/types";
 import { searchForum } from "@/lib/forum/search";
 import { listLoanItems } from "@/lib/library/store";
 import { listRecommendations } from "@/lib/resources/store";
@@ -11,7 +11,7 @@ import { listSkills } from "@/lib/skills/store";
 import { listTasks } from "@/lib/tasks/store";
 import { readPages } from "@/lib/wiki/store";
 import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
-import { occurrences, snippetFor } from "@/lib/search";
+import { occurrences, searchTerms, snippetFor } from "@/lib/search";
 import { excerptOf } from "@/lib/wiki/excerpt";
 
 /**

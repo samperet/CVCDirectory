@@ -1,3 +1,5 @@
+import { todayInVermont } from "@/lib/time";
+
 /**
  * Circle tasks, as shared by the server and the browser (no server imports).
  */
@@ -74,11 +76,6 @@ export function checklistProgress(task: Pick<Task, "checklist">) {
   if (!task.checklist.length) return null;
   const done = task.checklist.filter((item) => item.done).length;
   return { done, total: task.checklist.length, percent: Math.round((done / task.checklist.length) * 100) };
-}
-
-/** Today in Vermont, as YYYY-MM-DD. */
-export function todayInVermont(now = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
 export const isOverdue = (task: Pick<Task, "dueDate" | "status">, today = todayInVermont()) => !!task.dueDate && task.status !== "done" && task.dueDate < today;

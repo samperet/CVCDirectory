@@ -7,7 +7,7 @@ import { ClipboardList, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle } from "@/lib/directory/types";
 import { proposalState, type Meeting } from "@/lib/meetings/shared";
-import { SectionToggle } from "@/components/circles/circle-sections";
+import { ModuleToggle } from "@/components/circles/circle-modules";
 import { ProposalBadge, meetingDate, meetingHref, meetingsQuery, proposalHref, useNow } from "@/components/meetings/meetings-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,7 +45,7 @@ export function MeetingsModule({ circle, title }: { circle: Circle; title: strin
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <SectionToggle />
+          <ModuleToggle />
           <ClipboardList className="h-5 w-5 text-primary" aria-hidden /> {title}
         </h2>
         {data?.canEdit ? (

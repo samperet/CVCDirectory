@@ -3,7 +3,7 @@ import { listDocuments } from "@/lib/documents/store";
 import { listPages } from "@/lib/wiki/store";
 import { visiblePages } from "@/lib/wiki/access";
 import { wikiSession } from "@/lib/wiki/http";
-import { DEFAULT_NOTE_COLOR } from "@/lib/wiki/colors";
+import { DEFAULT_PAGE_COLOR } from "@/lib/wiki/colors";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       const score = page.id === pageId ? null : rank(page.title, page.keeper === circleId);
       return score === null
         ? []
-        : [{ circleId: page.keeper, circleName: ctx.directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "", title: page.title, slug: page.slug, color: page.color ?? DEFAULT_NOTE_COLOR, score }];
+        : [{ circleId: page.keeper, circleName: ctx.directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "", title: page.title, slug: page.slug, color: page.color ?? DEFAULT_PAGE_COLOR, score }];
     })
     .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title))
     .slice(0, PAGES);

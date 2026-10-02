@@ -46,10 +46,11 @@ import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
 import { EmbedPageDialog } from "@/components/wiki/embed-page-dialog";
 import { EmbedBlock } from "@/components/wiki/embed-block";
-import { pageTitled, useCircles, wikiPagesQuery } from "@/components/wiki/link-data";
+import { pageTitled, wikiPagesQuery } from "@/components/wiki/link-data";
 import { featureEnabled } from "@/lib/circles/features";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
+import { useCircles } from "@/components/directory/use-directory";
 
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */

@@ -20,3 +20,13 @@ export function snippetFor(text: string, terms: string[]) {
   const end = Math.min(text.length, at + 160);
   return `${start > 0 ? "…" : ""}${text.slice(start, end).replace(/\s+/g, " ").trim()}${end < text.length ? "…" : ""}`;
 }
+
+/** Split a search into terms; "quoted phrases" stay together. */
+export function searchTerms(query: string) {
+  const terms: string[] = [];
+  for (const match of query.toLowerCase().matchAll(/"([^"]+)"|(\S+)/g)) {
+    const term = (match[1] ?? match[2]).trim();
+    if (term) terms.push(term);
+  }
+  return terms.slice(0, 10);
+}

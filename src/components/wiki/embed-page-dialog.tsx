@@ -6,7 +6,7 @@ import { BookOpen, LayoutList } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { wikiPageQuery } from "@/components/wiki/link-data";
 import { embedText, tableOfContents } from "@/lib/wiki/sections";
-import { noteStyle } from "@/lib/wiki/colors";
+import { pageStyle } from "@/lib/wiki/colors";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,7 @@ export function EmbedPageDialog({
       <p className="text-sm text-muted">Another page — or one section of it — shows inside this one, always as it currently reads. It&apos;s still edited where it lives.</p>
       {chosen ? (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 rounded-lg border px-3 py-2" style={{ backgroundColor: noteStyle(chosen.color).paper, borderColor: noteStyle(chosen.color).edge }}>
+          <div className="flex items-center gap-2 rounded-lg border px-3 py-2" style={{ backgroundColor: pageStyle(chosen.color).paper, borderColor: pageStyle(chosen.color).edge }}>
             <BookOpen className="h-4 w-4 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0 flex-1 truncate font-medium text-foreground">{chosen.title}</span>
             <span className="shrink-0 text-xs text-muted">{chosen.circleName}</span>
@@ -98,7 +98,7 @@ export function EmbedPageDialog({
                   onClick={() => setChosen(found)}
                   className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent")}
                 >
-                  <span className="h-3 w-3 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: noteStyle(found.color).swatch }} aria-hidden />
+                  <span className="h-3 w-3 shrink-0 rounded-sm border border-black/10" style={{ backgroundColor: pageStyle(found.color).swatch }} aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{found.title}</span>
                   <span className="shrink-0 text-xs text-muted">{found.circleName}</span>
                 </button>

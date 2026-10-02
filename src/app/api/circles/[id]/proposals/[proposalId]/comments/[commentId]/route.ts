@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProposalComment, editProposalComment, proposalCommentUpdateSchema, setTensionAddressed, withdrawObjection } from "@/lib/meetings/store";
-import { meetingsContext, meetingsProblem, memberUserIds, proposalUrl, reviewProblem } from "@/lib/meetings/http";
-import { formatDuration, proposalState, reviewTimeLeft } from "@/lib/meetings/shared";
+import { meetingsContext, meetingsProblem, memberUserIds, reviewProblem } from "@/lib/meetings/http";
+import { formatDuration, proposalHref, proposalState, reviewTimeLeft } from "@/lib/meetings/shared";
 import { notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
 
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       body: resumed
         ? `${ctx.user.name} withdrew their objection; ${formatDuration(reviewTimeLeft(proposal) ?? 0)} of the review left.`
         : `${ctx.user.name} withdrew an objection; the review stays paused for the others.`,
-      url: proposalUrl(params.id, proposal.id),
+      url: proposalHref(params.id, proposal.id),
       tag: `proposal-${proposal.id}`,
       exceptUserId: ctx.user.id,
       onlyUserIds: [...(await memberUserIds(ctx.circle)), proposal.proposer.userId],

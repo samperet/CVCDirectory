@@ -32,7 +32,6 @@ import {
   currentVersion,
   documentDate,
   formatBytes,
-  searchTerms,
 } from "@/lib/documents/types";
 import type { ForumSearchHit } from "@/lib/forum/search";
 import { timeAgo } from "@/lib/time";
@@ -43,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
+import { searchTerms } from "@/lib/search";
 
 type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[]; yearOptions?: string[] };
 

@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "@/components/layout/back-link";
 import { Cake, Eye, Home, LogOut, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
 import { PersonSkills } from "@/components/skills/person-skills";
 import { apiFetch } from "@/lib/api-client";
 import { useSession, useViewAs } from "@/lib/auth/client";
-import type { DirectoryDocument } from "@/lib/directory/types";
 import { unitsOf } from "@/lib/directory/households";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { RoleTag, digits, membershipsByPerson } from "@/components/directory/directory-client";
@@ -17,6 +16,7 @@ import { Avatar } from "@/components/profile/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -28,7 +28,7 @@ export function PersonClient({ personId: requested }: { personId: string }) {
   const { user } = useSession();
   const viewAs = useViewAs();
   const [combining, setCombining] = useState("");
-  const { data, isLoading, error } = useQuery({ queryKey: ["directory"], queryFn: () => apiFetch<DirectoryDocument>("/api/directory") });
+  const { data, isLoading, error } = useDirectoryQuery();
   // An old link to an entry that's since been combined into one profile opens that profile.
   const personId = data?.aliases?.[requested] ?? requested;
   const person = data?.people.find((entry) => entry.id === personId);

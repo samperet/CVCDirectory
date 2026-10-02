@@ -1,23 +1,26 @@
+import { isCommunity } from "./ids";
+
 /**
- * How a circle's page is laid out: its sections in order, each with a size
+ * How a circle's page is laid out: its modules in order, each with a size
  * (on wider screens; phones stack them all full width). Set by the circle's
- * members (and the Board) for everyone; whether a section is folded away is
+ * members (and the Board) for everyone; whether a module is folded away is
  * up to each reader, on their own device.
  */
 
-export const SECTION_IDS = ["information", "members", "meetings", "schedule", "tasks", "documents"] as const;
-export type SectionId = (typeof SECTION_IDS)[number];
+export const MODULE_TYPES = ["information", "members", "meetings", "schedule", "tasks", "documents"] as const;
+export type ModuleType = (typeof MODULE_TYPES)[number];
 
-export const SECTION_SIZES = ["small", "medium", "large", "full"] as const;
-export type SectionSize = (typeof SECTION_SIZES)[number];
+export const MODULE_SIZES = ["small", "medium", "large", "full"] as const;
+export type ModuleSize = (typeof MODULE_SIZES)[number];
 
+/** From before modules: one entry per section of the page, in order. Read for circles that haven't saved modules. */
 export interface SectionLayout {
-  id: SectionId;
-  size: SectionSize;
+  id: ModuleType;
+  size: ModuleSize;
 }
 
-export const SIZE_LABELS: Record<SectionSize, string> = { small: "⅓", medium: "½", large: "⅔", full: "Full" };
-export const SIZE_NAMES: Record<SectionSize, string> = { small: "A third", medium: "Half", large: "Two thirds", full: "Full width" };
+export const SIZE_LABELS: Record<ModuleSize, string> = { small: "⅓", medium: "½", large: "⅔", full: "Full" };
+export const SIZE_NAMES: Record<ModuleSize, string> = { small: "A third", medium: "Half", large: "Two thirds", full: "Full width" };
 
 /** How the Information section shows its pages: in full, as cards with their opening lines, or as a list of titles. */
 export const INFO_VIEWS = ["full", "summary", "titles"] as const;
@@ -25,7 +28,7 @@ export type InfoView = (typeof INFO_VIEWS)[number];
 export const INFO_VIEW_LABELS: Record<InfoView, string> = { full: "Full", summary: "Summary", titles: "Titles only" };
 export const DEFAULT_INFO_VIEW: InfoView = "summary";
 
-export const DEFAULT_LAYOUT: SectionLayout[] = [
+const DEFAULT_LAYOUT: SectionLayout[] = [
   { id: "information", size: "large" },
   { id: "members", size: "small" },
   { id: "meetings", size: "full" },
@@ -35,11 +38,11 @@ export const DEFAULT_LAYOUT: SectionLayout[] = [
 ];
 
 /**
- * The page's sections, in the circle's order: the ones it has (turned on,
- * or that exist for it) — and any it has but never placed, after, as they
- * come by default.
+ * An older layout's sections, in the circle's order: the ones it has (turned
+ * on, or that exist for it) — and any it has but never placed, after, as
+ * they come by default.
  */
-export function layoutFor(stored: SectionLayout[] | undefined, available: SectionId[]): SectionLayout[] {
+function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[]): SectionLayout[] {
   const has = new Set(available);
   const placed: SectionLayout[] = [];
   for (const entry of stored ?? []) {
@@ -57,8 +60,6 @@ export function layoutFor(stored: SectionLayout[] | undefined, available: Sectio
  * others (members, meetings, the duty schedule, tasks, documents) appear
  * once each.
  */
-export const MODULE_TYPES = SECTION_IDS;
-export type ModuleType = SectionId;
 export const MODULE_NAMES: Record<ModuleType, string> = {
   information: "Information",
   members: "Members",
@@ -81,7 +82,7 @@ export const TASK_ADDER_LABELS: Record<TaskAdders, string> = { members: "The cir
 export interface CircleModule {
   id: string;
   type: ModuleType;
-  size: SectionSize;
+  size: ModuleSize;
   /** A heading of its own (Information modules); unset is the type's name. */
   title?: string;
   /** Which pages an Information module shows, and how. */
@@ -109,9 +110,9 @@ export function modulesFor(
 ): CircleModule[] {
   if (circle.modules) return circle.modules;
   const on = (feature: "documents" | "wiki" | "tasks") => circle.features?.[feature] ?? true;
-  const available: SectionId[] = [
+  const available: ModuleType[] = [
     ...(on("wiki") ? (["information"] as const) : []),
-    ...(circle.id !== "community" ? (["members", "meetings"] as const) : []),
+    ...(!isCommunity(circle.id) ? (["members", "meetings"] as const) : []),
     ...(hasSchedule ? (["schedule"] as const) : []),
     ...(on("tasks") ? (["tasks"] as const) : []),
     ...(on("documents") ? (["documents"] as const) : []),

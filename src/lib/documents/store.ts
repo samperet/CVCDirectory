@@ -7,8 +7,8 @@ import {
   DocumentRecord,
   DocumentVersion,
   Uploader,
-  searchTerms,
 } from "./types";
+import { searchTerms } from "@/lib/search";
 
 /**
  * Documents: details for all of them in one index, the searchable text of

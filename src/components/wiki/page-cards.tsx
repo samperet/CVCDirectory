@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import type { InfoView } from "@/lib/circles/layout";
-import { noteStyle } from "@/lib/wiki/colors";
+import { pageStyle } from "@/lib/wiki/colors";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { wikiPageQuery } from "@/components/wiki/link-data";
@@ -24,7 +24,7 @@ const tiltFor = (id: string) => TILTS[Array.from(id).reduce((sum, char) => sum +
 
 /** A page as a card: its colour, title, and opening lines; the whole card opens it. */
 export function PageCard({ page, circleName }: { page: WikiPageSummary; circleName?: string }) {
-  const style = noteStyle(page.color);
+  const style = pageStyle(page.color);
   return (
     <article
       className={cn("relative flex min-h-[8.5rem] flex-col gap-1.5 rounded-md border p-4 pt-3.5 shadow-soft transition hover:rotate-0 hover:shadow-elev focus-within:rotate-0", tiltFor(page.id))}
@@ -44,7 +44,7 @@ export function PageCard({ page, circleName }: { page: WikiPageSummary; circleNa
 
 /** A page in full, as it reads on its own page (its opening lines until the rest loads). */
 export function FullPage({ page, pages, circleName }: { page: WikiPageSummary; pages: WikiPageSummary[]; circleName?: string }) {
-  const style = noteStyle(page.color);
+  const style = pageStyle(page.color);
   const { data } = useQuery(wikiPageQuery(page.slug));
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-lg border p-4 shadow-soft sm:p-5" style={{ backgroundColor: style.paper, borderColor: style.edge }} aria-label={page.title}>
@@ -77,7 +77,7 @@ export function PageTitleList({ pages, circleName }: { pages: WikiPageSummary[];
   return (
     <ul className="grid gap-1.5 sm:grid-cols-2">
       {pages.map((page) => {
-        const style = noteStyle(page.color);
+        const style = pageStyle(page.color);
         const circle = circleName(page);
         return (
           <li key={page.id} className="relative flex min-w-0 items-center gap-2.5 rounded-md border px-3 py-2 transition hover:shadow-soft" style={{ backgroundColor: style.paper, borderColor: style.edge }}>

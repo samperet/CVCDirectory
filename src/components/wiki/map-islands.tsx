@@ -4,9 +4,9 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import { select } from "d3-selection";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { NOTE_STYLES } from "@/lib/wiki/colors";
+import { PAGE_STYLES } from "@/lib/wiki/colors";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
-import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/admin/wiki-map-shared";
+import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/wiki/map-shared";
 
 /**
  * The wiki as islands: each circle a soft disc holding the pages it keeps;
@@ -87,7 +87,7 @@ export const IslandsView = forwardRef<
       }))
       .filter((circle) => circle.children.length);
     const placed = new Set(circles.flatMap((circle) => (circle.children ?? []).map((child) => child.id)));
-    const elsewhere = shown.filter((node) => !placed.has(node.id) && !(node.kind === "note" && circles.some((circle) => circle.circleId === node.circleId)));
+    const elsewhere = shown.filter((node) => !placed.has(node.id) && !(node.kind === "page" && circles.some((circle) => circle.circleId === node.circleId)));
     const root: Item = {
       id: "root",
       kind: "root",
@@ -272,7 +272,7 @@ export const IslandsView = forwardRef<
                       strokeWidth={(lit ? 2.5 : 1.5) / k}
                     />
                   ) : (
-                    <circle cx={node.x} cy={node.y} r={r} fill={nodeFill(gnode)} stroke={lit ? "#1e4620" : gnode.kind === "note" ? hue : "#ffffff"} strokeOpacity={lit ? 1 : 0.7} strokeWidth={(lit ? 2.5 : 1.5) / k} />
+                    <circle cx={node.x} cy={node.y} r={r} fill={nodeFill(gnode)} stroke={lit ? "#1e4620" : gnode.kind === "page" ? hue : "#ffffff"} strokeOpacity={lit ? 1 : 0.7} strokeWidth={(lit ? 2.5 : 1.5) / k} />
                   )}
                   {(() => {
                     // Inside the node when it fits and is legible; otherwise beneath it, once zoomed in enough.

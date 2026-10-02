@@ -7,6 +7,7 @@ import { mutateJson, readJson } from "@/lib/storage";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { Poll, VoteFailure } from "./shared";
 import { PollInput, castVote, newPoll, pollInputSchema, withClosed } from "./server";
+import { isCommunity } from "@/lib/circles/ids";
 
 /**
  * Polls inside wiki pages. A page holds a poll as `::poll{id="…"}`; the
@@ -135,7 +136,7 @@ export async function claimAnnouncements(ids: string[]): Promise<WikiPoll[]> {
  */
 export function pollAccess(user: { id: string; personId?: string | null; isAdmin?: boolean }, directory: DirectoryDocument, poll: WikiPoll) {
   const circle = directory.circles.find((entry) => entry.id === poll.circleId);
-  const community = poll.circleId === "community";
+  const community = isCommunity(poll.circleId);
   const member = community || (!!user.personId && !!circle?.seats.some((seat) => seat.personId === user.personId));
   return {
     circleName: circle?.name ?? "the circle",

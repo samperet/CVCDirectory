@@ -7,6 +7,7 @@ import { problem, readBody } from "@/lib/http";
 import { claimAnnouncements, pollIdsIn } from "@/lib/polls/wiki";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
+import { isCommunity } from "@/lib/circles/ids";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       const only = members && audience ? members.filter((id) => audience.includes(id)) : (members ?? audience);
       await notify({
         topic: "polls",
-        title: poll.circleId === "community" || !circle ? `New poll: ${poll.question}` : `New ${circle.name} poll: ${poll.question}`,
+        title: isCommunity(poll.circleId) || !circle ? `New poll: ${poll.question}` : `New ${circle.name} poll: ${poll.question}`,
         body: `${poll.authorName} asks: ${poll.poll.options.map((option) => option.text).join(" · ")}`,
         url: `/wiki/${result.page.slug}`,
         tag: `wiki-poll-${poll.id}`,

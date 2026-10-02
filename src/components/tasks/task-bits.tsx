@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Flag } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import type { Circle } from "@/lib/directory/types";
 import { STATUS_LABELS, TASK_STATUSES, checklistProgress, isOverdue, type Task, type TaskStatus, type TaskSummary } from "@/lib/tasks/shared";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { useDirectory } from "@/components/directory/use-directory";
 
 /** `canEdit`: change any task; `canAdd`: add one (any resident, where the circle's Tasks module allows). */
 export type TasksResponse = { tasks: TaskSummary[]; canEdit: boolean; canAdd: boolean; enabled: boolean };
@@ -18,10 +19,6 @@ export const tasksQuery = (circleId: string) => ({
   queryKey: ["tasks", circleId],
   queryFn: () => apiFetch<TasksResponse>(`/api/circles/${circleId}/tasks`),
 });
-
-export function useDirectory() {
-  return useQuery({ queryKey: ["directory"], queryFn: () => apiFetch<DirectoryDocument>("/api/directory") }).data;
-}
 
 /** Change a task, then refresh the lists it shows up in. */
 export function useTaskUpdate(circleId: string, number: number, onDone?: (task: Task) => void) {

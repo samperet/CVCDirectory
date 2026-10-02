@@ -1,9 +1,9 @@
 import { isAdmin } from "@/lib/auth/admins";
 import { canManageCircle, holdsSeat } from "@/lib/circles/icons";
-import { BOARD_ID } from "@/lib/circles/store";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { DocumentListing, DocumentRecord, DocumentTypeOption } from "./types";
 import { typeLabelFor } from "./type-store";
+import { BOARD_ID, isCommunity } from "@/lib/circles/ids";
 
 /**
  * Every signed-in resident can see and search every document. A circle's
@@ -16,7 +16,7 @@ type Viewer = { personId?: string | null };
 
 export function canUploadTo(user: Viewer, directory: DirectoryDocument, circleId: string) {
   // Everyone is in the Community circle, so any resident can add its documents.
-  if (circleId === "community" && user.personId) return true;
+  if (isCommunity(circleId) && user.personId) return true;
   return isAdmin(user) || (!!user.personId && canManageCircle(directory, circleId, user.personId));
 }
 

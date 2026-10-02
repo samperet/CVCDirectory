@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, CircleDot, FileText, Users, X } from "lucide-react";
-import { noteStyle } from "@/lib/wiki/colors";
+import { pageStyle } from "@/lib/wiki/colors";
 import type { GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
 import { timeAgo } from "@/lib/time";
 
@@ -9,7 +9,7 @@ import { timeAgo } from "@/lib/time";
 export const CIRCLE_PALETTE = ["#3f7d5c", "#c4892f", "#4e79a7", "#a05d8c", "#4f9a8f", "#c0634f", "#7568b0", "#8a9a4b", "#b07a55", "#5d8fb8", "#9b6b3d", "#6a8f6b"];
 
 export const KIND_INFO: Record<GraphNodeKind, { label: string; plural: string; icon: typeof BookOpen; color: string }> = {
-  note: { label: "Page", plural: "Pages", icon: BookOpen, color: "#ffffff" },
+  page: { label: "Page", plural: "Pages", icon: BookOpen, color: "#ffffff" },
   circle: { label: "Circle", plural: "Circles", icon: CircleDot, color: "#3f7d5c" },
 };
 
@@ -23,7 +23,7 @@ export function circleColors(graph: WikiGraph) {
 }
 
 /** A node's fill: a page in its own colour, others by kind. */
-export const nodeFill = (node: GraphNode) => (node.kind === "note" ? noteStyle(node.color).swatch : KIND_INFO[node.kind].color);
+export const nodeFill = (node: GraphNode) => (node.kind === "page" ? pageStyle(node.color).swatch : KIND_INFO[node.kind].color);
 
 /** What links to what (a page's circle is drawn as nesting). */
 export function neighbours(edges: GraphEdge[]) {
@@ -52,7 +52,7 @@ export function NameTip({ node, graph, x, y, bounds }: { node: GraphNode; graph:
 }
 
 const OPEN_LABEL: Record<GraphNodeKind, string> = {
-  note: "Open page",
+  page: "Open page",
   circle: "Open circle page",
 };
 
@@ -88,12 +88,12 @@ export function NodePanel({
   const out = (kind: GraphEdgeKind) => graph.edges.filter((edge) => edge.kind === kind && edge.source === node.id).map((edge) => edge.target);
   const into = (kind: GraphEdgeKind) => graph.edges.filter((edge) => edge.kind === kind && edge.target === node.id).map((edge) => edge.source);
   const rows: [string, string[]][] =
-    node.kind === "note"
+    node.kind === "page"
       ? [
           ["Links to", out("link")],
           ["Linked from", into("link")],
         ]
-      : [["Pages", graph.nodes.filter((entry) => entry.kind === "note" && entry.circleId === node.circleId).map((entry) => entry.id)]];
+      : [["Pages", graph.nodes.filter((entry) => entry.kind === "page" && entry.circleId === node.circleId).map((entry) => entry.id)]];
   const action = "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition";
   return (
     <div className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-white/95 p-4 text-sm shadow-elev backdrop-blur" role="dialog" aria-label={node.label}>

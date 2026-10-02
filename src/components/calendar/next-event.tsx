@@ -3,9 +3,10 @@ import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import type { CalendarEvent } from "@/lib/calendar/events";
 import { formatWhen, relativeDay } from "@/lib/calendar/format";
 import { Card } from "@/components/ui/card";
+import { TIME_ZONE } from "@/lib/time";
 
-const month = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short" });
-const day = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", day: "numeric" });
+const month = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, month: "short" });
+const day = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, day: "numeric" });
 
 /** The next event on the community calendar, with a link to the full calendar. */
 export function NextEvent({ event }: { event: CalendarEvent | null }) {

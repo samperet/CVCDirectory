@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { isCommunity } from "@/lib/circles/ids";
 
 /** Ask a question in a wiki page: the poll is made (belonging to the page's keeper circle), then placed where the cursor was. */
 export function NewPollDialog({ circle, pageSlug, onCreated, onClose }: { circle: { id: string; name: string }; pageSlug: string; onCreated: (poll: WikiPoll) => void; onClose: () => void }) {
@@ -45,7 +46,7 @@ export function NewPollDialog({ circle, pageSlug, onCreated, onClose }: { circle
         <Input autoFocus placeholder="Question, e.g. Which Saturday for the fall work day?" value={question} maxLength={160} onChange={(e) => setQuestion(e.target.value)} aria-label="Question" className="bg-white" />
         <Textarea rows={2} placeholder="Add some context (optional)" value={details} maxLength={1000} onChange={(e) => setDetails(e.target.value)} className="bg-white" aria-label="Details" />
         <PollFields draft={draft} onChange={setDraft} />
-        {circle.id !== "community" ? (
+        {!isCommunity(circle.id) ? (
           <label className="flex items-center gap-2 text-sm text-foreground">
             <input type="checkbox" checked={membersOnly} onChange={(e) => setMembersOnly(e.target.checked)} className="h-4 w-4 accent-primary" />
             Only {circle.name} members vote <span className="text-muted">(everyone sees the results)</span>

@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { Circle, DirectoryDocument, Person } from "@/lib/directory/types";
+import type { Circle, Person } from "@/lib/directory/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 /** Start a social club — or, for the Board and admins, an official circle. */
 function NewCircleForm({ onCancel, canFormCircles }: { onCancel: () => void; canFormCircles: boolean }) {
@@ -137,10 +139,7 @@ function CircleGrid({ circles, people }: { circles: Circle[]; people: Map<string
 export function CirclesClient({ header }: { header: React.ReactNode }) {
   const { user } = useSession();
   const [creating, setCreating] = useState(false);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["directory"],
-    queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
-  });
+  const { data, isLoading, error } = useDirectoryQuery();
 
   const top = (button?: React.ReactNode) => (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -168,12 +167,12 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
   }
 
   const people = new Map(data.people.map((person) => [person.id, person]));
-  const community = data.circles.find((circle) => circle.id === "community");
-  const others = data.circles.filter((circle) => circle.id !== "community");
+  const community = data.circles.find((circle) => isCommunity(circle.id));
+  const others = data.circles.filter((circle) => !isCommunity(circle.id));
   const circles = others.filter((circle) => circle.kind !== "club");
   const clubs = others.filter((circle) => circle.kind === "club");
   // Official circles are formed by the Board (and admins); anyone can start a social club.
-  const onBoard = !!user?.personId && !!data.circles.find((circle) => circle.id === "board")?.seats.some((seat) => seat.personId === user.personId);
+  const onBoard = sitsOnBoard(data.circles, user?.personId);
   const canFormCircles = onBoard || !!user?.isAdmin;
   return (
     <>

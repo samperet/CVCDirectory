@@ -5,10 +5,11 @@ import { useMutation } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { PageEdit, PageView, WikiPage } from "@/lib/wiki/store";
-import { useCircles } from "@/components/wiki/link-data";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { BOARD_ID, isCommunity } from "@/lib/circles/ids";
+import { useCircles } from "@/components/directory/use-directory";
 
 /** Who can see a page, in words. */
 export function viewLabel(view: PageView, circles: { id: string; name: string }[] | undefined) {
@@ -52,7 +53,7 @@ function SettingsDialog({ page, slug, onClose, onSaved }: { page: WikiPage; slug
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(page.view.kind === "circles" ? page.view.circles : []));
   const [edit, setEdit] = useState<PageEdit["kind"]>(page.edit.kind);
   const keeperName = circles.find((circle) => circle.id === keeper)?.name ?? "the parent circle";
-  const others = circles.filter((circle) => circle.id !== keeper && circle.id !== "community" && circle.id !== "board");
+  const others = circles.filter((circle) => circle.id !== keeper && !isCommunity(circle.id) && circle.id !== BOARD_ID);
   const view: PageView = viewKind === "circles" ? { kind: "circles", circles: Array.from(chosen).filter((id) => id !== keeper) } : { kind: viewKind };
   const ready = !(view.kind === "circles" && !view.circles.length);
   const save = useMutation({

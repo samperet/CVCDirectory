@@ -13,13 +13,14 @@ import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { TaskComments } from "@/components/tasks/task-comments";
-import { DueLabel, OwnerChip, OwnerSelect, PriorityFlag, STATUS_STYLES, StatusPill, canMoveTask, useDirectory, useTaskUpdate, type TaskResponse } from "@/components/tasks/task-bits";
+import { DueLabel, OwnerChip, OwnerSelect, PriorityFlag, STATUS_STYLES, StatusPill, canMoveTask, useTaskUpdate, type TaskResponse } from "@/components/tasks/task-bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { useDirectory } from "@/components/directory/use-directory";
 
 function TitleEditor({ task, onSave, onCancel, busy }: { task: Task; onSave: (title: string) => void; onCancel: () => void; busy: boolean }) {
   const [title, setTitle] = useState(task.title);

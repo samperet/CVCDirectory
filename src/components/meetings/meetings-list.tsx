@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Plus } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
-import { useDirectory } from "@/components/tasks/task-bits";
 import { ProposalBadge, meetingDate, meetingHref, meetingsQuery, proposalHref, useNow } from "@/components/meetings/meetings-data";
 import { useNewMeeting } from "@/components/meetings/meetings-module";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useDirectory } from "@/components/directory/use-directory";
 
 /** All of a circle's meetings (newest first) and every proposal brought to them. */
 export function MeetingsListClient({ circleId }: { circleId: string }) {

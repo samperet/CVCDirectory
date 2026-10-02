@@ -1,5 +1,4 @@
-import { searchTerms } from "@/lib/documents/types";
-import { occurrences, snippetFor } from "@/lib/search";
+import { occurrences, searchTerms, snippetFor } from "@/lib/search";
 import { ForumThreadDocument, getThread, listThreads } from "./store";
 
 export interface ForumSearchHit {

@@ -18,9 +18,10 @@ import {
 } from "lexical";
 import { addComposerChild$, addExportVisitor$, addImportVisitor$, addLexicalNode$, realmPlugin, type LexicalExportVisitor, type MdastImportVisitor } from "@mdxeditor/editor";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink } from "@/lib/wiki/links";
-import { docFileUrl, findDoc, pageTitled, useCircles, useDocTitles, wikiPagesQuery } from "@/components/wiki/link-data";
+import { docFileUrl, findDoc, pageTitled, useDocTitles, wikiPagesQuery } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
+import { useCircles } from "@/components/directory/use-directory";
 
 /**
  * Wiki links in the visual editor, shown as tags: a `[[…]]` link is one

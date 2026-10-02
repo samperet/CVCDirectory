@@ -57,8 +57,7 @@ export function AddDocumentDialog({
         { title: title.trim(), type: chosenType, meetingDate: meetingDate || null, description: description.trim() || null },
         setProgress
       );
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-      await queryClient.invalidateQueries({ queryKey: ["wiki-doc-titles"] });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast({ title: "Document added", description: `It's in ${circle.name}'s documents too.` });
       // This circle's document comes first for its title, so the plain link finds it.
       onAdded(docLinkText(document.title, circle, circle.id, false));
