@@ -24,6 +24,7 @@ export function excerptOf(markdown: string, length = 400, polls: Map<string, str
       /^[ \t]*:::\s*details(?:\[([^\]\n]*)\])?(?:\{[^}\n]*?title="([^"\n]*)"[^}\n]*\})?.*$/gm,
       (_m, label?: string, title?: string) => title ?? label ?? ""
     )
+    .replace(/^[ \t]*:::\s*callout\b.*$/gm, "")
     .replace(/^[ \t]*:{2,}[ \t]*$/gm, "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(

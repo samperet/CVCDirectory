@@ -12,13 +12,19 @@ import {
   type MutableRefObject,
 } from "react";
 import {
+  $createParagraphNode,
   $createTextNode,
   $getNodeByKey,
   $getSelection,
+  $isElementNode,
+  $isLineBreakNode,
   $isRangeSelection,
+  $isRootOrShadowRoot,
+  $isTextNode,
   type LexicalEditor,
   type LexicalNode,
 } from "lexical";
+import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -36,7 +42,6 @@ import {
 } from "lucide-react";
 import {
   $isDirectiveNode,
-  BlockTypeSelect,
   BoldItalicUnderlineToggles,
   ButtonOrDropdownButton,
   ButtonWithTooltip,
@@ -53,6 +58,12 @@ import {
   Separator,
   UndoRedo,
   activeEditor$,
+  allowedHeadingLevels$,
+  convertSelectionToNode$,
+  currentBlockType$,
+  insertMarkdown$,
+  Select as ToolbarSelect,
+  usePublisher,
   codeBlockPlugin,
   codeMirrorPlugin,
   directivesPlugin,
@@ -170,6 +181,135 @@ const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
   hasChildren: true,
   Editor: DetailsEditor,
 };
+
+/** A callout (`:::callout`) while editing: its words, edited in place, inside the dotted line. */
+function CalloutEditor() {
+  return (
+    <div className="wiki-callout relative" data-callout>
+      <span
+        contentEditable={false}
+        className="absolute -top-2.5 left-4 select-none bg-white px-1.5 text-[11px] font-medium uppercase tracking-wide text-muted"
+      >
+        Callout
+      </span>
+      <NestedLexicalEditor<ContainerDirective>
+        block
+        getContent={(node) => node.children.filter((child) => !isLabel(child))}
+        getUpdatedMdastNode={(node, children) => ({
+          ...node,
+          children: children as ContainerDirective["children"],
+        })}
+      />
+    </div>
+  );
+}
+
+const calloutDirective: DirectiveDescriptor<ContainerDirective> = {
+  name: "callout",
+  type: "containerDirective",
+  testNode: (node) => node.type === "containerDirective" && node.name === "callout",
+  attributes: [],
+  hasChildren: true,
+  Editor: CalloutEditor,
+};
+
+/** A block's words as Markdown, keeping bold, italic, struck-through and code words. */
+function $blockMarkdown(block: LexicalNode): string {
+  const parts: string[] = [];
+  const walk = (node: LexicalNode) => {
+    if ($isTextNode(node)) {
+      const text = node.getTextContent().replace(/[\\`*_[\]<>~|]/g, "\\$&");
+      if (!text.trim()) return parts.push(text);
+      const format = node.getFormat();
+      const marks = [
+        format & CODE ? "`" : "",
+        format & BOLD ? "**" : "",
+        format & ITALIC ? "*" : "",
+        format & STRIKETHROUGH ? "~~" : "",
+      ].join("");
+      const closing = marks.split("").reverse().join("");
+      const [, before, words, after] = text.match(/^(\s*)([\s\S]*?)(\s*)$/)!;
+      parts.push(`${before}${marks}${words}${closing}${after}`);
+    } else if ($isLineBreakNode(node)) {
+      parts.push("  \n");
+    } else if ($isElementNode(node)) {
+      node.getChildren().forEach(walk);
+    } else {
+      parts.push(node.getTextContent());
+    }
+  };
+  walk(block);
+  return parts.join("").trim();
+}
+
+/**
+ * The toolbar's **Style**: Paragraph, Quote, Callout, or a heading, for the
+ * block the cursor is in. A callout takes in the selected blocks' words
+ * (keeping bold and italic) and sets them apart; the others are the editor's own.
+ */
+function StyleSelect() {
+  const convertSelectionToNode = usePublisher(convertSelectionToNode$);
+  const insertMarkdown = usePublisher(insertMarkdown$);
+  const current = useCellValue(currentBlockType$);
+  const levels = useCellValue(allowedHeadingLevels$);
+  const active = useCellValue(activeEditor$);
+  // The blocks last selected (choosing from the menu takes the focus, and the selection, away).
+  const selected = useRef<string[]>([]);
+  useEffect(() => {
+    if (!active) return;
+    return active.registerUpdateListener(({ editorState }) =>
+      editorState.read(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+        const keys: string[] = [];
+        for (const node of selection.getNodes()) {
+          const block = $isRootOrShadowRoot(node) ? null : node.getTopLevelElement();
+          if (block && !keys.includes(block.getKey())) keys.push(block.getKey());
+        }
+        selected.current = keys;
+      })
+    );
+  }, [active]);
+  const items: { label: string; value: string }[] = [
+    { label: "Paragraph", value: "paragraph" },
+    { label: "Quote", value: "quote" },
+    { label: "Callout", value: "callout" },
+    ...levels.map((level) => ({ label: `Heading ${level}`, value: `h${level}` })),
+  ];
+  return (
+    <ToolbarSelect<string>
+      value={current}
+      triggerTitle="Style"
+      placeholder="Style"
+      items={items}
+      onChange={(value) => {
+        if (value === "paragraph") convertSelectionToNode(() => $createParagraphNode());
+        else if (value === "quote") convertSelectionToNode(() => $createQuoteNode());
+        else if (/^h[1-6]$/.test(value))
+          convertSelectionToNode(() => $createHeadingNode(value as "h1" | "h2" | "h3"));
+        else if (value === "callout" && active) {
+          const live = () =>
+            selected.current
+              .map((key) => $getNodeByKey(key))
+              .filter((node): node is LexicalNode => !!node && node.isAttached());
+          // Read the words now; the editor applies changes after this returns.
+          const words = active
+            .getEditorState()
+            .read(() => live().map($blockMarkdown).filter(Boolean).join("\n\n"));
+          active.update(() => {
+            const blocks = live();
+            // The callout goes where these blocks were.
+            const place = $createParagraphNode();
+            if (blocks[0]) blocks[0].insertBefore(place);
+            blocks.forEach((block) => block.remove());
+            place.select();
+          });
+          insertMarkdown(`:::callout\n${words || "Write the callout here."}\n:::`);
+        }
+      }}
+    />
+  );
+}
 
 /** A poll in the page, while editing: its question and choices, and a × to take it out. */
 function PollDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
@@ -294,6 +434,7 @@ const embedDirective: DirectiveDescriptor<LeafDirective> = {
 // Lexical's text format bits, for what a highlight can hold.
 const BOLD = 1;
 const ITALIC = 2;
+const STRIKETHROUGH = 4;
 const CODE = 16;
 
 type Phrasing = { type: string; value?: string; children?: Phrasing[] };
@@ -639,6 +780,7 @@ export const RichEditor = forwardRef<
           directivesPlugin({
             directiveDescriptors: [
               detailsDirective,
+              calloutDirective,
               pollDirective,
               embedDirective,
               markDirective,
@@ -661,7 +803,7 @@ export const RichEditor = forwardRef<
               <>
                 <UndoRedo />
                 <Separator />
-                <BlockTypeSelect />
+                <StyleSelect />
                 <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
                 <HighlightButton onApply={(markdown) => editor.current?.insertMarkdown(markdown)} />
                 <Separator />

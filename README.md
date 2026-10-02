@@ -327,6 +327,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   highlighter pen and kept in the page as `:mark[the words]{color="green"}`. (Pages used to have a
   colour of their own, and to be **pinned** to circles, the dashboard, people, tasks, documents, and
   discussions; pinning has been removed. The old `pins.json` is left in storage, unused.)
+- **Styles** – the editor's **Style** menu turns the block the cursor is in (or the selected
+  blocks) into a Paragraph, a **Quote** (shown between two curved strokes, like parentheses), a
+  **Callout** (set apart by a light green dotted line with rounded corners; written
+  `:::callout` … `:::`, keeping bold and italic), or a heading.
 - **Right-click menu** – in the editor, right-clicking offers cut, copy, paste, bold, italic,
   strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link, and
   clear formatting. Shift + right-click opens the browser's own menu, for spelling suggestions.

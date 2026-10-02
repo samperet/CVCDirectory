@@ -88,12 +88,33 @@ select {
   list-style: decimal;
   padding-left: 1.5rem;
 }
+/*
+ * A quote sits between two tall curved strokes, like parentheses (the side
+ * borders of an elliptical box, tapering at the ends) — on the page
+ * (`.wiki-quote`) and in the editor alike.
+ */
+.wiki-quote,
 .wiki-prose blockquote {
-  border-left: 4px solid theme("colors.border");
-  padding-left: 1rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1.75rem;
+  border-style: solid;
+  border-color: theme("colors.primary");
+  border-width: 0 3px;
+  border-radius: 1.75rem / 50%;
   color: theme("colors.foreground-light");
 }
+.wiki-quote > * + *,
 .wiki-prose blockquote > * + * {
+  margin-top: 0.75rem;
+}
+/* A callout (`:::callout`): a section set apart by a light green dotted line all round. */
+.wiki-callout {
+  margin: 1rem 0;
+  padding: 0.875rem 1.25rem;
+  border: 2px dotted theme("colors.primary");
+  border-radius: 1rem;
+}
+.wiki-callout > * + * {
   margin-top: 0.75rem;
 }
 .wiki-prose code {

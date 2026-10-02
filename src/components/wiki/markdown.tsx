@@ -103,12 +103,7 @@ const components: Components = {
   p: ({ node: _node, ...props }) => <p className="leading-relaxed" {...props} />,
   ul: ({ node: _node, ...props }) => <ul className="list-disc space-y-1 pl-6" {...props} />,
   ol: ({ node: _node, ...props }) => <ol className="list-decimal space-y-1 pl-6" {...props} />,
-  blockquote: ({ node: _node, ...props }) => (
-    <blockquote
-      className="border-l-4 border-border pl-4 text-foreground-light [&>*+*]:mt-3"
-      {...props}
-    />
-  ),
+  blockquote: ({ node: _node, ...props }) => <blockquote className="wiki-quote" {...props} />,
   code: ({ node: _node, className, ...props }) => (
     <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />
   ),
