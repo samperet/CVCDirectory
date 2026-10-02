@@ -1,5 +1,6 @@
 import { todayInVermont } from "@/lib/time";
 import type { Actor } from "@/lib/auth/actor";
+import type { CommentRecord } from "@/lib/comments/shared";
 
 /**
  * Circle tasks, as shared by the server and the browser (no server imports).
@@ -67,19 +68,8 @@ export type TaskSummary = Omit<Task, "activity" | "description"> & {
   hasDescription: boolean;
 };
 
-export interface TaskComment {
-  id: string;
-  taskId: string;
-  /** null: on the task itself; otherwise the comment it replies to (replies nest). */
-  parentId: string | null;
-  authorId: string;
-  authorName: string;
-  body: string;
-  createdAt: string;
-  editedAt?: string | null;
-  /** A deleted comment that has replies stays, as "deleted", so its replies keep their place. */
-  deleted?: boolean;
-}
+/** A comment on a task (replies nest to any depth); see `lib/comments/shared.ts`. */
+export type TaskComment = CommentRecord & { taskId: string };
 
 /** How far along a task's checklist is, or null with no checklist. */
 export function checklistProgress(task: Pick<Task, "checklist">) {

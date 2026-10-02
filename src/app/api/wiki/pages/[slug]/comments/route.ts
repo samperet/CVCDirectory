@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addComment, commentInputSchema, listComments } from "@/lib/wiki/comments";
-import { pageAudience, pageContext } from "@/lib/wiki/http";
+import { commentProblem, pageAudience, pageContext } from "@/lib/wiki/http";
 import { getHistory } from "@/lib/wiki/store";
 import { excerpt, notify } from "@/lib/push/notify";
-import { problem, readBody, throttled } from "@/lib/http";
+import { readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +28,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const parsed = await readBody(request, commentInputSchema);
   if ("error" in parsed) return parsed.error;
   const result = await addComment(ctx.page.id, ctx.actor, parsed.data);
-  if (!result.ok)
-    return result.reason === "unknown_thread"
-      ? problem("That comment thread no longer exists", 404)
-      : problem("This page has too many comments", 409);
+  if (!result.ok) return commentProblem(result.reason);
 
   // Tell the people who wrote the page, and the others in this thread (who can still see it).
   const history = await getHistory(ctx.page.id);

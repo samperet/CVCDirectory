@@ -16,6 +16,7 @@ export function resourceResponse<T>(result: Result<T>, status = 200) {
   if (result.ok) return NextResponse.json({ recommendation: result.value }, { status });
   switch (result.reason) {
     case "not_found":
+    case "unknown_parent":
       return problem("That recommendation or comment no longer exists", 404);
     case "forbidden":
       return problem("You can only change your own posts", 403);

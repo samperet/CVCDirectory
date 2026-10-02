@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     params.id,
     ctx.task.id,
     params.commentId,
-    ctx.actor,
+    { ...ctx.actor, canModerate: ctx.canModerate },
     parsed.data.body
   );
   return result.ok

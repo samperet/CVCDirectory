@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "@/components/layout/back-link";
-import { ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumLike, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
@@ -18,13 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
-
-/** Past this depth replies stop indenting further, so long chains stay readable on phones. */
-const MAX_INDENT_DEPTH = 5;
-
-/** Byline, then text, then actions on touch screens; byline and actions side by side above the text where there's a pointer. */
-const HOVER_LAYOUT =
-  "[grid-template-areas:'by'_'body'_'act'] [@media(hover:hover)]:grid-cols-[minmax(0,1fr)_auto] [@media(hover:hover)]:[grid-template-areas:'by_act'_'body_body']";
+import { useConfirm } from "@/components/ui/confirm";
+import { CommentForm } from "@/components/comments/comment-form";
+import { CommentTree } from "@/components/comments/comment-tree";
 
 /** Mutations that return the updated thread write it straight into the cache. */
 function useThreadMutation<T>(
@@ -174,261 +170,6 @@ function LikeButton({
   );
 }
 
-function ReplyForm({
-  threadId,
-  parentId,
-  onDone,
-  autoFocus,
-}: {
-  threadId: string;
-  parentId: string | null;
-  onDone?: () => void;
-  autoFocus?: boolean;
-}) {
-  const [body, setBody] = useState("");
-  const reply = useThreadMutation(
-    threadId,
-    () =>
-      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies`, {
-        method: "POST",
-        body: JSON.stringify({ parentId, body }),
-      }),
-    "Could not post reply"
-  );
-
-  return (
-    <form
-      className="flex flex-col gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (body.trim())
-          reply.mutate(undefined, {
-            onSuccess: () => {
-              setBody("");
-              onDone?.();
-            },
-          });
-      }}
-    >
-      <Textarea
-        rows={parentId ? 2 : 3}
-        placeholder={parentId ? "Write a reply…" : "Add to the discussion…"}
-        value={body}
-        maxLength={3000}
-        autoFocus={autoFocus}
-        onChange={(event) => setBody(event.target.value)}
-        className="bg-white"
-      />
-      <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={reply.isPending || !body.trim()}>
-          {reply.isPending ? "Posting…" : "Post reply"}
-        </Button>
-        {onDone ? (
-          <Button type="button" size="sm" variant="outline" onClick={onDone}>
-            Cancel
-          </Button>
-        ) : null}
-      </div>
-    </form>
-  );
-}
-
-function EditReplyForm({
-  threadId,
-  reply,
-  onDone,
-}: {
-  threadId: string;
-  reply: ForumReply;
-  onDone: () => void;
-}) {
-  const [body, setBody] = useState(reply.body);
-  const save = useThreadMutation(
-    threadId,
-    () =>
-      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies/${reply.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ body }),
-      }),
-    "Could not save changes"
-  );
-  return (
-    <form
-      className="flex flex-col gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (body.trim()) save.mutate(undefined, { onSuccess: onDone });
-      }}
-    >
-      <Textarea
-        rows={3}
-        value={body}
-        maxLength={3000}
-        autoFocus
-        onChange={(event) => setBody(event.target.value)}
-        className="bg-white"
-      />
-      <div className="flex gap-2">
-        <Button
-          type="submit"
-          size="sm"
-          disabled={save.isPending || !body.trim() || body.trim() === reply.body}
-        >
-          {save.isPending ? "Saving…" : "Save"}
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function ReplyNode({
-  reply,
-  childrenOf,
-  depth,
-  threadId,
-  parentName,
-  currentUserId,
-}: {
-  reply: ForumReply;
-  childrenOf: Map<string | null, ForumReply[]>;
-  depth: number;
-  threadId: string;
-  parentName: string | null;
-  currentUserId: string | null;
-}) {
-  const [mode, setMode] = useState<"view" | "reply" | "edit">("view");
-  const [collapsed, setCollapsed] = useState(false);
-  const children = childrenOf.get(reply.id) ?? [];
-  const indent = depth > 0 && depth <= MAX_INDENT_DEPTH;
-  const beyondIndent = depth > MAX_INDENT_DEPTH;
-  const { user } = useSession();
-  // Authors manage their own comments; admins can moderate any.
-  const mine = (currentUserId !== null && reply.authorId === currentUserId) || !!user?.isAdmin;
-
-  const remove = useThreadMutation(
-    threadId,
-    () =>
-      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies/${reply.id}`, {
-        method: "DELETE",
-      }),
-    "Could not delete comment"
-  );
-
-  return (
-    <li className={cn(indent && "ml-3 border-l-2 border-border pl-3 md:ml-5 md:pl-4")}>
-      <div
-        id={`reply-${reply.id}`}
-        className="group/post flex scroll-mt-24 flex-col gap-0.5 rounded-lg py-2 transition-colors duration-1000"
-      >
-        {reply.deletedAt ? (
-          <p className="text-sm italic text-muted">This comment was deleted.</p>
-        ) : (
-          // Where the pointer can hover, actions sit beside the byline; on touch screens, under the text.
-          <div className={cn("grid gap-x-3 gap-y-1", HOVER_LAYOUT)}>
-            <div className="flex min-h-[1.5rem] flex-wrap items-center gap-x-2 text-xs text-muted [grid-area:by]">
-              <Byline
-                name={reply.authorName}
-                createdAt={reply.createdAt}
-                editedAt={reply.editedAt}
-              />
-              {beyondIndent && parentName ? (
-                <span className="inline-flex items-center gap-1">
-                  <CornerDownRight className="h-3 w-3" /> replying to {parentName}
-                </span>
-              ) : null}
-            </div>
-            {mode !== "edit" ? (
-              <div className="flex items-center gap-3 text-xs [grid-area:act]">
-                {/* Likes stay in view once a post has some; the rest wait for a hover. */}
-                {reply.likes?.length ? (
-                  <span className="[@media(hover:hover)]:order-last">
-                    <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />
-                  </span>
-                ) : null}
-                <div className={cn("flex items-center gap-3", mode === "view" && ON_HOVER)}>
-                  {reply.likes?.length ? null : (
-                    <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />
-                  )}
-                  <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>
-                    Reply
-                  </ActionLink>
-                  {mine && mode === "view" ? (
-                    <>
-                      <ActionLink onClick={() => setMode("edit")}>Edit</ActionLink>
-                      <ActionLink
-                        danger
-                        onClick={() => {
-                          if (window.confirm("Delete this comment?")) remove.mutate(undefined);
-                        }}
-                      >
-                        {remove.isPending ? "Deleting…" : "Delete"}
-                      </ActionLink>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            <div className="min-w-0 [grid-area:body]">
-              {mode === "edit" ? (
-                <EditReplyForm threadId={threadId} reply={reply} onDone={() => setMode("view")} />
-              ) : (
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-                  {reply.body}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-        {children.length ? (
-          <button
-            type="button"
-            className="inline-flex w-fit items-center gap-0.5 text-xs text-muted hover:text-foreground"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
-            )}
-            {collapsed
-              ? `Show ${children.length} ${children.length === 1 ? "reply" : "replies"}`
-              : "Hide replies"}
-          </button>
-        ) : null}
-        {mode === "reply" ? (
-          <div className="mt-1">
-            <ReplyForm
-              threadId={threadId}
-              parentId={reply.id}
-              autoFocus
-              onDone={() => setMode("view")}
-            />
-          </div>
-        ) : null}
-      </div>
-      {children.length && !collapsed ? (
-        <ul>
-          {children.map((child) => (
-            <ReplyNode
-              key={child.id}
-              reply={child}
-              childrenOf={childrenOf}
-              depth={depth + 1}
-              threadId={threadId}
-              parentName={reply.deletedAt ? null : reply.authorName}
-              currentUserId={currentUserId}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
 function OpeningPost({
   doc,
   currentUserId,
@@ -438,6 +179,7 @@ function OpeningPost({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { thread } = doc;
   const { user } = useSession();
@@ -568,12 +310,17 @@ function OpeningPost({
                   <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
                   <ActionLink
                     danger
-                    onClick={() => {
-                      const warning =
-                        !author || othersReplied
-                          ? "Delete this discussion and all of its replies? This can't be undone."
-                          : "Delete this discussion?";
-                      if (window.confirm(warning)) remove.mutate();
+                    onClick={async () => {
+                      const everything = !author || othersReplied;
+                      if (
+                        await confirm({
+                          title: everything
+                            ? "Delete this discussion and all of its replies?"
+                            : "Delete this discussion?",
+                          destructive: true,
+                        })
+                      )
+                        remove.mutate();
                     }}
                   >
                     {remove.isPending ? "Deleting…" : "Delete"}
@@ -606,29 +353,30 @@ export function ThreadClient({ id }: { id: string }) {
     : "general";
   const topicName = topics?.find((topic) => topic.id === topicId)?.name ?? "Forum";
 
-  // Group the flat reply list by parent; each level reads oldest-first.
-  const childrenOf = useMemo(() => {
-    const map = new Map<string | null, ForumReply[]>();
-    for (const reply of data?.replies ?? []) {
-      const list = map.get(reply.parentId) ?? [];
-      list.push(reply);
-      map.set(reply.parentId, list);
-    }
-    map.forEach((list) => list.sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
-    return map;
-  }, [data?.replies]);
-
-  // Arriving from a search result (#reply-<id>): bring that reply into view and highlight it briefly.
-  const loaded = !!data;
-  useEffect(() => {
-    if (!loaded || !window.location.hash.startsWith("#reply-")) return;
-    const target = document.getElementById(window.location.hash.slice(1));
-    if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-    target.classList.add("bg-accent");
-    const timer = setTimeout(() => target.classList.remove("bg-accent"), 2500);
-    return () => clearTimeout(timer);
-  }, [loaded]);
+  const repliesUrl = `/api/forum/threads/${id}/replies`;
+  const reply = useThreadMutation(
+    id,
+    (input: { parentId: string | null; body: string }) =>
+      apiFetch<ForumThreadDocument>(repliesUrl, { method: "POST", body: JSON.stringify(input) }),
+    "Could not post reply"
+  );
+  const edit = useThreadMutation(
+    id,
+    ({ replyId, body }: { replyId: string; body: string }) =>
+      apiFetch<ForumThreadDocument>(`${repliesUrl}/${replyId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ body }),
+      }),
+    "Could not save changes"
+  );
+  const remove = useThreadMutation(
+    id,
+    (replyId: string) =>
+      apiFetch<ForumThreadDocument>(`${repliesUrl}/${replyId}`, { method: "DELETE" }),
+    "Could not delete comment"
+  );
+  // Authors manage their own comments; admins can moderate any.
+  const mine = (entry: ForumReply) => (!!user && entry.authorId === user.id) || !!user?.isAdmin;
 
   if (isLoading) return <p className="text-sm text-muted">Loading discussion…</p>;
   if (error || !data) {
@@ -645,8 +393,6 @@ export function ThreadClient({ id }: { id: string }) {
     );
   }
 
-  const topLevel = childrenOf.get(null) ?? [];
-
   return (
     <div className="flex flex-col gap-6">
       <BackLink href={`/forum/topics/${topicId}`} label={topicName} />
@@ -658,25 +404,34 @@ export function ThreadClient({ id }: { id: string }) {
       />
 
       <Card className="flex flex-col gap-3">
-        {topLevel.length ? (
-          <ul className="divide-y divide-border">
-            {topLevel.map((reply) => (
-              <ReplyNode
-                key={reply.id}
-                reply={reply}
-                childrenOf={childrenOf}
-                depth={0}
-                threadId={data.thread.id}
-                parentName={null}
-                currentUserId={user?.id ?? null}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">No replies yet.</p>
-        )}
+        {/* Search results link to a reply as #reply-<id>. */}
+        <CommentTree
+          comments={data.replies}
+          nesting="any"
+          maxIndent={5}
+          idPrefix="reply"
+          canReply={() => !!user}
+          canEdit={mine}
+          canDelete={mine}
+          onReply={(parentId, body) => reply.mutateAsync({ parentId, body })}
+          onEdit={(entry, body) => edit.mutateAsync({ replyId: entry.id, body })}
+          onDelete={(entry) => remove.mutateAsync(entry.id)}
+          busy={reply.isPending || edit.isPending}
+          maxLength={3000}
+          renderActions={(entry) => (
+            <LikeButton threadId={data.thread.id} replyId={entry.id} likes={entry.likes} />
+          )}
+          emptyLabel="No replies yet."
+        />
         <div className="border-t border-border pt-4">
-          <ReplyForm threadId={data.thread.id} parentId={null} />
+          <CommentForm
+            placeholder="Add to the discussion…"
+            submitLabel="Post reply"
+            rows={3}
+            maxLength={3000}
+            busy={reply.isPending}
+            onSubmit={(body) => reply.mutateAsync({ parentId: null, body })}
+          />
         </div>
       </Card>
     </div>

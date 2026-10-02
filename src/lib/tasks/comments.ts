@@ -1,12 +1,21 @@
-import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
+import {
+  addComment,
+  deleteComment,
+  editComment,
+  type CommentActor,
+  type CommentChange,
+  type CommentFailure,
+} from "@/lib/comments/store";
+import { normalizeComment } from "@/lib/comments/shared";
 import type { TaskComment } from "./shared";
-import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Comments on tasks, which nest: a comment can reply to any other on the
- * same task. Stored per circle (`task-comments/<circleId>.json`).
+ * same task. Stored per circle (`task-comments/<circleId>.json`), following
+ * the shared comment rules (`lib/comments/store.ts`): authors edit and
+ * delete their own, the circle's editors and admins can delete any.
  */
 
 const MAX_COMMENTS = 5000;
@@ -30,7 +39,7 @@ const key = (circleId: string) => `task-comments/${circleId}.json`;
 
 function normalize(raw: unknown): TaskComment[] {
   const comments = (raw as { comments?: unknown } | null)?.comments;
-  return Array.isArray(comments) ? (comments as TaskComment[]) : [];
+  return Array.isArray(comments) ? (comments as TaskComment[]).map(normalizeComment) : [];
 }
 
 export async function listTaskComments(circleId: string, taskId?: string): Promise<TaskComment[]> {
@@ -38,28 +47,14 @@ export async function listTaskComments(circleId: string, taskId?: string): Promi
   return taskId ? comments.filter((comment) => comment.taskId === taskId) : comments;
 }
 
-/** The comments a comment replies to, nearest first. */
-export function ancestors(comments: TaskComment[], comment: TaskComment) {
-  const chain: TaskComment[] = [];
-  let parent = comments.find((entry) => entry.id === comment.parentId);
-  while (parent && chain.length < 100) {
-    chain.push(parent);
-    const next = parent.parentId;
-    parent = comments.find((entry) => entry.id === next);
-  }
-  return chain;
-}
-
-export type Failure = "not_found" | "forbidden" | "full" | "unknown_parent";
+export type Failure = CommentFailure;
 export type TaskCommentResult =
   | { ok: true; comment: TaskComment | null; comments: TaskComment[] }
   | { ok: false; reason: Failure };
 
 async function mutate(
   circleId: string,
-  change: (
-    comments: TaskComment[]
-  ) => { comments: TaskComment[]; comment: TaskComment | null } | Failure
+  change: (comments: TaskComment[]) => CommentChange<TaskComment> | Failure
 ): Promise<TaskCommentResult> {
   return mutateJson<TaskCommentResult>(key(circleId), (raw) => {
     const result = change(normalize(raw));
@@ -71,85 +66,42 @@ async function mutate(
   });
 }
 
+const onTask = (taskId: string) => ({
+  nesting: "any" as const,
+  max: MAX_COMMENTS,
+  among: (comment: TaskComment) => comment.taskId === taskId,
+});
+
 export function addTaskComment(
   circleId: string,
   taskId: string,
-  author: Pick<Actor, "userId" | "name">,
+  author: Pick<CommentActor, "userId" | "personId" | "name">,
   input: { body: string; parentId: string | null }
 ) {
-  return mutate(circleId, (comments) => {
-    if (comments.length >= MAX_COMMENTS) return "full";
-    if (
-      input.parentId &&
-      !comments.some((entry) => entry.id === input.parentId && entry.taskId === taskId)
-    )
-      return "unknown_parent";
-    const comment: TaskComment = {
-      id: randomUUID(),
-      taskId,
-      parentId: input.parentId,
-      authorId: author.userId,
-      authorName: author.name,
-      body: input.body,
-      createdAt: new Date().toISOString(),
-    };
-    return { comments: [...comments, comment], comment };
-  });
+  return mutate(circleId, (comments) =>
+    addComment(comments, author, input, onTask(taskId), { taskId })
+  );
 }
 
-/** Change what you wrote. */
 export function editTaskComment(
   circleId: string,
   taskId: string,
   commentId: string,
-  actor: Pick<Actor, "userId">,
+  actor: CommentActor,
   body: string
 ) {
-  return mutate(circleId, (comments) => {
-    const comment = comments.find(
-      (entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted
-    );
-    if (!comment) return "not_found";
-    if (comment.authorId !== actor.userId) return "forbidden";
-    const updated = { ...comment, body, editedAt: new Date().toISOString() };
-    return {
-      comments: comments.map((entry) => (entry.id === commentId ? updated : entry)),
-      comment: updated,
-    };
-  });
+  return mutate(circleId, (comments) =>
+    editComment(comments, commentId, actor, body, onTask(taskId))
+  );
 }
 
-/**
- * Delete a comment (its author, or a moderator). One with replies stays, as
- * "deleted", so the conversation under it still makes sense; one without goes
- * — and so does a deleted parent left with no replies.
- */
 export function deleteTaskComment(
   circleId: string,
   taskId: string,
   commentId: string,
-  actor: Pick<Actor, "userId"> & { canModerate: boolean }
+  actor: CommentActor
 ) {
-  return mutate(circleId, (comments) => {
-    const comment = comments.find(
-      (entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted
-    );
-    if (!comment) return "not_found";
-    if (!actor.canModerate && comment.authorId !== actor.userId) return "forbidden";
-    let next = comments.some((entry) => entry.parentId === commentId)
-      ? comments.map((entry) =>
-          entry.id === commentId ? { ...entry, body: "", deleted: true } : entry
-        )
-      : comments.filter((entry) => entry.id !== commentId);
-    // Tidy up deleted comments that no longer have anything under them.
-    for (let parentId = comment.parentId; parentId; ) {
-      const parent = next.find((entry) => entry.id === parentId);
-      if (!parent?.deleted || next.some((entry) => entry.parentId === parent.id)) break;
-      next = next.filter((entry) => entry.id !== parent.id);
-      parentId = parent.parentId;
-    }
-    return { comments: next, comment: null };
-  });
+  return mutate(circleId, (comments) => deleteComment(comments, commentId, actor, onTask(taskId)));
 }
 
 /** Remove a task's comments (when the task is deleted). */

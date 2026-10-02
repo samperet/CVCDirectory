@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppShell } from "@/components/layout/app-shell";
 import { NavigationTrail } from "@/components/layout/back-link";
 import { ToastProvider } from "@/components/ui/use-toast";
+import { ConfirmProvider } from "@/components/ui/confirm";
 import { sessionPayload } from "@/lib/auth/me";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -45,9 +46,11 @@ export default async function RootLayout({
       <body className="font-sans">
         <ReactQueryProvider session={session}>
           <ToastProvider>
-            <AppShell>{children}</AppShell>
-            <NavigationTrail />
-            <Toaster />
+            <ConfirmProvider>
+              <AppShell>{children}</AppShell>
+              <NavigationTrail />
+              <Toaster />
+            </ConfirmProvider>
           </ToastProvider>
         </ReactQueryProvider>
       </body>

@@ -3,10 +3,12 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, MessageSquare, RotateCcw, X } from "lucide-react";
+import { CommentTree } from "@/components/comments/comment-tree";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { WikiComment } from "@/lib/wiki/comments";
 import { timeAgo } from "@/lib/time";
+import { threadsOf as groupThreads } from "@/lib/comments/shared";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
@@ -24,11 +26,7 @@ export function useComments(circleId: string, slug: string) {
   });
 }
 
-export function threadsOf(comments: WikiComment[]): Thread[] {
-  return comments
-    .filter((comment) => comment.parentId === null)
-    .map((root) => ({ root, replies: comments.filter((comment) => comment.parentId === root.id) }));
-}
+export const threadsOf = (comments: WikiComment[]): Thread[] => groupThreads(comments);
 
 /**
  * Where a quoted passage is on the page. Matching ignores whitespace, since a
@@ -114,105 +112,8 @@ export function useQuoteHighlights(
   return { ranges, found };
 }
 
-function CommentBody({
-  comment,
-  circleId,
-  slug,
-  onChanged,
-}: {
-  comment: WikiComment;
-  circleId: string;
-  slug: string;
-  onChanged: () => void;
-}) {
-  const { toast } = useToast();
-  const { user } = useSession();
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(comment.body);
-  const mine = user?.id === comment.authorId;
-  const url = `/api/wiki/pages/${slug}/comments/${comment.id}`;
-  const save = useMutation({
-    mutationFn: () => apiFetch(url, { method: "PATCH", body: JSON.stringify({ body: text }) }),
-    onSuccess: () => {
-      setEditing(false);
-      onChanged();
-    },
-    onError: (error: Error) =>
-      toast({ title: "Could not save", description: error.message, variant: "destructive" }),
-  });
-  const remove = useMutation({
-    mutationFn: () => apiFetch(url, { method: "DELETE" }),
-    onSuccess: onChanged,
-    onError: (error: Error) =>
-      toast({ title: "Could not delete", description: error.message, variant: "destructive" }),
-  });
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-xs text-muted">
-        <span className="font-medium text-foreground">{comment.authorName}</span> ·{" "}
-        {timeAgo(comment.createdAt)}
-        {comment.editedAt ? " (edited)" : ""}
-      </p>
-      {editing ? (
-        <div className="flex flex-col gap-1.5">
-          <Textarea
-            rows={3}
-            value={text}
-            maxLength={2000}
-            onChange={(event) => setText(event.target.value)}
-            className="bg-white text-sm"
-          />
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="h-7"
-              disabled={!text.trim() || save.isPending}
-              onClick={() => save.mutate()}
-            >
-              Save
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <p className="whitespace-pre-wrap break-words text-sm text-foreground">{comment.body}</p>
-      )}
-      {!editing && (mine || user?.isAdmin) ? (
-        <div className="flex gap-3 text-xs">
-          {mine ? (
-            <button
-              type="button"
-              className="font-medium text-secondary-foreground hover:underline"
-              onClick={() => setEditing(true)}
-            >
-              Edit
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="font-medium text-muted hover:text-destructive hover:underline"
-            onClick={() => {
-              if (
-                window.confirm(
-                  comment.parentId ? "Delete this reply?" : "Delete this comment and its replies?"
-                )
-              )
-                remove.mutate();
-            }}
-          >
-            Delete
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function ThreadCard({
   thread,
-  circleId,
   slug,
   canModerate,
   active,
@@ -221,7 +122,6 @@ function ThreadCard({
   onChanged,
 }: {
   thread: Thread;
-  circleId: string;
   slug: string;
   canModerate: boolean;
   active: boolean;
@@ -231,21 +131,27 @@ function ThreadCard({
 }) {
   const { toast } = useToast();
   const { user } = useSession();
-  const [replying, setReplying] = useState(false);
-  const [reply, setReply] = useState("");
   const { root, replies } = thread;
   const resolved = !!root.resolvedAt;
   const base = `/api/wiki/pages/${slug}/comments`;
+  const fail = (title: string) => (error: Error) =>
+    toast({ title, description: error.message, variant: "destructive" });
   const send = useMutation({
-    mutationFn: () =>
-      apiFetch(base, { method: "POST", body: JSON.stringify({ body: reply, parentId: root.id }) }),
-    onSuccess: () => {
-      setReply("");
-      setReplying(false);
-      onChanged();
-    },
-    onError: (error: Error) =>
-      toast({ title: "Could not reply", description: error.message, variant: "destructive" }),
+    mutationFn: (input: { parentId: string; body: string }) =>
+      apiFetch(base, { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: onChanged,
+    onError: fail("Could not reply"),
+  });
+  const edit = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) =>
+      apiFetch(`${base}/${id}`, { method: "PATCH", body: JSON.stringify({ body }) }),
+    onSuccess: onChanged,
+    onError: fail("Could not save"),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => apiFetch(`${base}/${id}`, { method: "DELETE" }),
+    onSuccess: onChanged,
+    onError: fail("Could not delete"),
   });
   const resolve = useMutation({
     mutationFn: (value: boolean) =>
@@ -254,18 +160,18 @@ function ThreadCard({
         body: JSON.stringify({ resolved: value }),
       }),
     onSuccess: onChanged,
-    onError: (error: Error) =>
-      toast({ title: "Could not update", description: error.message, variant: "destructive" }),
+    onError: fail("Could not update"),
   });
-  const mayResolve = canModerate || user?.id === root.authorId;
+  const mine = (comment: WikiComment) => user?.id === comment.authorId;
+  const mayResolve = canModerate || mine(root);
   return (
     <li
-      id={`comment-${root.id}`}
       className={cn(
         "flex scroll-mt-24 flex-col gap-2 rounded-lg border bg-white p-3 transition",
         active ? "border-sun ring-1 ring-sun" : "border-border",
         resolved && "opacity-75"
       )}
+      data-thread={root.id}
     >
       {root.quote ? (
         <button
@@ -280,21 +186,30 @@ function ThreadCard({
           ) : null}
         </button>
       ) : null}
-      <CommentBody comment={root} circleId={circleId} slug={slug} onChanged={onChanged} />
-      {replies.length ? (
-        <ul className="ml-2 flex flex-col gap-2 border-l-2 border-border pl-3">
-          {replies.map((comment) => (
-            <li key={comment.id}>
-              <CommentBody
-                comment={comment}
-                circleId={circleId}
-                slug={slug}
-                onChanged={onChanged}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <CommentTree
+        comments={[root, ...replies]}
+        roots={[root]}
+        nesting="one"
+        className="-mx-3"
+        canReply={() => !!user && !resolved}
+        canEdit={mine}
+        canDelete={(comment) => mine(comment) || !!user?.isAdmin}
+        onReply={(parentId, body) => send.mutateAsync({ parentId, body })}
+        onEdit={(comment, body) => edit.mutateAsync({ id: comment.id, body })}
+        onDelete={(comment) => remove.mutateAsync(comment.id)}
+        busy={send.isPending || edit.isPending}
+        maxLength={2000}
+        deleteConfirm={(comment) =>
+          comment.parentId
+            ? { title: "Delete this reply?" }
+            : {
+                title: "Delete this comment?",
+                body: replies.length
+                  ? "Its replies stay, under a note that it was deleted."
+                  : "This can't be undone.",
+              }
+        }
+      />
       {resolved ? (
         <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <Check className="h-3.5 w-3.5 text-primary" /> Resolved by {root.resolvedBy} ·{" "}
@@ -309,54 +224,18 @@ function ThreadCard({
             </button>
           ) : null}
         </p>
-      ) : replying ? (
-        <div className="flex flex-col gap-1.5">
-          <Textarea
-            autoFocus
-            rows={2}
-            placeholder="Reply…"
-            value={reply}
-            maxLength={2000}
-            onChange={(event) => setReply(event.target.value)}
-            className="bg-white text-sm"
-          />
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="h-7"
-              disabled={!reply.trim() || send.isPending}
-              onClick={() => send.mutate()}
-            >
-              Reply
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => setReplying(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
+      ) : mayResolve ? (
         <div className="flex gap-3 text-xs">
-          {user ? (
-            <button
-              type="button"
-              className="font-medium text-secondary-foreground hover:underline"
-              onClick={() => setReplying(true)}
-            >
-              Reply
-            </button>
-          ) : null}
-          {mayResolve ? (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline"
-              onClick={() => resolve.mutate(true)}
-              disabled={resolve.isPending}
-            >
-              <Check className="h-3.5 w-3.5" /> Resolve
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline"
+            onClick={() => resolve.mutate(true)}
+            disabled={resolve.isPending}
+          >
+            <Check className="h-3.5 w-3.5" /> Resolve
+          </button>
         </div>
-      )}
+      ) : null}
     </li>
   );
 }
@@ -426,7 +305,6 @@ export function WikiComments({
     <ThreadCard
       key={thread.root.id}
       thread={thread}
-      circleId={circleId}
       slug={slug}
       canModerate={canModerate}
       active={activeId === thread.root.id}

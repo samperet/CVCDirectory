@@ -69,7 +69,7 @@ export function wikiProblem(reason: Failure) {
 export function commentProblem(reason: CommentFailure) {
   switch (reason) {
     case "not_found":
-    case "unknown_thread":
+    case "unknown_parent":
       return problem("That comment no longer exists", 404);
     case "forbidden":
       return problem("You can't change that comment", 403);

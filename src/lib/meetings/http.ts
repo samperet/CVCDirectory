@@ -47,7 +47,7 @@ export function meetingsProblem(reason: Failure) {
       return problem("Objections are raised once a proposal is sent for review", 409);
     case "has_proposals":
       return problem("This meeting has proposals that went for review, so it's kept", 409);
-    case "unknown_thread":
+    case "unknown_parent":
       return problem("That comment no longer exists", 404);
     case "too_short":
       return problem("Give the reason for your objection");

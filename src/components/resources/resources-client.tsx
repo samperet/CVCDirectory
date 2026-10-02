@@ -8,7 +8,6 @@ import { ArrowLeft, ChevronRight, Heart, MessageCircle, Plus, Search } from "luc
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Recommendation, ResourceComment, ResourceLike } from "@/lib/resources/store";
-import { timeAgo } from "@/lib/time";
 import { Avatar } from "@/components/profile/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +17,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { SectionArt } from "@/components/layout/section-art";
 import { cn } from "@/lib/utils";
 import { categorySlug } from "@/lib/resources/slug";
+import { useConfirm } from "@/components/ui/confirm";
+import { CommentForm } from "@/components/comments/comment-form";
+import { CommentTree } from "@/components/comments/comment-tree";
 
 const KEY = ["resources"];
 
@@ -259,144 +261,71 @@ function LikeButton({ item }: { item: Recommendation }) {
   );
 }
 
-function CommentRow({ item, comment }: { item: Recommendation; comment: ResourceComment }) {
-  const { toast } = useToast();
-  const replace = useReplace();
-  const { user } = useSession();
-  const [editing, setEditing] = useState(false);
-  const [body, setBody] = useState(comment.body);
-  const canChange = !!user && (user.isAdmin || comment.authorId === user.id);
-  const url = `/api/resources/${item.id}/comments/${comment.id}`;
-
-  const onError = (err: Error) =>
-    toast({ title: "Could not update comment", description: err.message, variant: "destructive" });
-  const save = useMutation({
-    mutationFn: () =>
-      apiFetch<{ recommendation: Recommendation }>(url, {
-        method: "PATCH",
-        body: JSON.stringify({ body }),
-      }),
-    onSuccess: ({ recommendation }) => {
-      replace(item.id, recommendation);
-      setEditing(false);
-    },
-    onError,
-  });
-  const remove = useMutation({
-    mutationFn: () => apiFetch<{ recommendation: Recommendation }>(url, { method: "DELETE" }),
-    onSuccess: ({ recommendation }) => replace(item.id, recommendation),
-    onError,
-  });
-
-  return (
-    <li className="flex flex-col gap-1 py-2">
-      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-        <span className="font-medium text-foreground">{comment.authorName}</span>
-        <time dateTime={comment.createdAt}>{timeAgo(comment.createdAt)}</time>
-        {comment.editedAt ? <span>(edited)</span> : null}
-        {canChange && !editing ? (
-          <>
-            <button
-              type="button"
-              className="font-medium text-secondary-foreground hover:underline"
-              onClick={() => setEditing(true)}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className="font-medium hover:text-destructive hover:underline"
-              onClick={() => {
-                if (window.confirm("Delete this comment?")) remove.mutate();
-              }}
-            >
-              Delete
-            </button>
-          </>
-        ) : null}
-      </p>
-      {editing ? (
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (body.trim()) save.mutate();
-          }}
-        >
-          <Textarea
-            rows={2}
-            value={body}
-            maxLength={2000}
-            autoFocus
-            onChange={(event) => setBody(event.target.value)}
-            className="bg-white"
-          />
-          <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={save.isPending || !body.trim()}>
-              {save.isPending ? "Saving…" : "Save"}
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <p className="whitespace-pre-wrap break-words text-sm text-foreground">
-          <Linkified text={comment.body} />
-        </p>
-      )}
-    </li>
-  );
-}
-
+/** A recommendation's comments (flat): anyone signed in adds one; authors and admins edit and delete. */
 function Comments({ item }: { item: Recommendation }) {
   const { toast } = useToast();
   const replace = useReplace();
-  const [body, setBody] = useState("");
+  const { user } = useSession();
+  const url = (commentId?: string) =>
+    `/api/resources/${item.id}/comments${commentId ? `/${commentId}` : ""}`;
+  const fail = (title: string) => (err: Error) =>
+    toast({ title, description: err.message, variant: "destructive" });
+  const done = ({ recommendation }: { recommendation: Recommendation }) =>
+    replace(item.id, recommendation);
   const post = useMutation({
-    mutationFn: () =>
-      apiFetch<{ recommendation: Recommendation }>(`/api/resources/${item.id}/comments`, {
+    mutationFn: (body: string) =>
+      apiFetch<{ recommendation: Recommendation }>(url(), {
         method: "POST",
         body: JSON.stringify({ body }),
       }),
-    onSuccess: ({ recommendation }) => {
-      replace(item.id, recommendation);
-      setBody("");
-    },
-    onError: (err: Error) =>
-      toast({ title: "Could not post comment", description: err.message, variant: "destructive" }),
+    onSuccess: done,
+    onError: fail("Could not post comment"),
   });
+  const edit = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) =>
+      apiFetch<{ recommendation: Recommendation }>(url(id), {
+        method: "PATCH",
+        body: JSON.stringify({ body }),
+      }),
+    onSuccess: done,
+    onError: fail("Could not update comment"),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ recommendation: Recommendation }>(url(id), { method: "DELETE" }),
+    onSuccess: done,
+    onError: fail("Could not delete comment"),
+  });
+  const canChange = (comment: ResourceComment) =>
+    !!user && (user.isAdmin || comment.authorId === user.id);
 
   return (
     <div className="flex flex-col gap-2 border-t border-border pt-3">
-      {item.comments.length ? (
-        <ul className="divide-y divide-border">
-          {item.comments.map((comment) => (
-            <CommentRow key={comment.id} item={item} comment={comment} />
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted">No comments yet. Used them too? Share how it went.</p>
-      )}
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (body.trim()) post.mutate();
-        }}
-      >
-        <Textarea
-          rows={2}
-          placeholder="Add a comment…"
-          value={body}
-          maxLength={2000}
-          onChange={(event) => setBody(event.target.value)}
-          className="bg-white"
-        />
-        <Button type="submit" size="sm" className="w-fit" disabled={post.isPending || !body.trim()}>
-          {post.isPending ? "Posting…" : "Post comment"}
-        </Button>
-      </form>
+      <CommentTree
+        comments={item.comments}
+        nesting="none"
+        canEdit={canChange}
+        canDelete={canChange}
+        onEdit={(comment, body) => edit.mutateAsync({ id: comment.id, body })}
+        onDelete={(comment) => remove.mutateAsync(comment.id)}
+        busy={edit.isPending}
+        maxLength={2000}
+        renderBody={(comment) => (
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">
+            <Linkified text={comment.body} />
+          </p>
+        )}
+        emptyLabel={
+          <p className="text-xs text-muted">No comments yet. Used them too? Share how it went.</p>
+        }
+      />
+      <CommentForm
+        placeholder="Add a comment…"
+        submitLabel="Post comment"
+        maxLength={2000}
+        busy={post.isPending}
+        onSubmit={(body) => post.mutateAsync(body)}
+      />
     </div>
   );
 }
@@ -411,6 +340,7 @@ function RecommendationCard({
   categories: string[];
 }) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const replace = useReplace();
   const { user } = useSession();
   const [editing, setEditing] = useState(false);
@@ -470,8 +400,15 @@ function RecommendationCard({
             <button
               type="button"
               className="font-medium hover:text-destructive hover:underline"
-              onClick={() => {
-                if (window.confirm(`Remove your recommendation of ${item.title}?`)) remove.mutate();
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: `Remove your recommendation of ${item.title}?`,
+                    confirmLabel: "Remove",
+                    destructive: true,
+                  })
+                )
+                  remove.mutate();
               }}
             >
               Remove

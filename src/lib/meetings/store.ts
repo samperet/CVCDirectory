@@ -18,6 +18,8 @@ import {
   type ProposalEvent,
 } from "./shared";
 import type { Actor } from "@/lib/auth/actor";
+import { addComment, deleteComment, editComment } from "@/lib/comments/store";
+import { normalizeComment } from "@/lib/comments/shared";
 
 /**
  * A circle's meetings and proposals, kept together (`meetings/<circleId>.json`)
@@ -39,7 +41,12 @@ function normalize(raw: unknown): Stored {
   const value = raw as Partial<Stored> | null;
   return {
     meetings: Array.isArray(value?.meetings) ? value!.meetings : [],
-    proposals: Array.isArray(value?.proposals) ? value!.proposals : [],
+    proposals: Array.isArray(value?.proposals)
+      ? value!.proposals.map((proposal) => ({
+          ...proposal,
+          comments: (proposal.comments ?? []).map(normalizeComment),
+        }))
+      : [],
   };
 }
 
@@ -74,7 +81,7 @@ export type Failure =
   | "closed"
   | "not_in_review"
   | "has_proposals"
-  | "unknown_thread"
+  | "unknown_parent"
   | "too_short";
 type Result<T> = { ok: true; value: T } | { ok: false; reason: Failure };
 
@@ -424,6 +431,12 @@ function changeComments(
  * Log a tension, raise a Reasoned Objection, or reply to either. An
  * objection pauses a running review, holding the time it had left.
  */
+const COMMENT_RULES = { nesting: "one" as const, max: MAX_COMMENTS };
+const moderator = (actor: Pick<Actor, "userId" | "personId" | "name" | "admin">) => ({
+  ...actor,
+  canModerate: actor.admin,
+});
+
 export function addProposalComment(
   circleId: string,
   proposalId: string,
@@ -432,28 +445,26 @@ export function addProposalComment(
 ) {
   return changeComments(circleId, proposalId, (proposal, now) => {
     if (closed(proposal, now)) return "closed";
-    if (proposal.comments.length >= MAX_COMMENTS) return "full";
     const parent = input.parentId
       ? proposal.comments.find((entry) => entry.id === input.parentId && entry.parentId === null)
       : null;
-    if (input.parentId && !parent) return "unknown_thread";
+    if (input.parentId && !parent) return "unknown_parent";
     const kind: CommentKind = parent ? parent.kind : input.kind;
     const objecting = !parent && kind === "objection";
     if (objecting) {
       if (!proposal.review) return "not_in_review";
       if (input.body.length < MIN_OBJECTION_REASON) return "too_short";
     }
-    const comment: ProposalComment = {
-      id: randomUUID(),
-      parentId: parent?.id ?? null,
-      kind,
-      authorId: author.userId,
-      authorPersonId: author.personId,
-      authorName: author.name,
-      body: input.body,
-      createdAt: new Date(now).toISOString(),
-    };
-    let next: Proposal = { ...proposal, comments: [...proposal.comments, comment] };
+    const added = addComment(
+      proposal.comments,
+      author,
+      { body: input.body, parentId: parent?.id ?? null },
+      COMMENT_RULES,
+      { kind },
+      new Date(now)
+    );
+    if (typeof added === "string") return added;
+    let next: Proposal = { ...proposal, comments: added.comments };
     if (objecting && proposalState(proposal, now) === "review") {
       next = {
         ...next,
@@ -465,10 +476,11 @@ export function addProposalComment(
         events: [...proposal.events, event(now, "paused", author.name)],
       };
     }
-    return { proposal: next, comment };
+    return { proposal: next, comment: added.comment };
   });
 }
 
+/** Change what you wrote (while the proposal is open). */
 export function editProposalComment(
   circleId: string,
   proposalId: string,
@@ -479,7 +491,6 @@ export function editProposalComment(
   return changeComments(circleId, proposalId, (proposal, now) => {
     const comment = proposal.comments.find((entry) => entry.id === commentId);
     if (!comment) return "not_found";
-    if (comment.authorId !== actor.userId) return "forbidden";
     if (closed(proposal, now)) return "closed";
     if (
       comment.kind === "objection" &&
@@ -487,14 +498,17 @@ export function editProposalComment(
       body.length < MIN_OBJECTION_REASON
     )
       return "too_short";
-    const updated = { ...comment, body, editedAt: new Date(now).toISOString() };
-    return {
-      proposal: {
-        ...proposal,
-        comments: proposal.comments.map((entry) => (entry.id === commentId ? updated : entry)),
-      },
-      comment: updated,
-    };
+    // Authors only: a moderator doesn't reword someone's tension or objection.
+    const edited = editComment(
+      proposal.comments,
+      commentId,
+      { ...actor, canModerate: false },
+      body,
+      undefined,
+      new Date(now)
+    );
+    if (typeof edited === "string") return edited;
+    return { proposal: { ...proposal, comments: edited.comments }, comment: edited.comment };
   });
 }
 
@@ -574,22 +588,21 @@ export function deleteProposalComment(
   circleId: string,
   proposalId: string,
   commentId: string,
-  actor: Pick<Actor, "userId" | "admin">
+  actor: Pick<Actor, "userId" | "personId" | "name" | "admin">
 ) {
-  return changeComments(circleId, proposalId, (proposal) => {
+  return changeComments(circleId, proposalId, (proposal, now) => {
     const comment = proposal.comments.find((entry) => entry.id === commentId);
     if (!comment) return "not_found";
-    if (comment.authorId !== actor.userId && !actor.admin) return "forbidden";
     if (comment.kind === "objection" && comment.parentId === null) return "forbidden";
-    return {
-      proposal: {
-        ...proposal,
-        comments: proposal.comments.filter(
-          (entry) => entry.id !== commentId && entry.parentId !== commentId
-        ),
-      },
-      comment: null,
-    };
+    const removed = deleteComment(
+      proposal.comments,
+      commentId,
+      moderator(actor),
+      undefined,
+      new Date(now)
+    );
+    if (typeof removed === "string") return removed;
+    return { proposal: { ...proposal, comments: removed.comments }, comment: null };
   });
 }
 

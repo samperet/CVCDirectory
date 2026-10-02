@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: Params) {
   const [tasks, comments] = await Promise.all([listTasks(params.id), listTaskComments(params.id)]);
   const counts = new Map<string, number>();
   for (const comment of comments)
-    if (!comment.deleted) counts.set(comment.taskId, (counts.get(comment.taskId) ?? 0) + 1);
+    if (!comment.deletedAt) counts.set(comment.taskId, (counts.get(comment.taskId) ?? 0) + 1);
   const summaries: TaskSummary[] = tasks.map(({ activity: _activity, description, ...task }) => ({
     ...task,
     hasDescription: !!description.trim(),

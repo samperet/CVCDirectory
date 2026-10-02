@@ -15,7 +15,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!parsed.success) return problem("Give the comment's text, or whether it's resolved");
   const result =
     "body" in parsed.data
-      ? await editComment(ctx.page.id, params.commentId, ctx.actor, parsed.data.body)
+      ? await editComment(
+          ctx.page.id,
+          params.commentId,
+          { ...ctx.actor, canModerate: ctx.actor.admin },
+          parsed.data.body
+        )
       : await setResolved(
           ctx.page.id,
           params.commentId,
@@ -29,6 +34,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
   if ("error" in ctx) return ctx.error;
-  const result = await deleteComment(ctx.page.id, params.commentId, ctx.actor);
+  const result = await deleteComment(ctx.page.id, params.commentId, {
+    ...ctx.actor,
+    canModerate: ctx.actor.admin,
+  });
   return result.ok ? NextResponse.json({ ok: true }) : commentProblem(result.reason);
 }

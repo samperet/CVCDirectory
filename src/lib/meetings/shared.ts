@@ -1,4 +1,5 @@
 import type { Actor } from "@/lib/auth/actor";
+import type { CommentRecord } from "@/lib/comments/shared";
 /**
  * A circle's meetings and the proposals brought to them (safe for the
  * browser). A meeting has who was there and its notes (the minutes). A
@@ -39,19 +40,10 @@ export interface Meeting {
 
 export type CommentKind = "tension" | "objection";
 
-export interface ProposalComment {
-  id: string;
-  /** null: a tension or an objection of its own; otherwise the one it replies to. */
-  parentId: string | null;
+/** A tension or objection (`parentId` null), or a reply to one; see `lib/comments/shared.ts`. */
+export type ProposalComment = CommentRecord & {
   /** What it is (for replies, the same as what they reply to). */
   kind: CommentKind;
-  authorId: string;
-  /** The author's directory entry (so objections can be told apart from the circle's members). */
-  authorPersonId: string | null;
-  authorName: string;
-  body: string;
-  createdAt: string;
-  editedAt?: string | null;
   /** A tension marked addressed, and by whom. */
   addressedAt?: string | null;
   addressedBy?: string | null;
@@ -59,7 +51,7 @@ export interface ProposalComment {
   withdrawnAt?: string | null;
   withdrawnBy?: string | null;
   withdrawnNote?: string | null;
-}
+};
 
 export type ProposalEventKind =
   | "review"

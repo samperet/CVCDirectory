@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/lib/tasks/store";
-import {
-  addTaskComment,
-  ancestors,
-  listTaskComments,
-  taskCommentInputSchema,
-} from "@/lib/tasks/comments";
+import { addTaskComment, listTaskComments, taskCommentInputSchema } from "@/lib/tasks/comments";
+import { ancestors } from "@/lib/comments/shared";
 import { parseNumber, taskCommentProblem, taskProblem, tasksContext } from "@/lib/tasks/http";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { excerpt, notify } from "@/lib/push/notify";

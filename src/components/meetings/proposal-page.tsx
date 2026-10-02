@@ -14,7 +14,6 @@ import {
   MessageSquareWarning,
   Pause,
   Pencil,
-  Reply,
   RotateCcw,
   Send,
   Trash2,
@@ -53,6 +52,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/ui/confirm";
+import { CommentForm } from "@/components/comments/comment-form";
+import { CommentTree } from "@/components/comments/comment-tree";
 import { cn } from "@/lib/utils";
 import { useDirectory } from "@/components/directory/use-directory";
 
@@ -154,144 +156,15 @@ function ReviewBanner({
   );
 }
 
-function WriteForm({
-  placeholder,
-  submitLabel,
-  minLength = 1,
-  busy,
-  onSubmit,
-  onCancel,
-  initial = "",
-  autoFocus,
-}: {
-  placeholder: string;
-  submitLabel: string;
-  minLength?: number;
-  busy: boolean;
-  onSubmit: (body: string) => Promise<unknown>;
-  onCancel?: () => void;
-  initial?: string;
-  autoFocus?: boolean;
-}) {
-  const [body, setBody] = useState(initial);
-  const ready = body.trim().length >= minLength;
-  return (
-    <form
-      className="flex flex-col gap-2"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (!ready || busy) return;
-        try {
-          await onSubmit(body.trim());
-          setBody("");
-        } catch {
-          // Kept to send again; the error has been shown.
-        }
-      }}
-    >
-      <Textarea
-        autoFocus={autoFocus}
-        rows={3}
-        value={body}
-        maxLength={4000}
-        placeholder={placeholder}
-        onChange={(event) => setBody(event.target.value)}
-        className="bg-white"
-        aria-label={placeholder}
-      />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!ready || busy}>
-          {busy ? "Saving…" : submitLabel}
-        </Button>
-        {onCancel ? (
-          <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : null}
-      </div>
-    </form>
-  );
-}
+const isObjectionRoot = (comment: ProposalComment) =>
+  comment.kind === "objection" && comment.parentId === null;
 
-/** One comment's text, with editing and deleting for its author (and deleting for admins). */
-function CommentText({
-  circleId,
-  proposalId,
-  comment,
-  mine,
-  admin,
-  open,
-}: {
-  circleId: string;
-  proposalId: string;
-  comment: ProposalComment;
-  mine: boolean;
-  admin: boolean;
-  open: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const url = `${commentsUrl(circleId, proposalId)}/${comment.id}`;
-  const edit = useProposalChange(
-    circleId,
-    proposalId,
-    (body: string) => post(url, "PATCH", { body }),
-    "Could not save",
-    () => setEditing(false)
-  );
-  const remove = useProposalChange(
-    circleId,
-    proposalId,
-    () => post(url, "DELETE"),
-    "Could not delete"
-  );
-  const objection = comment.kind === "objection" && comment.parentId === null;
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
-        <span className="font-semibold text-foreground">{comment.authorName}</span>
-        <span>{timeAgo(comment.createdAt)}</span>
-        {comment.editedAt ? <span>· edited</span> : null}
-        {open && mine && !editing ? (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-0.5 hover:text-foreground"
-            aria-label="Edit"
-          >
-            <Pencil className="h-3 w-3" /> Edit
-          </button>
-        ) : null}
-        {(mine || admin) && !objection && !editing ? (
-          <button
-            type="button"
-            onClick={() => window.confirm("Delete this comment?") && remove.mutate(undefined)}
-            className="inline-flex items-center gap-0.5 hover:text-destructive"
-            aria-label="Delete"
-            disabled={remove.isPending}
-          >
-            <Trash2 className="h-3 w-3" /> Delete
-          </button>
-        ) : null}
-      </p>
-      {editing ? (
-        <WriteForm
-          initial={comment.body}
-          autoFocus
-          placeholder="Edit"
-          submitLabel="Save"
-          minLength={objection ? MIN_OBJECTION_REASON : 1}
-          busy={edit.isPending}
-          onSubmit={(body) => edit.mutateAsync(body)}
-          onCancel={() => setEditing(false)}
-        />
-      ) : (
-        <p className="whitespace-pre-wrap break-words text-sm text-foreground">{comment.body}</p>
-      )}
-    </div>
-  );
-}
-
-/** A tension or an objection, with its replies and what can be done with it. */
+/**
+ * A tension or an objection, with its replies and what can be done with it.
+ * Authors edit their own while the proposal is open; authors and admins
+ * delete tensions and replies (objections are withdrawn instead, so the
+ * record stays).
+ */
 function Thread({
   circleId,
   proposal,
@@ -308,16 +181,27 @@ function Thread({
   open: boolean;
 }) {
   const { user } = useSession();
-  const [replying, setReplying] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [note, setNote] = useState("");
-  const url = `${commentsUrl(circleId, proposal.id)}/${root.id}`;
+  const base = commentsUrl(circleId, proposal.id);
+  const url = `${base}/${root.id}`;
   const reply = useProposalChange(
     circleId,
     proposal.id,
-    (body: string) => post(commentsUrl(circleId, proposal.id), "POST", { body, parentId: root.id }),
-    "Could not reply",
-    () => setReplying(false)
+    (input: { parentId: string; body: string }) => post(base, "POST", input),
+    "Could not reply"
+  );
+  const edit = useProposalChange(
+    circleId,
+    proposal.id,
+    ({ id, body }: { id: string; body: string }) => post(`${base}/${id}`, "PATCH", { body }),
+    "Could not save"
+  );
+  const remove = useProposalChange(
+    circleId,
+    proposal.id,
+    (id: string) => post(`${base}/${id}`, "DELETE"),
+    "Could not delete"
   );
   const address = useProposalChange(
     circleId,
@@ -335,7 +219,7 @@ function Thread({
   const replies = proposal.comments.filter((entry) => entry.parentId === root.id);
   const objection = root.kind === "objection";
   const standing = objection && !root.withdrawnAt;
-  const mine = root.authorId === user?.id;
+  const mine = (comment: ProposalComment) => comment.authorId === user?.id;
   return (
     <li
       className={cn(
@@ -351,79 +235,59 @@ function Thread({
       data-kind={root.kind}
       data-open={objection ? String(standing) : String(!root.addressedAt)}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-2">
         {objection ? (
           <AlertOctagon
-            className={cn("mt-0.5 h-4 w-4 shrink-0", standing ? "text-destructive" : "text-muted")}
+            className={cn("h-4 w-4 shrink-0", standing ? "text-destructive" : "text-muted")}
             aria-hidden
           />
         ) : (
-          <MessageSquareWarning className="mt-0.5 h-4 w-4 shrink-0 text-[#7a5200]" aria-hidden />
+          <MessageSquareWarning className="h-4 w-4 shrink-0 text-[#7a5200]" aria-hidden />
         )}
-        <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              "mb-1 text-xs font-semibold uppercase tracking-wide",
-              objection ? (standing ? "text-destructive" : "text-muted") : "text-[#7a5200]"
-            )}
-          >
-            {objection
-              ? standing
-                ? "Reasoned Objection"
-                : "Objection withdrawn"
-              : root.addressedAt
-                ? "Tension · addressed"
-                : "Tension"}
-          </p>
-          <CommentText
-            circleId={circleId}
-            proposalId={proposal.id}
-            comment={root}
-            mine={mine}
-            admin={admin}
-            open={open}
-          />
-          {objection && root.withdrawnAt ? (
+        <p
+          className={cn(
+            "text-xs font-semibold uppercase tracking-wide",
+            objection ? (standing ? "text-destructive" : "text-muted") : "text-[#7a5200]"
+          )}
+        >
+          {objection
+            ? standing
+              ? "Reasoned Objection"
+              : "Objection withdrawn"
+            : root.addressedAt
+              ? "Tension · addressed"
+              : "Tension"}
+        </p>
+      </div>
+      <CommentTree
+        comments={[root, ...replies]}
+        roots={[root]}
+        nesting="one"
+        className="-mx-3"
+        canReply={() => open && canReview}
+        canEdit={(comment) => open && mine(comment)}
+        canDelete={(comment) => (mine(comment) || admin) && !isObjectionRoot(comment)}
+        onReply={(parentId, body) => reply.mutateAsync({ parentId, body })}
+        onEdit={(comment, body) => edit.mutateAsync({ id: comment.id, body })}
+        onDelete={(comment) => remove.mutateAsync(comment.id)}
+        busy={reply.isPending || edit.isPending}
+        minLength={(comment) => (isObjectionRoot(comment) ? MIN_OBJECTION_REASON : 1)}
+        renderExtras={(comment) =>
+          comment.id !== root.id ? null : objection && root.withdrawnAt ? (
             <p className="mt-1 text-xs text-muted">
               Withdrawn by {root.withdrawnBy} {timeAgo(root.withdrawnAt)}
               {root.withdrawnNote ? `: “${root.withdrawnNote}”` : ""}
             </p>
-          ) : null}
-          {!objection && root.addressedAt ? (
+          ) : !objection && root.addressedAt ? (
             <p className="mt-1 text-xs text-muted">
               Marked addressed by {root.addressedBy} {timeAgo(root.addressedAt)}
             </p>
-          ) : null}
-        </div>
-      </div>
-      {replies.length ? (
-        <ul className="ml-6 flex flex-col gap-2 border-l-2 border-border pl-3">
-          {replies.map((entry) => (
-            <li key={entry.id}>
-              <CommentText
-                circleId={circleId}
-                proposalId={proposal.id}
-                comment={entry}
-                mine={entry.authorId === user?.id}
-                admin={admin}
-                open={open}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {open && (canReview || admin) ? (
-        <div className="ml-6 flex flex-wrap gap-2">
-          {canReview && !replying ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 gap-1"
-              onClick={() => setReplying(true)}
-            >
-              <Reply className="h-4 w-4" /> Reply
-            </Button>
-          ) : null}
+          ) : null
+        }
+      />
+      {open &&
+      ((!objection && canReview) || (standing && (mine(root) || admin) && !withdrawing)) ? (
+        <div className="flex flex-wrap gap-2">
           {!objection && canReview ? (
             <Button
               size="sm"
@@ -440,7 +304,7 @@ function Thread({
               {root.addressedAt ? "Reopen" : "Mark addressed"}
             </Button>
           ) : null}
-          {standing && (mine || admin) && !withdrawing ? (
+          {standing && (mine(root) || admin) && !withdrawing ? (
             <Button
               size="sm"
               variant="outline"
@@ -452,21 +316,9 @@ function Thread({
           ) : null}
         </div>
       ) : null}
-      {replying ? (
-        <div className="ml-6">
-          <WriteForm
-            autoFocus
-            placeholder="Reply…"
-            submitLabel="Reply"
-            busy={reply.isPending}
-            onSubmit={(body) => reply.mutateAsync(body)}
-            onCancel={() => setReplying(false)}
-          />
-        </div>
-      ) : null}
       {withdrawing ? (
         <form
-          className="ml-6 flex flex-col gap-2"
+          className="flex flex-col gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             withdraw.mutate(undefined);
@@ -517,6 +369,7 @@ export function ProposalPageClient({
   proposalId: string;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const directory = useDirectory();
   const pages = useWikiPages().data?.pages;
   const now = useNow();
@@ -707,7 +560,10 @@ export function ProposalPageClient({
                 variant="ghost"
                 className="gap-1 text-muted hover:text-destructive"
                 disabled={remove.isPending}
-                onClick={() => window.confirm("Delete this draft?") && remove.mutate()}
+                onClick={async () => {
+                  if (await confirm({ title: "Delete this draft?", destructive: true }))
+                    remove.mutate();
+                }}
               >
                 <Trash2 className="h-4 w-4" /> Delete
               </Button>
@@ -717,10 +573,17 @@ export function ProposalPageClient({
                 variant="ghost"
                 className="gap-1 text-muted hover:text-destructive"
                 disabled={act.isPending}
-                onClick={() =>
-                  window.confirm("Withdraw this proposal? Its review ends.") &&
-                  act.mutate("withdraw")
-                }
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: "Withdraw this proposal?",
+                      body: "Its review ends.",
+                      confirmLabel: "Withdraw",
+                      destructive: true,
+                    })
+                  )
+                    act.mutate("withdraw");
+                }}
               >
                 <X className="h-4 w-4" /> Withdraw proposal
               </Button>
@@ -783,7 +646,7 @@ export function ProposalPageClient({
                 </>
               )}
             </p>
-            <WriteForm
+            <CommentForm
               autoFocus
               placeholder={writing === "objection" ? "Your reason for objecting…" : "The tension…"}
               submitLabel={writing === "objection" ? "Raise objection" : "Log tension"}

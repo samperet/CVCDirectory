@@ -3,6 +3,14 @@ import { z } from "zod";
 import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import { GENERAL_TOPIC_ID } from "./topics";
 import type { Actor } from "@/lib/auth/actor";
+import {
+  addComment,
+  deleteComment,
+  editComment,
+  type CommentActor,
+  type CommentChange,
+} from "@/lib/comments/store";
+import { liveComments, normalizeComment, type CommentRecord } from "@/lib/comments/shared";
 
 /**
  * Forum threads, one document per thread (the opening post plus every reply,
@@ -10,9 +18,9 @@ import type { Actor } from "@/lib/auth/actor";
  * Replies nest to any depth; the tree is assembled by the client.
  *
  * Authors can edit and delete their own posts, and admins can moderate any
- * post. Deleting a reply that others have answered leaves a placeholder so the
- * conversation below it survives; placeholders disappear once nothing hangs
- * off them.
+ * post. Replies follow the shared comment rules (`lib/comments/store.ts`):
+ * deleting one that others have answered leaves a placeholder so the
+ * conversation below it survives.
  */
 
 type Author = Pick<Actor, "userId" | "name">;
@@ -26,17 +34,8 @@ export interface ForumLike {
   name: string;
 }
 
-export interface ForumReply {
-  id: string;
-  parentId: string | null; // null = a direct reply to the opening post
-  authorId: string;
-  authorName: string;
-  body: string;
-  createdAt: string;
-  editedAt?: string | null;
-  deletedAt?: string | null;
-  likes?: ForumLike[];
-}
+/** A reply (`parentId` null: directly to the opening post); see `lib/comments/shared.ts`. */
+export type ForumReply = CommentRecord & { likes?: ForumLike[] };
 
 export interface ForumThread {
   id: string;
@@ -135,7 +134,7 @@ function normalizeIndex(raw: unknown): ForumThreadSummary[] {
   return Array.isArray(threads) ? (threads as ForumThreadSummary[]) : [];
 }
 
-const live = (replies: ForumReply[]) => replies.filter((reply) => !reply.deletedAt);
+const live = liveComments;
 
 /** Most recently active first. */
 export async function listThreads(): Promise<ForumThreadSummary[]> {
@@ -146,7 +145,10 @@ export async function listThreads(): Promise<ForumThreadSummary[]> {
 function normalizeThread(raw: unknown): ForumThreadDocument | null {
   const doc = raw as ForumThreadDocument | null;
   return doc?.thread
-    ? { thread: doc.thread, replies: Array.isArray(doc.replies) ? doc.replies : [] }
+    ? {
+        thread: doc.thread,
+        replies: Array.isArray(doc.replies) ? doc.replies.map(normalizeComment) : [],
+      }
     : null;
 }
 
@@ -248,65 +250,47 @@ async function mutateThread(
   return result;
 }
 
+const REPLY_RULES = { nesting: "any" as const, max: MAX_REPLIES };
+const moderator = (actor: Moderator): CommentActor => ({
+  userId: actor.userId,
+  personId: null,
+  name: "",
+  canModerate: actor.admin,
+});
+/** The replies after a shared comment operation, or the failure it returned. */
+const withReplies = (
+  doc: ForumThreadDocument,
+  change: CommentChange<ForumReply> | Failure
+): ForumThreadDocument | Failure =>
+  typeof change === "string" ? change : { ...doc, replies: change.comments };
+
 export function addReply(
   threadId: string,
-  author: Author,
+  author: Pick<Actor, "userId" | "personId" | "name">,
   input: { parentId: string | null; body: string }
 ) {
-  return mutateThread(threadId, (doc) => {
-    if (input.parentId && !live(doc.replies).some((reply) => reply.id === input.parentId))
-      return "unknown_parent";
-    if (doc.replies.length >= MAX_REPLIES) return "full";
-    const reply: ForumReply = {
-      id: randomUUID(),
-      parentId: input.parentId,
-      authorId: author.userId,
-      authorName: author.name,
-      body: input.body,
-      createdAt: new Date().toISOString(),
-    };
-    return { ...doc, replies: [...doc.replies, reply] };
-  });
+  return mutateThread(threadId, (doc) =>
+    withReplies(doc, addComment(doc.replies, author, input, REPLY_RULES, {}))
+  );
 }
 
 export function editReply(threadId: string, actor: Moderator, replyId: string, body: string) {
-  return mutateThread(threadId, (doc) => {
-    const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
-    if (!reply) return "not_found";
-    if (!mayChange(reply.authorId, actor)) return "forbidden";
-    return {
-      ...doc,
-      replies: doc.replies.map((entry) =>
-        entry.id === replyId ? { ...entry, body, editedAt: new Date().toISOString() } : entry
-      ),
-    };
-  });
+  return mutateThread(threadId, (doc) =>
+    withReplies(doc, editComment(doc.replies, replyId, moderator(actor), body))
+  );
 }
 
-/**
- * Remove your own reply (or, for admins, anyone's). If others answered it,
- * keep a placeholder so their replies stay attached; then drop any
- * placeholders left with no replies.
- */
+/** Remove your own reply (or, for admins, anyone's); a placeholder keeps others' answers in place. A placeholder has no likes. */
 export function deleteReply(threadId: string, actor: Moderator, replyId: string) {
   return mutateThread(threadId, (doc) => {
-    const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
-    if (!reply) return "not_found";
-    if (!mayChange(reply.authorId, actor)) return "forbidden";
-
-    let replies = doc.replies.map((entry) =>
-      entry.id === replyId
-        ? { ...entry, body: "", likes: [], deletedAt: new Date().toISOString() }
-        : entry
-    );
-    // Prune placeholders with nothing beneath them, walking up the chain.
-    for (;;) {
-      const parents = new Set(replies.map((entry) => entry.parentId));
-      const pruned = replies.filter((entry) => !entry.deletedAt || parents.has(entry.id));
-      if (pruned.length === replies.length) break;
-      replies = pruned;
-    }
-    return { ...doc, replies };
+    const change = deleteComment(doc.replies, replyId, moderator(actor));
+    if (typeof change === "string") return change;
+    return {
+      ...doc,
+      replies: change.comments.map((entry) =>
+        entry.deletedAt && entry.likes?.length ? { ...entry, likes: [] } : entry
+      ),
+    };
   });
 }
 

@@ -2,12 +2,19 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
 import type { Actor } from "@/lib/auth/actor";
+import {
+  addComment as addToList,
+  deleteComment,
+  editComment as editInList,
+} from "@/lib/comments/store";
+import { normalizeComment, type CommentRecord } from "@/lib/comments/shared";
 
 /**
  * Resources: residents' recommendations for local services (a plumber, a
  * dentist, a realtor…), grouped by category. Each recommendation names who
- * made it, and residents can like it and comment on it. Everything lives in
- * one document.
+ * made it, and residents can like it and comment on it (flat comments, by
+ * the shared rules in `lib/comments/store.ts`; admins moderate). Everything
+ * lives in one document.
  *
  * Ownership is by directory person, so recommendations seeded on a
  * resident's behalf belong to them once they sign in.
@@ -18,15 +25,8 @@ export interface ResourceLike {
   name: string;
 }
 
-export interface ResourceComment {
-  id: string;
-  authorId: string;
-  authorPersonId: string | null;
-  authorName: string;
-  body: string;
-  createdAt: string;
-  editedAt?: string | null;
-}
+/** A comment on a recommendation; see `lib/comments/shared.ts`. */
+export type ResourceComment = CommentRecord;
 
 export interface Recommendation {
   id: string;
@@ -75,7 +75,7 @@ const KEY = "resources/recommendations.json";
 const MAX_RECOMMENDATIONS = 1000;
 const MAX_COMMENTS = 300;
 
-export type Failure = "not_found" | "forbidden" | "full";
+export type Failure = "not_found" | "forbidden" | "full" | "unknown_parent";
 export type Result<T> = { ok: true; value: T } | { ok: false; reason: Failure };
 
 function normalize(raw: unknown): Recommendation[] {
@@ -84,7 +84,7 @@ function normalize(raw: unknown): Recommendation[] {
     ? (items as Recommendation[]).map((item) => ({
         ...item,
         likes: item.likes ?? [],
-        comments: item.comments ?? [],
+        comments: (item.comments ?? []).map(normalizeComment),
       }))
     : [];
 }
@@ -176,45 +176,32 @@ export function setLike(id: string, actor: Actor, liked: boolean) {
   });
 }
 
+const COMMENT_RULES = { nesting: "none" as const, max: MAX_COMMENTS };
+const moderator = (actor: Actor) => ({ ...actor, canModerate: actor.admin });
+/** The recommendation with its comments changed, or the failure. */
+const withComments = (
+  item: Recommendation,
+  change: { comments: ResourceComment[] } | Failure
+): Recommendation | Failure =>
+  typeof change === "string" ? change : { ...item, comments: change.comments };
+
 export function addComment(id: string, actor: Actor, text: string) {
-  return mutateOne(id, (item) => {
-    if (item.comments.length >= MAX_COMMENTS) return "full";
-    const comment: ResourceComment = {
-      id: randomUUID(),
-      authorId: actor.userId,
-      authorPersonId: actor.personId,
-      authorName: actor.name,
-      body: text,
-      createdAt: new Date().toISOString(),
-    };
-    return { ...item, comments: [...item.comments, comment] };
-  });
+  return mutateOne(id, (item) =>
+    withComments(
+      item,
+      addToList(item.comments, actor, { body: text, parentId: null }, COMMENT_RULES, {})
+    )
+  );
 }
 
-const ownsComment = (comment: ResourceComment, actor: Actor) =>
-  actor.admin || comment.authorId === actor.userId;
-
 export function editComment(id: string, commentId: string, actor: Actor, text: string) {
-  return mutateOne(id, (item) => {
-    const comment = item.comments.find((entry) => entry.id === commentId);
-    if (!comment) return "not_found";
-    if (!ownsComment(comment, actor)) return "forbidden";
-    return {
-      ...item,
-      comments: item.comments.map((entry) =>
-        entry.id === commentId
-          ? { ...entry, body: text, editedAt: new Date().toISOString() }
-          : entry
-      ),
-    };
-  });
+  return mutateOne(id, (item) =>
+    withComments(item, editInList(item.comments, commentId, moderator(actor), text))
+  );
 }
 
 export function removeComment(id: string, commentId: string, actor: Actor) {
-  return mutateOne(id, (item) => {
-    const comment = item.comments.find((entry) => entry.id === commentId);
-    if (!comment) return "not_found";
-    if (!ownsComment(comment, actor)) return "forbidden";
-    return { ...item, comments: item.comments.filter((entry) => entry.id !== commentId) };
-  });
+  return mutateOne(id, (item) =>
+    withComments(item, deleteComment(item.comments, commentId, moderator(actor)))
+  );
 }
