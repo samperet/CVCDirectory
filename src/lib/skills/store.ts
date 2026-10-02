@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Skills belong to residents: every entry records the directory person who
@@ -52,17 +52,17 @@ export async function addSkill(
   person: { id: string; name: string },
   input: { name: string; category: string }
 ): Promise<AddSkillResult> {
-  return enqueue<AddSkillResult>(KEY, async () => {
-    const skills = normalize(await readJson(KEY));
+  return mutateJson<AddSkillResult>(KEY, (raw) => {
+    const skills = normalize(raw);
     const mine = skills.filter((skill) => skill.personId === person.id);
     if (
       mine.some(
         (skill) => skill.name.localeCompare(input.name, undefined, { sensitivity: "base" }) === 0
       )
     ) {
-      return { ok: false, reason: "duplicate" };
+      return { write: false, result: { ok: false, reason: "duplicate" } };
     }
-    if (mine.length >= MAX_PER_PERSON) return { ok: false, reason: "limit" };
+    if (mine.length >= MAX_PER_PERSON) return { write: false, result: { ok: false, reason: "limit" } };
     const skill: SkillEntry = {
       id: randomUUID(),
       personId: person.id,
@@ -71,8 +71,7 @@ export async function addSkill(
       category: input.category,
       createdAt: new Date().toISOString(),
     };
-    await writeJson(KEY, { skills: [...skills, skill] });
-    return { ok: true, skill };
+    return { value: { skills: [...skills, skill] }, result: { ok: true, skill } };
   });
 }
 
@@ -81,12 +80,11 @@ export async function removeSkill(
   actor: { personId: string; admin: boolean },
   skillId: string
 ): Promise<"removed" | "not_found" | "forbidden"> {
-  return enqueue(KEY, async () => {
-    const skills = normalize(await readJson(KEY));
+  return mutateJson<"removed" | "not_found" | "forbidden">(KEY, (raw) => {
+    const skills = normalize(raw);
     const skill = skills.find((entry) => entry.id === skillId);
-    if (!skill) return "not_found" as const;
-    if (!actor.admin && skill.personId !== actor.personId) return "forbidden" as const;
-    await writeJson(KEY, { skills: skills.filter((entry) => entry.id !== skillId) });
-    return "removed" as const;
+    if (!skill) return { write: false, result: "not_found" };
+    if (!actor.admin && skill.personId !== actor.personId) return { write: false, result: "forbidden" };
+    return { value: { skills: skills.filter((entry) => entry.id !== skillId) }, result: "removed" };
   });
 }

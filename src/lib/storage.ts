@@ -482,6 +482,25 @@ export function mutateJson<T>(
   });
 }
 
+/**
+ * What `parse` makes of the document — or, when there isn't one yet, of the
+ * document `seed()` makes, written in its place (write-if-absent, so when two
+ * instances seed at once the first to land is what both return). `parse`
+ * returns null for "not there yet".
+ */
+export function readOrSeedJson<T>(
+  key: string,
+  parse: (raw: unknown) => T | null,
+  seed: () => unknown
+): Promise<T> {
+  return mutateJson<T>(key, (current) => {
+    const stored = parse(current);
+    if (stored) return { write: false, result: stored };
+    const value = seed();
+    return { value, result: parse(value) as T };
+  });
+}
+
 let conditionalUnsupported = false;
 
 async function readJsonWithEtag(

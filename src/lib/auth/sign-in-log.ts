@@ -1,4 +1,4 @@
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * A log of successful sign-ins, newest kept, for admins. It records who
@@ -33,16 +33,16 @@ export async function recordSignIn(
   viewedBy?: string
 ): Promise<void> {
   try {
-    await enqueue(KEY, async () => {
-      const entries = normalize(await readJson(KEY));
-      const entry: SignInEntry = {
-        at: new Date().toISOString(),
-        personId: person.id,
-        name: person.displayName,
-        ...(viewedBy ? { viewedBy } : {}),
-      };
-      await writeJson(KEY, { entries: [...entries, entry].slice(-MAX_ENTRIES) });
-    });
+    const entry: SignInEntry = {
+      at: new Date().toISOString(),
+      personId: person.id,
+      name: person.displayName,
+      ...(viewedBy ? { viewedBy } : {}),
+    };
+    await mutateJson(KEY, (raw) => ({
+      value: { entries: [...normalize(raw), entry].slice(-MAX_ENTRIES) },
+      result: null,
+    }));
   } catch (error) {
     console.error("[auth] could not record sign-in", error instanceof Error ? error.name : "error");
   }

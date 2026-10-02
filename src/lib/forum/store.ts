@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import { GENERAL_TOPIC_ID } from "./topics";
 
 /**
@@ -145,19 +145,23 @@ export async function listThreads(): Promise<ForumThreadSummary[]> {
   return [...threads].sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
 }
 
-export async function getThread(id: string): Promise<ForumThreadDocument | null> {
-  if (!isThreadId(id)) return null;
-  const doc = (await readJson(threadKey(id))) as ForumThreadDocument | null;
+function normalizeThread(raw: unknown): ForumThreadDocument | null {
+  const doc = raw as ForumThreadDocument | null;
   return doc?.thread
     ? { thread: doc.thread, replies: Array.isArray(doc.replies) ? doc.replies : [] }
     : null;
 }
 
+export async function getThread(id: string): Promise<ForumThreadDocument | null> {
+  if (!isThreadId(id)) return null;
+  return normalizeThread(await readJson(threadKey(id)));
+}
+
 async function updateIndex(update: (threads: ForumThreadSummary[]) => ForumThreadSummary[]) {
-  await enqueue(INDEX_KEY, async () => {
-    const threads = normalizeIndex(await readJson(INDEX_KEY));
-    await writeJson(INDEX_KEY, { threads: update(threads) });
-  });
+  await mutateJson(INDEX_KEY, (raw) => ({
+    value: { threads: update(normalizeIndex(raw)) },
+    result: null,
+  }));
 }
 
 /** Refresh a thread's list entry (title, reply count, last activity) from its document. */
@@ -196,7 +200,10 @@ export async function createThread(
     topicId: input.topicId,
   };
   const doc: ForumThreadDocument = { thread, replies: [] };
-  await enqueue(threadKey(thread.id), () => writeJson(threadKey(thread.id), doc));
+  // A fresh id, so this only ever creates; the index entry follows, so a listed thread always exists.
+  await mutateJson(threadKey(thread.id), (current) =>
+    current ? { write: false, result: null } : { value: doc, result: null }
+  );
   await updateIndex((threads) => [
     ...threads,
     {
@@ -226,13 +233,12 @@ async function mutateThread(
   { sync = true }: { sync?: boolean } = {}
 ): Promise<ThreadResult> {
   if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
-  const result = await enqueue<ThreadResult>(threadKey(threadId), async () => {
-    const doc = await getThread(threadId);
-    if (!doc) return { ok: false, reason: "not_found" };
+  const result = await mutateJson<ThreadResult>(threadKey(threadId), (raw) => {
+    const doc = normalizeThread(raw);
+    if (!doc) return { write: false, result: { ok: false, reason: "not_found" } };
     const next = change(doc);
-    if (typeof next === "string") return { ok: false, reason: next };
-    await writeJson(threadKey(threadId), next);
-    return { ok: true, doc: next };
+    if (typeof next === "string") return { write: false, result: { ok: false, reason: next } };
+    return { value: next, result: { ok: true, doc: next } };
   });
   if (result.ok && sync) await syncSummary(result.doc);
   return result;

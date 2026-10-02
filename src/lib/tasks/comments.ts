@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import type { TaskComment } from "./shared";
 
 /**
@@ -60,11 +60,13 @@ async function mutate(
     comments: TaskComment[]
   ) => { comments: TaskComment[]; comment: TaskComment | null } | Failure
 ): Promise<TaskCommentResult> {
-  return enqueue<TaskCommentResult>(key(circleId), async () => {
-    const result = change(normalize(await readJson(key(circleId))));
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(key(circleId), { comments: result.comments });
-    return { ok: true, comment: result.comment, comments: result.comments };
+  return mutateJson<TaskCommentResult>(key(circleId), (raw) => {
+    const result = change(normalize(raw));
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return {
+      value: { comments: result.comments },
+      result: { ok: true, comment: result.comment, comments: result.comments },
+    };
   });
 }
 

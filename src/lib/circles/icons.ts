@@ -1,4 +1,4 @@
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 import type { Circle, DirectoryDocument } from "@/lib/directory/types";
 import { BOARD_ID } from "./ids";
 
@@ -25,17 +25,19 @@ export function iconKey(circleId: string) {
   return `circles/icons/${circleId}`;
 }
 
+function normalize(raw: unknown): Record<string, IconMeta> {
+  const doc = raw as { icons?: Record<string, IconMeta> } | null;
+  return doc?.icons && typeof doc.icons === "object" ? doc.icons : {};
+}
+
 export async function readCircleIcons(): Promise<Record<string, IconMeta>> {
-  const raw = (await readJson(KEY)) as { icons?: Record<string, IconMeta> } | null;
-  return raw?.icons && typeof raw.icons === "object" ? raw.icons : {};
+  return normalize(await readJson(KEY));
 }
 
 export async function setCircleIcon(circleId: string, meta: IconMeta | null): Promise<void> {
-  await enqueue(KEY, async () => {
-    const icons = await readCircleIcons();
-    if (meta) icons[circleId] = meta;
-    else delete icons[circleId];
-    await writeJson(KEY, { icons });
+  await mutateJson(KEY, (raw) => {
+    const { [circleId]: _old, ...rest } = normalize(raw);
+    return { value: { icons: meta ? { ...rest, [circleId]: meta } : rest }, result: null };
   });
 }
 

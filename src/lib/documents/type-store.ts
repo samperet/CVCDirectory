@@ -1,4 +1,4 @@
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 import {
   DEFAULT_DOCUMENT_TYPES,
   DocumentRecord,
@@ -14,9 +14,13 @@ import {
 
 const KEY = "documents/types.json";
 
+function normalize(raw: unknown): Record<string, DocumentTypeOption[]> {
+  const doc = raw as { byCircle?: Record<string, DocumentTypeOption[]> } | null;
+  return doc?.byCircle && typeof doc.byCircle === "object" ? doc.byCircle : {};
+}
+
 export async function readTypeMap(): Promise<Record<string, DocumentTypeOption[]>> {
-  const raw = (await readJson(KEY)) as { byCircle?: Record<string, DocumentTypeOption[]> } | null;
-  return raw?.byCircle && typeof raw.byCircle === "object" ? raw.byCircle : {};
+  return normalize(await readJson(KEY));
 }
 
 export const typesFor = (circleId: string, map: Record<string, DocumentTypeOption[]>) =>
@@ -58,8 +62,8 @@ export async function saveCircleTypes(
   if (new Set(labels.map((label) => label.toLowerCase())).size !== labels.length)
     return "Each type needs a different name";
 
-  return enqueue(KEY, async () => {
-    const map = await readTypeMap();
+  return mutateJson<DocumentTypeOption[]>(KEY, (raw) => {
+    const map = normalize(raw);
     const current = typesFor(circleId, map);
     const known = new Set(current.map((option) => option.id));
     const taken = new Set<string>();
@@ -69,7 +73,6 @@ export async function saveCircleTypes(
       taken.add(id);
       return { id, label: labels[index] };
     });
-    await writeJson(KEY, { byCircle: { ...map, [circleId]: saved } });
-    return saved;
+    return { value: { byCircle: { ...map, [circleId]: saved } }, result: saved };
   });
 }

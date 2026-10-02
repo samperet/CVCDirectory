@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Forum topics: the forum's front page lists them, and each holds its own
@@ -84,11 +84,10 @@ type Result<T> = { ok: true; value: T } | { ok: false; reason: Failure };
 async function mutate<T>(
   change: (topics: ForumTopic[]) => { topics: ForumTopic[]; value: T } | Failure
 ): Promise<Result<T>> {
-  return enqueue<Result<T>>(KEY, async () => {
-    const result = change(normalize(await readJson(KEY)));
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(KEY, { topics: result.topics });
-    return { ok: true, value: result.value };
+  return mutateJson<Result<T>>(KEY, (raw) => {
+    const result = change(normalize(raw));
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return { value: { topics: result.topics }, result: { ok: true, value: result.value } };
   });
 }
 

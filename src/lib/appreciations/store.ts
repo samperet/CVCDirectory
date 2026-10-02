@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Appreciations are short public thank-you notes that rotate through the
@@ -58,10 +58,10 @@ export async function addAppreciation(
     message: input.message,
     createdAt: new Date().toISOString(),
   };
-  await enqueue(KEY, async () => {
-    const items = normalize(await readJson(KEY));
-    await writeJson(KEY, { items: [...items, appreciation].slice(-MAX_STORED) });
-  });
+  await mutateJson(KEY, (raw) => ({
+    value: { items: [...normalize(raw), appreciation].slice(-MAX_STORED) },
+    result: null,
+  }));
   return appreciation;
 }
 
@@ -69,10 +69,9 @@ export const MAX_APPRECIATIONS = MAX_STORED;
 
 /** Remove an appreciation: any resident may (the community tends them together). */
 export async function removeAppreciation(id: string): Promise<"removed" | "not_found"> {
-  return enqueue(KEY, async () => {
-    const items = normalize(await readJson(KEY));
-    if (!items.some((entry) => entry.id === id)) return "not_found" as const;
-    await writeJson(KEY, { items: items.filter((entry) => entry.id !== id) });
-    return "removed" as const;
+  return mutateJson<"removed" | "not_found">(KEY, (raw) => {
+    const items = normalize(raw);
+    if (!items.some((entry) => entry.id === id)) return { write: false, result: "not_found" };
+    return { value: { items: items.filter((entry) => entry.id !== id) }, result: "removed" };
   });
 }

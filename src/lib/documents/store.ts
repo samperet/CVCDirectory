@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteBinary, enqueue, readJson, writeBinary, writeJson } from "@/lib/storage";
+import { deleteBinary, mutateJson, readJson, writeBinary } from "@/lib/storage";
 import { occurrences, snippetFor } from "@/lib/search";
 import { DocumentConsent, DocumentRecord, DocumentVersion, Uploader } from "./types";
 import { searchTerms } from "@/lib/search";
@@ -77,30 +77,38 @@ async function textStamp(): Promise<string> {
   return raw?.textUpdatedAt ?? "";
 }
 
-/** Change the index (and optionally the search text) together, under both write queues. */
+type Failure = "not_found" | "full" | "conflict";
+type DocumentResult<T> = { ok: true; value: T } | { ok: false; reason: Failure };
+
+/** Set (or, with null, drop) one document's search text. */
+function writeText(id: string, value: string | null) {
+  return mutateJson(TEXT, (raw) => {
+    const { [id]: _old, ...rest } = (raw as { text?: Record<string, string> } | null)?.text ?? {};
+    return { value: { text: value === null ? rest : { ...rest, [id]: value } }, result: null };
+  });
+}
+
+/**
+ * Change the index — with, when a file's text changes too, that text written
+ * first and the index stamped (`textUpdatedAt`) so every instance's text
+ * cache reloads. A text left behind by a failed index change is taken back.
+ */
 async function mutate<T>(
-  change: (
-    documents: DocumentRecord[],
-    texts: Record<string, string>
-  ) =>
-    | { documents: DocumentRecord[]; texts?: Record<string, string>; value: T }
-    | "not_found"
-    | "full"
-): Promise<{ ok: true; value: T } | { ok: false; reason: "not_found" | "full" }> {
-  return enqueue(INDEX, () =>
-    enqueue(TEXT, async () => {
-      const raw = (await readJson(INDEX)) as { textUpdatedAt?: string } | null;
-      const documents = normalizeIndex(raw);
-      const texts =
-        ((await readJson(TEXT)) as { text?: Record<string, string> } | null)?.text ?? {};
-      const outcome = change(documents, texts);
-      if (typeof outcome === "string") return { ok: false as const, reason: outcome };
-      const textUpdatedAt = outcome.texts ? new Date().toISOString() : raw?.textUpdatedAt ?? "";
-      if (outcome.texts) await writeJson(TEXT, { text: outcome.texts });
-      await writeJson(INDEX, { documents: outcome.documents, textUpdatedAt });
-      return { ok: true as const, value: outcome.value };
-    })
-  );
+  change: (documents: DocumentRecord[]) => { documents: DocumentRecord[]; value: T } | Failure,
+  text?: { id: string; value: string | null }
+): Promise<DocumentResult<T>> {
+  if (text) await writeText(text.id, text.value);
+  const result = await mutateJson<DocumentResult<T>>(INDEX, (raw) => {
+    const outcome = change(normalizeIndex(raw));
+    if (typeof outcome === "string") return { write: false, result: { ok: false, reason: outcome } };
+    const stamp = (raw as { textUpdatedAt?: string } | null)?.textUpdatedAt ?? "";
+    return {
+      value: { documents: outcome.documents, textUpdatedAt: text ? new Date().toISOString() : stamp },
+      result: { ok: true, value: outcome.value },
+    };
+  });
+  if (text?.value !== null && text && !result.ok) await writeText(text.id, null);
+  return result;
 }
 
 export async function createDocument(
@@ -128,18 +136,21 @@ export async function createDocument(
     uploadedAt: now,
   };
   await writeBinary(fileKey(id, 1), { bytes: file.bytes, contentType: file.contentType });
-  const result = await mutate<DocumentRecord>((documents, texts) => {
-    if (documents.length >= MAX_DOCUMENTS) return "full";
-    const doc: DocumentRecord = {
-      id,
-      circleId,
-      ...details,
-      versions: [version],
-      createdAt: now,
-      updatedAt: now,
-    };
-    return { documents: [...documents, doc], texts: { ...texts, [id]: file.text }, value: doc };
-  });
+  const result = await mutate<DocumentRecord>(
+    (documents) => {
+      if (documents.length >= MAX_DOCUMENTS) return "full";
+      const doc: DocumentRecord = {
+        id,
+        circleId,
+        ...details,
+        versions: [version],
+        createdAt: now,
+        updatedAt: now,
+      };
+      return { documents: [...documents, doc], value: doc };
+    },
+    { id, value: file.text }
+  );
   if (!result.ok) await deleteBinary(fileKey(id, 1));
   return result;
 }
@@ -161,10 +172,13 @@ export async function addVersion(
   const number = Math.max(...existing.versions.map((version) => version.number)) + 1;
   await writeBinary(fileKey(id, number), { bytes: file.bytes, contentType: file.contentType });
   const now = new Date().toISOString();
-  const result = await mutate<DocumentRecord>((documents, texts) => {
-    const index = documents.findIndex((doc) => doc.id === id);
-    if (index === -1) return "not_found";
-    const version: DocumentVersion = {
+  const result = await mutate<DocumentRecord>(
+    (documents) => {
+      const index = documents.findIndex((doc) => doc.id === id);
+      if (index === -1) return "not_found";
+      // Another upload took this version number first: this file is taken back.
+      if (documents[index].versions.some((entry) => entry.number === number)) return "conflict";
+      const version: DocumentVersion = {
       number,
       fileName: file.fileName,
       size: file.bytes.length,
@@ -174,14 +188,16 @@ export async function addVersion(
       uploadedBy: uploader,
       uploadedAt: now,
     };
-    const next = [...documents];
-    next[index] = {
-      ...documents[index],
-      versions: [...documents[index].versions, version],
-      updatedAt: now,
-    };
-    return { documents: next, texts: { ...texts, [id]: file.text }, value: next[index] };
-  });
+      const next = [...documents];
+      next[index] = {
+        ...documents[index],
+        versions: [...documents[index].versions, version],
+        updatedAt: now,
+      };
+      return { documents: next, value: next[index] };
+    },
+    { id, value: file.text }
+  );
   if (!result.ok) await deleteBinary(fileKey(id, number));
   return result;
 }
@@ -215,12 +231,14 @@ export function setConsent(id: string, consent: Omit<DocumentConsent, "version">
 
 /** Delete a document and every version of its file. */
 export async function deleteDocument(id: string) {
-  const result = await mutate<DocumentRecord>((documents, texts) => {
-    const doc = documents.find((entry) => entry.id === id);
-    if (!doc) return "not_found";
-    const { [id]: _removed, ...rest } = texts;
-    return { documents: documents.filter((entry) => entry.id !== id), texts: rest, value: doc };
-  });
+  const result = await mutate<DocumentRecord>(
+    (documents) => {
+      const doc = documents.find((entry) => entry.id === id);
+      if (!doc) return "not_found";
+      return { documents: documents.filter((entry) => entry.id !== id), value: doc };
+    },
+    { id, value: null }
+  );
   if (result.ok)
     await Promise.all(
       result.value.versions.map((version) => deleteBinary(fileKey(id, version.number)))

@@ -1,4 +1,4 @@
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Phone numbers are guessable, so repeated wrong attempts lock an account for
@@ -17,10 +17,12 @@ interface FailureRecord {
 
 type Failures = Record<string, FailureRecord>;
 
-async function read(): Promise<Failures> {
-  const raw = (await readJson(KEY)) as { failures?: Failures } | null;
-  return raw?.failures && typeof raw.failures === "object" ? raw.failures : {};
+function normalize(raw: unknown): Failures {
+  const doc = raw as { failures?: Failures } | null;
+  return doc?.failures && typeof doc.failures === "object" ? doc.failures : {};
 }
+
+const read = async () => normalize(await readJson(KEY));
 
 /** Milliseconds until the account unlocks, or 0 when it may try again. */
 export async function lockedForMs(personId: string, now = Date.now()): Promise<number> {
@@ -30,25 +32,24 @@ export async function lockedForMs(personId: string, now = Date.now()): Promise<n
 }
 
 export async function recordFailure(personId: string, now = Date.now()): Promise<void> {
-  await enqueue(KEY, async () => {
-    const failures = await read();
+  await mutateJson(KEY, (raw) => {
+    const failures = normalize(raw);
     const previous = failures[personId];
     const withinWindow = previous && now - new Date(previous.lastFailureAt).getTime() < WINDOW_MS;
     const count = (withinWindow ? previous.count : 0) + 1;
-    failures[personId] = {
+    const record: FailureRecord = {
       count,
       lastFailureAt: new Date(now).toISOString(),
       lockedUntil: count >= MAX_FAILURES ? new Date(now + WINDOW_MS).toISOString() : null,
     };
-    await writeJson(KEY, { failures });
+    return { value: { failures: { ...failures, [personId]: record } }, result: null };
   });
 }
 
 export async function clearFailures(personId: string): Promise<void> {
-  await enqueue(KEY, async () => {
-    const failures = await read();
-    if (!failures[personId]) return;
-    delete failures[personId];
-    await writeJson(KEY, { failures });
+  await mutateJson(KEY, (raw) => {
+    const { [personId]: gone, ...rest } = normalize(raw);
+    if (!gone) return { write: false, result: null };
+    return { value: { failures: rest }, result: null };
   });
 }

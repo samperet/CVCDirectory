@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { enqueue, readBinary, readJson, writeBinary, writeJson } from "@/lib/storage";
+import { deleteBinary, mutateJson, readBinary, readJson, writeBinary } from "@/lib/storage";
 
 /**
  * Photos in a circle's wiki pages. Each is stored on its own
@@ -36,16 +36,17 @@ export async function saveWikiImage(
   contentType: string,
   uploadedBy: string
 ) {
-  return enqueue(listKey(circleId), async () => {
-    const images = normalize(await readJson(listKey(circleId)));
-    if (images.length >= MAX_IMAGES) return null;
-    const id = randomUUID();
-    await writeBinary(imageKey(circleId, id), { bytes, contentType });
-    await writeJson(listKey(circleId), {
-      images: [...images, { id, contentType, uploadedBy, uploadedAt: new Date().toISOString() }],
-    });
-    return id;
+  const id = randomUUID();
+  // The file first, so the list never names a photo that isn't there; taken back if there's no room.
+  await writeBinary(imageKey(circleId, id), { bytes, contentType });
+  const entry: ImageEntry = { id, contentType, uploadedBy, uploadedAt: new Date().toISOString() };
+  const saved = await mutateJson<string | null>(listKey(circleId), (raw) => {
+    const images = normalize(raw);
+    if (images.length >= MAX_IMAGES) return { write: false, result: null };
+    return { value: { images: [...images, entry] }, result: id };
   });
+  if (!saved) await deleteBinary(imageKey(circleId, id));
+  return saved;
 }
 
 export function readWikiImage(circleId: string, id: string) {

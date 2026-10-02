@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import {
   PRIORITY_LABELS,
   STATUS_LABELS,
@@ -89,11 +89,10 @@ async function mutate(
   circleId: string,
   change: (stored: Stored) => { stored: Stored; task: Task | null; before: Task | null } | Failure
 ): Promise<TaskResult> {
-  return enqueue<TaskResult>(key(circleId), async () => {
-    const result = change(normalize(await readJson(key(circleId))));
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(key(circleId), result.stored);
-    return { ok: true, task: result.task, before: result.before };
+  return mutateJson<TaskResult>(key(circleId), (raw) => {
+    const result = change(normalize(raw));
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return { value: result.stored, result: { ok: true, task: result.task, before: result.before } };
   });
 }
 

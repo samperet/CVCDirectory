@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 import type { Person } from "./types";
 
 /**
@@ -19,8 +19,8 @@ export interface PeopleChanges {
   separate: string[];
 }
 
-export async function readPeopleChanges(): Promise<PeopleChanges> {
-  const raw = (await readJson(KEY)) as Partial<PeopleChanges> | null;
+function normalize(value: unknown): PeopleChanges {
+  const raw = value as Partial<PeopleChanges> | null;
   return {
     added: Array.isArray(raw?.added) ? raw!.added : [],
     removed: Array.isArray(raw?.removed) ? raw!.removed : [],
@@ -29,8 +29,12 @@ export async function readPeopleChanges(): Promise<PeopleChanges> {
   };
 }
 
+export async function readPeopleChanges(): Promise<PeopleChanges> {
+  return normalize(await readJson(KEY));
+}
+
 async function change(update: (changes: PeopleChanges) => PeopleChanges) {
-  await enqueue(KEY, async () => writeJson(KEY, update(await readPeopleChanges())));
+  await mutateJson(KEY, (raw) => ({ value: update(normalize(raw)), result: null }));
 }
 
 /** Combine a duplicate entry into another person's profile. */

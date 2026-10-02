@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteBinary, enqueue, readJson, writeBinary, writeJson } from "@/lib/storage";
+import { deleteBinary, mutateJson, readJson, writeBinary } from "@/lib/storage";
 
 /**
  * Community photos. Each image is a binary object (`photos/files/<id>`) with
@@ -62,13 +62,15 @@ export async function addPhoto(
     uploaderName: uploader?.name ?? null,
     createdAt: new Date().toISOString(),
   };
-  return enqueue(KEY, async () => {
-    const photos = normalize(await readJson(KEY));
-    if (photos.length >= MAX_PHOTOS) return "full" as const;
-    await writeBinary(photoFileKey(photo.id), file);
-    await writeJson(KEY, { photos: [...photos, photo] });
-    return photo;
+  // The file first, so the index never names a photo that isn't there; taken back if there's no room.
+  await writeBinary(photoFileKey(photo.id), file);
+  const result = await mutateJson<Photo | "full">(KEY, (raw) => {
+    const photos = normalize(raw);
+    if (photos.length >= MAX_PHOTOS) return { write: false, result: "full" };
+    return { value: { photos: [...photos, photo] }, result: photo };
   });
+  if (result === "full") await deleteBinary(photoFileKey(photo.id));
+  return result;
 }
 
 type Actor = { id: string; admin: boolean };
@@ -80,26 +82,24 @@ export async function updateCaption(
   actor: Actor,
   caption: string
 ): Promise<Photo | "not_found" | "forbidden"> {
-  return enqueue(KEY, async () => {
-    const photos = normalize(await readJson(KEY));
+  return mutateJson<Photo | "not_found" | "forbidden">(KEY, (raw) => {
+    const photos = normalize(raw);
     const index = photos.findIndex((photo) => photo.id === id);
-    if (index === -1) return "not_found" as const;
-    if (!mayChange(photos[index], actor)) return "forbidden" as const;
+    if (index === -1) return { write: false, result: "not_found" };
+    if (!mayChange(photos[index], actor)) return { write: false, result: "forbidden" };
     const updated = [...photos];
     updated[index] = { ...photos[index], caption };
-    await writeJson(KEY, { photos: updated });
-    return updated[index];
+    return { value: { photos: updated }, result: updated[index] };
   });
 }
 
 /** Remove a photo. Any signed-in resident may. */
 export async function removePhoto(id: string): Promise<"removed" | "not_found"> {
-  return enqueue(KEY, async () => {
-    const photos = normalize(await readJson(KEY));
-    const photo = photos.find((entry) => entry.id === id);
-    if (!photo) return "not_found" as const;
-    await writeJson(KEY, { photos: photos.filter((entry) => entry.id !== id) });
-    await deleteBinary(photoFileKey(id));
-    return "removed" as const;
+  const result = await mutateJson<"removed" | "not_found">(KEY, (raw) => {
+    const photos = normalize(raw);
+    if (!photos.some((entry) => entry.id === id)) return { write: false, result: "not_found" };
+    return { value: { photos: photos.filter((entry) => entry.id !== id) }, result: "removed" };
   });
+  if (result === "removed") await deleteBinary(photoFileKey(id));
+  return result;
 }

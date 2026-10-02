@@ -10,7 +10,7 @@ import {
   TASK_ADDERS,
   type CircleModule,
 } from "./layout";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "./ids";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
 
@@ -176,13 +176,7 @@ function seedFrom(imported: Circle[]): Circle[] {
 export async function readCircles(imported: Circle[]): Promise<Circle[]> {
   const stored = normalize(await readJson(KEY));
   if (stored) return stored;
-  return enqueue(KEY, async () => {
-    const again = normalize(await readJson(KEY));
-    if (again) return again;
-    const seeded = seedFrom(imported);
-    await writeJson(KEY, { circles: seeded });
-    return seeded;
-  });
+  return readOrSeedJson(KEY, normalize, () => ({ circles: seedFrom(imported) }));
 }
 
 type Failure =
@@ -201,12 +195,10 @@ async function mutate<T>(
   change: (circles: Circle[]) => { circles: Circle[]; value: T } | Failure
 ): Promise<CircleResult<T>> {
   await readCircles(imported); // make sure the store exists before changing it
-  return enqueue<CircleResult<T>>(KEY, async () => {
-    const circles = normalize(await readJson(KEY)) ?? [];
-    const result = change(circles);
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(KEY, { circles: result.circles });
-    return { ok: true, value: result.value };
+  return mutateJson<CircleResult<T>>(KEY, (raw) => {
+    const result = change(normalize(raw) ?? []);
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return { value: { circles: result.circles }, result: { ok: true, value: result.value } };
   });
 }
 

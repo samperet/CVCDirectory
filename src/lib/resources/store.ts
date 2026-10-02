@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Resources: residents' recommendations for local services (a plumber, a
@@ -96,11 +96,13 @@ export async function listRecommendations(): Promise<Recommendation[]> {
 async function mutate<T>(
   change: (items: Recommendation[]) => { items: Recommendation[]; value: T } | Failure
 ): Promise<Result<T>> {
-  return enqueue<Result<T>>(KEY, async () => {
-    const outcome = change(normalize(await readJson(KEY)));
-    if (typeof outcome === "string") return { ok: false, reason: outcome };
-    await writeJson(KEY, { recommendations: outcome.items });
-    return { ok: true, value: outcome.value };
+  return mutateJson<Result<T>>(KEY, (raw) => {
+    const outcome = change(normalize(raw));
+    if (typeof outcome === "string") return { write: false, result: { ok: false, reason: outcome } };
+    return {
+      value: { recommendations: outcome.items },
+      result: { ok: true, value: outcome.value },
+    };
   });
 }
 

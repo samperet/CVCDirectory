@@ -1,4 +1,4 @@
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 import type { Person, PersonRole } from "@/lib/directory/types";
 
 /**
@@ -36,24 +36,27 @@ export function photoKey(personId: string) {
   return `profiles/photos/${personId}`;
 }
 
+function normalize(raw: unknown): Record<string, ProfileOverride> {
+  const doc = raw as { profiles?: Record<string, ProfileOverride> } | null;
+  return doc?.profiles && typeof doc.profiles === "object" ? doc.profiles : {};
+}
+
 export async function readProfiles(): Promise<Record<string, ProfileOverride>> {
-  const raw = (await readJson(KEY)) as { profiles?: Record<string, ProfileOverride> } | null;
-  return raw?.profiles && typeof raw.profiles === "object" ? raw.profiles : {};
+  return normalize(await readJson(KEY));
 }
 
 export async function updateProfile(
   personId: string,
   patch: Omit<Partial<ProfileOverride>, "updatedAt">
 ): Promise<ProfileOverride> {
-  return enqueue(KEY, async () => {
-    const profiles = await readProfiles();
+  return mutateJson<ProfileOverride>(KEY, (raw) => {
+    const profiles = normalize(raw);
     const next: ProfileOverride = {
       ...profiles[personId],
       ...patch,
       updatedAt: new Date().toISOString(),
     };
-    await writeJson(KEY, { profiles: { ...profiles, [personId]: next } });
-    return next;
+    return { value: { profiles: { ...profiles, [personId]: next } }, result: next };
   });
 }
 
@@ -87,11 +90,9 @@ export function applyProfile(person: Person, override: ProfileOverride | undefin
 
 /** Forget a resident's profile edits (when they leave the directory); returns whether they had a photo. */
 export async function deleteProfile(personId: string): Promise<boolean> {
-  return enqueue(KEY, async () => {
-    const profiles = await readProfiles();
-    if (!profiles[personId]) return false;
-    const { [personId]: removed, ...rest } = profiles;
-    await writeJson(KEY, { profiles: rest });
-    return !!removed.photo;
+  return mutateJson<boolean>(KEY, (raw) => {
+    const { [personId]: removed, ...rest } = normalize(raw);
+    if (!removed) return { write: false, result: false };
+    return { value: { profiles: rest }, result: !!removed.photo };
   });
 }

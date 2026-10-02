@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
+import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import { isCircleId } from "@/lib/circles/icons";
 import { DutyOverride, DutySchedule, isIsoDate } from "./rotation";
 
@@ -76,12 +76,16 @@ function key(circleId: string) {
   return `circles/schedules/${circleId}.json`;
 }
 
-export async function readSchedule(circleId: string): Promise<DutySchedule | null> {
-  if (!isCircleId(circleId)) return null;
-  const doc = (await readJson(key(circleId))) as DutySchedule | null;
+function normalize(raw: unknown): DutySchedule | null {
+  const doc = raw as DutySchedule | null;
   return doc?.households
     ? { ...doc, overrides: doc.overrides ?? {}, instructions: doc.instructions ?? [] }
     : null;
+}
+
+export async function readSchedule(circleId: string): Promise<DutySchedule | null> {
+  if (!isCircleId(circleId)) return null;
+  return normalize(await readJson(key(circleId)));
 }
 
 /** Keep only changes that still name a household in the rotation, newest dates first when trimming. */
@@ -100,15 +104,14 @@ export async function saveSchedule(
   setup: z.infer<typeof scheduleSetupSchema>,
   overrides?: Record<string, DutyOverride>
 ): Promise<DutySchedule> {
-  return enqueue(key(circleId), async () => {
-    const existing = await readSchedule(circleId);
+  return mutateJson<DutySchedule>(key(circleId), (raw) => {
+    const existing = normalize(raw);
     const schedule: DutySchedule = {
       ...setup,
       overrides: pruneOverrides(overrides ?? existing?.overrides ?? {}, setup.households),
       updatedAt: new Date().toISOString(),
     };
-    await writeJson(key(circleId), schedule);
-    return schedule;
+    return { value: schedule, result: schedule };
   });
 }
 
@@ -119,14 +122,14 @@ export async function setDayChange(
   change: { householdId: string | null; note?: string | null } | null,
   by: string
 ): Promise<DutySchedule | "not_found" | "unknown_household"> {
-  return enqueue(key(circleId), async () => {
-    const schedule = await readSchedule(circleId);
-    if (!schedule) return "not_found" as const;
+  return mutateJson<DutySchedule | "not_found" | "unknown_household">(key(circleId), (raw) => {
+    const schedule = normalize(raw);
+    if (!schedule) return { write: false, result: "not_found" };
     if (
       change?.householdId &&
       !schedule.households.some((household) => household.id === change.householdId)
     ) {
-      return "unknown_household" as const;
+      return { write: false, result: "unknown_household" };
     }
     const overrides = { ...schedule.overrides };
     if (change)
@@ -138,8 +141,7 @@ export async function setDayChange(
       };
     else delete overrides[date];
     const next = { ...schedule, overrides: pruneOverrides(overrides, schedule.households) };
-    await writeJson(key(circleId), next);
-    return next;
+    return { value: next, result: next };
   });
 }
 

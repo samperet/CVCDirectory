@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { deleteBinary, enqueue, readJson, writeBinary, writeJson } from "@/lib/storage";
+import { deleteBinary, mutateJson, readJson, writeBinary } from "@/lib/storage";
 
 /**
  * Homes for sale at CVC, listed by admins and the Board and shown — with
@@ -124,11 +124,10 @@ async function mutate(
     homes: HomeListing[]
   ) => { homes: HomeListing[]; home: HomeListing | null } | "not_found" | "full"
 ): Promise<Result> {
-  return enqueue<Result>(KEY, async () => {
-    const result = change(normalize(await readJson(KEY)));
-    if (typeof result === "string") return { ok: false, reason: result };
-    await writeJson(KEY, { homes: result.homes });
-    return { ok: true, home: result.home };
+  return mutateJson<Result>(KEY, (raw) => {
+    const result = change(normalize(raw));
+    if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
+    return { value: { homes: result.homes }, result: { ok: true, home: result.home } };
   });
 }
 

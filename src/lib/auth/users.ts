@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Community user registry. Every account belongs to a resident in the
@@ -47,11 +47,9 @@ async function readUsers(): Promise<CommunityUser[]> {
 async function mutateUsers<T>(
   mutate: (users: CommunityUser[]) => { users: CommunityUser[]; result: T }
 ): Promise<T> {
-  return enqueue(USERS_KEY, async () => {
-    const users = normalizeUsers(await readJson(USERS_KEY));
-    const { users: updated, result } = mutate(users);
-    await writeJson(USERS_KEY, { users: updated });
-    return result;
+  return mutateJson<T>(USERS_KEY, (raw) => {
+    const { users, result } = mutate(normalizeUsers(raw));
+    return { value: { users }, result };
   });
 }
 

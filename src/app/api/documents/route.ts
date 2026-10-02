@@ -181,7 +181,11 @@ export async function POST(request: NextRequest) {
   await cleanUp();
   if (!result.ok)
     return problem(
-      result.reason === "full" ? "The document library is full" : "That document no longer exists",
+      result.reason === "full"
+        ? "The document library is full"
+        : result.reason === "conflict"
+          ? "Someone else uploaded a new version at the same moment — try again"
+          : "That document no longer exists",
       409
     );
 

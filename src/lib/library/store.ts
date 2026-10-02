@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * The loan library: things residents are happy to lend. Every item belongs
@@ -62,10 +62,10 @@ export async function addLoanItem(
   owner: { personId: string; name: string },
   input: { title: string; category: string; description: string }
 ): Promise<LoanItem | "limit"> {
-  return enqueue(KEY, async () => {
-    const items = normalize(await readJson(KEY));
+  return mutateJson<LoanItem | "limit">(KEY, (raw) => {
+    const items = normalize(raw);
     if (items.filter((item) => item.ownerPersonId === owner.personId).length >= MAX_PER_PERSON)
-      return "limit" as const;
+      return { write: false, result: "limit" };
     const now = new Date().toISOString();
     const item: LoanItem = {
       id: randomUUID(),
@@ -79,8 +79,7 @@ export async function addLoanItem(
       createdAt: now,
       updatedAt: now,
     };
-    await writeJson(KEY, { items: [...items, item] });
-    return item;
+    return { value: { items: [...items, item] }, result: item };
   });
 }
 
@@ -100,29 +99,28 @@ export async function updateLoanItem(
   id: string,
   update: z.infer<typeof loanItemUpdateSchema>
 ): Promise<OwnerResult<LoanItem>> {
-  return enqueue<OwnerResult<LoanItem>>(KEY, async () => {
-    const items = normalize(await readJson(KEY));
+  return mutateJson<OwnerResult<LoanItem>>(KEY, (raw) => {
+    const items = normalize(raw);
     const index = items.findIndex((item) => item.id === id);
-    if (index === -1) return { ok: false, reason: "not_found" };
-    if (!mayChange(items[index], actor)) return { ok: false, reason: "forbidden" };
+    if (index === -1) return { write: false, result: { ok: false, reason: "not_found" } };
+    if (!mayChange(items[index], actor))
+      return { write: false, result: { ok: false, reason: "forbidden" } };
     const next = { ...items[index], ...update, updatedAt: new Date().toISOString() };
     // Returning an item clears who had it.
     if (update.available === true) next.lentTo = null;
     if (next.lentTo === "") next.lentTo = null;
     const updated = [...items];
     updated[index] = next;
-    await writeJson(KEY, { items: updated });
-    return { ok: true, value: next };
+    return { value: { items: updated }, result: { ok: true, value: next } };
   });
 }
 
 export async function removeLoanItem(actor: LoanActor, id: string): Promise<OwnerResult<null>> {
-  return enqueue<OwnerResult<null>>(KEY, async () => {
-    const items = normalize(await readJson(KEY));
+  return mutateJson<OwnerResult<null>>(KEY, (raw) => {
+    const items = normalize(raw);
     const item = items.find((entry) => entry.id === id);
-    if (!item) return { ok: false, reason: "not_found" };
-    if (!mayChange(item, actor)) return { ok: false, reason: "forbidden" };
-    await writeJson(KEY, { items: items.filter((entry) => entry.id !== id) });
-    return { ok: true, value: null };
+    if (!item) return { write: false, result: { ok: false, reason: "not_found" } };
+    if (!mayChange(item, actor)) return { write: false, result: { ok: false, reason: "forbidden" } };
+    return { value: { items: items.filter((entry) => entry.id !== id) }, result: { ok: true, value: null } };
   });
 }

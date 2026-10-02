@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { enqueue, readJson, writeJson } from "@/lib/storage";
+import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * Devices signed up for push notifications, and each resident's choice of
@@ -78,18 +78,19 @@ export async function saveSubscription(
   userId: string,
   subscription: z.infer<typeof subscriptionSchema>
 ) {
-  await enqueue(SUBSCRIPTIONS, async () => {
-    const others = normalizeSubscriptions(await readJson(SUBSCRIPTIONS)).filter(
+  const record: PushSubscriptionRecord = {
+    ...subscription,
+    userId,
+    createdAt: new Date().toISOString(),
+  };
+  await mutateJson(SUBSCRIPTIONS, (raw) => {
+    const others = normalizeSubscriptions(raw).filter(
       (entry) => entry.endpoint !== subscription.endpoint
     );
-    const record: PushSubscriptionRecord = {
-      ...subscription,
-      userId,
-      createdAt: new Date().toISOString(),
+    return {
+      value: { subscriptions: [...others, record].slice(-MAX_SUBSCRIPTIONS) },
+      result: null,
     };
-    await writeJson(SUBSCRIPTIONS, {
-      subscriptions: [...others, record].slice(-MAX_SUBSCRIPTIONS),
-    });
   });
 }
 
@@ -97,12 +98,13 @@ export async function saveSubscription(
 export async function removeSubscriptions(endpoints: string[], userId?: string) {
   if (!endpoints.length) return;
   const drop = new Set(endpoints);
-  await enqueue(SUBSCRIPTIONS, async () => {
-    const list = normalizeSubscriptions(await readJson(SUBSCRIPTIONS));
+  await mutateJson(SUBSCRIPTIONS, (raw) => {
+    const list = normalizeSubscriptions(raw);
     const kept = list.filter(
       (entry) => !(drop.has(entry.endpoint) && (!userId || entry.userId === userId))
     );
-    if (kept.length !== list.length) await writeJson(SUBSCRIPTIONS, { subscriptions: kept });
+    if (kept.length === list.length) return { write: false, result: null };
+    return { value: { subscriptions: kept }, result: null };
   });
 }
 
@@ -110,24 +112,27 @@ export async function removeSubscriptions(endpoints: string[], userId?: string) 
 export async function removeUserPush(userIds: string[]) {
   if (!userIds.length) return;
   const ids = new Set(userIds);
-  await enqueue(SUBSCRIPTIONS, async () => {
-    const list = normalizeSubscriptions(await readJson(SUBSCRIPTIONS));
+  await mutateJson(SUBSCRIPTIONS, (raw) => {
+    const list = normalizeSubscriptions(raw);
     const kept = list.filter((entry) => !ids.has(entry.userId));
-    if (kept.length !== list.length) await writeJson(SUBSCRIPTIONS, { subscriptions: kept });
+    if (kept.length === list.length) return { write: false, result: null };
+    return { value: { subscriptions: kept }, result: null };
   });
-  await enqueue(PREFERENCES, async () => {
-    const map = await readPreferenceMap();
+  await mutateJson(PREFERENCES, (raw) => {
+    const map = normalizePreferences(raw);
     const kept = Object.fromEntries(Object.entries(map).filter(([userId]) => !ids.has(userId)));
-    if (Object.keys(kept).length !== Object.keys(map).length)
-      await writeJson(PREFERENCES, { byUser: kept });
+    if (Object.keys(kept).length === Object.keys(map).length) return { write: false, result: null };
+    return { value: { byUser: kept }, result: null };
   });
 }
 
+function normalizePreferences(raw: unknown): Record<string, Partial<Preferences>> {
+  const doc = raw as { byUser?: Record<string, Partial<Preferences>> } | null;
+  return doc?.byUser && typeof doc.byUser === "object" ? doc.byUser : {};
+}
+
 async function readPreferenceMap(): Promise<Record<string, Partial<Preferences>>> {
-  const raw = (await readJson(PREFERENCES)) as {
-    byUser?: Record<string, Partial<Preferences>>;
-  } | null;
-  return raw?.byUser && typeof raw.byUser === "object" ? raw.byUser : {};
+  return normalizePreferences(await readJson(PREFERENCES));
 }
 
 export async function allPreferences(): Promise<Record<string, Preferences>> {
@@ -145,10 +150,9 @@ export async function updatePreferences(
   userId: string,
   update: Partial<Preferences>
 ): Promise<Preferences> {
-  return enqueue(PREFERENCES, async () => {
-    const map = await readPreferenceMap();
+  return mutateJson<Preferences>(PREFERENCES, (raw) => {
+    const map = normalizePreferences(raw);
     const next = { ...DEFAULT_PREFERENCES, ...map[userId], ...update };
-    await writeJson(PREFERENCES, { byUser: { ...map, [userId]: next } });
-    return next;
+    return { value: { byUser: { ...map, [userId]: next } }, result: next };
   });
 }
