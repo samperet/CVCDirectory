@@ -16,7 +16,7 @@ import Link from "next/link";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
-import { TranscriptPanel } from "@/components/wiki/transcript-panel";
+import { TranscriptSection } from "@/components/wiki/transcript-section";
 import type { Circle } from "@/lib/circles/types";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -127,19 +127,8 @@ export function WikiEditor({
   const remoteNewer = useRef(false);
   const retryAt = useRef(0);
   const rich = useRef<RichEditorHandle | null>(null);
-  // The transcript beside the page (open while transcribing, or until closed).
-  const [transcribing, setTranscribing] = useState(false);
-  const insertTranscript = (text: string) => {
-    // Spoken words, kept as written: anything Markdown would read as formatting is escaped.
-    const markdown = text
-      .split(/\n{2,}/)
-      .map((paragraph) => paragraph.trim().replace(/[\\`*_[\]<>~|#]/g, "\\$&"))
-      .filter(Boolean)
-      .join("\n\n");
-    if (mode === "visual" && rich.current) rich.current.insert(markdown);
-    else setBody(`${bodyRef.current.replace(/\s+$/, "")}\n\n${markdown}\n`);
-    touched.current = true;
-  };
+  // The toolbar's microphone: the transcript at the page's end starts recording.
+  const [recordSignal, setRecordSignal] = useState(0);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   const dirty = title !== synced.title || body !== synced.body;
@@ -570,7 +559,7 @@ export function WikiEditor({
               pageSlug={initial.slug}
               onChange={setBody}
               onCreatePage={onCreatePage}
-              onTranscribe={() => setTranscribing(true)}
+              onTranscribe={() => setRecordSignal((n) => n + 1)}
               onPresent={onPresent}
               onError={() => {
                 setMode("markdown");
@@ -596,23 +585,20 @@ export function WikiEditor({
             />
           </div>
         )}
+        <TranscriptSection
+          initial={latest.current.transcript ?? ""}
+          recordSignal={recordSignal}
+          onSave={async (transcript) => {
+            await apiFetch(url, { method: "PATCH", body: JSON.stringify({ transcript }) });
+            void queryClient.invalidateQueries({ queryKey: wikiPageQuery(initial.slug).queryKey });
+          }}
+        />
       </div>
 
       <p className="text-center text-xs text-muted">
         Changes save as you go, and others can edit at the same time. Type @ to link a page or a
         document — or to start a new page.
       </p>
-      {transcribing ? (
-        <TranscriptPanel
-          initial={latest.current.transcript ?? ""}
-          onSave={async (transcript) => {
-            await apiFetch(url, { method: "PATCH", body: JSON.stringify({ transcript }) });
-            void queryClient.invalidateQueries({ queryKey: wikiPageQuery(initial.slug).queryKey });
-          }}
-          onInsert={insertTranscript}
-          onClose={() => setTranscribing(false)}
-        />
-      ) : null}
     </div>
   );
 }

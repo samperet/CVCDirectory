@@ -19,7 +19,8 @@ import {
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { PagePerson, WikiPage } from "@/lib/wiki/store";
-import { PageTranscript, PresentDialog, PresentLine } from "@/components/wiki/present-dialog";
+import { PresentDialog, PresentLine } from "@/components/wiki/present-dialog";
+import { PageTranscript } from "@/components/wiki/transcript-section";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { shortDate, timeAgo } from "@/lib/time";

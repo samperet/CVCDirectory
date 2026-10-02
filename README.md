@@ -447,13 +447,14 @@ from then on, so re-importing the directory never overwrites circle changes.
   - **Who's present** (the people icon) – the page's circle's members as chips to tick (**All
     members present**), plus **Add someone** for any other resident, or a guest by name. Saved as
     the page's `present` and shown under its title ("Present: …"); it isn't a new version.
-  - **Transcribe** (the microphone) – opens a **Transcript** panel beside the page that fills with
-    what's said, using the browser's own speech recognition (Chrome, Edge, Safari — not Firefox;
-    no account or key, no speaker labels; Chrome and Edge send the audio to Google or Microsoft to
-    be recognised), while you keep taking notes in the page. The transcript is **saved with the
-    page** as it fills (the page's `transcript`, not a new version, and searchable) and shows at the
-    end of the page folded away — **Transcript · N words** — for anyone to open later. **Add to
-    page** also puts it where the cursor is; **Copy**; **Clear** removes it from the page.
+  - **Transcript** – at the end of every page, folded away like this: "Transcript · N words".
+    While editing, its line has **Record** and **Pause** (the toolbar's microphone records too):
+    what's said is written down by the browser's own speech recognition (Chrome, Edge, Safari —
+    not Firefox; no account or key, no speaker labels; Chrome and Edge send the audio to Google or
+    Microsoft to be recognised) while you keep taking notes in the page, and saved with the page as
+    it comes (the page's `transcript`, not a new version, and searchable). Opened, it shows the
+    whole transcript, with **Copy** and **Clear** while editing. Readers see the same folded line
+    and can open it.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
