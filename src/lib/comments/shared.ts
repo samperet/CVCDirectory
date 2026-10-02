@@ -1,8 +1,8 @@
 /**
  * What every comment in the app has in common — on tasks, wiki pages, forum
- * discussions (their replies), recommendations, and proposals. Each feature
- * keeps its comments with the rest of its data and adds its own fields (a
- * wiki comment's quote, a proposal comment's kind, a forum reply's likes),
+ * discussions (their replies), and recommendations. Each feature keeps its
+ * comments with the rest of its data and adds its own fields (a wiki
+ * comment's quote, a forum reply's likes),
  * but the record, the rules for adding, editing and deleting (`store.ts`),
  * and the way they're shown (`components/comments`) are shared. Safe for
  * the browser.

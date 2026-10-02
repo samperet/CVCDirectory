@@ -9,7 +9,7 @@ A Next.js 14 app (app router) deployed on Vercel. Every page is a thin server sh
 component that fetches from the app's own API with React Query. The API routes under `src/app/api`
 check who's asking, validate the body with zod, and call a **store** that reads and writes **JSON
 documents in Cloudflare R2** (or `./.data/` locally). There is no database, no ORM, and no cron:
-anything time-based (a poll closing, a proposal's review ending) is worked out when the data is
+anything time-based (a poll closing) is worked out when the data is
 read. Residents sign in with their name and phone number and get a signed cookie; the middleware
 keeps everything else private.
 
@@ -26,7 +26,7 @@ browser component ──apiFetch──▶ /api/... route ──▶ lib/<feature>
 - `src/lib/http.ts`: `problem(detail, status)` (RFC 9457 body), `readBody(request, schema)`,
   `throttled(request, key)`, and the wording helpers `notFound(what)`, `forbidden(detail)`,
   `full(detail)`.
-- Each feature's `http.ts` has a context loader (`circleContext`, `tasksContext`, `meetingsContext`,
+- Each feature's `http.ts` has a context loader (`circleContext`, `tasksContext`,
   `wikiSession`/`pageContext`, …) returning either `{ error: NextResponse }` or what the route needs
   (user, `actor`, directory, the thing, and what the user may do), plus a `<feature>Problem(reason)`
   that maps the store's exported `Failure` union to responses. Routes without a context helper
@@ -60,7 +60,6 @@ Main documents (see each store's `KEY`):
 | `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/comments/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
-| `meetings/<circleId>.json` | Minutes and proposals (together, so an objection and the clock it pauses change in one write) | `lib/meetings` |
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
 | `photos/index.json`, `homes/listings.json`, `resources/recommendations.json`, `library/items.json`, `skills/index.json`, `appreciations/index.json`, `profiles/index.json` | The rest | one store each |
 | `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in log | `lib/push`, `lib/auth` |
@@ -88,14 +87,14 @@ field — `admin` is never stored. The circle types (`Circle`, `CircleSeat`, …
 
 ## Comments
 
-Tasks, wiki pages, forum discussions (their replies), recommendations and proposals all use one
+Tasks, wiki pages, forum discussions (their replies) and recommendations all use one
 comment system. `lib/comments/shared.ts` has the record (`CommentRecord`: `parentId`,
 `authorId`/`authorPersonId`/`authorName`, `body`, `editedAt`, `deletedAt`) and the grouping
 helpers; `lib/comments/store.ts` has the rules as pure list operations — `addComment` (nesting
 "none", "one" or "any", a limit, and `among` when one document holds several things' comments),
 `editComment` and `deleteComment` (the author or a moderator; a comment with replies becomes a
 placeholder, pruned once nothing hangs off it). Each feature's store applies them to its own
-document and adds its own fields (a wiki comment's quote, a proposal comment's kind, a reply's
+document and adds its own fields (a wiki comment's quote, a reply's
 likes); `normalizeComment` fills in what older records lack as they are read.
 `components/comments` shows them: `CommentTree` (replies, folding, edit and delete with the Confirm
 dialog, `#comment-<id>` links), `CommentForm`, `CommentByline`; features pass what differs
@@ -104,7 +103,7 @@ dialog, `#comment-<id>` links), `CommentForm`, `CommentByline`; features pass wh
 ## Circles and their pages
 
 A circle's page is a list of **modules** (`src/lib/circles/layout.ts`): Information (wiki pages by
-a filter, any number of them), Members, Meetings, a duty schedule, Tasks (with a "who can add"
+a filter, any number of them), Members, a duty schedule, Tasks (with a "who can add"
 setting), Documents (the circle's pages and files). `modulesFor(circle, …)` returns the saved `circle.modules`, or derives a page
 from the older `layout`/`features`/`infoView` fields for circles that never saved one. Saving
 modules also sets `features.tasks`/`features.documents`, which gate those APIs
@@ -138,14 +137,6 @@ Pages and uploaded files share one **Documents** section (`/documents`; `/wiki` 
 or uploads a file. Storage, links and history stay separate. **Turn into a page**
 (`POST /api/documents/<id>/page`) converts a file's text with `lib/documents/to-markdown.ts`.
 
-## Meetings and proposals
-
-`lib/meetings/shared.ts` holds the types and the **review clock**: a proposal sent for review gets
-`deadline = now + 5 days`; an objection stores `remainingMs` and clears the deadline (paused);
-withdrawing the last objection sets `deadline = now + remainingMs`; `proposalState(p, now)` reads
-`consented` once the deadline passes, and the store records it (and announces it once) at the next
-read or write. `lib/meetings/store.ts` has the mutations; `http.ts` the permissions (members review).
-
 ## Notifications
 
 Web push (`lib/push`). Topics are declared once in `push/store.ts` (`TOPICS`,
@@ -162,8 +153,7 @@ field) or `todayInVermont()` too, not the device's zone.
 ## The client
 
 - React Query everywhere; keys: `["directory"]`, `["wiki"]`, `["wiki-page", slug]`, `["tasks", circleId]`,
-  `["task", circleId, number]`, `["meetings", circleId]`, `["meeting", circleId, id]`,
-  `["proposal", circleId, id]`, `["documents", …]`, `["forum", …]`, `["auth", "me"]`. Invalidate by
+  `["task", circleId, number]`, `["documents", …]`, `["forum", …]`, `["auth", "me"]`. Invalidate by
   prefix after a mutation.
 - `components/directory/use-directory.ts`: `useDirectory()`, `useCircles()` — the shared directory
   query most pages need.
@@ -200,4 +190,3 @@ field) or `todayInVermont()` too, not the device's zone.
 | module (formerly section) | module | One block of a circle's page |
 | `HIGHLIGHT_COLORS` / `:mark[…]` | highlight | Coloured words in a wiki page (pages themselves no longer have colours) |
 | `COMMUNITY_ID` / `BOARD_ID` | Community / the Board | The two built-in circles |
-| tension / objection | Log a tension / Raise a Reasoned Objection | Comments on a proposal; only an objection pauses its review |

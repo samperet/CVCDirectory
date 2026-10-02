@@ -30,6 +30,8 @@ import {
   FilePlus2,
   Highlighter,
   LayoutList,
+  Mic,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -103,6 +105,8 @@ export interface RichEditorHandle {
   /** Replace the text with a merged version, keeping the cursor in its block (`mineAt` maps old blocks to new). */
   replace: (markdown: string, mineAt: number[] | null) => void;
   focus: () => void;
+  /** Put Markdown where the cursor is (a transcript, say). */
+  insert: (markdown: string) => void;
 }
 
 /** A collapsible section (`:::details{title="…"}`) in the editor: its title, and what it hides. */
@@ -505,11 +509,30 @@ export const RichEditor = forwardRef<
     onCreatePage: (title: string) => void;
     /** The same handle as the ref (refs don't pass through a lazily loaded component). */
     control?: MutableRefObject<RichEditorHandle | null>;
+    /** The toolbar's **Transcribe**: open the transcript beside the page. */
+    onTranscribe?: () => void;
+    /** The toolbar's **Who's present**: choose the people present (meeting notes). */
+    onPresent?: () => void;
   }
 >(function RichEditor(
-  { markdown, circleId, circleName, pageId, pageSlug, onChange, onError, onCreatePage, control },
+  {
+    markdown,
+    circleId,
+    circleName,
+    pageId,
+    pageSlug,
+    onChange,
+    onError,
+    onCreatePage,
+    control,
+    onTranscribe,
+    onPresent,
+  },
   ref
 ) {
+  // The toolbar is set up once, so it reaches these through a ref.
+  const meeting = useRef({ onTranscribe, onPresent });
+  meeting.current = { onTranscribe, onPresent };
   const editor = useRef<MDXEditorMethods>(null);
   const lexical = useRef<LexicalEditor | null>(null);
   const [polling, setPolling] = useState(false);
@@ -551,6 +574,10 @@ export const RichEditor = forwardRef<
       if (lexical.current && mark) restoreCursor(lexical.current, mark, mineAt);
     },
     focus: () => editor.current?.focus(),
+    insert: (value) =>
+      editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(value)), {
+        preventScroll: true,
+      }),
   };
   useImperativeHandle(ref, () => handle);
   if (control) control.current = handle;
@@ -665,6 +692,19 @@ export const RichEditor = forwardRef<
                 </ButtonWithTooltip>
                 <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
                   <BarChart3 className="h-5 w-5" />
+                </ButtonWithTooltip>
+                <Separator />
+                <ButtonWithTooltip
+                  title="Who's present"
+                  onClick={() => meeting.current.onPresent?.()}
+                >
+                  <Users className="h-5 w-5" />
+                </ButtonWithTooltip>
+                <ButtonWithTooltip
+                  title="Transcribe (into a panel beside the page)"
+                  onClick={() => meeting.current.onTranscribe?.()}
+                >
+                  <Mic className="h-5 w-5" />
                 </ButtonWithTooltip>
               </>
             ),

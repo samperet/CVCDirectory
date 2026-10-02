@@ -41,6 +41,12 @@ export type PageView =
   | { kind: "circles"; circles: string[] };
 /** Who can edit a page: the keeper circle, or any resident (the Board and admins always can). */
 export type PageEdit = { kind: "keeper" } | { kind: "anyone" };
+/** Someone present for what a page records (a meeting's notes): a resident, or a guest by name. */
+export interface PagePerson {
+  /** Unset for a guest who isn't in the directory. */
+  personId?: string;
+  name: string;
+}
 
 export interface WikiPage {
   id: string;
@@ -59,6 +65,8 @@ export interface WikiPage {
   historyCount: number;
   /** The parent circle's consent to the page (see `consent.ts`). */
   consent?: PageConsent | null;
+  /** Who was present (for a meeting's notes), shown under the title; set by its editors. */
+  present?: PagePerson[];
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
   autosaved?: boolean;
   /** Its addresses from when each circle had its own wiki, so old links still arrive. */
@@ -121,6 +129,19 @@ export const pageUpdateSchema = z
     consent: z
       .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the date it was consented") })
       .nullable()
+      .optional(),
+    /** Who was present (the whole list; empty to clear it). */
+    present: z
+      .array(
+        z.object({
+          personId: z
+            .string()
+            .regex(/^[a-f0-9]{12}$/)
+            .optional(),
+          name: z.string().trim().min(1).max(80),
+        })
+      )
+      .max(200)
       .optional(),
   })
   .refine(
@@ -383,6 +404,7 @@ type PageUpdate = {
   view?: PageView;
   edit?: PageEdit;
   consent?: { date: string } | null;
+  present?: PagePerson[];
 };
 
 export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate) {
@@ -391,8 +413,9 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its keeper, who can see or edit it, and its consent aren't new versions.
+    // Its keeper, who can see or edit it, its consent, and who was present aren't new versions.
     const settings: Partial<WikiPage> = {
+      ...(update.present ? { present: update.present } : {}),
       ...(update.keeper ? { keeper: update.keeper } : {}),
       ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),

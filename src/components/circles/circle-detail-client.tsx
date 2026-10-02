@@ -27,7 +27,6 @@ import {
 } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { InformationModule } from "@/components/circles/information-module";
-import { MeetingsModule } from "@/components/meetings/meetings-module";
 import { TasksModule } from "@/components/tasks/task-board";
 import { type CircleModule, moduleTitle, modulesFor } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
@@ -146,14 +145,6 @@ export function CircleDetailClient({ id }: { id: string }) {
                   isMember={isMember}
                 />
               ),
-            };
-      case "meetings":
-        return community
-          ? undefined
-          : {
-              title,
-              icon: icon(module),
-              content: <MeetingsModule circle={circle} title={title} />,
             };
       case "schedule":
         return schedule

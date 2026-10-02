@@ -6,7 +6,7 @@ Notes for anyone — person or AI — picking this codebase up. The longer tour 
 ## What it is
 
 A private web app for the residents of CVC (a cohousing community in Vermont): directory, circles
-(sociocratic working groups), a wiki, documents, tasks, meetings and proposals, forum, loan library,
+(sociocratic working groups), a wiki, documents (pages, including meeting notes, and files), tasks, forum, loan library,
 calendar, photos. Next.js 14 (app router, TypeScript, Tailwind) on Vercel; **all data is JSON and
 files in Cloudflare R2** — there is no database. Refer to the community only as **CVC**.
 
@@ -61,7 +61,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 - **Admins** are `ADMIN_PERSON_IDS` (`isAdmin`); **the Board** can manage every circle
   (`canManageCircle`, `sitsOnBoard`); **Community** is everyone and has no members.
 - **React Query**: one query per resource with a small factory (`directoryQuery`, `wikiPagesQuery`,
-  `tasksQuery`, `meetingsQuery`…). Mutations invalidate by key prefix; `["directory"]` is the
+  `tasksQuery`…). Mutations invalidate by key prefix; `["directory"]` is the
   people-and-circles document most pages read — use `useDirectory()`/`useCircles()`.
 - **Time** is Vermont time everywhere (`TIME_ZONE`); dates are `YYYY-MM-DD` strings.
 - **Comments at the top of each file** say what it is for and the rules it enforces; keep them

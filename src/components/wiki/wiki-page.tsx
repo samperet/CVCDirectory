@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { WikiPage } from "@/lib/wiki/store";
+import type { PagePerson, WikiPage } from "@/lib/wiki/store";
+import { PresentDialog, PresentLine } from "@/components/wiki/present-dialog";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { shortDate, timeAgo } from "@/lib/time";
@@ -206,6 +207,25 @@ export function WikiPageClient({ slug }: { slug: string }) {
     onError: (err: Error) =>
       toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
+  // Who was present (meeting notes), chosen from the editor's toolbar.
+  const [choosingPresent, setChoosingPresent] = useState(false);
+  const setPresent = useMutation({
+    mutationFn: (present: PagePerson[]) =>
+      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
+        method: "PATCH",
+        body: JSON.stringify({ present }),
+      }),
+    onSuccess: ({ page: updated }) => {
+      saved(updated);
+      setChoosingPresent(false);
+    },
+    onError: (err: Error) =>
+      toast({
+        title: "Could not save who's present",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
   const rehome = useMutation({
     mutationFn: (keeper: string) =>
       apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
@@ -342,8 +362,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
           circle={circle}
           page={page}
           pages={pages}
+          onPresent={() => setChoosingPresent(true)}
           headerExtras={
             <>
+              <PresentLine present={page.present} />
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <ConsentPill page={page} />
               </div>
@@ -408,6 +430,15 @@ export function WikiPageClient({ slug }: { slug: string }) {
             exitEdit();
           }}
         />
+        {choosingPresent ? (
+          <PresentDialog
+            circleId={circleId}
+            present={page.present ?? []}
+            saving={setPresent.isPending}
+            onSave={(present) => setPresent.mutate(present)}
+            onClose={() => setChoosingPresent(false)}
+          />
+        ) : null}
       </div>
     );
   }
@@ -465,6 +496,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 </>
               ) : null}
             </p>
+            <PresentLine present={page.present} />
             <div className="flex flex-wrap items-center justify-center gap-2">
               <ConsentPill page={page} />
               {othersEditing.length ? (

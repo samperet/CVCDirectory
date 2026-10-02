@@ -15,6 +15,7 @@ import Link from "next/link";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
+import { TranscriptPanel } from "@/components/wiki/transcript-panel";
 import type { Circle } from "@/lib/circles/types";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -61,6 +62,7 @@ export function WikiEditor({
   pages,
   tools,
   headerExtras,
+  onPresent,
   onDone,
 }: {
   circleId: string;
@@ -73,6 +75,8 @@ export function WikiEditor({
   tools?: ReactNode;
   /** What the page's header shows under the title besides the date: the consent pill and controls. */
   headerExtras?: ReactNode;
+  /** The toolbar's **Who's present** (the page keeps who was present). */
+  onPresent?: () => void;
   /** Finished editing: the page as it now stands. */
   onDone: (page: WikiPage) => void;
 }) {
@@ -122,6 +126,19 @@ export function WikiEditor({
   const remoteNewer = useRef(false);
   const retryAt = useRef(0);
   const rich = useRef<RichEditorHandle | null>(null);
+  // The transcript beside the page (open while transcribing, or until closed).
+  const [transcribing, setTranscribing] = useState(false);
+  const insertTranscript = (text: string) => {
+    // Spoken words, kept as written: anything Markdown would read as formatting is escaped.
+    const markdown = text
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim().replace(/[\\`*_[\]<>~|#]/g, "\\$&"))
+      .filter(Boolean)
+      .join("\n\n");
+    if (mode === "visual" && rich.current) rich.current.insert(markdown);
+    else setBody(`${bodyRef.current.replace(/\s+$/, "")}\n\n${markdown}\n`);
+    touched.current = true;
+  };
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   const dirty = title !== synced.title || body !== synced.body;
@@ -552,6 +569,8 @@ export function WikiEditor({
               pageSlug={initial.slug}
               onChange={setBody}
               onCreatePage={onCreatePage}
+              onTranscribe={() => setTranscribing(true)}
+              onPresent={onPresent}
               onError={() => {
                 setMode("markdown");
                 toast({
@@ -582,6 +601,13 @@ export function WikiEditor({
         Changes save as you go, and others can edit at the same time. Type @ to link a page or a
         document — or to start a new page.
       </p>
+      {transcribing ? (
+        <TranscriptPanel
+          pageId={initial.id}
+          onInsert={insertTranscript}
+          onClose={() => setTranscribing(false)}
+        />
+      ) : null}
     </div>
   );
 }

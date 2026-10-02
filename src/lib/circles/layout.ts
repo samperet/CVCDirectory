@@ -7,14 +7,7 @@ import { isCommunity } from "./ids";
  * up to each reader, on their own device.
  */
 
-export const MODULE_TYPES = [
-  "information",
-  "members",
-  "meetings",
-  "schedule",
-  "tasks",
-  "documents",
-] as const;
+export const MODULE_TYPES = ["information", "members", "schedule", "tasks", "documents"] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
 export const MODULE_SIZES = ["small", "medium", "large", "full"] as const;
@@ -52,7 +45,6 @@ export const DEFAULT_INFO_VIEW: InfoView = "summary";
 const DEFAULT_LAYOUT: SectionLayout[] = [
   { id: "information", size: "large" },
   { id: "members", size: "small" },
-  { id: "meetings", size: "full" },
   { id: "schedule", size: "full" },
   { id: "tasks", size: "full" },
   { id: "documents", size: "full" },
@@ -78,13 +70,12 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
 /**
  * A circle's page is built from modules, each a size wide. Information
  * modules show a chosen set of wiki pages (there can be several); the
- * others (members, meetings, the duty schedule, tasks, documents) appear
+ * others (members, the duty schedule, tasks, documents) appear
  * once each.
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
   information: "Information",
   members: "Members",
-  meetings: "Meetings",
   schedule: "Duty schedule",
   tasks: "Tasks",
   documents: "Documents",
@@ -128,8 +119,8 @@ export const moduleTitle = (module: Pick<CircleModule, "type" | "title">, schedu
 /**
  * The page's modules: those the circle saved — or, until it saves any, its
  * sections as they were (in their order and sizes): Information as all of
- * the circle's own pages, shown as it chose; Members and Meetings (but not
- * on Community, which is everyone); the duty schedule if it has one; Tasks
+ * the circle's own pages, shown as it chose; Members (but not on
+ * Community, which is everyone); the duty schedule if it has one; Tasks
  * and Documents unless it turned them off.
  */
 export function modulesFor(
@@ -142,11 +133,15 @@ export function modulesFor(
   },
   { hasSchedule }: { hasSchedule: boolean }
 ): CircleModule[] {
-  if (circle.modules) return circle.modules;
+  // A module of a kind that's gone (Meetings, now meeting notes are pages) is left out.
+  if (circle.modules)
+    return circle.modules.filter((module) =>
+      (MODULE_TYPES as readonly string[]).includes(module.type)
+    );
   const on = (feature: "documents" | "wiki" | "tasks") => circle.features?.[feature] ?? true;
   const available: ModuleType[] = [
     ...(on("wiki") ? (["information"] as const) : []),
-    ...(!isCommunity(circle.id) ? (["members", "meetings"] as const) : []),
+    ...(!isCommunity(circle.id) ? (["members"] as const) : []),
     ...(hasSchedule ? (["schedule"] as const) : []),
     ...(on("tasks") ? (["tasks"] as const) : []),
     ...(on("documents") ? (["documents"] as const) : []),

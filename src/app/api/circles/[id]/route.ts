@@ -3,13 +3,12 @@ import { moveCircleDocuments } from "@/lib/documents/store";
 import { handOverPages } from "@/lib/wiki/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
-import { deleteCircleMeetings } from "@/lib/meetings/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
 import { isAdmin } from "@/lib/auth/admins";
 import { iconKey, setCircleIcon } from "@/lib/circles/icons";
-import { deleteBinary } from "@/lib/storage";
+import { deleteBinary, deleteJson } from "@/lib/storage";
 import { problem, readBody } from "@/lib/http";
 import { BOARD_ID, COMMUNITY_ID } from "@/lib/circles/ids";
 
@@ -58,6 +57,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   await handOverPages(params.id, BOARD_ID);
   await deleteCircleTasks(params.id);
   await deleteCircleTaskComments(params.id);
-  await deleteCircleMeetings(params.id);
+  // What's left of its old meetings and proposals (no longer shown) goes with it.
+  await deleteJson(`meetings/${params.id}.json`);
   return NextResponse.json({ ok: true });
 }

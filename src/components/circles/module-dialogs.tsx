@@ -6,7 +6,6 @@ import {
   ArrowUp,
   BookOpen,
   CalendarDays,
-  ClipboardList,
   FileText,
   LayoutGrid,
   List,
@@ -48,7 +47,6 @@ import { SegmentedControl } from "@/components/ui/segmented";
 export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   information: BookOpen,
   members: Users,
-  meetings: ClipboardList,
   schedule: CalendarDays,
   tasks: ListChecks,
   documents: FileText,
@@ -58,8 +56,6 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   information:
     "Written pages shown right on the circle's page: chosen ones, all of a circle's, or the latest edited. Add as many as you like.",
   members: "Who's in the circle, and joining it.",
-  meetings:
-    "Minutes of the circle's meetings — who was there, notes, and proposals in their consent review.",
   schedule: "The circle's duty schedule.",
   tasks: "The circle's tasks.",
   documents:
@@ -113,15 +109,15 @@ export function AddModuleDialog({
   onAdd: (module: CircleModule) => void;
   onClose: () => void;
 }) {
-  const offered = (
-    ["information", "members", "meetings", "schedule", "tasks", "documents"] as const
-  ).filter((type) => {
-    if (type === "information") return true;
-    if (modules.some((module) => module.type === type)) return false;
-    if (type === "members" || type === "meetings") return !isCommunity(circle.id);
-    if (type === "schedule") return hasSchedule;
-    return true;
-  });
+  const offered = (["information", "members", "schedule", "tasks", "documents"] as const).filter(
+    (type) => {
+      if (type === "information") return true;
+      if (modules.some((module) => module.type === type)) return false;
+      if (type === "members") return !isCommunity(circle.id);
+      if (type === "schedule") return hasSchedule;
+      return true;
+    }
+  );
   return (
     <Dialog
       title="Add a module"
