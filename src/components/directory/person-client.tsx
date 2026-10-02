@@ -1,5 +1,7 @@
 "use client";
 
+import { sentence } from "@/lib/text";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -20,8 +22,6 @@ import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { Loading } from "@/components/ui/status";
 import { useConfirm } from "@/components/ui/confirm";
 import { Select } from "@/components/ui/select";
-
-const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** One resident's page: contact details, birthday, bio, and circles — and, for directory managers, editing and removal. */
 export function PersonClient({ personId: requested }: { personId: string }) {

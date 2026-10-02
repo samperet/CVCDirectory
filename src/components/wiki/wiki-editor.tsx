@@ -3,22 +3,20 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, Eye, FilePlus2, ImagePlus, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import type { PageEditor } from "@/lib/wiki/presence";
-import { blockStarts, mergeText, type MergeConflict } from "@/lib/wiki/merge";
-import { timeAgo } from "@/lib/time";
-import { WikiMarkdown } from "@/components/wiki/markdown";
+import { blockStarts, mergeText } from "@/lib/wiki/merge";
 import { wikiLinksIn } from "@/lib/wiki/links";
-import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
 import type { RichEditorHandle } from "@/components/wiki/rich-editor";
-import { uploadWikiImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { clearDraft, readDraft, writeDraft, type Draft } from "@/components/wiki/draft-storage";
+import { ClashCard, DraftBanner, LiveEditors, type Clash } from "@/components/wiki/editor-banners";
+import { MarkdownPane } from "@/components/wiki/markdown-pane";
 
 // The visual editor is large, and needs the browser; load it only when someone edits.
 const RichEditor = dynamic(
@@ -32,53 +30,14 @@ const RichEditor = dynamic(
 );
 
 type Mode = "visual" | "markdown";
-interface Draft {
-  title: string;
-  body: string;
-  /** The saved version the draft started from. */
-  base: string;
-  savedAt: string;
-}
 /** The version of the page this editor last caught up with. */
 type Synced = { title: string; body: string; updatedAt: string };
-type Clash = MergeConflict & { id: number; by: string };
 type LiveState = { updatedAt: string; editors: PageEditor[] };
 
 /** Typing pauses this long before your changes are saved, or others' are merged in. */
 const IDLE_MS = 1200;
 /** How often the editor checks in (and looks for others' saves). */
 const LIVE_MS = 4000;
-
-const draftKey = (pageId: string) => `cvc-wiki-draft:${pageId}`;
-function readDraft(pageId: string): Draft | null {
-  try {
-    const raw = localStorage.getItem(draftKey(pageId));
-    return raw ? (JSON.parse(raw) as Draft) : null;
-  } catch {
-    return null;
-  }
-}
-function clearDraft(pageId: string) {
-  try {
-    localStorage.removeItem(draftKey(pageId));
-  } catch {
-    // Private browsing: nothing was kept.
-  }
-}
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-const names = (people: PageEditor[]) =>
-  people.length <= 2
-    ? people.map((person) => person.name).join(" and ")
-    : `${people
-        .slice(0, -1)
-        .map((person) => person.name)
-        .join(", ")}, and ${people[people.length - 1].name}`;
 
 /**
  * Editing a wiki page — together. Changes save on their own a moment after
@@ -115,7 +74,6 @@ export function WikiEditor({
   const newPages = useRef(new Set<string>());
   const pagesRef = useRef(pages);
   pagesRef.current = pages;
-  const [addingDocument, setAddingDocument] = useState(false);
 
   // What's in the editor (state for showing it, refs for the save loop).
   const [title, setTitleState] = useState(initial.title);
@@ -185,21 +143,16 @@ export function WikiEditor({
   // Keep work in progress on this device until it's saved.
   useEffect(() => {
     if (!dirty || offerDraft) return;
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(
-          draftKey(initial.id),
-          JSON.stringify({
-            title,
-            body,
-            base: synced.updatedAt,
-            savedAt: new Date().toISOString(),
-          } satisfies Draft)
-        );
-      } catch {
-        // Storage full or blocked: the page still saves normally.
-      }
-    }, 600);
+    const timer = setTimeout(
+      () =>
+        writeDraft(initial.id, {
+          title,
+          body,
+          base: synced.updatedAt,
+          savedAt: new Date().toISOString(),
+        }),
+      600
+    );
     return () => clearTimeout(timer);
   }, [dirty, offerDraft, initial.id, title, body, synced.updatedAt]);
 
@@ -444,42 +397,6 @@ export function WikiEditor({
     activity.current = 0;
   };
 
-  // Photos picked, pasted, or dropped into the Markdown: uploaded, then placed where the cursor is.
-  const photoInput = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(0);
-  const addPhotos = async (files: File[]) => {
-    const images = files.filter((file) => file.type.startsWith("image/"));
-    if (!images.length) return false;
-    setUploading((count) => count + images.length);
-    for (const file of images) {
-      try {
-        insertLink(`![](${await uploadWikiImage(initial.slug, file)})`);
-      } catch (error) {
-        toast({
-          title: `Could not add “${file.name}”`,
-          description: (error as Error).message,
-          variant: "destructive",
-        });
-      } finally {
-        setUploading((count) => count - 1);
-      }
-    }
-    return true;
-  };
-
-  // Put a link where the cursor is in the Markdown.
-  const insertLink = (text: string) => {
-    const area = textarea.current;
-    const current = bodyRef.current;
-    const start = area?.selectionStart ?? current.length;
-    const end = area?.selectionEnd ?? current.length;
-    touch();
-    setBody(current.slice(0, start) + text + current.slice(end));
-    requestAnimationFrame(() => {
-      area?.focus();
-      area?.setSelectionRange(start + text.length, start + text.length);
-    });
-  };
   const restoreDraft = (draft: Draft) => {
     titleRef.current = draft.title;
     bodyRef.current = draft.body;
@@ -510,73 +427,25 @@ export function WikiEditor({
   return (
     <div className="flex flex-col gap-3">
       {offerDraft ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sun/60 bg-sun/10 px-3 py-2 text-sm">
-          <span className="flex-1">
-            You have unsaved changes to this page from {timeAgo(offerDraft.savedAt)}.
-          </span>
-          <Button size="sm" onClick={() => restoreDraft(offerDraft)}>
-            Restore them
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              clearDraft(initial.id);
-              setOfferDraft(null);
-            }}
-          >
-            Discard
-          </Button>
-        </div>
+        <DraftBanner
+          draft={offerDraft}
+          onRestore={() => restoreDraft(offerDraft)}
+          onDiscard={() => {
+            clearDraft(initial.id);
+            setOfferDraft(null);
+          }}
+        />
       ) : null}
 
-      {editors.length ? (
-        <div className="flex items-center gap-2 text-xs text-foreground-light" aria-live="polite">
-          <span className="flex -space-x-1.5">
-            {editors.slice(0, 5).map((editor) => (
-              <span
-                key={editor.userId}
-                title={editor.name}
-                className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground ring-2 ring-white"
-              >
-                {initials(editor.name)}
-              </span>
-            ))}
-          </span>
-          <span>
-            {names(editors)} {editors.length === 1 ? "is" : "are"} editing too — their changes
-            appear here as they save.
-          </span>
-        </div>
-      ) : null}
+      <LiveEditors editors={editors} />
 
       {clashes.map((clash) => (
-        <div
+        <ClashCard
           key={clash.id}
-          className="flex flex-col gap-2 rounded-lg border border-sun/70 bg-sun/10 px-3 py-2 text-sm"
-          role="alert"
-        >
-          <p className="flex items-center gap-2 font-medium text-foreground">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-[#b7791f]" /> {clash.by} changed a
-            paragraph you&apos;re changing too.
-          </p>
-          <p className="text-xs text-foreground-light">Yours is in the page. Theirs:</p>
-          <blockquote className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-white/80 px-3 py-2 text-sm text-foreground">
-            {clash.theirs}
-          </blockquote>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => takeTheirs(clash)}>
-              Use theirs
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setClashes((list) => list.filter((entry) => entry.id !== clash.id))}
-            >
-              Keep mine
-            </Button>
-          </div>
-        </div>
+          clash={clash}
+          onTakeTheirs={() => takeTheirs(clash)}
+          onKeepMine={() => setClashes((list) => list.filter((entry) => entry.id !== clash.id))}
+        />
       ))}
 
       <Input
@@ -619,91 +488,17 @@ export function WikiEditor({
           />
         </div>
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted">
-              This page has something the visual editor can&apos;t show, so it&apos;s open as plain
-              text (Markdown).
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => photoInput.current?.click()}
-                disabled={uploading > 0}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-sm font-medium text-foreground transition hover:bg-accent disabled:opacity-60"
-              >
-                <ImagePlus className="h-4 w-4" aria-hidden />{" "}
-                {uploading ? "Adding photo…" : "Insert photo"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddingDocument(true)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-sm font-medium text-foreground transition hover:bg-accent"
-              >
-                <FilePlus2 className="h-4 w-4" aria-hidden /> Add a document
-              </button>
-              {addingDocument ? (
-                <AddDocumentDialog
-                  circle={{ id: circleId, name: circleName }}
-                  onClose={() => setAddingDocument(false)}
-                  onAdded={(link) => {
-                    setAddingDocument(false);
-                    insertLink(link);
-                  }}
-                />
-              ) : null}
-              <input
-                ref={photoInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                multiple
-                hidden
-                onChange={(event) => {
-                  void addPhotos(Array.from(event.target.files ?? []));
-                  event.target.value = "";
-                }}
-              />
-            </div>
-            <Textarea
-              ref={textarea}
-              onPaste={(event) => {
-                const files = Array.from(event.clipboardData.files);
-                if (files.some((file) => file.type.startsWith("image/"))) {
-                  event.preventDefault();
-                  void addPhotos(files);
-                }
-              }}
-              onDrop={(event) => {
-                const files = Array.from(event.dataTransfer.files);
-                if (files.some((file) => file.type.startsWith("image/"))) {
-                  event.preventDefault();
-                  void addPhotos(files);
-                }
-              }}
-              autoFocus
-              value={body}
-              maxLength={50_000}
-              onChange={(event) => {
-                touch();
-                setBody(event.target.value);
-              }}
-              className="min-h-[28rem] bg-white font-mono text-sm leading-relaxed"
-              aria-label="Page text (Markdown)"
-              placeholder={
-                "# Heading\n\nSome **bold** text, a list:\n\n- one\n- two\n\nLink another page: [[Page title]]"
-              }
-            />
-          </div>
-          <div
-            className="min-h-[28rem] overflow-auto rounded-lg border border-border bg-white p-4"
-            aria-label="Preview"
-          >
-            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
-              <Eye className="h-3.5 w-3.5" /> Preview
-            </p>
-            <WikiMarkdown source={body} circleId={circleId} pages={pages} />
-          </div>
-        </div>
+        <MarkdownPane
+          circleId={circleId}
+          circleName={circleName}
+          pageSlug={initial.slug}
+          pages={pages}
+          body={body}
+          getBody={() => bodyRef.current}
+          setBody={setBody}
+          touch={touch}
+          textareaRef={textarea}
+        />
       )}
 
       <p className="text-xs text-muted">

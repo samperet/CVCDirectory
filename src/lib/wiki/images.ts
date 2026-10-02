@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { deleteBinary, mutateJson, readBinary, readJson, writeBinary } from "@/lib/storage";
+import { deleteBinary, mutateJson, readBinary, writeBinary } from "@/lib/storage";
 
 /**
  * Photos in a circle's wiki pages. Each is stored on its own

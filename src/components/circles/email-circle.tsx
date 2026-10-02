@@ -9,8 +9,7 @@ import type { Circle } from "@/lib/circles/types";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-
-const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+import { sentence } from "@/lib/text";
 
 interface Recipient {
   name: string;

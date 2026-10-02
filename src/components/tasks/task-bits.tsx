@@ -16,6 +16,8 @@ import {
 } from "@/lib/tasks/shared";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { initials } from "@/lib/text";
+import { shortDate } from "@/lib/time";
 import { useDirectory } from "@/components/directory/use-directory";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { Select } from "@/components/ui/select";
@@ -114,14 +116,6 @@ export function StatusSelect({
   );
 }
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
-
 export function OwnerChip({ name, className }: { name: string | null; className?: string }) {
   if (!name) return <span className={cn("text-xs text-muted", className)}>Unassigned</span>;
   return (
@@ -138,9 +132,6 @@ export function OwnerChip({ name, className }: { name: string | null; className?
     </span>
   );
 }
-
-const shortDate = (iso: string) =>
-  new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export function DueLabel({
   task,

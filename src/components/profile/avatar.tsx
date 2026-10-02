@@ -1,16 +1,5 @@
 import { cn } from "@/lib/utils";
-
-function initials(name: string) {
-  const parts = name
-    .replace(/\(.*?\)/g, "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  return (
-    ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() ||
-    "?"
-  );
-}
+import { initials } from "@/lib/text";
 
 /** A resident's photo, or their initials when they haven't added one. */
 export function Avatar({

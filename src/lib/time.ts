@@ -27,3 +27,13 @@ export function timeAgo(iso: string, now = Date.now()): string {
     year: "numeric",
   });
 }
+
+/** "Sep 3" (or "Sep 3, 2026") for a YYYY-MM-DD date — or the date part of a timestamp — as written, whatever the reader's time zone. */
+export function shortDate(date: string, withYear = false) {
+  return new Date(`${date.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(withYear ? { year: "numeric" } : {}),
+    timeZone: "UTC",
+  });
+}

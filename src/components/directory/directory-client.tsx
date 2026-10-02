@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { MONTHS } from "@/lib/profiles/months";
 import { cn } from "@/lib/utils";
+import { sentence } from "@/lib/text";
 import { Avatar } from "@/components/profile/avatar";
 import { useSession } from "@/lib/auth/client";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
@@ -38,8 +39,6 @@ export interface Membership {
   circle: Circle;
   position: string | null;
 }
-
-const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Each circle's icon as a small badge, labelled with the circle and the resident's role in it. */
 export function CircleBadges({ memberships }: { memberships: Membership[] }) {

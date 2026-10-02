@@ -9,35 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
-
-function ActionLink({
-  onClick,
-  children,
-  danger,
-}: {
-  onClick: () => void;
-  children: React.ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "font-medium hover:underline",
-        danger ? "text-muted hover:text-destructive" : "text-secondary-foreground"
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** "Sam Peret, Alex Kim and 3 others" — who chose an option. */
-function votersLabel(names: string[]) {
-  if (names.length <= 3) return names.join(", ").replace(/, ([^,]*)$/, " and $1");
-  return `${names.slice(0, 2).join(", ")} and ${names.length - 2} others`;
-}
+import { ActionLink } from "@/components/ui/action-link";
+import { listNames } from "@/lib/text";
 
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
@@ -165,7 +138,7 @@ export function PollView({
                     style={{ width: `${share}%` }}
                   />
                 </div>
-                {names.length ? <p className="text-xs text-muted">{votersLabel(names)}</p> : null}
+                {names.length ? <p className="text-xs text-muted">{listNames(names)}</p> : null}
               </li>
             );
           })}
