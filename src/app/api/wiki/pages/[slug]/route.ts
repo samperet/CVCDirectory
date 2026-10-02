@@ -29,15 +29,17 @@ export async function GET(_request: Request, { params }: Params) {
       history: await getHistory(ctx.page.id),
       canEdit: ctx.canEdit,
       canManage: ctx.canManage,
+      canConsent: ctx.canConsent,
     },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }
 
 /**
- * Save a new version (title and/or body), a new colour (its editors), or
- * its settings — keeper, who sees it, who edits it, the circle's consent
- * (its keeper circle). Polls newly in the page are announced.
+ * Save a new version (title and/or body; its editors), its settings —
+ * keeper, who sees it, who edits it (the circle that keeps it, or the
+ * Board) — or the circle's consent (anyone in that circle, or the Board).
+ * Polls newly in the page are announced.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await pageContext(params.slug, "edit");
@@ -46,15 +48,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in parsed) return parsed.error;
   const update = parsed.data;
   const settings =
-    update.keeper !== undefined ||
-    update.view !== undefined ||
-    update.edit !== undefined ||
-    update.consent !== undefined;
+    update.keeper !== undefined || update.view !== undefined || update.edit !== undefined;
   if (settings && !ctx.canManage)
     return problem(
-      "Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it, or record its consent",
+      "Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it",
       403
     );
+  if (update.consent !== undefined && !ctx.canConsent)
+    return problem("Only the circle's members and the Board can record its consent", 403);
   const known = new Set(ctx.directory.circles.map((circle) => circle.id));
   if (update.keeper && !known.has(update.keeper)) return problem("That circle doesn't exist", 404);
   if (update.view?.kind === "circles" && update.view.circles.some((id) => !known.has(id)))

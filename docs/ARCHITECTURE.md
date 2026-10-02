@@ -105,7 +105,7 @@ dialog, `#comment-<id>` links), `CommentForm`, `CommentByline`; features pass wh
 
 A circle's page is a list of **modules** (`src/lib/circles/layout.ts`): Information (wiki pages by
 a filter, any number of them), Members, Meetings, a duty schedule, Tasks (with a "who can add"
-setting), Documents. `modulesFor(circle, …)` returns the saved `circle.modules`, or derives a page
+setting), Documents (the circle's pages and files). `modulesFor(circle, …)` returns the saved `circle.modules`, or derives a page
 from the older `layout`/`features`/`infoView` fields for circles that never saved one. Saving
 modules also sets `features.tasks`/`features.documents`, which gate those APIs
 (`lib/circles/features.ts`). Rendering: `components/circles/circle-modules.tsx` (`CircleModules`
@@ -126,8 +126,17 @@ Highlighted words are `:mark[…]{color="…"}` (palette in `lib/wiki/colors.ts`
 over a `.document-sheet` with `.document-body` margins); the editor (`wiki-editor.tsx`) has a
 sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
 A page's **consent** (`lib/wiki/consent.ts`, `page.consent`) is the keeper circle's, recorded with
-a date by whoever manages the page (`PATCH {consent: {date}}`, or `null` to withdraw) against the
-version current then; `consentState()` reads "changed" once the page is edited again.
+a date (`PATCH {consent: {date}}`, or `null` to withdraw) against the version current then;
+`consentState()` reads "changed" once the page is edited again. Who may record it is the same for
+pages and files: `canRecordConsent` (`lib/circles/consent.ts`) — anyone in the circle, the Board for
+any circle, admins.
+
+Pages and uploaded files share one **Documents** section (`/documents`; `/wiki` redirects there).
+`GET /api/documents?pages=1` returns both as `items` (`kind` "page" | "file"; pages listed by
+`lib/wiki/listing.ts`, searched and sorted like files), shown by `DocumentsPanel` with
+`PageListingRow` and `DocumentRow`, and its **New** menu (`documents/new-menu.tsx`) writes a page
+or uploads a file. Storage, links and history stay separate. **Turn into a page**
+(`POST /api/documents/<id>/page`) converts a file's text with `lib/documents/to-markdown.ts`.
 
 ## Meetings and proposals
 

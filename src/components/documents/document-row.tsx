@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Download, History, Pencil, Trash2, Upload } from "lucide-react";
+import { BadgeCheck, BookOpen, Download, History, Pencil, Trash2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { FileIcon, checkFile, sendFile, useCircleTypes } from "@/components/documents/upload";
 import {
@@ -183,6 +184,7 @@ export function DocumentRow({
   showCircle: boolean;
 }) {
   const confirm = useConfirm();
+  const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const replaceInput = useRef<HTMLInputElement>(null);
@@ -228,6 +230,25 @@ export function DocumentRow({
     },
     onError: (err: Error) =>
       toast({ title: "Could not save", description: err.message, variant: "destructive" }),
+  });
+
+  // Its text becomes a written page (the file stays as it is).
+  const toPage = useMutation({
+    mutationFn: () =>
+      apiFetch<{ page: { slug: string } | null }>(`/api/documents/${doc.id}/page`, {
+        method: "POST",
+      }),
+    onSuccess: ({ page }) => {
+      queryClient.invalidateQueries({ queryKey: ["wiki"] });
+      refresh();
+      if (page) router.push(`/wiki/${page.slug}`);
+    },
+    onError: (err: Error) =>
+      toast({
+        title: "Could not make a page",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const markConsented = useMutation({
@@ -415,6 +436,29 @@ export function DocumentRow({
                 <BadgeCheck className="h-4 w-4" />
               </button>
             )
+          ) : null}
+          {doc.canWritePage && version.textChars > 0 ? (
+            <button
+              type="button"
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: `Turn “${doc.title}” into a page?`,
+                    body: `Its text becomes a page anyone in ${
+                      doc.circleName || "the circle"
+                    } can keep improving. The file stays as it is, linked from the page.`,
+                    confirmLabel: "Make the page",
+                  })
+                )
+                  toPage.mutate();
+              }}
+              disabled={toPage.isPending}
+              className={action}
+              aria-label="Turn into a page"
+              title="Turn into a page"
+            >
+              <BookOpen className="h-4 w-4" />
+            </button>
           ) : null}
           {doc.canManage ? (
             <>

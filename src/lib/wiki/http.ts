@@ -10,6 +10,7 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import type { Circle } from "@/lib/circles/types";
 import type { CommunityUser } from "@/lib/auth/users";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
+import { canRecordConsent } from "@/lib/circles/consent";
 
 /**
  * The wiki's routes: who's asking (any signed-in resident), and — for a
@@ -23,7 +24,13 @@ type Session = {
   directory: DirectoryDocument;
   imported: Circle[];
 };
-type PageSession = Session & { page: WikiPage; canEdit: boolean; canManage: boolean };
+type PageSession = Session & {
+  page: WikiPage;
+  canEdit: boolean;
+  canManage: boolean;
+  /** Record or withdraw the circle's consent: its members, the Board, admins. */
+  canConsent: boolean;
+};
 
 export async function wikiSession(): Promise<{ error: NextResponse } | Session> {
   const ctx = await circleContext();
@@ -48,7 +55,8 @@ export async function pageContext(
     return {
       error: problem("Only the circle that keeps this page (or the Board) can change that", 403),
     };
-  return { ...ctx, page, canEdit, canManage };
+  const canConsent = canRecordConsent(ctx.user, ctx.directory, page.keeper);
+  return { ...ctx, page, canEdit, canManage, canConsent };
 }
 
 export function wikiProblem(reason: Failure) {

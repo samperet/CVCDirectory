@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Each circle once had its own wiki; now the wiki is one, and this shows the pages the circle keeps. */
+/** Each circle once had its own wiki; its pages are now among the circle's Documents. */
 export default function OldCircleWiki({
   params,
   searchParams,
@@ -10,7 +10,7 @@ export default function OldCircleWiki({
 }) {
   redirect(
     searchParams.new
-      ? `/wiki?new=${encodeURIComponent(searchParams.new)}&keeper=${params.id}`
-      : `/wiki?keeper=${params.id}`
+      ? `/documents?new=${encodeURIComponent(searchParams.new)}&circle=${params.id}`
+      : `/documents?circle=${params.id}`
   );
 }

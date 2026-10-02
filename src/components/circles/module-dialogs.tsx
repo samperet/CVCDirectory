@@ -56,13 +56,14 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
 
 const MODULE_HINTS: Record<ModuleType, string> = {
   information:
-    "Wiki pages: chosen ones, all of a circle's, or the latest edited. Add as many as you like.",
+    "Written pages shown right on the circle's page: chosen ones, all of a circle's, or the latest edited. Add as many as you like.",
   members: "Who's in the circle, and joining it.",
   meetings:
     "Minutes of the circle's meetings — who was there, notes, and proposals in their consent review.",
   schedule: "The circle's duty schedule.",
   tasks: "The circle's tasks.",
-  documents: "The circle's documents.",
+  documents:
+    "The circle's documents — pages written here and files uploaded — searchable, with New to add one.",
 };
 
 const VIEW_ICONS: Record<InfoView, typeof List> = {

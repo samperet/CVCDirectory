@@ -106,7 +106,7 @@ function EditorWikiTag({
       <WikiTag
         kind="missing"
         label={text}
-        href={`/wiki?new=${encodeURIComponent(link.title)}`}
+        href={`/documents?new=${encodeURIComponent(link.title)}`}
         newTab
       />
     )

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, BadgeCheck, MessagesSquare, Search, Tags, Upload, X } from "lucide-react";
+import { ArrowUpDown, BadgeCheck, MessagesSquare, Search, Tags, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { FileIcon, checkFile, sendFile, useCircleTypes } from "@/components/documents/upload";
 import { BulkUpload } from "@/components/documents/bulk-upload";
 import { DocumentListing } from "@/lib/documents/types";
 import type { ForumSearchHit } from "@/lib/forum/search";
@@ -18,13 +17,23 @@ import { Loading } from "@/components/ui/status";
 import { Select } from "@/components/ui/select";
 import { DocumentRow, Highlighted } from "@/components/documents/document-row";
 import { TypesEditor } from "@/components/documents/types-editor";
+import { PageListingRow } from "@/components/documents/page-row";
+import { NewMenu, WritePageDialog } from "@/components/documents/new-menu";
+import type { PageListing } from "@/lib/wiki/listing";
 
+type FileItem = DocumentListing & { kind: "file" };
 type ListResponse = {
   documents: DocumentListing[];
+  items: (FileItem | PageListing)[];
   total: number;
   typeOptions: string[];
   yearOptions?: string[];
+  hasPages: boolean;
 };
+
+/** The Type filter's two kinds (any other value is one of the file types' names). */
+const PAGES = "__pages";
+const FILES = "__files";
 
 function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
   const href = `/forum/${hit.id}${hit.replyId ? `#reply-${hit.replyId}` : ""}`;
@@ -60,29 +69,41 @@ function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
 }
 
 /**
- * Documents, searchable by their details and contents. On a circle's page it
- * lists that circle's documents (and its members can add more); on the
- * Documents page it covers every circle, with a circle filter, and its
- * search takes in the forum too.
+ * Documents — written pages and uploaded files together — searchable by
+ * their details and contents. On a circle's page it lists that circle's
+ * (and its members can add more); on the Documents page it covers every
+ * circle, with a circle filter, and its search takes in the forum too. One
+ * **New** button writes a page or uploads a file; the Type filter can keep
+ * to pages, to files, or to one type of file.
  */
 export function DocumentsPanel({
   circleId,
   circleName,
   canUpload = false,
+  canWrite = canUpload,
   circles,
   uploadCircles = [],
   canEditTypes = canUpload,
+  initialCircle = "",
+  newPage,
 }: {
   circleId?: string;
   /** On a circle's page: its name, for the upload form. */
   circleName?: string;
+  /** On a circle's page: whether the resident can upload its files. */
   canUpload?: boolean;
+  /** Whether the resident can write a page here (on a circle's page, by default whoever can upload). */
+  canWrite?: boolean;
   /** Whether the resident can change the circle's document types (by default, whoever can upload). */
   canEditTypes?: boolean;
   /** For the all-documents page: the circles to filter by. */
   circles?: { id: string; name: string }[];
   /** For the all-documents page: the circles the resident can add documents to (bulk upload). */
   uploadCircles?: { id: string; name: string }[];
+  /** For the all-documents page: the circle filter to start with. */
+  initialCircle?: string;
+  /** Open "Write a page" at once — from a link to a page that doesn't exist yet. */
+  newPage?: { title: string; from?: string };
 }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -91,7 +112,13 @@ export function DocumentsPanel({
   const [year, setYear] = useState("");
   // "" means the natural order: newest first, or best match while searching.
   const [sort, setSort] = useState("");
-  const [circle, setCircle] = useState("");
+  const [circle, setCircle] = useState(initialCircle);
+  const [writing, setWriting] = useState(false);
+  // Asked for by the address (a link to a page that doesn't exist yet): opened once in the browser.
+  const asked = !!newPage;
+  useEffect(() => {
+    if (asked) setWriting(true);
+  }, [asked]);
   const [adding, setAdding] = useState(false);
   const [editingTypes, setEditingTypes] = useState(false);
   const [bulk, setBulk] = useState(false);
@@ -104,10 +131,12 @@ export function DocumentsPanel({
   const filters = {
     q: debounced,
     circle: circleId ?? circle,
-    type,
+    type: type === PAGES || type === FILES ? "" : type,
+    kind: type === PAGES ? "pages" : type === FILES ? "files" : "",
     year,
     sort,
     consented: consentedOnly ? "1" : "",
+    pages: "1",
   };
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["documents", filters],
@@ -133,7 +162,13 @@ export function DocumentsPanel({
   });
   // Type names in use (each circle names its own), for the filter; kept while a type is chosen.
   const typeOptions = useMemo(
-    () => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(),
+    () =>
+      Array.from(
+        new Set([
+          ...(data?.typeOptions ?? []),
+          ...(type && type !== PAGES && type !== FILES ? [type] : []),
+        ])
+      ).sort(),
     [data, type]
   );
   const filtered = !!(debounced || type || year || consentedOnly || (!circleId && circle));
@@ -181,12 +216,18 @@ export function DocumentsPanel({
           </Select>
         ) : null}
         <Select value={type} onChange={(event) => setType(event.target.value)} aria-label="Type">
-          <option value="">All types</option>
-          {typeOptions.map((entry) => (
-            <option key={entry} value={entry}>
-              {entry}
-            </option>
-          ))}
+          <option value="">Pages and files</option>
+          <option value={PAGES}>Written pages</option>
+          <option value={FILES}>All files</option>
+          {typeOptions.length ? (
+            <optgroup label="Files of one type">
+              {typeOptions.map((entry) => (
+                <option key={entry} value={entry}>
+                  {entry}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
         </Select>
         <label
           className={cn(
@@ -248,18 +289,23 @@ export function DocumentsPanel({
             <Tags className="h-4 w-4" /> Edit types
           </Button>
         ) : null}
-        {!circleId && uploadCircles.length && !bulk ? (
-          <Button className="gap-1.5" onClick={() => setBulk(true)}>
-            <Upload className="h-4 w-4" /> Upload documents
-          </Button>
-        ) : null}
-        {canUpload && circleId && !adding ? (
-          <Button className="gap-1.5" onClick={() => setAdding(true)}>
-            <Upload className="h-4 w-4" /> Add documents
-          </Button>
-        ) : null}
+        <NewMenu
+          canWrite={canWrite}
+          canUpload={circleId ? canUpload : uploadCircles.length > 0}
+          onWrite={() => setWriting(true)}
+          onUpload={() => (circleId ? setAdding(true) : setBulk(true))}
+        />
       </div>
 
+      {writing ? (
+        <WritePageDialog
+          initialTitle={newPage?.title}
+          from={newPage?.from}
+          circleId={circleId}
+          preferredCircle={circle}
+          onClose={() => setWriting(false)}
+        />
+      ) : null}
       {editingTypes && circleId ? (
         <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} />
       ) : null}
@@ -281,26 +327,33 @@ export function DocumentsPanel({
         <Loading>Loading documents…</Loading>
       ) : error ? (
         <p className="text-sm text-foreground">{(error as Error).message}</p>
-      ) : data && data.documents.length ? (
+      ) : data && data.items?.length ? (
         <>
           {filtered ? (
             <p className={cn("text-xs text-muted", isFetching && "opacity-60")}>
               {data.total} {data.total === 1 ? "document" : "documents"}
               {debounced ? ` matching “${debounced}”` : ""}
-              {data.total > data.documents.length
-                ? ` (showing the best ${data.documents.length})`
-                : ""}
+              {data.total > data.items.length ? ` (showing the best ${data.items.length})` : ""}
             </p>
           ) : null}
           <ul className={cn("divide-y divide-border", isFetching && "opacity-60")}>
-            {data.documents.map((doc) => (
-              <DocumentRow
-                key={`${doc.id}-${doc.updatedAt}`}
-                doc={doc}
-                terms={terms}
-                showCircle={!circleId}
-              />
-            ))}
+            {data.items.map((item) =>
+              item.kind === "page" ? (
+                <PageListingRow
+                  key={`page-${item.id}-${item.updatedAt}`}
+                  page={item}
+                  terms={terms}
+                  showCircle={!circleId}
+                />
+              ) : (
+                <DocumentRow
+                  key={`${item.id}-${item.updatedAt}`}
+                  doc={item}
+                  terms={terms}
+                  showCircle={!circleId}
+                />
+              )
+            )}
           </ul>
         </>
       ) : (
@@ -308,8 +361,8 @@ export function DocumentsPanel({
           {filtered
             ? "No documents match."
             : circleId
-              ? canUpload
-                ? "No documents yet — add the first one."
+              ? canUpload || canWrite
+                ? "No documents yet — add the first one with New."
                 : "No documents yet."
               : "No documents yet."}
         </p>

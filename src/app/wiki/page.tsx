@@ -1,12 +1,19 @@
-import { Suspense } from "react";
-import { WikiHomeClient } from "@/components/wiki/wiki-client";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Wiki · Common Pastures" };
-
-export default function WikiPage() {
-  return (
-    <Suspense>
-      <WikiHomeClient />
-    </Suspense>
-  );
+/**
+ * The wiki's pages now live in Documents, beside uploaded files: the old
+ * address goes there, keeping what it asked for — a circle (`keeper`), the
+ * map (`map`, `focus`, `circle`), or a new page (`new`, `from`).
+ */
+export default function WikiHome({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (typeof value !== "string") continue;
+    next.set(key === "keeper" ? "circle" : key, value);
+  }
+  redirect(next.toString() ? `/documents?${next}` : "/documents");
 }

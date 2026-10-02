@@ -26,10 +26,7 @@ async function load(id: string) {
   if (!doc) return { error: problem("Document not found", 404) } as const;
   if (!canConsentDocument(context.user, context.directory, doc)) {
     return {
-      error: problem(
-        "Only the circle's Secretary, the Board Secretary, and admins can record consent",
-        403
-      ),
+      error: problem("Only the circle's members and the Board can record its consent", 403),
     } as const;
   }
   return { ...context, doc } as const;

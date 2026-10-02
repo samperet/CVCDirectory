@@ -16,8 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📚 **One wiki** – Pages with parent circles, each with its own view and edit settings: a visual editor, editing together, embeds, history, and comments on pages or passages. A page reads as a document — its circle's icon, title, date and consent status in the header — and its parent circle can record when it consented to it.
-- 📄 **Documents** – Circles keep minutes, agendas, policies, and more, with versions; every document is searchable, contents included, and the Documents search covers the forum too.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. Any member of a circle — or the Board, for any circle — records when the circle consented to one.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -221,19 +220,37 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 
 ## Documents
 
-- Each circle's page has a **Documents** section; documents for everyone belong to the Community circle.
+- **One section for pages and files** (`/documents`, **Documents** in the menu). Its list and search
+  cover both written pages (a book icon and a **Page** label) and uploaded files (a file icon and
+  their type), filtered and sorted together (`GET /api/documents?pages=1` returns them as `items`,
+  each `kind` "page" or "file"; the **Type** filter can keep to **Written pages**, **All files**,
+  or one type of file). The one **New** button offers **Write a page** (a title and its circle,
+  then the editor) or **Upload a file**. The **Map** button shows how pages link. `/wiki` (and
+  `/wiki?keeper=…`, `?new=…`) now lead here; pages keep their `/wiki/<slug>` addresses. A rule of
+  thumb: anything people will keep improving is best written as a page; a fixed record, or anything
+  from outside, uploaded as a file.
+- **Turn into a page** – a file with text (Word, PDF, slides, text) has a book icon among its
+  actions, for anyone who can start pages in its circle: its text becomes a page with the file's
+  title, kept by the file's circle and opening with a link back to the file, which stays as it is.
+  A Word file keeps its headings, bold and italic words, and lists; other files come in paragraph by
+  paragraph; the words are never changed (`POST /api/documents/<id>/page`,
+  `lib/documents/to-markdown.ts`).
+- Each circle's page has a **Documents** section, listing its pages and files; documents for everyone belong to the Community circle.
   Each document shows its full title, then a line with its type, badges (Consented), circle where
   the list spans circles, date, and who uploaded the current version; Download, versions, and — for
   its managers — Edit, New version, and Delete are icons at the end of that line that appear on
   hover (always, on touch screens). A description shows below.
-- **Consent** – a circle's Secretary (and the Board Secretary, and admins) marks a document
-  consented, with the date the circle consented (the meeting date by default). It then carries a
-  **Consented** badge (its tooltip says when, and who recorded it). Consent belongs to the version
-  consented: a newer version shows **Changed since consent** until the Secretary consents again,
-  and the version history marks the consented one. **Consented only** filters the list; search
-  finds consented documents by the word "consented". The Secretary can withdraw a record of consent.
-  (`PUT`/`DELETE /api/documents/<id>/consent`; stored with the document as `consent`.)
-- **The wiki** (`/wiki`) – one wiki for all of CVC. Every page has a **parent circle**, and its own
+- **Consent** – one rule for pages and files (`canRecordConsent` in `lib/circles/consent.ts`):
+  anyone in the circle, anyone on the Board (for any circle), and admins record when the circle
+  consented, with the date (the meeting date by default, for a file); Community's are recorded by
+  the Board. A consented document carries a **Consented** badge (its tooltip says when, and who
+  recorded it). Consent belongs to the version consented: a newer version (or an edit to a page)
+  shows **Changed since consent** until the circle consents again, and a file's version history
+  marks the consented one. **Consented only** filters the list; search finds consented documents by
+  the word "consented". The same people can withdraw a record of consent.
+  (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent`;
+  stored with the document or page as `consent`.)
+- **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
   settings (nothing is inherited): **who can see it** — everyone (the default), only its parent
   circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the
   default; anyone, for Community's pages) or anyone who can see it. The parent circle's members
@@ -243,8 +260,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   **History** (earlier versions to view or restore). A page someone can't see is left out everywhere for them:
   the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, circles'
   Information modules, and notifications. Pages don't nest: they connect by **links** and **embeds** (each page lists what's
-  **Linked from** it). The wiki home lists every page you can see, with a search and a filter by
-  keeper (`/wiki?keeper=<circleId>`); **New page** asks which of your circles keeps it. A circle's
+  **Linked from** it). Documents lists every page you can see, with a search and a filter by
+  circle (`/documents?circle=<circleId>`); **New → Write a page** asks which of your circles keeps it. A circle's
   **Add Information** starts a page with that circle as its parent (so it shows in the circle's
   Information); **@ new
   page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the

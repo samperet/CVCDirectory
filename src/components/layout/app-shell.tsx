@@ -10,7 +10,7 @@ import {
   Layers,
   Grid,
   MessagesSquare,
-  BookOpen,
+  FileText,
   BookUser,
   CalendarDays,
   Camera,
@@ -32,7 +32,7 @@ const links = [
   { href: "/", label: "Dashboard", icon: Grid },
   { href: "/directory", label: "Directory", icon: BookUser },
   { href: "/circles", label: "Circles", icon: Layers },
-  { href: "/wiki", label: "Wiki", icon: BookOpen },
+  { href: "/documents", label: "Documents", icon: FileText },
   { href: "/library", label: "Loan Library", icon: Share2 },
   { href: "/forum", label: "Forum", icon: MessagesSquare },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
@@ -140,7 +140,10 @@ function SearchButton({ active }: { active: boolean }) {
 
 /** A section is active on its own page and the pages under it (e.g. a circle, a forum thread). */
 const isActive = (pathname: string, href: string) =>
-  pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+  pathname === href ||
+  (href !== "/" && pathname.startsWith(`${href}/`)) ||
+  // Written pages are documents too.
+  (href === "/documents" && pathname.startsWith("/wiki/"));
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -257,6 +260,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={link.href}
                     href={link.href}
+                    aria-current={isActive(pathname, link.href) ? "page" : undefined}
                     className={cn(
                       "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
                       isActive(pathname, link.href)

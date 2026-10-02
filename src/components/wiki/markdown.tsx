@@ -68,7 +68,7 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
     if (!pages) return `[${text}](#${mdTitle("pending")})`;
     const page = pageTitled(pages, link.title);
     if (!page)
-      return `[${text}](/wiki?new=${encodeURIComponent(link.title)}${
+      return `[${text}](/documents?new=${encodeURIComponent(link.title)}${
         pageId ? `&from=${pageId}` : ""
       }${mdTitle("missing")})`;
     return `[${text}](/wiki/${page.slug}${mdTitle("page:")})`;

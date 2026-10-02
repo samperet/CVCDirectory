@@ -32,7 +32,7 @@ const startsWith = (bytes: Uint8Array, signature: number[]) =>
   signature.every((byte, index) => bytes[index] === byte);
 
 /** Unzip only the entries we need, refusing archives that would inflate beyond the upload limit. */
-function unzipEntries(bytes: Uint8Array, want: (name: string) => boolean) {
+export function unzipEntries(bytes: Uint8Array, want: (name: string) => boolean) {
   let inflated = 0;
   return unzipSync(bytes, {
     filter: (file) => {
@@ -108,7 +108,7 @@ export function identifyDocument(
 
 const MAX_TEXT_CHARS = 200_000;
 
-function decodeXmlText(xml: string) {
+export function decodeXmlText(xml: string) {
   return xml
     .replace(/<[^>]+>/g, "")
     .replace(/&lt;/g, "<")

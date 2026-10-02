@@ -78,12 +78,12 @@ export interface DocumentRecord {
   versions: DocumentVersion[];
   createdAt: string;
   updatedAt: string;
-  /** The circle's consent, recorded by its Secretary: to one version of the document. */
+  /** The circle's consent, recorded by one of its members (or the Board): to one version of the document. */
   consent?: DocumentConsent | null;
 }
 
 export interface DocumentConsent {
-  /** The version consented to; a later version isn't consented until the Secretary says so. */
+  /** The version consented to; a later version isn't consented until the circle consents again. */
   version: number;
   /** The day the circle consented (YYYY-MM-DD). */
   date: string;
@@ -110,8 +110,10 @@ export interface DocumentListing extends DocumentRecord {
   /** The type's current name. */
   typeLabel: string;
   canManage: boolean;
-  /** Whether you can record (or withdraw) the circle's consent: its Secretary, the Board Secretary, admins. */
+  /** Whether you can record (or withdraw) the circle's consent: its members, the Board, admins. */
   canConsent: boolean;
+  /** Whether you can turn it into a written page (you can start pages for its circle). */
+  canWritePage: boolean;
   /** Search results only: the passage around the first match. */
   snippet?: string | null;
 }

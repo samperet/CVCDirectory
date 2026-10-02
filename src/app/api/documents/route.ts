@@ -17,23 +17,44 @@ import { DocumentRecord, consentState, documentDate } from "@/lib/documents/type
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
 import { notify } from "@/lib/push/notify";
+import { readPages, type WikiPage } from "@/lib/wiki/store";
+import { visiblePages } from "@/lib/wiki/access";
+import { consentState as pageConsentState } from "@/lib/wiki/consent";
+import { pageDate, pageListing, searchPages } from "@/lib/wiki/listing";
+import { searchTerms } from "@/lib/search";
 import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 // Finishing an upload reassembles the file and reads its text, which can take a while for a large PDF.
 export const maxDuration = 60;
 
-/** How a list of documents can be ordered (search results are best match first unless one is chosen). */
+/** What every listed item — an uploaded file or a written page — is sorted by. */
+type Sortable = { date: string; createdAt: string; title: string; updatedAt: string };
+
+/** How a list can be ordered (search results are best match first unless one is chosen). */
 const SORTS = {
-  newest: (a: DocumentRecord, b: DocumentRecord) =>
-    documentDate(b).localeCompare(documentDate(a)) || b.createdAt.localeCompare(a.createdAt),
-  oldest: (a: DocumentRecord, b: DocumentRecord) =>
-    documentDate(a).localeCompare(documentDate(b)) || a.createdAt.localeCompare(b.createdAt),
-  title: (a: DocumentRecord, b: DocumentRecord) =>
+  newest: (a: Sortable, b: Sortable) =>
+    b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
+  oldest: (a: Sortable, b: Sortable) =>
+    a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt),
+  title: (a: Sortable, b: Sortable) =>
     a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true }),
-  updated: (a: DocumentRecord, b: DocumentRecord) => b.updatedAt.localeCompare(a.updatedAt),
+  updated: (a: Sortable, b: Sortable) => b.updatedAt.localeCompare(a.updatedAt),
 } as const;
 type Sort = keyof typeof SORTS;
+
+const fileSortable = (doc: DocumentRecord): Sortable => ({
+  date: documentDate(doc),
+  createdAt: doc.createdAt,
+  title: doc.title,
+  updatedAt: doc.updatedAt,
+});
+const pageSortable = (page: WikiPage): Sortable => ({
+  date: pageDate(page),
+  createdAt: page.createdAt,
+  title: page.title,
+  updatedAt: page.updatedAt,
+});
 
 /**
  * List documents, newest first — or, with `q`, search their details and
@@ -42,6 +63,11 @@ type Sort = keyof typeof SORTS;
  * upload), and `consented=1` (only documents whose current version the circle
  * has consented to). `sort`: newest, oldest, title, or updated. Also returns
  * the type names and years in use, for the filters.
+ *
+ * With `pages=1` the written pages someone can see come too, as one list
+ * (`items`: each `kind` "file" or "page") filtered, searched and sorted
+ * alike; `kind=pages` or `kind=files` keeps to one (choosing a file `type`
+ * means files). `documents` stays the files alone.
  */
 export async function GET(request: NextRequest) {
   const context = await circleContext();
@@ -53,51 +79,105 @@ export async function GET(request: NextRequest) {
   const type = params.get("type");
   const year = params.get("year");
   const consentedOnly = params.get("consented") === "1";
+  const withPages = params.get("pages") === "1";
+  const kind = params.get("kind");
   const sortParam = params.get("sort");
   const sort: Sort | null = sortParam && sortParam in SORTS ? (sortParam as Sort) : null;
   const types = await readTypeMap();
   const label = (doc: DocumentRecord) => typeLabelFor(doc, types);
+  const circleName = (id: string) => directory.circles.find((entry) => entry.id === id)?.name ?? "";
 
   const inCircle = (await listDocuments()).filter((doc) => !circle || doc.circleId === circle);
+  const pagesInCircle = withPages
+    ? visiblePages(user, directory, await readPages()).filter(
+        (page) => !circle || page.keeper === circle
+      )
+    : [];
   const typeOptions = Array.from(new Set(inCircle.map(label))).sort((a, b) => a.localeCompare(b));
   const yearOptions = Array.from(
-    new Set(inCircle.map((doc) => documentDate(doc).slice(0, 4)))
+    new Set([
+      ...inCircle.map((doc) => documentDate(doc).slice(0, 4)),
+      ...pagesInCircle.map((page) => pageDate(page).slice(0, 4)),
+    ])
   ).sort((a, b) => b.localeCompare(a));
-  const documents = inCircle
+  const showFiles = kind !== "pages";
+  const showPages = withPages && kind !== "files" && !type;
+  const documents = (showFiles ? inCircle : [])
     .filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase())
     .filter((doc) => !year || documentDate(doc).startsWith(`${year}-`))
     .filter((doc) => !consentedOnly || consentState(doc) === "consented");
-  const circleName = (doc: DocumentRecord) =>
-    directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "";
-  const options = { typeOptions, yearOptions };
+  const pages = (showPages ? pagesInCircle : [])
+    .filter((page) => !year || pageDate(page).startsWith(`${year}-`))
+    .filter((page) => !consentedOnly || pageConsentState(page) === "consented");
+  const options = { typeOptions, yearOptions, hasPages: pagesInCircle.length > 0 };
+  const headers = { "Cache-Control": "private, no-store" };
+
+  type Item = { sortable: Sortable; score: number; listing: () => object };
+  const fileItem = (doc: DocumentRecord, score = 0, snippet?: string | null): Item => ({
+    sortable: fileSortable(doc),
+    score,
+    listing: () => ({ kind: "file", ...toListing(doc, user, directory, types, snippet) }),
+  });
+  const pageItem = (page: WikiPage, score = 0, snippet?: string | null): Item => ({
+    sortable: pageSortable(page),
+    score,
+    listing: () => pageListing(page, circleName(page.keeper), snippet),
+  });
 
   if (q) {
     const found = await searchDocuments(
       documents,
       q,
       (doc) =>
-        `${circleName(doc)} ${label(doc)}${consentState(doc) === "consented" ? " consented" : ""}`
+        `${circleName(doc.circleId)} ${label(doc)}${
+          consentState(doc) === "consented" ? " consented" : ""
+        }`
     );
-    const hits = sort ? [...found].sort((a, b) => SORTS[sort](a.doc, b.doc)) : found;
+    const foundPages = searchPages(
+      pages,
+      searchTerms(q),
+      (page) =>
+        `${circleName(page.keeper)} page${
+          pageConsentState(page) === "consented" ? " consented" : ""
+        }`
+    );
+    const hits = sort
+      ? [...found].sort((a, b) => SORTS[sort](fileSortable(a.doc), fileSortable(b.doc)))
+      : found;
+    const items = [
+      ...found.map((hit) => fileItem(hit.doc, hit.score, hit.snippet)),
+      ...foundPages.map((hit) => pageItem(hit.page, hit.score, hit.snippet)),
+    ].sort((a, b) => (sort ? SORTS[sort](a.sortable, b.sortable) : b.score - a.score));
     return NextResponse.json(
       {
         documents: hits
           .slice(0, 100)
           .map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)),
-        total: hits.length,
+        ...(withPages
+          ? { items: items.slice(0, 100).map((item) => item.listing()), total: items.length }
+          : { total: hits.length }),
         ...options,
       },
-      { headers: { "Cache-Control": "private, no-store" } }
+      { headers }
     );
   }
-  const sorted = [...documents].sort(SORTS[sort ?? "newest"]);
+  const sorted = [...documents].sort((a, b) =>
+    SORTS[sort ?? "newest"](fileSortable(a), fileSortable(b))
+  );
+  const items = withPages
+    ? [...sorted.map((doc) => fileItem(doc)), ...pages.map((page) => pageItem(page))].sort((a, b) =>
+        SORTS[sort ?? "newest"](a.sortable, b.sortable)
+      )
+    : [];
   return NextResponse.json(
     {
       documents: sorted.map((doc) => toListing(doc, user, directory, types)),
-      total: sorted.length,
+      ...(withPages
+        ? { items: items.map((item) => item.listing()), total: items.length }
+        : { total: sorted.length }),
       ...options,
     },
-    { headers: { "Cache-Control": "private, no-store" } }
+    { headers }
   );
 }
 

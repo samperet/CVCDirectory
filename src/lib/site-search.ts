@@ -53,7 +53,7 @@ export interface SearchGroup {
 const LABELS: Record<SearchKind, string> = {
   people: "People",
   circles: "Circles",
-  wiki: "Wiki pages",
+  wiki: "Pages",
   forum: "Forum",
   documents: "Documents",
   tasks: "Tasks",
@@ -178,7 +178,7 @@ export async function searchSite(
     result: {
       title: page.title,
       href: `/wiki/${page.slug}`,
-      meta: `Wiki · ${circleName(page.keeper)}`,
+      meta: `Page · ${circleName(page.keeper)}`,
     },
     // The page as plain text: links by their words; no photos, polls, or markup.
     body: excerptOf(page.body, 50_000),

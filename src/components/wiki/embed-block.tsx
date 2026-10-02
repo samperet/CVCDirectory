@@ -52,7 +52,7 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
   if (list.isError) return <Notice>The wiki isn&apos;t available just now.</Notice>;
   if (!summary) {
     // Either it's gone, or it's a page this reader can't see.
-    return <Notice>“{link.title}” isn&apos;t a page you can see in the wiki.</Notice>;
+    return <Notice>“{link.title}” isn&apos;t a page you can see.</Notice>;
   }
   const pageHref = `/wiki/${summary.slug}`;
   if (repeated || tooDeep) {

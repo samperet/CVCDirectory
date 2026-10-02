@@ -151,6 +151,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
   const wikiOn = true;
   const canEdit = !!data?.canEdit;
   const canManage = !!data?.canManage;
+  const canConsent = !!data?.canConsent;
   const history = data?.history ?? [];
   const reading = mode !== "edit";
   const { ranges, found: foundIds } = useQuoteHighlights(
@@ -227,7 +228,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
       toast({ title: "Page deleted" });
-      router.replace("/wiki");
+      router.replace("/documents");
     },
     onError: (err: Error) =>
       toast({
@@ -266,7 +267,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
     }
   };
 
-  const back = <BackLink href="/wiki" label="Wiki" />;
+  const back = <BackLink href="/documents" label="Documents" />;
   if (isLoading) return <Loading />;
   if (error || !page) {
     return (
@@ -346,7 +347,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <ConsentPill page={page} />
               </div>
-              {canManage ? (
+              {canConsent ? (
                 <ConsentControls
                   page={page}
                   slug={slug}
@@ -474,7 +475,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 </Pill>
               ) : null}
             </div>
-            {canManage ? (
+            {canConsent ? (
               <ConsentControls
                 page={page}
                 slug={slug}

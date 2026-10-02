@@ -101,10 +101,10 @@ export function InformationModule({
       {total && listed && listedName ? (
         <div className="border-t border-border pt-3 text-sm">
           <Link
-            href={`/wiki?keeper=${listed}`}
+            href={`/documents?circle=${listed}`}
             className="font-medium text-secondary-foreground hover:underline"
           >
-            All {listedName} pages in the wiki ({total})
+            All {listedName} documents
           </Link>
         </div>
       ) : null}

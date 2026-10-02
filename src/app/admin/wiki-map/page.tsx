@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** The wiki map opens from the wiki's Map button, for everyone. */
+/** The map of how pages link opens from the Map button on Documents, for everyone. */
 export default function WikiMapPage({
   searchParams,
 }: {
@@ -13,5 +13,5 @@ export default function WikiMapPage({
       string,
     ][]),
   ]);
-  redirect(`/wiki?${query}`);
+  redirect(`/documents?${query}`);
 }

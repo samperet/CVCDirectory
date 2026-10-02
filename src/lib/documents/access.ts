@@ -1,9 +1,10 @@
 import { isAdmin } from "@/lib/auth/admins";
-import { canManageCircle, holdsSeat } from "@/lib/circles/icons";
+import { canManageCircle } from "@/lib/circles/icons";
+import { canRecordConsent } from "@/lib/circles/consent";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { DocumentListing, DocumentRecord, DocumentTypeOption } from "./types";
 import { typeLabelFor } from "./type-store";
-import { BOARD_ID, isCommunity } from "@/lib/circles/ids";
+import { isCommunity } from "@/lib/circles/ids";
 
 /**
  * Every signed-in resident can see and search every document. A circle's
@@ -27,18 +28,13 @@ export function canManageDocument(user: Viewer, directory: DirectoryDocument, do
   );
 }
 
-/** Record or withdraw consent to a document: its circle's Secretary, the Board Secretary, or an admin. */
+/** Record or withdraw consent to a document: anyone in its circle, the Board, or an admin (`canRecordConsent`). */
 export function canConsentDocument(
   user: Viewer,
   directory: DirectoryDocument,
   doc: Pick<DocumentRecord, "circleId">
 ) {
-  if (isAdmin(user)) return true;
-  if (!user.personId) return false;
-  return (
-    holdsSeat(directory, doc.circleId, user.personId, /secretary/i) ||
-    holdsSeat(directory, BOARD_ID, user.personId, /secretary/i)
-  );
+  return canRecordConsent(user, directory, doc.circleId);
 }
 
 export function toListing(
@@ -56,6 +52,7 @@ export function toListing(
     typeLabel: typeLabelFor(doc, types),
     canManage: canManageDocument(user, directory, doc),
     canConsent: canConsentDocument(user, directory, doc),
+    canWritePage: canUploadTo(user, directory, doc.circleId),
     ...(snippet !== undefined ? { snippet } : {}),
   };
 }

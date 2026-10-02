@@ -17,7 +17,7 @@ type Found = { circleId: string; circleName: string; title: string; slug: string
 
 /**
  * Show another page — or one section of it — inside the page being written,
- * or just link to it: find it in the wiki, then either choose the whole page
+ * or just link to it: find it, then either choose the whole page
  * or a section (an embed, always showing that page's current text) or "Just
  * a link" (`[[Title]]`; links go to the whole page). It goes where the
  * cursor was.
@@ -150,7 +150,7 @@ export function EmbedPageDialog({
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a page in the wiki"
+            placeholder="Find a page"
             aria-label="Find a page"
             className="bg-white"
           />

@@ -1,33 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Lock, Network, Plus, Search, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
-import { timeAgo } from "@/lib/time";
-import { useSession } from "@/lib/auth/client";
+import type { WikiPage } from "@/lib/wiki/store";
 import { wikiPagesQuery } from "@/components/wiki/link-data";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
-import { useCircles } from "@/components/directory/use-directory";
-import { Loading } from "@/components/ui/status";
 import { Select } from "@/components/ui/select";
-
-// The map (d3, and three.js for 3D) loads in the browser only, when it's opened.
-const WikiMap = dynamic(
-  () => import("@/components/wiki/map-client").then((module) => module.WikiMapClient),
-  {
-    ssr: false,
-    loading: () => <div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />,
-  }
-);
 
 /** The wiki's pages that you can see (and the circles you can start pages for). */
 export function useWikiPages() {
@@ -37,17 +20,20 @@ export function useWikiPages() {
 /**
  * Start a page: give it a title, then write it. Started from a link in
  * another page (`from`), it's kept by that page's circle; otherwise choose
- * which of your circles keeps it.
+ * which of your circles keeps it (unless `lockKeeper`: from a circle's page,
+ * that circle keeps it).
  */
 export function NewPageForm({
   initialTitle = "",
   from,
   keeper: preferred,
+  lockKeeper = false,
   onCancel,
 }: {
   initialTitle?: string;
   from?: string;
   keeper?: string;
+  lockKeeper?: boolean;
   onCancel: () => void;
 }) {
   const router = useRouter();
@@ -56,8 +42,10 @@ export function NewPageForm({
   const keepers = useWikiPages().data?.keepers ?? [];
   const [title, setTitle] = useState(initialTitle);
   const [chosen, setChosen] = useState(preferred ?? "");
+  // A circle asked for (say, the list's filter) only if it's one you can start pages for.
+  const usable = lockKeeper || keepers.some((circle) => circle.id === chosen) ? chosen : "";
   const keeper =
-    chosen ||
+    usable ||
     (keepers.some((circle) => isCommunity(circle.id)) ? COMMUNITY_ID : keepers[0]?.id) ||
     "";
   const create = useMutation({
@@ -94,7 +82,7 @@ export function NewPageForm({
         className="bg-white"
         aria-label="Page title"
       />
-      {!from && keepers.length > 1 ? (
+      {!from && !lockKeeper && keepers.length > 1 ? (
         <label className="flex flex-wrap items-center gap-2 text-sm text-muted">
           Parent circle
           <Select
@@ -119,171 +107,5 @@ export function NewPageForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-function PageRow({
-  page,
-  circleName,
-}: {
-  page: WikiPageSummary;
-  circleName: (id: string) => string;
-}) {
-  return (
-    <div className="flex min-w-0 flex-1 flex-col">
-      <Link
-        href={`/wiki/${page.slug}`}
-        className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline"
-      >
-        <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-        <span className="truncate">{page.title}</span>
-        {page.view.kind !== "everyone" ? (
-          <Lock
-            className="h-3.5 w-3.5 shrink-0 text-muted"
-            aria-label="Not everyone can see this page"
-          />
-        ) : null}
-      </Link>
-      <p className="pl-[1.125rem] text-xs text-muted">
-        {circleName(page.keeper)} · edited {timeAgo(page.updatedAt)}
-      </p>
-    </div>
-  );
-}
-
-/**
- * The wiki: every page you can see, by title — found by search, or
- * narrowed to the pages one circle keeps (`?keeper=`) — and, from the Map
- * button, the map of how they connect. Pages connect by linking to each other. New pages start here (`?new=Title&from=<pageId>`
- * starts one from a link to a page that doesn't exist yet).
- */
-export function WikiHomeClient() {
-  const { user } = useSession();
-  const params = useSearchParams();
-  const router = useRouter();
-  const circles = useCircles();
-  const requested = params.get("new") ?? "";
-  const from = params.get("from") ?? undefined;
-  const keeperFilter = params.get("keeper") ?? "";
-  const [adding, setAdding] = useState(!!requested);
-  const { data, isLoading, error } = useWikiPages();
-  const [filter, setFilter] = useState("");
-  const circleName = (id: string) =>
-    circles?.find((circle) => circle.id === id)?.name ?? "a circle";
-  const all = useMemo(() => data?.pages ?? [], [data]);
-  const keepersWithPages = useMemo(() => {
-    const name = (id: string) => circles?.find((circle) => circle.id === id)?.name ?? "";
-    return Array.from(new Set(all.map((page) => page.keeper))).sort((a, b) =>
-      name(a).localeCompare(name(b))
-    );
-  }, [all, circles]);
-  const wanted = filter.trim().toLowerCase();
-  const listed = all.filter(
-    (page) =>
-      (!keeperFilter || page.keeper === keeperFilter) &&
-      (!wanted || page.title.toLowerCase().includes(wanted))
-  );
-  const canStart = (data?.keepers.length ?? 0) > 0;
-  // The map opens above the pages (`?map=1`, which links to it can carry with `focus` or `circle`).
-  const showMap = params.get("map") === "1";
-  const toggleMap = () => {
-    const next = new URLSearchParams(params.toString());
-    if (showMap) {
-      next.delete("map");
-      next.delete("focus");
-      next.delete("circle");
-    } else next.set("map", "1");
-    router.replace(next.toString() ? `/wiki?${next}` : "/wiki");
-  };
-
-  return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-          <BookOpen className="h-6 w-6 text-primary" aria-hidden /> Wiki
-        </h1>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-1.5" onClick={toggleMap} aria-pressed={showMap}>
-            {showMap ? <X className="h-4 w-4" /> : <Network className="h-4 w-4" />}{" "}
-            {showMap ? "Close map" : "Map"}
-          </Button>
-          {canStart ? (
-            <Button className="gap-1" onClick={() => setAdding(true)}>
-              <Plus className="h-4 w-4" /> New page
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      <p className="mx-auto -mt-3 w-full max-w-3xl text-sm text-muted">
-        One wiki for all of CVC. Each page has a parent circle, which decides who can see and edit
-        it. Pages connect by linking to each other.
-      </p>
-      {showMap ? (
-        <Card className="flex flex-col gap-4">
-          <Suspense fallback={<div className="h-[50vh] animate-pulse rounded-2xl bg-accent/40" />}>
-            <WikiMap />
-          </Suspense>
-        </Card>
-      ) : null}
-      {adding ? (
-        <Card className="mx-auto w-full max-w-3xl">
-          <NewPageForm
-            initialTitle={requested}
-            from={from}
-            keeper={keeperFilter || undefined}
-            onCancel={() => setAdding(false)}
-          />
-        </Card>
-      ) : null}
-      <Card className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-        <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-[12rem] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <Input
-              type="search"
-              placeholder="Find a page"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="bg-white pl-9"
-              aria-label="Find a page"
-            />
-          </div>
-          <Select
-            value={keeperFilter}
-            onChange={(event) =>
-              router.replace(event.target.value ? `/wiki?keeper=${event.target.value}` : "/wiki")
-            }
-            className="rounded-md px-2"
-            aria-label="Parent circle"
-          >
-            <option value="">Every parent circle</option>
-            {keepersWithPages.map((id) => (
-              <option key={id} value={id}>
-                {circleName(id)}
-              </option>
-            ))}
-          </Select>
-        </div>
-        {isLoading ? (
-          <Loading />
-        ) : error ? (
-          <p className="text-sm text-foreground">{(error as Error).message}</p>
-        ) : !listed.length ? (
-          <p className="text-sm text-muted">
-            {wanted || keeperFilter ? "No pages match." : "No pages yet."}
-          </p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-border">
-            {[...listed]
-              .sort((a, b) => a.title.localeCompare(b.title))
-              .map((page) => (
-                <li key={page.id} className="flex py-2 first:pt-0 last:pb-0">
-                  <PageRow page={page} circleName={circleName} />
-                </li>
-              ))}
-          </ul>
-        )}
-      </Card>
-    </div>
   );
 }

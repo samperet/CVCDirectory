@@ -61,6 +61,7 @@ export type PageResponse = {
   history: WikiVersion[];
   canEdit: boolean;
   canManage: boolean;
+  canConsent: boolean;
 };
 
 /** One page in full, with its history and what you can do with it (shared by the page, embeds, and the editor). */

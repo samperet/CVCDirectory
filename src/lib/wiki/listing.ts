@@ -1,0 +1,89 @@
+import { occurrences, snippetFor } from "@/lib/search";
+import { consentState, type ConsentState } from "./consent";
+import { excerptOf } from "./excerpt";
+import type { WikiPage } from "./store";
+
+/**
+ * A written page as the Documents list shows it, beside uploaded files:
+ * its circle, dates, consent, opening lines (or, in a search, the passage
+ * that matched), and whether only some people can see it. Safe for the
+ * browser.
+ */
+export interface PageListing {
+  kind: "page";
+  id: string;
+  slug: string;
+  title: string;
+  circleId: string;
+  circleName: string;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string;
+  consent: ConsentState;
+  /** The day the circle consented, while it stands. */
+  consentDate: string | null;
+  /** Only some people can see it. */
+  restricted: boolean;
+  excerpt: string;
+  snippet?: string | null;
+}
+
+export function pageListing(
+  page: WikiPage,
+  circleName: string,
+  snippet?: string | null
+): PageListing {
+  return {
+    kind: "page",
+    id: page.id,
+    slug: page.slug,
+    title: page.title,
+    circleId: page.keeper,
+    circleName,
+    createdAt: page.createdAt,
+    updatedAt: page.updatedAt,
+    updatedBy: page.updatedBy.name,
+    consent: consentState(page),
+    consentDate: page.consent?.date ?? null,
+    restricted: page.view.kind !== "everyone",
+    excerpt: excerptOf(page.body, 220),
+    ...(snippet !== undefined ? { snippet } : {}),
+  };
+}
+
+/** The day a page counts as dated, for sorting and the year filter: the day it was started. */
+export const pageDate = (page: Pick<WikiPage, "createdAt">) => page.createdAt.slice(0, 10);
+
+/**
+ * Pages matching every term, in their title, their circle's name (and
+ * "consented", "page"), or their text — scored the way documents are, so the
+ * two can be listed together, best first.
+ */
+export function searchPages(
+  pages: WikiPage[],
+  terms: string[],
+  labels: (page: WikiPage) => string
+): { page: WikiPage; score: number; snippet: string | null }[] {
+  if (!terms.length) return [];
+  const hits = [];
+  for (const page of pages) {
+    const title = page.title.toLowerCase();
+    const details = labels(page).toLowerCase();
+    const text = excerptOf(page.body, 50_000);
+    const lowerText = text.toLowerCase();
+    let score = 0;
+    let all = true;
+    for (const term of terms) {
+      const inTitle = occurrences(title, term);
+      const inDetails = occurrences(details, term);
+      const inText = occurrences(lowerText, term);
+      if (!inTitle && !inDetails && !inText) {
+        all = false;
+        break;
+      }
+      score += inTitle * 20 + inDetails * 5 + Math.min(inText, 20);
+    }
+    if (all) hits.push({ page, score, snippet: snippetFor(text, terms) });
+  }
+  return hits.sort((a, b) => b.score - a.score);
+}
