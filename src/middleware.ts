@@ -30,6 +30,7 @@ const PUBLIC_PATHS = new Set([
   "/api/admin/circles/icons", // protected by its own bearer token
   "/api/admin/photos", // protected by its own bearer token
   "/api/admin/schedules", // protected by its own bearer token
+  "/api/admin/wiki", // protected by its own bearer token (temporary)
   "/api/admin/resources", // protected by its own bearer token
 ]);
 
