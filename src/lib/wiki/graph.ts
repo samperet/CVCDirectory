@@ -3,8 +3,7 @@ import { wikiLinksIn } from "@/lib/wiki/links";
 import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
-import { excerptOf, pageColor } from "@/lib/wiki/excerpt";
-import type { PageColor } from "@/lib/wiki/colors";
+import { excerptOf } from "@/lib/wiki/excerpt";
 
 /**
  * The map of how the wiki connects (for everyone, each seeing the pages
@@ -22,7 +21,6 @@ export interface GraphNode {
   href: string;
   /** A page's parent circle. */
   circleId?: string;
-  color?: PageColor;
   /** A page's opening lines, for the map's hover card. */
   excerpt?: string;
   /** Who last edited a page, and when. */
@@ -82,7 +80,6 @@ export async function buildWikiGraph(
       label: page.title,
       href: `/wiki/${page.slug}`,
       circleId: page.keeper,
-      color: pageColor(page),
       excerpt: excerptOf(page.body, 220),
       edited: { by: page.updatedBy.name, at: page.updatedAt },
     });

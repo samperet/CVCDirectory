@@ -12,7 +12,7 @@ import { COMMUNITY_ID, sitsOnBoard } from "@/lib/circles/ids";
  * - seeing it: everyone (the default), its keeper circle, or its keeper and
  *   chosen circles;
  * - editing it: its keeper circle (the default), or any resident;
- * - looking after it — its keeper, who sees and edits it, and its colour —
+ * - looking after it — its keeper, who sees and edits it, its consent —
  *   its keeper circle.
  *
  * "The keeper circle" means its members, the Board, and admins (and any
@@ -54,7 +54,7 @@ export function canEditPage(user: WikiViewer, directory: DirectoryDocument, page
   );
 }
 
-/** Change its keeper, who sees and edits it, and its colour; delete it. */
+/** Change its keeper, who sees and edits it, and its consent; delete it. */
 export const canManagePage = (user: WikiViewer, directory: DirectoryDocument, page: Page) =>
   keepsPage(user, directory, page) || onBoard(user, directory);
 

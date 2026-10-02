@@ -18,6 +18,15 @@ describe("splitBlocks", () => {
   });
 });
 
+describe("splitBlocks", () => {
+  it("keeps a paragraph with highlighted text as one block", () => {
+    expect(splitBlocks('Mow the :mark[east field]{color="green"}.\n\nThen rest.')).toEqual([
+      'Mow the :mark[east field]{color="green"}.',
+      "Then rest.",
+    ]);
+  });
+});
+
 describe("mergeText", () => {
   it("keeps changes to different paragraphs", () => {
     const result = mergeText(

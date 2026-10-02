@@ -180,7 +180,7 @@ export function WikiMapClient() {
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                     >
                       <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/15"
                         style={{
                           backgroundColor:
                             node.kind === "circle"

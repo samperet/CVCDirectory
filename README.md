@@ -239,7 +239,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   default; anyone, for Community's pages) or anyone who can see it. The parent circle's members
   (and the Board and admins, who can always see and edit everything) change the parent circle and
   these settings, and can delete the page. A page reads clean: its **Edit** button opens the editor,
-  where the page's tools live — **Parent circle**, **Colour**, **Who can see & edit**, and
+  where the page's tools live — **Parent circle**, **Who can see & edit**, and
   **History** (earlier versions to view or restore). A page someone can't see is left out everywhere for them:
   the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, circles'
   Information modules, and notifications. Pages don't nest: they connect by **links** and **embeds** (each page lists what's
@@ -298,10 +298,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   (`wiki-images/<circleId>/<id>`, served to signed-in residents at
   `/api/circles/<id>/wiki/images/<id>`). Pages show them inline, opening full size when clicked;
   images from other websites show only as their description.
-- **Colours** – every page has a colour (white — the default — yellow, orange, red, pink,
-  lavender, blue, teal, green, or grey; chosen in the editor by the page's editors): the page is
-  drawn in it, and it shows as a card of that colour (title and opening lines) in circles'
-  Information modules. (Pages used to be **pinned** to circles, the dashboard, people, tasks,
+- **Highlights** – select words in the editor and choose a colour from the highlighter in the
+  toolbar (yellow, green, blue, pink, or orange); while the cursor is in highlighted words, their
+  colours and an eraser show just above them. They're kept in the page as
+  `:mark[the words]{color="green"}`. (Pages used to have a colour of their own, and to be **pinned** to circles, the dashboard, people, tasks,
   documents, and discussions; pinning has been removed. The old `pins.json` is left in storage,
   unused.)
 - **Wiki map** (the **Map** button at the top of `/wiki`, for everyone — each sees only the pages they can) –

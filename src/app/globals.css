@@ -91,7 +91,10 @@ select {
 .wiki-prose blockquote {
   border-left: 4px solid theme("colors.border");
   padding-left: 1rem;
-  color: theme("colors.muted");
+  color: theme("colors.foreground-light");
+}
+.wiki-prose blockquote > * + * {
+  margin-top: 0.75rem;
 }
 .wiki-prose code {
   border-radius: 0.25rem;
@@ -180,6 +183,41 @@ select {
 }
 .wiki-editor .document-body {
   min-height: 60vh;
+}
+
+/* Highlighted text in wiki pages (`:mark[text]{color="…"}`); the colours match `lib/wiki/colors.ts`. */
+.wiki-mark {
+  padding: 0 0.15em;
+  border-radius: 0.2em;
+  color: inherit;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.hl-yellow {
+  background: #f7e27c;
+}
+.hl-green {
+  background: #bfe0a8;
+}
+.hl-blue {
+  background: #b4d4f0;
+}
+.hl-pink {
+  background: #f3bccb;
+}
+.hl-orange {
+  background: #f6c89e;
+}
+/* While editing, a highlight's words have their own little editor, which flows inline with the text. */
+.wiki-prose .wiki-mark-editor {
+  display: inline;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.wiki-prose .wiki-mark-editor > p {
+  display: inline;
+  margin: 0;
 }
 
 /* A passage someone commented on (CSS Custom Highlight API; browsers without it just don't highlight). */

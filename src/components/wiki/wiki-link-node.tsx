@@ -53,7 +53,7 @@ type SerializedWikiLinkNode = Spread<
 const BOLD = 1;
 const ITALIC = 2;
 
-/** What a tag shows, worked out like the page does: the page (and its colour), the document, or nothing yet. */
+/** What a tag shows, worked out like the page does: the page, the document, or nothing yet. */
 function EditorWikiTag({
   target,
   label,
@@ -101,7 +101,7 @@ function EditorWikiTag({
   const page = pageTitled(pages.data.pages, link.title);
   return styled(
     page ? (
-      <WikiTag kind="page" label={text} href={`/wiki/${page.slug}`} color={page.color} newTab />
+      <WikiTag kind="page" label={text} href={`/wiki/${page.slug}`} newTab />
     ) : (
       <WikiTag
         kind="missing"

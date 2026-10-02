@@ -24,7 +24,6 @@ import {
 } from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
-import { DEFAULT_PAGE_COLOR } from "@/lib/wiki/colors";
 import { EmbedBlock, EmbedChain } from "@/components/wiki/embed-block";
 import { cn } from "@/lib/utils";
 import { useCircles } from "@/components/directory/use-directory";
@@ -72,7 +71,7 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
       return `[${text}](/wiki?new=${encodeURIComponent(link.title)}${
         pageId ? `&from=${pageId}` : ""
       }${mdTitle("missing")})`;
-    return `[${text}](/wiki/${page.slug}${mdTitle(`page:${page.color ?? DEFAULT_PAGE_COLOR}:`)})`;
+    return `[${text}](/wiki/${page.slug}${mdTitle("page:")})`;
   });
 }
 
@@ -105,7 +104,10 @@ const components: Components = {
   ul: ({ node: _node, ...props }) => <ul className="list-disc space-y-1 pl-6" {...props} />,
   ol: ({ node: _node, ...props }) => <ol className="list-decimal space-y-1 pl-6" {...props} />,
   blockquote: ({ node: _node, ...props }) => (
-    <blockquote className="border-l-4 border-border pl-4 text-muted" {...props} />
+    <blockquote
+      className="border-l-4 border-border pl-4 text-foreground-light [&>*+*]:mt-3"
+      {...props}
+    />
   ),
   code: ({ node: _node, className, ...props }) => (
     <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />
@@ -117,6 +119,7 @@ const components: Components = {
     />
   ),
   hr: () => <hr className="border-border" />,
+  mark: ({ node: _node, className, ...props }) => <mark className={className} {...props} />,
   // A poll the page holds (`::poll{id="…"}`), or another page shown in it (`::embed{page="…"}`).
   div: ({ node: _node, ...props }) => {
     const data = props as Record<string, unknown>;
@@ -164,18 +167,10 @@ const components: Components = {
     if (mark?.startsWith("doc:"))
       return <WikiTag kind="doc" label={children} href={href} circleName={mark.slice(4)} />;
     if (mark === "missing") return <WikiTag kind="missing" label={children} href={href} />;
-    if (mark?.startsWith("page:")) {
-      const [color, ...name] = mark.slice(5).split(":");
+    if (mark?.startsWith("page:"))
       return (
-        <WikiTag
-          kind="page"
-          label={children}
-          href={href}
-          color={color}
-          circleName={name.join(":") || null}
-        />
+        <WikiTag kind="page" label={children} href={href} circleName={mark.slice(5) || null} />
       );
-    }
     const className = "font-medium text-secondary-foreground underline underline-offset-4";
     if (href.startsWith("/")) {
       return (

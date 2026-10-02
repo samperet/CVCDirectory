@@ -1,7 +1,6 @@
 "use client";
 
 import { BookOpen, CircleDot, X } from "lucide-react";
-import { pageStyle } from "@/lib/wiki/colors";
 import type {
   GraphEdge,
   GraphEdgeKind,
@@ -46,9 +45,8 @@ export function circleColors(graph: WikiGraph) {
   );
 }
 
-/** A node's fill: a page in its own colour, others by kind. */
-export const nodeFill = (node: GraphNode) =>
-  node.kind === "page" ? pageStyle(node.color).swatch : KIND_INFO[node.kind].color;
+/** A node's fill, by kind (pages are white discs; a page's island is its circle's colour). */
+export const nodeFill = (node: GraphNode) => KIND_INFO[node.kind].color;
 
 /** What links to what (a page's circle is drawn as nesting). */
 export function neighbours(edges: GraphEdge[]) {

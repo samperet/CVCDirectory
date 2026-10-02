@@ -2,20 +2,18 @@
 
 import Link from "next/link";
 import { BookOpen, FileText, Plus } from "lucide-react";
-import { pageStyle } from "@/lib/wiki/colors";
 import { cn } from "@/lib/utils";
 
 export type WikiTagKind = "page" | "doc" | "missing" | "doc-missing" | "pending";
 
 /**
- * A wiki link as a tag: a small pill (a page's in its colour, a document's
+ * A wiki link as a tag: a small pill (a page's white with a book, a document's
  * grey-blue, a missing page's dashed red) — not underlined like a web link.
  */
 export function WikiTag({
   kind,
   label,
   href,
-  color,
   circleName,
   newTab = false,
   className,
@@ -23,21 +21,18 @@ export function WikiTag({
   kind: WikiTagKind;
   label: React.ReactNode;
   href?: string;
-  /** A page's colour. */
-  color?: string | null;
   /** Another circle's page: whose. */
   circleName?: string | null;
   /** Open in a new tab (from the editor, so nothing's lost). */
   newTab?: boolean;
   className?: string;
 }) {
-  const paper = pageStyle(color);
   const Icon =
     kind === "doc" || kind === "doc-missing" ? FileText : kind === "missing" ? Plus : BookOpen;
   const base = cn(
     "mx-px inline-flex max-w-full items-baseline gap-1 whitespace-normal rounded-full border px-2 py-px align-baseline text-[0.92em] font-medium leading-snug !no-underline transition [&_*]:!no-underline",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-    kind === "page" && "text-foreground hover:brightness-95",
+    kind === "page" && "border-border bg-white text-foreground hover:bg-accent/60",
     kind === "doc" && "border-[#b9cbe0] bg-[#eaf1f8] text-foreground hover:bg-[#dde8f3]",
     kind === "missing" &&
       "border-dashed border-destructive/60 bg-white/70 text-destructive hover:bg-destructive/5",
@@ -46,8 +41,6 @@ export function WikiTag({
     kind === "pending" && "border-border bg-white/70 text-foreground-light",
     className
   );
-  const style =
-    kind === "page" ? { backgroundColor: paper.paper, borderColor: paper.edge } : undefined;
   const title =
     kind === "missing"
       ? "No page yet — create it"
@@ -69,7 +62,7 @@ export function WikiTag({
   );
   if (!href || kind === "doc-missing" || kind === "pending") {
     return (
-      <span className={base} style={style} title={title} data-wiki-tag={kind}>
+      <span className={base} title={title} data-wiki-tag={kind}>
         {content}
       </span>
     );
@@ -81,7 +74,6 @@ export function WikiTag({
         target="_blank"
         rel="noopener"
         className={base}
-        style={style}
         title={title}
         data-wiki-tag={kind}
       >
@@ -90,7 +82,7 @@ export function WikiTag({
     );
   }
   return (
-    <Link href={href} className={base} style={style} title={title} data-wiki-tag={kind}>
+    <Link href={href} className={base} title={title} data-wiki-tag={kind}>
       {content}
     </Link>
   );

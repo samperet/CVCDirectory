@@ -9,9 +9,13 @@
  * <details>/<summary>, a poll — `::poll{id="…"}`, on its own line — into
  * a placeholder the page fills with the poll, and an embedded page —
  * `::embed{page="Circle:Title" section="Heading"}` — into one the page fills
- * with that page (or section). Anything else that happens to
- * look like a directive — "Contact:Lynn" — is put back as the text it was.
+ * with that page (or section), and highlighted text —
+ * `:mark[the text]{color="yellow"}` — into <mark> in that colour. Anything
+ * else that happens to look like a directive — "Contact:Lynn" — is put back
+ * as the text it was.
  */
+
+import { highlightColor } from "./colors";
 
 interface Node {
   type: string;
@@ -48,6 +52,18 @@ function transform(node: Node): Node[] {
           },
           ...body,
         ],
+      },
+    ];
+  }
+  if (node.type === "textDirective" && node.name === "mark") {
+    return [
+      {
+        type: "wikiMark",
+        data: {
+          hName: "mark",
+          hProperties: { className: `wiki-mark hl-${highlightColor(node.attributes?.color)}` },
+        },
+        children: node.children ?? [],
       },
     ];
   }

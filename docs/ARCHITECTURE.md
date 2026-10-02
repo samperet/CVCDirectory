@@ -119,7 +119,8 @@ in code and storage; the UI calls it the **parent circle** — and its own view/
 (`lib/wiki/access.ts`). Titles are unique; links are `[[Title]]`, embeds `::embed{page="…"}`
 (`lib/wiki/links.ts`, `sections.ts`). Edits autosave and merge paragraph by paragraph
 (`lib/wiki/merge.ts`, `mergeText(base, mine, theirs)`), with presence via `wiki/presence.json`.
-Colours are `lib/wiki/colors.ts`; the map (`components/wiki/map-*.tsx`) is built by
+Highlighted words are `:mark[…]{color="…"}` (palette in `lib/wiki/colors.ts`, drawn as `<mark>` by
+`lib/wiki/directives.ts` and edited by `markDirective` in `rich-editor.tsx`); the map (`components/wiki/map-*.tsx`) is built by
 `lib/wiki/graph.ts` from the pages the viewer can see. A page is shown as a document
 (`components/wiki/wiki-page.tsx`: the keeper's icon, title, date and consent in a centred header
 over a `.document-sheet` with `.document-body` margins); the editor (`wiki-editor.tsx`) has a
@@ -188,6 +189,6 @@ field) or `todayInVermont()` too, not the device's zone.
 |---|---|---|
 | keeper | parent circle | The circle a wiki page belongs to |
 | module (formerly section) | module | One block of a circle's page |
-| `PAGE_COLORS` | colour | A wiki page's colour (it was "note" when pages were pinned as sticky notes) |
+| `HIGHLIGHT_COLORS` / `:mark[…]` | highlight | Coloured words in a wiki page (pages themselves no longer have colours) |
 | `COMMUNITY_ID` / `BOARD_ID` | Community / the Board | The two built-in circles |
 | tension / objection | Log a tension / Raise a Reasoned Objection | Comments on a proposal; only an objection pauses its review |

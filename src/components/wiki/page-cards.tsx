@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, BookOpen } from "lucide-react";
 import type { InfoView } from "@/lib/circles/layout";
-import { pageStyle } from "@/lib/wiki/colors";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { wikiPageQuery } from "@/components/wiki/link-data";
@@ -29,16 +28,14 @@ const TILTS = [
 const tiltFor = (id: string) =>
   TILTS[Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % TILTS.length];
 
-/** A page as a card: its colour, title, and opening lines; the whole card opens it. */
+/** A page as a card: its title and opening lines; the whole card opens it. */
 export function PageCard({ page, circleName }: { page: WikiPageSummary; circleName?: string }) {
-  const style = pageStyle(page.color);
   return (
     <article
       className={cn(
-        "relative flex min-h-[8.5rem] flex-col gap-1.5 rounded-md border p-4 pt-3.5 shadow-soft transition hover:rotate-0 hover:shadow-elev focus-within:rotate-0",
+        "relative flex min-h-[8.5rem] flex-col gap-1.5 rounded-md border border-border bg-white p-4 pt-3.5 shadow-soft transition hover:rotate-0 hover:shadow-elev focus-within:rotate-0",
         tiltFor(page.id)
       )}
-      style={{ backgroundColor: style.paper, borderColor: style.edge }}
       aria-label={page.title}
     >
       <h3 className="line-clamp-2 font-semibold leading-snug text-foreground">
@@ -71,12 +68,10 @@ export function FullPage({
   pages: WikiPageSummary[];
   circleName?: string;
 }) {
-  const style = pageStyle(page.color);
   const { data } = useQuery(wikiPageQuery(page.slug));
   return (
     <article
-      className="flex min-w-0 flex-col gap-3 rounded-lg border p-4 shadow-soft sm:p-5"
-      style={{ backgroundColor: style.paper, borderColor: style.edge }}
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-white p-4 shadow-soft sm:p-5"
       aria-label={page.title}
     >
       <div className="flex items-start gap-2">
@@ -112,7 +107,7 @@ export function FullPage({
   );
 }
 
-/** Just the titles, each on its colour, as a compact list. */
+/** Just the titles, as a compact list. */
 export function PageTitleList({
   pages,
   circleName,
@@ -123,19 +118,13 @@ export function PageTitleList({
   return (
     <ul className="grid gap-1.5 sm:grid-cols-2">
       {pages.map((page) => {
-        const style = pageStyle(page.color);
         const circle = circleName(page);
         return (
           <li
             key={page.id}
-            className="relative flex min-w-0 items-center gap-2.5 rounded-md border px-3 py-2 transition hover:shadow-soft"
-            style={{ backgroundColor: style.paper, borderColor: style.edge }}
+            className="relative flex min-w-0 items-center gap-2.5 rounded-md border border-border bg-white px-3 py-2 transition hover:shadow-soft"
           >
-            <span
-              className="h-3 w-3 shrink-0 rounded-sm border border-black/10"
-              style={{ backgroundColor: style.swatch }}
-              aria-hidden
-            />
+            <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
             <Link
               href={href(page)}
               className="min-w-0 flex-1 truncate text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"

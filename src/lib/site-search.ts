@@ -13,6 +13,7 @@ import { readPages } from "@/lib/wiki/store";
 import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { occurrences, searchTerms, snippetFor } from "@/lib/search";
 import { excerptOf } from "@/lib/wiki/excerpt";
+import { unmark } from "@/lib/wiki/links";
 
 /**
  * Search across the whole site — people (with their bios and skills),
@@ -171,7 +172,8 @@ export async function searchSite(
   const wikiResults = collect(wikis, terms, (page) => ({
     fields: [
       [page.title, 20],
-      [page.body, 1],
+      // Highlights match by their words, not their colour.
+      [unmark(page.body), 1],
     ],
     result: {
       title: page.title,

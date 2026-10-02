@@ -40,6 +40,14 @@ export function protectWikiLinks(markdown: string) {
     .join("\n");
 }
 
+/**
+ * Highlighted text (`:mark[text]{color="…"}`) as just its text — for
+ * excerpts, headings, and search. The words can hold escaped characters and
+ * `[[links]]`.
+ */
+export const unmark = (markdown: string) =>
+  markdown.replace(/:mark\[((?:\\.|\[\[[^\]\n]*\]\]|\[[^\]\n]*\]|[^\]\\\n])*)\]\{[^}\n]*\}/g, "$1");
+
 /** A link, once normalized: `[[target]]` or `[[target|label]]`. */
 export const WIKI_LINK = /\[\[([^\]|\n]{1,240})(?:\|([^\]\n]{1,120}))?\]\]/g;
 

@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
-import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "@/lib/wiki/colors";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 import type { Actor } from "@/lib/auth/actor";
 import type { PageConsent } from "./consent";
@@ -58,8 +57,6 @@ export interface WikiPage {
   edit: PageEdit;
   /** How many earlier versions it has kept. */
   historyCount: number;
-  /** Its colour (as a card, and as a page); unset is white. */
-  color?: PageColor;
   /** The parent circle's consent to the page (see `consent.ts`). */
   consent?: PageConsent | null;
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
@@ -70,16 +67,7 @@ export interface WikiPage {
 
 export type WikiPageSummary = Pick<
   WikiPage,
-  | "id"
-  | "slug"
-  | "title"
-  | "updatedAt"
-  | "updatedBy"
-  | "color"
-  | "keeper"
-  | "view"
-  | "edit"
-  | "consent"
+  "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "keeper" | "view" | "edit" | "consent"
 > & {
   /** Its opening lines, as plain text (in the page list, for cards). */
   excerpt?: string;
@@ -97,7 +85,6 @@ const title = z
   .min(1, "Give the page a title")
   .max(120, "Titles must be 120 characters or fewer");
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
-const color = z.enum(PAGE_COLORS);
 const circleIdSchema = z.string().min(1).max(80);
 export const viewSchema = z.union([
   z.object({ kind: z.literal("everyone") }),
@@ -114,7 +101,6 @@ export const editSchema = z.union([
 export const pageInputSchema = z.object({
   title,
   body: body.default(""),
-  color: color.optional(),
   /** The page it was started from (a link in it): the new page is kept by the same circle, when you can edit that page. */
   from: z.string().max(80).optional(),
   /** The circle that keeps it (otherwise the keeper of the page it was started from, or Community). */
@@ -124,7 +110,6 @@ export const pageUpdateSchema = z
   .object({
     title: title.optional(),
     body: body.optional(),
-    color: color.optional(),
     /** When the page was last saved as the editor started, so a save can't silently undo someone else's. */
     baseUpdatedAt: z.string().optional(),
     /** Saved as you type: folded into your own recent version rather than adding one to the history each time. */
@@ -158,7 +143,6 @@ export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   keeper: page.keeper,
   view: page.view,
   edit: page.edit,
-  ...(page.color ? { color: page.color } : {}),
   ...(page.consent ? { consent: page.consent } : {}),
 });
 
@@ -166,12 +150,14 @@ type Stored = { version: number; pages: WikiPage[] };
 function normalize(raw: unknown): Stored | null {
   const value = raw as Partial<Stored> | null;
   if (!value || value.version !== VERSION || !Array.isArray(value.pages)) return null;
-  // Pages once nested under others (`parentId`); now they only link, so that's dropped as they're read.
+  // Pages once nested under others (`parentId`) and had a colour (`color`); both are dropped as they're read.
   return {
     version: VERSION,
     pages: value.pages.map((page) =>
-      "parentId" in page
-        ? (({ parentId: _gone, ...rest }) => rest)(page as WikiPage & { parentId?: string })
+      "parentId" in page || "color" in page
+        ? (({ parentId: _gone, color: _old, ...rest }) => rest as WikiPage)(
+            page as WikiPage & { parentId?: string; color?: string }
+          )
         : page
     ),
   };
@@ -272,7 +258,6 @@ export function createPage(
   input: {
     title: string;
     body: string;
-    color?: PageColor;
     keeper: string;
     view?: PageView;
     edit?: PageEdit;
@@ -305,7 +290,6 @@ export function createPage(
       view: input.view ?? DEFAULT_VIEW,
       edit: input.edit ?? DEFAULT_EDIT,
       historyCount: 0,
-      ...(input.color && input.color !== DEFAULT_PAGE_COLOR ? { color: input.color } : {}),
     };
     return { pages: [...pages, page], page };
   });
@@ -393,7 +377,6 @@ export function renameLinks(markdown: string, from: string, to: string) {
 type PageUpdate = {
   title?: string;
   body?: string;
-  color?: PageColor;
   baseUpdatedAt?: string;
   autosave?: boolean;
   keeper?: string;
@@ -408,7 +391,7 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its colour, keeper, who can see or edit it, and its consent aren't new versions.
+    // Its keeper, who can see or edit it, and its consent aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.keeper ? { keeper: update.keeper } : {}),
       ...(update.view ? { view: update.view } : {}),
@@ -426,10 +409,6 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
             }
           : {}),
     };
-    if (update.color && update.color !== (page.color ?? DEFAULT_PAGE_COLOR)) {
-      const { color: _old, ...rest } = page;
-      page = update.color === DEFAULT_PAGE_COLOR ? rest : { ...rest, color: update.color };
-    }
     page = { ...page, ...settings };
     const current = page;
     pages = pages.map((entry) => (entry.id === current.id ? current : entry));
@@ -509,7 +488,6 @@ interface OldPage {
   updatedAt: string;
   updatedBy: WikiAuthor;
   history?: WikiVersion[];
-  color?: PageColor;
   parentId?: string;
   autosaved?: boolean;
 }
@@ -610,7 +588,6 @@ async function migrate(): Promise<WikiPage[]> {
     view: DEFAULT_VIEW,
     edit: DEFAULT_EDIT,
     historyCount: Math.min(MAX_HISTORY, page.history?.length ?? 0),
-    ...(page.color ? { color: page.color } : {}),
     ...(page.autosaved ? { autosaved: true } : {}),
     aliases: [{ circleId: circle.id, slug: page.slug }],
   }));

@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Pencil } from "lucide-react";
 import { parseWikiLink } from "@/lib/wiki/links";
 import { headingSlug, sectionOf } from "@/lib/wiki/sections";
-import { pageStyle } from "@/lib/wiki/colors";
 import { pageTitled, wikiPageQuery, wikiPagesQuery } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiMarkdown } from "@/components/wiki/markdown";
@@ -79,13 +78,11 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
       </Notice>
     );
   }
-  const style = pageStyle(page.color);
   const keeper = circles.find((circle) => circle.id === page.keeper);
   const own = page.keeper === here?.circleId;
   return (
     <section
-      className="my-3 border-l-4 pl-4"
-      style={{ borderColor: page.color === "white" ? style.edge : style.swatch }}
+      className="my-3 border-l-4 border-primary/50 pl-4"
       aria-label={`${page.title}${own || !keeper ? "" : `, from ${keeper.name}`}`}
       data-embedded={page.title}
     >

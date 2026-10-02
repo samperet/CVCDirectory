@@ -22,9 +22,7 @@ import type { WikiPage } from "@/lib/wiki/store";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { shortDate, timeAgo } from "@/lib/time";
-import { DEFAULT_PAGE_COLOR, pageStyle, type PageColor } from "@/lib/wiki/colors";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
-import { ColorSwatches } from "@/components/wiki/color-swatches";
 import {
   WikiComments,
   threadsOf,
@@ -163,23 +161,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
     onError: (err: Error) =>
       toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
-  const recolor = useMutation({
-    mutationFn: (color: PageColor) =>
-      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
-        method: "PATCH",
-        body: JSON.stringify({ color }),
-      }),
-    onSuccess: ({ page: updated }) => {
-      saved(updated);
-      queryClient.invalidateQueries({ queryKey: ["wiki"] });
-    },
-    onError: (err: Error) =>
-      toast({
-        title: "Could not change the colour",
-        description: err.message,
-        variant: "destructive",
-      }),
-  });
   const rehome = useMutation({
     mutationFn: (keeper: string) =>
       apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
@@ -242,7 +223,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
   };
 
   const back = <BackLink href="/wiki" label="Wiki" />;
-  const paper = pageStyle(page?.color);
   if (isLoading) return <Loading />;
   if (error || !page) {
     return (
@@ -353,15 +333,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
               ) : (
                 <span>Parent circle {circle?.name ?? "—"}</span>
               )}
-              <span className="flex items-center gap-2">
-                Colour{" "}
-                <ColorSwatches
-                  size="sm"
-                  value={page.color ?? DEFAULT_PAGE_COLOR}
-                  onChange={(color) => recolor.mutate(color)}
-                  disabled={recolor.isPending}
-                />
-              </span>
               <span className="flex flex-wrap items-center gap-2">
                 {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
                 {history.length ? (
@@ -380,7 +351,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
             </>
           }
           onDone={(updated) => {
-            // The editor's copy has the text; settings changed while editing (colour, parent circle, who can see it) are newer here.
+            // The editor's copy has the text; settings changed while editing (parent circle, who can see it, consent) are newer here.
             saved({
               ...page,
               title: updated.title,
@@ -407,11 +378,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
         ) : null}
       </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <article
-          className="document-sheet flex min-w-0 flex-col"
-          style={{ borderTopWidth: 4, borderTopColor: paper.edge }}
-          data-page-sheet
-        >
+        <article className="document-sheet flex min-w-0 flex-col" data-page-sheet>
           {/* The page's head: its circle, title, date, and where it stands with the circle. */}
           <header className="flex flex-col items-center gap-3 border-b border-border/70 px-6 pb-7 pt-9 text-center sm:px-14">
             {circle ? (

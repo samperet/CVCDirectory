@@ -6,13 +6,12 @@ import { BookOpen, LayoutList } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { wikiPageQuery } from "@/components/wiki/link-data";
 import { embedText, tableOfContents } from "@/lib/wiki/sections";
-import { pageStyle } from "@/lib/wiki/colors";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type Found = { circleId: string; circleName: string; title: string; slug: string; color: string };
+type Found = { circleId: string; circleName: string; title: string; slug: string };
 
 /**
  * Show another page — or one section of it — inside the page being written:
@@ -72,13 +71,7 @@ export function EmbedPageDialog({
       </p>
       {chosen ? (
         <div className="flex flex-col gap-3">
-          <div
-            className="flex items-center gap-2 rounded-lg border px-3 py-2"
-            style={{
-              backgroundColor: pageStyle(chosen.color).paper,
-              borderColor: pageStyle(chosen.color).edge,
-            }}
-          >
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
             <BookOpen className="h-4 w-4 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0 flex-1 truncate font-medium text-foreground">
               {chosen.title}
@@ -151,11 +144,7 @@ export function EmbedPageDialog({
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                   )}
                 >
-                  <span
-                    className="h-3 w-3 shrink-0 rounded-sm border border-black/10"
-                    style={{ backgroundColor: pageStyle(found.color).swatch }}
-                    aria-hidden
-                  />
+                  <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{found.title}</span>
                   <span className="shrink-0 text-xs text-muted">{found.circleName}</span>
                 </button>

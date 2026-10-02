@@ -79,7 +79,7 @@ save("directory/directory.json", {
 
 // A few wiki pages kept by the Land Care Circle (the circle store seeds itself from the directory above).
 const author = { userId: "seed", name: "Cara Cedar" };
-const page = (id, slug, title, body, color) => ({
+const page = (id, slug, title, body) => ({
   id: `0000000${id}-0000-4000-8000-000000000000`,
   slug,
   title,
@@ -92,7 +92,6 @@ const page = (id, slug, title, body, color) => ({
   view: { kind: "everyone" },
   edit: { kind: "keeper" },
   historyCount: 0,
-  ...(color ? { color } : {}),
 });
 save("wiki/pages.json", {
   version: 1,
@@ -101,11 +100,10 @@ save("wiki/pages.json", {
       1,
       "pellet-stove",
       "Pellet Stove",
-      'The stove in the common house.\n\nSee [[Maintenance log]].\n\n:::details{title="Winter care"}\nEmpty the ash pan.\n:::',
-      "green"
+      'The stove in the common house.\n\nSee [[Maintenance log]].\n\n:::details{title="Winter care"}\nEmpty the ash pan.\n:::'
     ),
     page(2, "maintenance-log", "Maintenance log", "**Sep 12**: cleaned."),
-    page(3, "mowing", "Mowing", "Mow the east field.", "blue"),
+    page(3, "mowing", "Mowing", "Mow the east field."),
   ],
 });
 

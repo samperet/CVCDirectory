@@ -10,7 +10,6 @@ import { apiFetch } from "@/lib/api-client";
 import type { WikiPage, WikiPageSummary } from "@/lib/wiki/store";
 import { timeAgo } from "@/lib/time";
 import { useSession } from "@/lib/auth/client";
-import { pageStyle } from "@/lib/wiki/colors";
 import { wikiPagesQuery } from "@/components/wiki/link-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -136,11 +135,7 @@ function PageRow({
         href={`/wiki/${page.slug}`}
         className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline"
       >
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10"
-          style={{ backgroundColor: pageStyle(page.color).swatch }}
-          aria-hidden
-        />
+        <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
         <span className="truncate">{page.title}</span>
         {page.view.kind !== "everyone" ? (
           <Lock

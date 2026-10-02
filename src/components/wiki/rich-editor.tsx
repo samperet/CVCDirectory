@@ -10,7 +10,14 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import type { LexicalEditor } from "lexical";
+import {
+  $createTextNode,
+  $getNodeByKey,
+  $getSelection,
+  $isRangeSelection,
+  type LexicalEditor,
+  type LexicalNode,
+} from "lexical";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,16 +26,21 @@ import {
   BarChart3,
   ChevronDown,
   ChevronsUpDown,
+  Eraser,
   FilePlus2,
+  Highlighter,
   LayoutList,
   X,
 } from "lucide-react";
 import {
+  $isDirectiveNode,
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  ButtonOrDropdownButton,
   ButtonWithTooltip,
   CreateLink,
   type DirectiveDescriptor,
+  type DirectiveEditorProps,
   GenericDirectiveEditor,
   InsertImage,
   InsertTable,
@@ -38,9 +50,11 @@ import {
   NestedLexicalEditor,
   Separator,
   UndoRedo,
+  activeEditor$,
   codeBlockPlugin,
   codeMirrorPlugin,
   directivesPlugin,
+  editorInFocus$,
   headingsPlugin,
   imagePlugin,
   linkDialogPlugin,
@@ -51,6 +65,7 @@ import {
   tablePlugin,
   thematicBreakPlugin,
   toolbarPlugin,
+  useCellValue,
   useLexicalNodeRemove,
   useMdastNodeUpdater,
 } from "@mdxeditor/editor";
@@ -68,6 +83,13 @@ import { featureEnabled } from "@/lib/circles/features";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
+import {
+  HIGHLIGHT_COLORS,
+  HIGHLIGHT_STYLES,
+  highlightColor,
+  type HighlightColor,
+} from "@/lib/wiki/colors";
+import { cn } from "@/lib/utils";
 
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */
@@ -259,6 +281,176 @@ const embedDirective: DirectiveDescriptor<LeafDirective> = {
   Editor: EmbedDirectiveEditor,
 };
 
+// Lexical's text format bits, for what a highlight can hold.
+const BOLD = 1;
+const ITALIC = 2;
+const CODE = 16;
+
+type Phrasing = { type: string; value?: string; children?: Phrasing[] };
+
+/** Text nodes for a highlight's words, keeping bold, italic, and code (for taking the highlight off). */
+function $textNodesOf(children: Phrasing[], format = 0): LexicalNode[] {
+  return children.flatMap((child) => {
+    if (child.type === "strong") return $textNodesOf(child.children ?? [], format | BOLD);
+    if (child.type === "emphasis") return $textNodesOf(child.children ?? [], format | ITALIC);
+    if (typeof child.value === "string") {
+      const node = $createTextNode(child.value);
+      node.setFormat(child.type === "inlineCode" ? format | CODE : format);
+      return [node];
+    }
+    return $textNodesOf(child.children ?? [], format);
+  });
+}
+
+/**
+ * Highlighted text while editing (`:mark[words]{color="green"}`): the words
+ * stay editable in place, on their colour. While the cursor is in them, the
+ * palette and an eraser show just above, to change the colour or take the
+ * highlight off. A highlight is one run of text, so Enter does nothing in it.
+ */
+function MarkEditor({ mdastNode, lexicalNode, parentEditor }: DirectiveEditorProps<TextDirective>) {
+  const color = highlightColor(mdastNode.attributes?.color);
+  // What's been typed in the highlight is saved into the page as it loses focus: do that first.
+  const settle = () => (document.activeElement as HTMLElement | null)?.blur();
+  const change = (apply: (node: ReturnType<typeof $getNodeByKey>) => void) => {
+    settle();
+    parentEditor.update(() => apply($getNodeByKey(lexicalNode.getKey())));
+  };
+  const recolor = (next: HighlightColor) =>
+    change((node) => {
+      if ($isDirectiveNode(node))
+        node.setMdastNode({
+          ...(node.getMdastNode() as TextDirective),
+          attributes: { color: next },
+        });
+    });
+  const unwrap = () =>
+    change((node) => {
+      if (!$isDirectiveNode(node)) return;
+      const words = $textNodesOf(node.getMdastNode().children as Phrasing[]);
+      if (!words.length) return node.remove();
+      node.replace(words[0]);
+      words.slice(1).reduce((previous, next) => previous.insertAfter(next), words[0]);
+    });
+  const keep = (event: React.MouseEvent) => event.preventDefault();
+  return (
+    <span
+      className="group/mark relative"
+      onKeyDownCapture={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+    >
+      <mark className={`wiki-mark hl-${color}`} data-highlight={color}>
+        <NestedLexicalEditor<TextDirective>
+          getContent={(node) => node.children}
+          getUpdatedMdastNode={(node, children) => ({
+            ...node,
+            children: children as TextDirective["children"],
+          })}
+          contentEditableProps={{ className: "wiki-mark-editor" }}
+        />
+      </mark>
+      <span
+        contentEditable={false}
+        className="absolute bottom-full left-0 z-30 mb-1 hidden items-center gap-1 rounded-full border border-border bg-white px-1.5 py-1 shadow-elev group-focus-within/mark:flex"
+        data-highlight-tools
+      >
+        {HIGHLIGHT_COLORS.map((name) => (
+          <button
+            key={name}
+            type="button"
+            title={HIGHLIGHT_STYLES[name].label}
+            aria-label={`${HIGHLIGHT_STYLES[name].label} highlight`}
+            aria-pressed={name === color}
+            onMouseDown={keep}
+            onClick={() => recolor(name)}
+            className={cn(
+              "h-5 w-5 rounded-full border border-black/10",
+              `hl-${name}`,
+              name === color && "ring-2 ring-foreground/50 ring-offset-1"
+            )}
+          />
+        ))}
+        <button
+          type="button"
+          title="No highlight"
+          aria-label="Remove highlight"
+          onMouseDown={keep}
+          onClick={unwrap}
+          className="grid h-5 w-5 place-items-center rounded-full text-muted hover:bg-accent hover:text-foreground"
+        >
+          <Eraser className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </span>
+    </span>
+  );
+}
+
+const markDirective: DirectiveDescriptor<TextDirective> = {
+  name: "mark",
+  type: "textDirective",
+  testNode: (node) => node.type === "textDirective" && node.name === "mark",
+  attributes: ["color"],
+  hasChildren: true,
+  Editor: MarkEditor,
+};
+
+/** The selected words as a highlight's label: Markdown's punctuation escaped, so they stay as written. */
+const markLabel = (text: string) => text.replace(/[\\`*_[\]:<>~|#!]/g, "\\$&");
+
+/**
+ * The toolbar's highlighter: choose a colour, and the selected words (within
+ * one paragraph) are highlighted in it. Inside a highlight, its own palette
+ * (just above it) changes it instead.
+ */
+function HighlightButton({ onApply }: { onApply: (markdown: string) => void }) {
+  const active = useCellValue(activeEditor$);
+  const inFocus = useCellValue(editorInFocus$);
+  const { toast } = useToast();
+  return (
+    <ButtonOrDropdownButton<HighlightColor>
+      title="Highlight"
+      items={HIGHLIGHT_COLORS.map((name) => ({
+        value: name,
+        label: (
+          <span className="flex items-center gap-2" data-highlight-choice={name}>
+            <span className={`h-3.5 w-3.5 rounded-sm border border-black/10 hl-${name}`} />
+            {HIGHLIGHT_STYLES[name].label}
+          </span>
+        ),
+      }))}
+      onChoose={(color) => {
+        const root = inFocus?.rootNode;
+        if (root && $isDirectiveNode(root) && root.getMdastNode().name === "mark") {
+          toast({ title: "Change this highlight with the colours just above it" });
+          return;
+        }
+        const text =
+          active?.getEditorState().read(() => {
+            const selection = $getSelection();
+            return $isRangeSelection(selection) && !selection.isCollapsed()
+              ? selection.getTextContent()
+              : "";
+          }) ?? "";
+        if (!text.trim()) {
+          toast({ title: "Select the words to highlight first" });
+          return;
+        }
+        if (text.includes("\n")) {
+          toast({ title: "Highlight within one paragraph at a time" });
+          return;
+        }
+        onApply(`:mark[${markLabel(text)}]{color="${highlightColor(color)}"}`);
+      }}
+    >
+      <Highlighter className="h-5 w-5" />
+    </ButtonOrDropdownButton>
+  );
+}
+
 /** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
 const textDirectives: DirectiveDescriptor<TextDirective> = {
   name: ":text",
@@ -284,9 +476,9 @@ const otherDirectives: DirectiveDescriptor = {
 };
 
 /**
- * The wiki's visual editor (MDXEditor): a simple formatting toolbar, lists,
- * tables, photos, collapsible sections, polls, and Markdown shortcuts as
- * you type (`#`, `-`, `**`), saving plain Markdown. Typing @ links a page or
+ * The wiki's visual editor (MDXEditor): a simple formatting toolbar (with a
+ * highlighter), lists, tables, photos, collapsible sections, polls, and
+ * Markdown shortcuts as you type (`#`, `-`, `**`), saving plain Markdown. Typing @ links a page or
  * a document — or a new page. HTML tags stay as text.
  */
 export const RichEditor = forwardRef<
@@ -394,6 +586,7 @@ export const RichEditor = forwardRef<
               detailsDirective,
               pollDirective,
               embedDirective,
+              markDirective,
               textDirectives,
               otherDirectives,
             ],
@@ -414,6 +607,7 @@ export const RichEditor = forwardRef<
                 <Separator />
                 <BlockTypeSelect />
                 <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
+                <HighlightButton onApply={(markdown) => editor.current?.insertMarkdown(markdown)} />
                 <Separator />
                 <ListsToggle options={["bullet", "number", "check"]} />
                 <Separator />

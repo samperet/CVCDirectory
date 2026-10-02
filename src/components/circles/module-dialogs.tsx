@@ -32,7 +32,6 @@ import {
   type ModuleType,
 } from "@/lib/circles/layout";
 import type { Circle } from "@/lib/circles/types";
-import { pageStyle } from "@/lib/wiki/colors";
 import { pagesFor } from "@/components/circles/information-module";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Dialog } from "@/components/ui/dialog";
@@ -358,11 +357,7 @@ export function InformationSettings({
                         key={id}
                         className="flex items-center gap-1.5 rounded-md border border-border bg-white px-2 py-1 text-sm"
                       >
-                        <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-sm border border-black/10"
-                          style={{ backgroundColor: pageStyle(page?.color).swatch }}
-                          aria-hidden
-                        />
+                        <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
                         <span
                           className={cn("min-w-0 flex-1 truncate", !page && "italic text-muted")}
                         >

@@ -14,7 +14,6 @@ import { $createWikiLinkNode } from "@/components/wiki/wiki-link-node";
 import { addComposerChild$, realmPlugin } from "@mdxeditor/editor";
 import { BookOpen, FileText, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { pageStyle } from "@/lib/wiki/colors";
 import { docLinkText, pageLinkText } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +24,7 @@ import { cn } from "@/lib/utils";
  */
 
 type SearchResult = {
-  pages: { circleId: string; circleName: string; title: string; slug: string; color: string }[];
+  pages: { circleId: string; circleName: string; title: string; slug: string }[];
   documents: {
     id: string;
     title: string;
@@ -43,8 +42,7 @@ class LinkOption extends MenuOption {
     readonly label: string,
     readonly meta: string | null,
     /** What goes in the page: `[[…]]`. */
-    readonly text: string,
-    readonly color?: string
+    readonly text: string
   ) {
     super(key);
   }
@@ -107,8 +105,7 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
               "page",
               page.title,
               page.circleId === circleId ? null : page.circleName,
-              pageLinkText(page.title),
-              page.color
+              pageLinkText(page.title)
             )
         ),
       ...(data?.documents ?? [])
@@ -185,15 +182,7 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
                         selectedIndex === index ? "bg-accent text-foreground" : "text-foreground"
                       )}
                     >
-                      {option.kind === "page" ? (
-                        <span
-                          className="h-3 w-3 shrink-0 rounded-sm border border-black/15"
-                          style={{ backgroundColor: pageStyle(option.color).swatch }}
-                          aria-hidden
-                        />
-                      ) : (
-                        <Icon className="h-4 w-4 shrink-0 text-muted" aria-hidden />
-                      )}
+                      <Icon className="h-4 w-4 shrink-0 text-muted" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">
                         {option.kind === "create" ? <>New page “{option.label}”</> : option.label}
                       </span>

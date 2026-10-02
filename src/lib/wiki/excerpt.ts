@@ -1,20 +1,14 @@
-import type { WikiPage } from "./store";
 import { POLL_DIRECTIVE } from "@/lib/polls/wiki";
 import { EMBED_DIRECTIVE } from "./sections";
-import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "./colors";
-
-export const pageColor = (page: Pick<WikiPage, "color">): PageColor =>
-  (PAGE_COLORS as readonly string[]).includes(page.color ?? "")
-    ? (page.color as PageColor)
-    : DEFAULT_PAGE_COLOR;
+import { unmark } from "./links";
 
 /**
  * A page's opening, as plain text: links by their words, polls by their
- * questions, collapsible sections by their titles, embedded pages as "↳ Title"; no images, headings, or
- * markup.
+ * questions, collapsible sections by their titles, embedded pages as "↳ Title",
+ * highlighted text as the text; no images, headings, or markup.
  */
 export function excerptOf(markdown: string, length = 400, polls: Map<string, string> = new Map()) {
-  const text = markdown
+  const text = unmark(markdown)
     .replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, " ")
     .replace(EMBED_DIRECTIVE, (_m, attributes: string) => {
       const page = attributes.match(/page="([^"\n]*)"/)?.[1] ?? "";

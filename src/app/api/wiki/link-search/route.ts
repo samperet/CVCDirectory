@@ -3,7 +3,6 @@ import { listDocuments } from "@/lib/documents/store";
 import { listPages } from "@/lib/wiki/store";
 import { visiblePages } from "@/lib/wiki/access";
 import { wikiSession } from "@/lib/wiki/http";
-import { DEFAULT_PAGE_COLOR } from "@/lib/wiki/colors";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +43,6 @@ export async function GET(request: NextRequest) {
                 ctx.directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "",
               title: page.title,
               slug: page.slug,
-              color: page.color ?? DEFAULT_PAGE_COLOR,
               score,
             },
           ];

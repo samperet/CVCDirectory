@@ -5,16 +5,14 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { DEFAULT_PAGE_COLOR, type PageColor } from "@/lib/wiki/colors";
 import type { WikiPage } from "@/lib/wiki/store";
-import { ColorSwatches } from "@/components/wiki/color-swatches";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
 /**
- * Add information to a circle: name it and pick its colour, and it becomes a
+ * Add information to a circle: name it, and it becomes a
  * wiki page with the circle as its parent (so it shows in the circle's
  * Information) — then it opens for writing.
  */
@@ -29,12 +27,11 @@ export function AddInformationDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
-  const [color, setColor] = useState<PageColor>(DEFAULT_PAGE_COLOR);
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ page: WikiPage }>("/api/wiki/pages", {
         method: "POST",
-        body: JSON.stringify({ title: title.trim(), body: "", color, keeper: circle.id }),
+        body: JSON.stringify({ title: title.trim(), body: "", keeper: circle.id }),
       }),
     onSuccess: ({ page }) => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
@@ -69,10 +66,6 @@ export function AddInformationDialog({
             placeholder="e.g. Pellet stove, Work day sign-up"
           />
         </label>
-        <div className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
-          Colour
-          <ColorSwatches value={color} onChange={setColor} />
-        </div>
         <p className="text-xs text-muted">
           It becomes a wiki page with {circle.name} as its parent circle, and opens for writing.
           Type @ in it to link other pages and documents — or to start a new page.

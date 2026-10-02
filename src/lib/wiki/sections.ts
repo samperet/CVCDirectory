@@ -1,4 +1,4 @@
-import { normalizeWikiLinks, parseWikiLink, type CircleRef } from "./links";
+import { normalizeWikiLinks, parseWikiLink, type CircleRef, unmark } from "./links";
 
 /**
  * A page's headings and the sections under them — for "On this page", and
@@ -18,7 +18,7 @@ export const headingSlug = (text: string) =>
 function headingOf(line: string): { level: number; text: string } | null {
   const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
   if (!match) return null;
-  const text = match[2]
+  const text = unmark(match[2])
     .replace(
       /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
       (_m, target: string, label?: string) => label ?? target.slice(target.lastIndexOf(":") + 1)
