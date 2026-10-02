@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, LayoutGrid, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { BackLink } from "@/components/layout/back-link";
+import { Check, LayoutGrid, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle, CircleApplication, CircleSeat, DirectoryDocument, JoinPolicy, Person } from "@/lib/directory/types";
@@ -562,9 +563,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           <option key={role} value={role} />
         ))}
       </datalist>
-      <Link href="/circles" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> All circles
-      </Link>
+      <BackLink href="/circles" label="All circles" />
 
       <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <CircleIcon circle={circle} size={96} />

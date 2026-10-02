@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, History, Pencil, Plus, Trash2, UserCheck, UserMinus, X } from "lucide-react";
+import { BackLink } from "@/components/layout/back-link";
+import { Check, History, Pencil, Plus, Trash2, UserCheck, UserMinus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import { featureEnabled } from "@/lib/circles/features";
@@ -168,11 +168,7 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
     onError: (err: Error) => toast({ title: "Could not delete the task", description: err.message, variant: "destructive" }),
   });
 
-  const back = (
-    <Link href={`/circles/${circleId}/tasks`} className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-      <ArrowLeft className="h-4 w-4" /> {circle ? `${circle.name} tasks` : "Tasks"}
-    </Link>
-  );
+  const back = <BackLink href={`/circles/${circleId}/tasks`} label={circle ? `${circle.name} tasks` : "Tasks"} />;
   const task = data?.task;
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (error || !task) {

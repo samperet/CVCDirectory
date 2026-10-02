@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
+import { BackLink } from "@/components/layout/back-link";
+import { ChevronDown, ChevronRight, CornerDownRight, Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { ForumLike, ForumReply, ForumThreadDocument } from "@/lib/forum/store";
@@ -516,9 +517,7 @@ export function ThreadClient({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href={`/forum/topics/${topicId}`} className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> {topicName}
-      </Link>
+      <BackLink href={`/forum/topics/${topicId}`} label={topicName} />
 
       <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />
 

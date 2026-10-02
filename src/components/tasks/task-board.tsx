@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ListChecks, MessageSquare, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { BackLink } from "@/components/layout/back-link";
+import { ListChecks, MessageSquare, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle } from "@/lib/directory/types";
@@ -237,9 +238,7 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href={`/circles/${circleId}`} className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> {circle?.name ?? "Circle"}
-      </Link>
+      <BackLink href={`/circles/${circleId}`} label={circle?.name ?? "Circle"} />
       <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
         <ListChecks className="h-6 w-6 text-primary" aria-hidden /> {circle ? `${circle.name} tasks` : "Tasks"}
       </h1>

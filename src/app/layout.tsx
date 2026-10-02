@@ -4,6 +4,7 @@ import "./globals.css";
 import { ReactQueryProvider } from "@/components/layout/react-query-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AppShell } from "@/components/layout/app-shell";
+import { NavigationTrail } from "@/components/layout/back-link";
 import { ToastProvider } from "@/components/ui/use-toast";
 import { sessionPayload } from "@/lib/auth/me";
 
@@ -41,6 +42,7 @@ export default async function RootLayout({
         <ReactQueryProvider session={session}>
           <ToastProvider>
             <AppShell>{children}</AppShell>
+            <NavigationTrail />
             <Toaster />
           </ToastProvider>
         </ReactQueryProvider>

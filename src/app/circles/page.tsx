@@ -9,13 +9,16 @@ export const metadata: Metadata = {
 export default function CirclesPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <SectionArt href="/circles" size={48} />
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold text-foreground">Circles</h1>
-        </div>
-      </div>
-      <CirclesClient />
+      <CirclesClient
+        header={
+          <div className="flex items-center gap-3">
+            <SectionArt href="/circles" size={48} />
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-semibold text-foreground">Circles</h1>
+            </div>
+          </div>
+        }
+      />
     </div>
   );
 }

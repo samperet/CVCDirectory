@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CornerDownRight, History as HistoryIcon, ListTree, Lock, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { BackLink } from "@/components/layout/back-link";
+import { CornerDownRight, History as HistoryIcon, ListTree, Lock, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { WikiPage } from "@/lib/wiki/store";
@@ -171,11 +172,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
     }
   };
 
-  const back = (
-    <Link href="/wiki" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-      <ArrowLeft className="h-4 w-4" /> Wiki
-    </Link>
-  );
+  const back = <BackLink href="/wiki" label="Wiki" />;
   const paper = noteStyle(page?.color);
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (error || !page) {

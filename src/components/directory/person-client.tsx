@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Cake, Eye, Home, LogOut, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
+import { BackLink } from "@/components/layout/back-link";
+import { Cake, Eye, Home, LogOut, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
 import { PersonSkills } from "@/components/skills/person-skills";
 import { apiFetch } from "@/lib/api-client";
 import { useSession, useViewAs } from "@/lib/auth/client";
@@ -92,9 +93,7 @@ export function PersonClient({ personId: requested }: { personId: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <Link href="/directory" className="inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Directory
-      </Link>
+      <BackLink href="/directory" label="Directory" />
 
       <Card className="flex flex-col gap-5">
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">

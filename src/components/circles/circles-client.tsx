@@ -133,7 +133,8 @@ function CircleGrid({ circles, people }: { circles: Circle[]; people: Map<string
   );
 }
 
-export function CirclesClient() {
+/** The circles and clubs, under the page's heading (`header`) — with the button to start one on the right of it. */
+export function CirclesClient({ header }: { header: React.ReactNode }) {
   const { user } = useSession();
   const [creating, setCreating] = useState(false);
   const { data, isLoading, error } = useQuery({
@@ -141,12 +142,28 @@ export function CirclesClient() {
     queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
   });
 
-  if (isLoading) return <p className="text-sm text-muted">Loading circles…</p>;
+  const top = (button?: React.ReactNode) => (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      {header}
+      {button}
+    </div>
+  );
+  if (isLoading) {
+    return (
+      <>
+        {top()}
+        <p className="text-sm text-muted">Loading circles…</p>
+      </>
+    );
+  }
   if (error || !data) {
     return (
-      <Card>
-        <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "Circles are unavailable."}</p>
-      </Card>
+      <>
+        {top()}
+        <Card>
+          <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "Circles are unavailable."}</p>
+        </Card>
+      </>
     );
   }
 
@@ -159,39 +176,40 @@ export function CirclesClient() {
   const onBoard = !!user?.personId && !!data.circles.find((circle) => circle.id === "board")?.seats.some((seat) => seat.personId === user.personId);
   const canFormCircles = onBoard || !!user?.isAdmin;
   return (
-    <div className="flex flex-col gap-4">
-      {creating ? (
-        <NewCircleForm canFormCircles={canFormCircles} onCancel={() => setCreating(false)} />
-      ) : (
-        <div>
+    <>
+      {top(
+        creating ? null : (
           <Button className="gap-1" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" /> {canFormCircles ? "Start a circle or club" : "Start a social club"}
           </Button>
-        </div>
+        )
       )}
-      {community ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <CommunityCard circle={community} />
-        </div>
-      ) : null}
-      <section className="mt-2 flex flex-col gap-3" aria-labelledby="circles-heading">
-        <div>
-          <h2 id="circles-heading" className="text-lg font-semibold text-foreground">
-            Circles
-          </h2>
-        </div>
-        <CircleGrid circles={circles} people={people} />
-      </section>
-      {clubs.length ? (
-        <section className="mt-2 flex flex-col gap-3" aria-labelledby="clubs-heading">
+      <div className="flex flex-col gap-4">
+        {creating ? <NewCircleForm canFormCircles={canFormCircles} onCancel={() => setCreating(false)} /> : null}
+        {community ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <CommunityCard circle={community} />
+          </div>
+        ) : null}
+        <section className="mt-2 flex flex-col gap-3" aria-labelledby="circles-heading">
           <div>
-            <h2 id="clubs-heading" className="text-lg font-semibold text-foreground">
-              Social Clubs
+            <h2 id="circles-heading" className="text-lg font-semibold text-foreground">
+              Circles
             </h2>
           </div>
-          <CircleGrid circles={clubs} people={people} />
+          <CircleGrid circles={circles} people={people} />
         </section>
-      ) : null}
-    </div>
+        {clubs.length ? (
+          <section className="mt-2 flex flex-col gap-3" aria-labelledby="clubs-heading">
+            <div>
+              <h2 id="clubs-heading" className="text-lg font-semibold text-foreground">
+                Social Clubs
+              </h2>
+            </div>
+            <CircleGrid circles={clubs} people={people} />
+          </section>
+        ) : null}
+      </div>
+    </>
   );
 }
