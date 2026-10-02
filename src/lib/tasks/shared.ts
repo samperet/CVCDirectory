@@ -1,4 +1,5 @@
 import { todayInVermont } from "@/lib/time";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Circle tasks, as shared by the server and the browser (no server imports).
@@ -21,11 +22,8 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
   high: "High",
 };
 
-export interface TaskPerson {
-  userId: string;
-  personId: string | null;
-  name: string;
-}
+/** Who added a task (stored with it). */
+export type TaskPerson = Pick<Actor, "userId" | "personId" | "name">;
 
 export interface ChecklistItem {
   id: string;

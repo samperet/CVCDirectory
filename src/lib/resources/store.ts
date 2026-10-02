@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Resources: residents' recommendations for local services (a plumber, a
@@ -74,8 +75,7 @@ const KEY = "resources/recommendations.json";
 const MAX_RECOMMENDATIONS = 1000;
 const MAX_COMMENTS = 300;
 
-export type Actor = { userId: string; personId: string | null; name: string; admin: boolean };
-type Failure = "not_found" | "forbidden" | "full";
+export type Failure = "not_found" | "forbidden" | "full";
 export type Result<T> = { ok: true; value: T } | { ok: false; reason: Failure };
 
 function normalize(raw: unknown): Recommendation[] {
@@ -98,7 +98,8 @@ async function mutate<T>(
 ): Promise<Result<T>> {
   return mutateJson<Result<T>>(KEY, (raw) => {
     const outcome = change(normalize(raw));
-    if (typeof outcome === "string") return { write: false, result: { ok: false, reason: outcome } };
+    if (typeof outcome === "string")
+      return { write: false, result: { ok: false, reason: outcome } };
     return {
       value: { recommendations: outcome.items },
       result: { ok: true, value: outcome.value },

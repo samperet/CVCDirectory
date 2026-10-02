@@ -1,4 +1,4 @@
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 
 /**
  * What a circle has turned on for itself: tasks and documents, each on

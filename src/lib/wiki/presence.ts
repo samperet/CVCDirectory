@@ -1,4 +1,5 @@
 import { mutateJson, readJson } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Who's editing which wiki page right now. Editors check in every few
@@ -7,10 +8,8 @@ import { mutateJson, readJson } from "@/lib/storage";
  * (`wiki/presence.json`), by page id.
  */
 
-export interface PageEditor {
-  userId: string;
-  name: string;
-}
+/** Someone editing a page. */
+export type PageEditor = Pick<Actor, "userId" | "name">;
 
 type Seen = { name: string; at: number };
 type Presence = { pages: Record<string, Record<string, Seen>> };

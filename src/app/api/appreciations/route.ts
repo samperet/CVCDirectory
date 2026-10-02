@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { actorOf } from "@/lib/auth/actor";
 import { excerpt, notify } from "@/lib/push/notify";
 import {
   MAX_APPRECIATIONS,
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
   const parsed = await readBody(request, appreciationInputSchema);
   if ("error" in parsed) return parsed.error;
 
-  const appreciation = await addAppreciation({ id: user.id, name: user.name }, parsed.data);
+  const appreciation = await addAppreciation(actorOf(user), parsed.data);
   await notify({
     topic: "appreciations",
     title: appreciation.to

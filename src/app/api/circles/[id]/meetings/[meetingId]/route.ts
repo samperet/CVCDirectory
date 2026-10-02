@@ -48,12 +48,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!ctx.canEdit) return editProblem();
   const parsed = await readBody(request, meetingUpdateSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await updateMeeting(
-    params.id,
-    params.meetingId,
-    { userId: ctx.user.id, name: ctx.user.name },
-    parsed.data
-  );
+  const result = await updateMeeting(params.id, params.meetingId, ctx.actor, parsed.data);
   return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
 }
 

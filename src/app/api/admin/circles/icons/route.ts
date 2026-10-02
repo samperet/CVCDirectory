@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authorizeAdminToken as authorize } from "@/lib/auth/admin-token";
 import { iconKey, isCircleId, readCircleIcons, setCircleIcon } from "@/lib/circles/icons";
-import { MAX_IMAGE_BYTES, sniffImageType } from "@/lib/images";
+import { MAX_IMAGE_BYTES, readImageUpload } from "@/lib/images";
 import { readBinary, writeBinary } from "@/lib/storage";
 import { problem } from "@/lib/http";
 
@@ -54,11 +54,12 @@ export async function PUT(request: NextRequest) {
   if (denied) return denied;
   const circle = request.nextUrl.searchParams.get("circle") ?? "";
   if (!isCircleId(circle)) return problem("Give ?circle=<id>");
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) return problem("Icon must be 1 MB or smaller", 413);
-  const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
-  await writeBinary(iconKey(circle), { bytes, contentType });
-  await setCircleIcon(circle, { contentType, updatedAt: new Date().toISOString() });
-  return NextResponse.json({ ok: true, circle, bytes: bytes.length });
+  const upload = await readImageUpload(request, { maxBytes: MAX_IMAGE_BYTES, label: "Icon" });
+  if ("error" in upload) return upload.error;
+  await writeBinary(iconKey(circle), upload.file);
+  await setCircleIcon(circle, {
+    contentType: upload.file.contentType,
+    updatedAt: new Date().toISOString(),
+  });
+  return NextResponse.json({ ok: true, circle, bytes: upload.file.bytes.length });
 }

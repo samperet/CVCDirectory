@@ -5,7 +5,8 @@ import { removeUserPush } from "@/lib/push/store";
 import { deleteBinary } from "@/lib/storage";
 import { removePerson } from "./people-store";
 import { unitsOf } from "./households";
-import type { Circle, DirectoryDocument, Person } from "./types";
+import type { DirectoryDocument, Person } from "./types";
+import type { Circle } from "@/lib/circles/types";
 
 /**
  * Directory changes shared by the directory managers' pages and the admin

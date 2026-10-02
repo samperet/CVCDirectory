@@ -1,5 +1,6 @@
 import { mutateJson, readJson } from "@/lib/storage";
-import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import type { DirectoryDocument } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import { BOARD_ID } from "./ids";
 
 /**

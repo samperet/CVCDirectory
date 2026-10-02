@@ -39,12 +39,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!ctx.canEdit) return editProblem();
   const parsed = await readBody(request, meetingCreateSchema, {});
   if ("error" in parsed) return parsed.error;
-  const result = await createMeeting(
-    params.id,
-    ctx.circle.name,
-    { userId: ctx.user.id, name: ctx.user.name },
-    parsed.data
-  );
+  const result = await createMeeting(params.id, ctx.circle.name, ctx.actor, parsed.data);
   return result.ok
     ? NextResponse.json({ meeting: result.value }, { status: 201 })
     : meetingsProblem(result.reason);

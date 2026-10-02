@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteBinary, mutateJson, readJson, writeBinary } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Community photos. Each image is a binary object (`photos/files/<id>`) with
@@ -49,7 +50,7 @@ export async function listPhotos(): Promise<Photo[]> {
 }
 
 export async function addPhoto(
-  uploader: { id: string; name: string } | null,
+  uploader: Pick<Actor, "userId" | "name"> | null,
   file: { bytes: Uint8Array; contentType: string },
   caption: string
 ): Promise<Photo | "full"> {
@@ -58,7 +59,7 @@ export async function addPhoto(
     caption,
     contentType: file.contentType,
     size: file.bytes.length,
-    uploaderId: uploader?.id ?? null,
+    uploaderId: uploader?.userId ?? null,
     uploaderName: uploader?.name ?? null,
     createdAt: new Date().toISOString(),
   };
@@ -73,13 +74,13 @@ export async function addPhoto(
   return result;
 }
 
-type Actor = { id: string; admin: boolean };
-const mayChange = (photo: Photo, actor: Actor) =>
-  actor.admin || (photo.uploaderId !== null && photo.uploaderId === actor.id);
+type Editor = Pick<Actor, "userId" | "admin">;
+const mayChange = (photo: Photo, actor: Editor) =>
+  actor.admin || (photo.uploaderId !== null && photo.uploaderId === actor.userId);
 
 export async function updateCaption(
   id: string,
-  actor: Actor,
+  actor: Editor,
   caption: string
 ): Promise<Photo | "not_found" | "forbidden"> {
   return mutateJson<Photo | "not_found" | "forbidden">(KEY, (raw) => {

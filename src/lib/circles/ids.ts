@@ -1,4 +1,4 @@
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 
 /**
  * The two circles every CVC directory has, by id — safe to import anywhere

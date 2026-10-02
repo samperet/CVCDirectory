@@ -58,11 +58,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return problem("One of those circles doesn't exist", 404);
 
   const before = ctx.page;
-  const result = await updatePage(
-    params.slug,
-    { userId: ctx.user.id, name: ctx.user.name },
-    update
-  );
+  const result = await updatePage(params.slug, ctx.actor, update);
   if (!result.ok && result.reason === "conflict") {
     const current = (await pageContext(params.slug)) as { page?: WikiPage };
     return NextResponse.json(

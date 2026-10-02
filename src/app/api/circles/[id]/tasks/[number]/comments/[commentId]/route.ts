@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/lib/tasks/store";
 import { deleteTaskComment, editTaskComment, taskCommentUpdateSchema } from "@/lib/tasks/comments";
-import { parseNumber, taskProblem, tasksContext } from "@/lib/tasks/http";
-import { problem, readBody } from "@/lib/http";
+import { parseNumber, taskCommentProblem, taskProblem, tasksContext } from "@/lib/tasks/http";
+import { readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +17,6 @@ async function load(params: Params["params"]) {
   return { ...ctx, task };
 }
 
-const failure = (reason: string) =>
-  reason === "forbidden"
-    ? problem("Only the comment's author can do that", 403)
-    : problem("That comment no longer exists", 404);
-
 /** Edit your comment. */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await load(params);
@@ -32,10 +27,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     params.id,
     ctx.task.id,
     params.commentId,
-    { id: ctx.user.id },
+    ctx.actor,
     parsed.data.body
   );
-  return result.ok ? NextResponse.json({ comment: result.comment }) : failure(result.reason);
+  return result.ok
+    ? NextResponse.json({ comment: result.comment })
+    : taskCommentProblem(result.reason);
 }
 
 /** Delete a comment: its author, the circle's editors, or an admin. */
@@ -43,8 +40,8 @@ export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await load(params);
   if ("error" in ctx) return ctx.error;
   const result = await deleteTaskComment(params.id, ctx.task.id, params.commentId, {
-    id: ctx.user.id,
+    ...ctx.actor,
     canModerate: ctx.canModerate,
   });
-  return result.ok ? NextResponse.json({ ok: true }) : failure(result.reason);
+  return result.ok ? NextResponse.json({ ok: true }) : taskCommentProblem(result.reason);
 }

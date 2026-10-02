@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_HOME_PHOTO_BYTES, getHome, isHomeId, photoKey, setHomePhoto } from "@/lib/homes/store";
 import { homesManager } from "@/lib/homes/access";
-import { sniffImageType } from "@/lib/images";
+import { readImageUpload } from "@/lib/images";
 import { readBinary } from "@/lib/storage";
 import { problem } from "@/lib/http";
 
@@ -33,13 +33,12 @@ export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await homesManager();
   if ("error" in ctx) return ctx.error;
   if (!isHomeId(params.id) || !(await getHome(params.id))) return notFound();
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_HOME_PHOTO_BYTES)
-    return problem("Photos must be 3 MB or smaller", 413);
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413);
-  const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
-  const result = await setHomePhoto(params.id, { bytes, contentType }, ctx.user.name);
+  const upload = await readImageUpload(request, {
+    maxBytes: MAX_HOME_PHOTO_BYTES,
+    label: "Photos",
+  });
+  if ("error" in upload) return upload.error;
+  const result = await setHomePhoto(params.id, upload.file, ctx.user.name);
   return result.ok ? NextResponse.json({ home: result.home }, { status: 201 }) : notFound();
 }
 

@@ -4,6 +4,7 @@ import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
 import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "@/lib/wiki/colors";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * The wiki: one for all of CVC. Every page, written in Markdown, has a
@@ -23,10 +24,8 @@ import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./li
  * documents are left as they were.
  */
 
-export interface WikiAuthor {
-  userId: string;
-  name: string;
-}
+/** Who wrote a version (stored with it). */
+export type WikiAuthor = Pick<Actor, "userId" | "name">;
 
 export interface WikiVersion {
   title: string;
@@ -198,14 +197,12 @@ export async function getHistory(pageId: string): Promise<WikiVersion[]> {
   return Array.isArray(versions) ? (versions as WikiVersion[]) : [];
 }
 
-type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
+export type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
 export type WikiResult = { ok: true; page: WikiPage | null } | { ok: false; reason: Failure };
 
 /** Change the pages; `archive` is a version to keep in a page's history once the change is saved. */
 async function mutate(
-  change: (
-    pages: WikiPage[]
-  ) =>
+  change: (pages: WikiPage[]) =>
     | {
         pages: WikiPage[];
         page: WikiPage | null;
@@ -268,6 +265,7 @@ export function createPage(
       return "exists";
     if (pages.length >= MAX_PAGES) return "full";
     const now = new Date().toISOString();
+    const by = { userId: author.userId, name: author.name };
     const page: WikiPage = {
       id: randomUUID(),
       slug: slugFor(
@@ -282,9 +280,9 @@ export function createPage(
       title: input.title,
       body: input.body,
       createdAt: now,
-      createdBy: author,
+      createdBy: by,
       updatedAt: now,
-      updatedBy: author,
+      updatedBy: by,
       keeper: input.keeper,
       view: input.view ?? DEFAULT_VIEW,
       edit: input.edit ?? DEFAULT_EDIT,
@@ -310,6 +308,7 @@ function withVersion(
   next: { title: string; body: string },
   autosave = false
 ): { page: WikiPage; archive?: WikiVersion } {
+  const by = { userId: editor.userId, name: editor.name };
   const recent = Date.now() - Date.parse(page.updatedAt) < AUTOSAVE_WINDOW_MS;
   // Co-editing: everyone's autosaves in one session make one version.
   if (
@@ -323,7 +322,7 @@ function withVersion(
         ...page,
         ...next,
         updatedAt: new Date().toISOString(),
-        updatedBy: editor,
+        updatedBy: by,
         autosaved: true,
       },
     };
@@ -340,7 +339,7 @@ function withVersion(
       ...rest,
       ...next,
       updatedAt: new Date().toISOString(),
-      updatedBy: editor,
+      updatedBy: by,
       historyCount: Math.min(MAX_HISTORY, page.historyCount + 1),
       ...(autosave ? { autosaved: true } : {}),
     },

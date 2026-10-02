@@ -1,4 +1,4 @@
-import { TIME_ZONE, todayInVermont } from "@/lib/time";
+import { todayInVermont } from "@/lib/time";
 
 /**
  * Duty rotations for circles (e.g. the Chicken Tenders' daily chicken and
@@ -11,7 +11,6 @@ import { TIME_ZONE, todayInVermont } from "@/lib/time";
  * taken in Eastern time, where the community is.
  */
 
-export const SCHEDULE_TIME_ZONE = TIME_ZONE;
 export const WEEKDAYS = [
   "Sunday",
   "Monday",

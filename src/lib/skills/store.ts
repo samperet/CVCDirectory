@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Skills belong to residents: every entry records the directory person who
@@ -62,7 +63,8 @@ export async function addSkill(
     ) {
       return { write: false, result: { ok: false, reason: "duplicate" } };
     }
-    if (mine.length >= MAX_PER_PERSON) return { write: false, result: { ok: false, reason: "limit" } };
+    if (mine.length >= MAX_PER_PERSON)
+      return { write: false, result: { ok: false, reason: "limit" } };
     const skill: SkillEntry = {
       id: randomUUID(),
       personId: person.id,
@@ -77,14 +79,15 @@ export async function addSkill(
 
 /** Remove a skill you offer; admins can remove anyone's. */
 export async function removeSkill(
-  actor: { personId: string; admin: boolean },
+  actor: Pick<Actor, "personId" | "admin">,
   skillId: string
 ): Promise<"removed" | "not_found" | "forbidden"> {
   return mutateJson<"removed" | "not_found" | "forbidden">(KEY, (raw) => {
     const skills = normalize(raw);
     const skill = skills.find((entry) => entry.id === skillId);
     if (!skill) return { write: false, result: "not_found" };
-    if (!actor.admin && skill.personId !== actor.personId) return { write: false, result: "forbidden" };
+    if (!actor.admin && skill.personId !== actor.personId)
+      return { write: false, result: "forbidden" };
     return { value: { skills: skills.filter((entry) => entry.id !== skillId) }, result: "removed" };
   });
 }

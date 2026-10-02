@@ -1,4 +1,13 @@
-/** Identify an uploaded image from its bytes rather than trusting the declared type. */
+import type { NextResponse } from "next/server";
+import { problem } from "@/lib/http";
+
+/**
+ * Images residents upload — profile and home photos, circle icons, wiki and
+ * gallery photos — are the raw request body (JPEG, PNG, or WebP), checked by
+ * their bytes rather than the declared type, and kept in storage as binaries.
+ */
+
+/** The image's type from its first bytes, or null for anything that isn't a JPEG, PNG, or WebP. */
 export function sniffImageType(
   bytes: Uint8Array
 ): "image/jpeg" | "image/png" | "image/webp" | null {
@@ -30,3 +39,30 @@ export const PRIVATE_IMAGE_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "Content-Disposition": "inline",
 };
+
+export interface ImageFile {
+  bytes: Uint8Array;
+  contentType: "image/jpeg" | "image/png" | "image/webp";
+}
+
+/**
+ * Read an uploaded image from the request body: too large (by the declared
+ * length, then the bytes) is a 413, anything that isn't a JPEG, PNG, or WebP
+ * a 415. `label` names it in the messages ("Photo", "Icon").
+ */
+export async function readImageUpload(
+  request: Request,
+  { maxBytes, label }: { maxBytes: number; label: string }
+): Promise<{ file: ImageFile } | { error: NextResponse }> {
+  const tooBig = () =>
+    ({
+      error: problem(`${label} must be ${Math.round(maxBytes / 1024 / 1024)} MB or smaller`, 413),
+    }) as const;
+  if (Number(request.headers.get("content-length") ?? 0) > maxBytes) return tooBig();
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length > maxBytes) return tooBig();
+  if (!bytes.length) return { error: problem(`Choose a ${label.toLowerCase()} to upload`) };
+  const contentType = sniffImageType(bytes);
+  if (!contentType) return { error: problem("Upload a JPEG, PNG, or WebP image", 415) };
+  return { file: { bytes, contentType } };
+}

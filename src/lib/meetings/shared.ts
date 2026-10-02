@@ -1,3 +1,4 @@
+import type { Actor } from "@/lib/auth/actor";
 /**
  * A circle's meetings and the proposals brought to them (safe for the
  * browser). A meeting has who was there and its notes (the minutes). A
@@ -18,10 +19,8 @@ export interface Attendee {
   name: string;
 }
 
-export interface MeetingAuthor {
-  userId: string;
-  name: string;
-}
+/** Who wrote or last changed a meeting's minutes (stored with it). */
+export type MeetingAuthor = Pick<Actor, "userId" | "name">;
 
 export interface Meeting {
   id: string;

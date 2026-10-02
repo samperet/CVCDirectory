@@ -7,7 +7,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { Circle, Person } from "@/lib/directory/types";
+import type { Person } from "@/lib/directory/types";
+import type { Circle, CircleKind } from "@/lib/circles/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ function NewCircleForm({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: "", description: "" });
-  const [kind, setKind] = useState<"circle" | "club">("club");
+  const [kind, setKind] = useState<CircleKind>("club");
 
   const create = useMutation({
     mutationFn: () =>

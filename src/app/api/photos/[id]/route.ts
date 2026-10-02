@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/admins";
+import { actorOf } from "@/lib/auth/actor";
 import { readBinary } from "@/lib/storage";
 import {
   captionSchema,
@@ -10,7 +10,7 @@ import {
   updateCaption,
 } from "@/lib/photos/store";
 import { PRIVATE_IMAGE_HEADERS } from "@/lib/images";
-import { problem } from "@/lib/http";
+import { forbidden, notFound, problem } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +20,10 @@ type Params = { params: { id: string } };
 export async function GET(_request: Request, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to view photos", 401);
-  if (!isPhotoId(params.id)) return problem("Photo not found", 404);
+  if (!isPhotoId(params.id)) return notFound("Photo");
 
   const file = await readBinary(photoFileKey(params.id));
-  if (!file) return problem("Photo not found", 404);
+  if (!file) return notFound("Photo");
   return new NextResponse(file.bytes as unknown as BodyInit, {
     headers: { "Content-Type": file.contentType, ...PRIVATE_IMAGE_HEADERS },
   });
@@ -33,20 +33,15 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PATCH(request: NextRequest, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to edit photos", 401);
-  if (!isPhotoId(params.id)) return problem("Photo not found", 404);
+  if (!isPhotoId(params.id)) return notFound("Photo");
 
   const body = (await request.json().catch(() => null)) as { caption?: unknown } | null;
   const caption = captionSchema.safeParse(body?.caption ?? "");
   if (!caption.success) return problem(caption.error.errors[0].message);
 
-  const result = await updateCaption(
-    params.id,
-    { id: user.id, admin: isAdmin(user) },
-    caption.data
-  );
-  if (result === "not_found") return problem("Photo not found", 404);
-  if (result === "forbidden")
-    return problem("Only the person who added this photo can edit it", 403);
+  const result = await updateCaption(params.id, actorOf(user), caption.data);
+  if (result === "not_found") return notFound("Photo");
+  if (result === "forbidden") return forbidden("Only the person who added this photo can edit it");
   return NextResponse.json({ photo: result });
 }
 
@@ -54,8 +49,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to remove photos", 401);
-  if (!isPhotoId(params.id)) return problem("Photo not found", 404);
+  if (!isPhotoId(params.id)) return notFound("Photo");
 
-  if ((await removePhoto(params.id)) === "not_found") return problem("Photo not found", 404);
+  if ((await removePhoto(params.id)) === "not_found") return notFound("Photo");
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,4 @@
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import { cn } from "@/lib/utils";
 
 const MINOR_WORDS = new Set(["of", "and", "the", "for", "a", "an", "&"]);

@@ -17,6 +17,7 @@ import {
   type ProposalComment,
   type ProposalEvent,
 } from "./shared";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * A circle's meetings and proposals, kept together (`meetings/<circleId>.json`)
@@ -134,6 +135,7 @@ export function createMeeting(
   return mutate<Meeting>(circleId, (stored, now) => {
     if (stored.meetings.length >= MAX_MEETINGS) return "full";
     const at = new Date(now).toISOString();
+    const by = { userId: author.userId, name: author.name };
     const meeting: Meeting = {
       id: randomUUID(),
       circleId,
@@ -141,9 +143,9 @@ export function createMeeting(
       date: input.date ?? todayInVermont(),
       attendees: [],
       notes: "",
-      createdBy: author,
+      createdBy: by,
       createdAt: at,
-      updatedBy: author,
+      updatedBy: by,
       updatedAt: at,
     };
     return { stored: { ...stored, meetings: [...stored.meetings, meeting] }, value: meeting };
@@ -189,7 +191,7 @@ export function updateMeeting(
       ...rest,
       ...(attendees ? { attendees: uniqueAttendees(attendees) } : {}),
       notes: nextNotes,
-      updatedBy: editor,
+      updatedBy: { userId: editor.userId, name: editor.name },
       updatedAt: new Date(now).toISOString(),
     };
     return {
@@ -239,8 +241,6 @@ export const proposalUpdateSchema = z.union([
     .refine((value) => Object.keys(value).length > 0, "Nothing to update"),
 ]);
 
-export type ProposalActor = { userId: string; personId: string | null; name: string };
-
 function changeProposal(
   circleId: string,
   proposalId: string,
@@ -272,7 +272,7 @@ const closed = (proposal: Proposal, now: number) =>
 export function addProposal(
   circleId: string,
   meetingId: string,
-  proposer: ProposalActor,
+  proposer: Actor,
   input: z.infer<typeof proposalInputSchema>
 ) {
   return mutate<Proposal>(circleId, (stored, now) => {
@@ -284,7 +284,7 @@ export function addProposal(
       meetingId,
       title: input.title,
       body: input.body,
-      proposer,
+      proposer: { userId: proposer.userId, personId: proposer.personId, name: proposer.name },
       createdAt: new Date(now).toISOString(),
       review: null,
       comments: [],
@@ -298,7 +298,7 @@ export function addProposal(
 export function editProposal(
   circleId: string,
   proposalId: string,
-  editor: ProposalActor,
+  editor: Actor,
   update: { title?: string; body?: string }
 ) {
   return changeProposal(circleId, proposalId, (proposal, now) => {
@@ -322,7 +322,7 @@ export function editProposal(
 }
 
 /** Send a draft for its five-day consent review. */
-export function startReview(circleId: string, proposalId: string, actor: ProposalActor) {
+export function startReview(circleId: string, proposalId: string, actor: Actor) {
   return changeProposal(circleId, proposalId, (proposal, now) => {
     if (proposalState(proposal, now) !== "draft") return "closed";
     const startedAt = new Date(now).toISOString();
@@ -335,7 +335,7 @@ export function startReview(circleId: string, proposalId: string, actor: Proposa
   });
 }
 
-export function withdrawProposal(circleId: string, proposalId: string, actor: ProposalActor) {
+export function withdrawProposal(circleId: string, proposalId: string, actor: Actor) {
   return changeProposal(circleId, proposalId, (proposal, now) => {
     if (closed(proposal, now)) return "closed";
     return {
@@ -427,7 +427,7 @@ function changeComments(
 export function addProposalComment(
   circleId: string,
   proposalId: string,
-  author: ProposalActor,
+  author: Actor,
   input: { kind: CommentKind; body: string; parentId: string | null }
 ) {
   return changeComments(circleId, proposalId, (proposal, now) => {
@@ -473,7 +473,7 @@ export function editProposalComment(
   circleId: string,
   proposalId: string,
   commentId: string,
-  actor: ProposalActor,
+  actor: Actor,
   body: string
 ) {
   return changeComments(circleId, proposalId, (proposal, now) => {
@@ -503,7 +503,7 @@ export function setTensionAddressed(
   circleId: string,
   proposalId: string,
   commentId: string,
-  actor: ProposalActor,
+  actor: Actor,
   addressed: boolean
 ) {
   return changeComments(circleId, proposalId, (proposal, now) => {
@@ -534,7 +534,7 @@ export function withdrawObjection(
   circleId: string,
   proposalId: string,
   commentId: string,
-  actor: ProposalActor & { admin: boolean },
+  actor: Actor,
   note: string | null
 ) {
   return changeComments(circleId, proposalId, (proposal, now) => {
@@ -574,7 +574,7 @@ export function deleteProposalComment(
   circleId: string,
   proposalId: string,
   commentId: string,
-  actor: { userId: string; admin: boolean }
+  actor: Pick<Actor, "userId" | "admin">
 ) {
   return changeComments(circleId, proposalId, (proposal) => {
     const comment = proposal.comments.find((entry) => entry.id === commentId);

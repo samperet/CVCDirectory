@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { actorOf } from "@/lib/auth/actor";
 import { excerpt, notify } from "@/lib/push/notify";
 import { addReply, replyInputSchema } from "@/lib/forum/store";
 import { forumProblem } from "@/lib/forum/http";
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const parsed = await readBody(request, replyInputSchema);
   if ("error" in parsed) return parsed.error;
 
-  const result = await addReply(params.id, { id: user.id, name: user.name }, parsed.data);
+  const result = await addReply(params.id, actorOf(user), parsed.data);
   if (!result.ok) return forumProblem(result.reason);
   // Tell the people in this discussion: whoever started it and everyone who has replied.
   const { thread, replies } = result.doc;

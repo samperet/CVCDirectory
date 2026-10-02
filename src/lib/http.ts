@@ -49,3 +49,10 @@ export async function readBody<S extends ZodTypeAny>(
 /** The 429 to return when this address has made too many `key` requests lately — else null. */
 export const throttled = (request: NextRequest, key: string, message = "Too many requests") =>
   rateLimit(`${key}:${request.ip ?? "anonymous"}`) ? null : problem(message, 429);
+
+/** "<What> not found", 404 — for something named in the URL that isn't there. */
+export const notFound = (what: string) => problem(`${what} not found`, 404);
+/** A 403: say who may do it instead. */
+export const forbidden = (detail: string) => problem(detail, 403);
+/** A 409 for a list that has reached its limit. */
+export const full = (detail: string) => problem(detail, 409);

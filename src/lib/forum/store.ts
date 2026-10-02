@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import { GENERAL_TOPIC_ID } from "./topics";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Forum threads, one document per thread (the opening post plus every reply,
@@ -14,13 +15,10 @@ import { GENERAL_TOPIC_ID } from "./topics";
  * off them.
  */
 
-/** Who is acting: their account id, and whether they're an admin. */
-export interface ForumActor {
-  id: string;
-  admin: boolean;
-}
+type Author = Pick<Actor, "userId" | "name">;
+type Moderator = Pick<Actor, "userId" | "admin">;
 
-const mayChange = (authorId: string, actor: ForumActor) => actor.admin || authorId === actor.id;
+const mayChange = (authorId: string, actor: Moderator) => actor.admin || authorId === actor.userId;
 
 /** Someone who liked a post; the name is kept so "liked by…" needs no lookups. */
 export interface ForumLike {
@@ -186,7 +184,7 @@ async function syncSummary(doc: ForumThreadDocument) {
 }
 
 export async function createThread(
-  author: { id: string; name: string },
+  author: Author,
   input: { title: string; body: string; topicId: string }
 ): Promise<ForumThreadDocument> {
   const now = new Date().toISOString();
@@ -194,7 +192,7 @@ export async function createThread(
     id: randomUUID(),
     title: input.title,
     body: input.body,
-    authorId: author.id,
+    authorId: author.userId,
     authorName: author.name,
     createdAt: now,
     topicId: input.topicId,
@@ -209,7 +207,7 @@ export async function createThread(
     {
       id: thread.id,
       title: thread.title,
-      authorId: author.id,
+      authorId: author.userId,
       authorName: author.name,
       createdAt: now,
       lastActivityAt: now,
@@ -220,7 +218,13 @@ export async function createThread(
   return doc;
 }
 
-type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post";
+export type Failure =
+  | "not_found"
+  | "forbidden"
+  | "unknown_parent"
+  | "full"
+  | "has_replies"
+  | "empty_post";
 export type ThreadResult = { ok: true; doc: ForumThreadDocument } | { ok: false; reason: Failure };
 
 /**
@@ -246,7 +250,7 @@ async function mutateThread(
 
 export function addReply(
   threadId: string,
-  author: { id: string; name: string },
+  author: Author,
   input: { parentId: string | null; body: string }
 ) {
   return mutateThread(threadId, (doc) => {
@@ -256,7 +260,7 @@ export function addReply(
     const reply: ForumReply = {
       id: randomUUID(),
       parentId: input.parentId,
-      authorId: author.id,
+      authorId: author.userId,
       authorName: author.name,
       body: input.body,
       createdAt: new Date().toISOString(),
@@ -265,7 +269,7 @@ export function addReply(
   });
 }
 
-export function editReply(threadId: string, actor: ForumActor, replyId: string, body: string) {
+export function editReply(threadId: string, actor: Moderator, replyId: string, body: string) {
   return mutateThread(threadId, (doc) => {
     const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
     if (!reply) return "not_found";
@@ -284,7 +288,7 @@ export function editReply(threadId: string, actor: ForumActor, replyId: string, 
  * keep a placeholder so their replies stay attached; then drop any
  * placeholders left with no replies.
  */
-export function deleteReply(threadId: string, actor: ForumActor, replyId: string) {
+export function deleteReply(threadId: string, actor: Moderator, replyId: string) {
   return mutateThread(threadId, (doc) => {
     const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
     if (!reply) return "not_found";
@@ -308,7 +312,7 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
 
 export function editThread(
   threadId: string,
-  actor: ForumActor,
+  actor: Moderator,
   update: { title?: string; body?: string; topicId?: string }
 ) {
   return mutateThread(threadId, (doc) => {
@@ -333,7 +337,7 @@ export function editThread(
  */
 export async function deleteThread(
   threadId: string,
-  actor: ForumActor
+  actor: Moderator
 ): Promise<{ ok: true } | { ok: false; reason: Failure }> {
   if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
   const result = await enqueue<{ ok: true } | { ok: false; reason: Failure }>(
@@ -342,7 +346,7 @@ export async function deleteThread(
       const doc = await getThread(threadId);
       if (!doc) return { ok: false, reason: "not_found" };
       if (!mayChange(doc.thread.authorId, actor)) return { ok: false, reason: "forbidden" };
-      if (!actor.admin && live(doc.replies).some((reply) => reply.authorId !== actor.id)) {
+      if (!actor.admin && live(doc.replies).some((reply) => reply.authorId !== actor.userId)) {
         return { ok: false, reason: "has_replies" };
       }
       await deleteJson(threadKey(threadId));
@@ -354,13 +358,9 @@ export async function deleteThread(
   return result;
 }
 
-function withLike(
-  likes: ForumLike[] | undefined,
-  user: { id: string; name: string },
-  liked: boolean
-): ForumLike[] {
-  const others = (likes ?? []).filter((like) => like.userId !== user.id);
-  return liked ? [...others, { userId: user.id, name: user.name }] : others;
+function withLike(likes: ForumLike[] | undefined, user: Author, liked: boolean): ForumLike[] {
+  const others = (likes ?? []).filter((like) => like.userId !== user.userId);
+  return liked ? [...others, { userId: user.userId, name: user.name }] : others;
 }
 
 /**
@@ -368,12 +368,7 @@ function withLike(
  * reply. Setting the same state twice is harmless. Likes don't change the
  * thread's place in the list, so the index is left alone.
  */
-export function setLike(
-  threadId: string,
-  replyId: string | null,
-  user: { id: string; name: string },
-  liked: boolean
-) {
+export function setLike(threadId: string, replyId: string | null, user: Author, liked: boolean) {
   return mutateThread(
     threadId,
     (doc) => {

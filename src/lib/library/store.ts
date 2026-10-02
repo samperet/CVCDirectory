@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * The loan library: things residents are happy to lend. Every item belongs
@@ -83,16 +84,13 @@ export async function addLoanItem(
   });
 }
 
-type OwnerResult<T> = { ok: true; value: T } | { ok: false; reason: "not_found" | "forbidden" };
+export type Failure = "not_found" | "forbidden";
+type OwnerResult<T> = { ok: true; value: T } | { ok: false; reason: Failure };
 
-/** The person acting on an item: its owner, or an admin, may change it. */
-export interface LoanActor {
-  personId: string;
-  admin: boolean;
-}
-
+/** Its owner, or an admin, may change an item. */
+type LoanActor = Pick<Actor, "personId" | "admin">;
 const mayChange = (item: LoanItem, actor: LoanActor) =>
-  actor.admin || item.ownerPersonId === actor.personId;
+  actor.admin || (!!actor.personId && item.ownerPersonId === actor.personId);
 
 export async function updateLoanItem(
   actor: LoanActor,
@@ -120,7 +118,11 @@ export async function removeLoanItem(actor: LoanActor, id: string): Promise<Owne
     const items = normalize(raw);
     const item = items.find((entry) => entry.id === id);
     if (!item) return { write: false, result: { ok: false, reason: "not_found" } };
-    if (!mayChange(item, actor)) return { write: false, result: { ok: false, reason: "forbidden" } };
-    return { value: { items: items.filter((entry) => entry.id !== id) }, result: { ok: true, value: null } };
+    if (!mayChange(item, actor))
+      return { write: false, result: { ok: false, reason: "forbidden" } };
+    return {
+      value: { items: items.filter((entry) => entry.id !== id) },
+      result: { ok: true, value: null },
+    };
   });
 }

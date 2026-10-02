@@ -1,6 +1,5 @@
 import { problem } from "@/lib/http";
-
-type Failure = "not_found" | "forbidden" | "unknown_parent" | "full" | "has_replies" | "empty_post";
+import type { Failure } from "./store";
 
 /** Map a forum store failure to an HTTP problem response. */
 export function forumProblem(reason: Failure) {

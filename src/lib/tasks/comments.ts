@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import type { TaskComment } from "./shared";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Comments on tasks, which nest: a comment can reply to any other on the
@@ -49,7 +50,7 @@ export function ancestors(comments: TaskComment[], comment: TaskComment) {
   return chain;
 }
 
-type Failure = "not_found" | "forbidden" | "full" | "unknown_parent";
+export type Failure = "not_found" | "forbidden" | "full" | "unknown_parent";
 export type TaskCommentResult =
   | { ok: true; comment: TaskComment | null; comments: TaskComment[] }
   | { ok: false; reason: Failure };
@@ -73,7 +74,7 @@ async function mutate(
 export function addTaskComment(
   circleId: string,
   taskId: string,
-  author: { id: string; name: string },
+  author: Pick<Actor, "userId" | "name">,
   input: { body: string; parentId: string | null }
 ) {
   return mutate(circleId, (comments) => {
@@ -87,7 +88,7 @@ export function addTaskComment(
       id: randomUUID(),
       taskId,
       parentId: input.parentId,
-      authorId: author.id,
+      authorId: author.userId,
       authorName: author.name,
       body: input.body,
       createdAt: new Date().toISOString(),
@@ -101,7 +102,7 @@ export function editTaskComment(
   circleId: string,
   taskId: string,
   commentId: string,
-  actor: { id: string },
+  actor: Pick<Actor, "userId">,
   body: string
 ) {
   return mutate(circleId, (comments) => {
@@ -109,7 +110,7 @@ export function editTaskComment(
       (entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted
     );
     if (!comment) return "not_found";
-    if (comment.authorId !== actor.id) return "forbidden";
+    if (comment.authorId !== actor.userId) return "forbidden";
     const updated = { ...comment, body, editedAt: new Date().toISOString() };
     return {
       comments: comments.map((entry) => (entry.id === commentId ? updated : entry)),
@@ -127,14 +128,14 @@ export function deleteTaskComment(
   circleId: string,
   taskId: string,
   commentId: string,
-  actor: { id: string; canModerate: boolean }
+  actor: Pick<Actor, "userId"> & { canModerate: boolean }
 ) {
   return mutate(circleId, (comments) => {
     const comment = comments.find(
       (entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted
     );
     if (!comment) return "not_found";
-    if (!actor.canModerate && comment.authorId !== actor.id) return "forbidden";
+    if (!actor.canModerate && comment.authorId !== actor.userId) return "forbidden";
     let next = comments.some((entry) => entry.parentId === commentId)
       ? comments.map((entry) =>
           entry.id === commentId ? { ...entry, body: "", deleted: true } : entry

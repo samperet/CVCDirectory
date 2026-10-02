@@ -8,6 +8,7 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import type { Poll, VoteFailure } from "./shared";
 import { PollInput, castVote, newPoll, pollInputSchema, withClosed } from "./server";
 import { isCommunity } from "@/lib/circles/ids";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Polls inside wiki pages. A page holds a poll as `::poll{id="…"}`; the
@@ -90,7 +91,7 @@ function mutate(
 
 export async function createWikiPoll(
   circleId: string,
-  author: { id: string; name: string },
+  author: Pick<Actor, "userId" | "name">,
   input: { question: string; details: string | null; membersOnly: boolean; poll: PollInput }
 ) {
   const poll: WikiPoll = {
@@ -98,7 +99,7 @@ export async function createWikiPoll(
     circleId,
     question: input.question,
     details: input.details,
-    authorId: author.id,
+    authorId: author.userId,
     authorName: author.name,
     createdAt: new Date().toISOString(),
     ...(input.membersOnly ? { membersOnly: true } : {}),
@@ -124,7 +125,7 @@ function update(id: string, change: (entry: WikiPoll) => WikiPoll | PollFailure)
 
 export function voteInWikiPoll(
   id: string,
-  user: { id: string; name: string },
+  user: Pick<Actor, "userId" | "name">,
   optionIds: string[],
   newOption?: string
 ) {
@@ -137,11 +138,11 @@ export function voteInWikiPoll(
 /** Its author may close or reopen a poll — and so may those who moderate the wiki. */
 export function setWikiPollClosed(
   id: string,
-  actor: { id: string; canModerate: boolean },
+  actor: Pick<Actor, "userId"> & { canModerate: boolean },
   closed: boolean
 ) {
   return update(id, (entry) =>
-    actor.canModerate || entry.authorId === actor.id
+    actor.canModerate || entry.authorId === actor.userId
       ? { ...entry, poll: withClosed(entry.poll, closed) }
       : "forbidden"
   );

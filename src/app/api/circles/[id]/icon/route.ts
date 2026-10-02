@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { circleContext } from "@/lib/circles/access";
 import { iconKey, isCircleId, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary, readBinary, writeBinary } from "@/lib/storage";
-import { MAX_IMAGE_BYTES, PRIVATE_IMAGE_HEADERS, sniffImageType } from "@/lib/images";
+import { MAX_IMAGE_BYTES, PRIVATE_IMAGE_HEADERS, readImageUpload } from "@/lib/images";
 import { problem, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -34,16 +34,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   const denied = await authorize(params.id);
   if (denied) return denied;
 
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_IMAGE_BYTES) {
-    return problem("Icon must be 1 MB or smaller", 413);
-  }
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) return problem("Icon must be 1 MB or smaller", 413);
-  const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
-
-  await writeBinary(iconKey(params.id), { bytes, contentType });
-  await setCircleIcon(params.id, { contentType, updatedAt: new Date().toISOString() });
+  const upload = await readImageUpload(request, { maxBytes: MAX_IMAGE_BYTES, label: "Icon" });
+  if ("error" in upload) return upload.error;
+  await writeBinary(iconKey(params.id), upload.file);
+  await setCircleIcon(params.id, {
+    contentType: upload.file.contentType,
+    updatedAt: new Date().toISOString(),
+  });
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 

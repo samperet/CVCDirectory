@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { circleContext } from "@/lib/circles/access";
+import { actorOf } from "@/lib/auth/actor";
 import { deleteBinary, readBinary } from "@/lib/storage";
 import { canManageDocument, canUploadTo, toListing } from "@/lib/documents/access";
 import { extractText, identifyDocument } from "@/lib/documents/files";
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
     viewable: identified.viewable,
     text,
   };
-  const uploader = { userId: user.id, personId: user.personId ?? null, name: user.name };
+  const uploader = actorOf(user);
 
   let result;
   if (grant.replaces) {

@@ -8,7 +8,6 @@ import { TIME_ZONE } from "@/lib/time";
  */
 
 export const CALENDAR_ID = "champlainvalleycohousinginfo@gmail.com";
-export const CALENDAR_TIME_ZONE = TIME_ZONE;
 const FEED_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(
   CALENDAR_ID
 )}/public/basic.ics`;
@@ -47,7 +46,7 @@ function zonedMidnight(time: ICAL.Time, timeZone: string): number {
 
 /** All-day dates carry no time zone; anchor them to the community's, not the server's. */
 function instant(time: ICAL.Time): number {
-  return time.isDate ? zonedMidnight(time, CALENDAR_TIME_ZONE) : time.toJSDate().getTime();
+  return time.isDate ? zonedMidnight(time, TIME_ZONE) : time.toJSDate().getTime();
 }
 
 function text(value: unknown): string | null {

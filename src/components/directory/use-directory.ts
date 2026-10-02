@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import type { DirectoryDocument } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 
 /**
  * The directory (people and circles) as the browser sees it: one shared

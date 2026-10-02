@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, mutateJson, readJson } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Comments on wiki pages: on the whole page, or on a passage (its `quote`,
@@ -69,7 +70,7 @@ export async function listComments(pageId: string): Promise<WikiComment[]> {
   return normalize(await readJson(key(pageId))).filter((comment) => comment.pageId === pageId);
 }
 
-type Failure = "not_found" | "forbidden" | "full" | "unknown_thread";
+export type Failure = "not_found" | "forbidden" | "full" | "unknown_thread";
 export type CommentResult =
   | { ok: true; comment: WikiComment | null; thread: WikiComment[] }
   | { ok: false; reason: Failure };
@@ -97,7 +98,7 @@ function mutate(
 
 export function addComment(
   pageId: string,
-  author: { id: string; name: string },
+  author: Pick<Actor, "userId" | "name">,
   input: { body: string; quote: string | null; parentId: string | null }
 ) {
   return mutate(pageId, (comments) => {
@@ -112,7 +113,7 @@ export function addComment(
       id: randomUUID(),
       pageId,
       parentId: input.parentId,
-      authorId: author.id,
+      authorId: author.userId,
       authorName: author.name,
       body: input.body,
       quote: input.parentId ? null : input.quote,
@@ -126,13 +127,13 @@ export function addComment(
 export function editComment(
   pageId: string,
   commentId: string,
-  actor: { id: string },
+  actor: Pick<Actor, "userId">,
   body: string
 ) {
   return mutate(pageId, (comments) => {
     const comment = comments.find((entry) => entry.id === commentId && entry.pageId === pageId);
     if (!comment) return "not_found";
-    if (comment.authorId !== actor.id) return "forbidden";
+    if (comment.authorId !== actor.userId) return "forbidden";
     const updated = { ...comment, body, editedAt: new Date().toISOString() };
     return {
       comments: comments.map((entry) => (entry.id === commentId ? updated : entry)),
@@ -146,7 +147,7 @@ export function editComment(
 export function setResolved(
   pageId: string,
   commentId: string,
-  actor: { id: string; name: string; canModerate: boolean },
+  actor: Pick<Actor, "userId" | "name"> & { canModerate: boolean },
   resolved: boolean
 ) {
   return mutate(pageId, (comments) => {
@@ -154,7 +155,7 @@ export function setResolved(
       (entry) => entry.id === commentId && entry.pageId === pageId && entry.parentId === null
     );
     if (!root) return "not_found";
-    if (!actor.canModerate && root.authorId !== actor.id) return "forbidden";
+    if (!actor.canModerate && root.authorId !== actor.userId) return "forbidden";
     const updated = {
       ...root,
       resolvedAt: resolved ? new Date().toISOString() : null,
@@ -172,12 +173,12 @@ export function setResolved(
 export function deleteComment(
   pageId: string,
   commentId: string,
-  actor: { id: string; admin: boolean }
+  actor: Pick<Actor, "userId" | "admin">
 ) {
   return mutate(pageId, (comments) => {
     const comment = comments.find((entry) => entry.id === commentId && entry.pageId === pageId);
     if (!comment) return "not_found";
-    if (!actor.admin && comment.authorId !== actor.id) return "forbidden";
+    if (!actor.admin && comment.authorId !== actor.userId) return "forbidden";
     const remaining = comments.filter(
       (entry) => entry.id !== commentId && entry.parentId !== commentId
     );

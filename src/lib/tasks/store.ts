@@ -80,7 +80,7 @@ export async function getTask(circleId: string, number: number): Promise<Task | 
   return (await listTasks(circleId)).find((task) => task.number === number) ?? null;
 }
 
-type Failure = "not_found" | "full" | "forbidden";
+export type Failure = "not_found" | "full" | "forbidden";
 export type TaskResult =
   | { ok: true; task: Task | null; before: Task | null }
   | { ok: false; reason: Failure };
@@ -128,7 +128,7 @@ export function createTask(
       dueDate: input.dueDate,
       checklist: withIds(input.checklist),
       createdAt: now,
-      createdBy: author,
+      createdBy: { userId: author.userId, personId: author.personId, name: author.name },
       updatedAt: now,
       completedAt: input.status === "done" ? now : null,
       activity: [],

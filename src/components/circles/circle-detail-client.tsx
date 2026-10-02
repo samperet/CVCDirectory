@@ -8,13 +8,8 @@ import { BackLink } from "@/components/layout/back-link";
 import { Check, LayoutGrid, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type {
-  Circle,
-  CircleApplication,
-  CircleSeat,
-  JoinPolicy,
-  Person,
-} from "@/lib/directory/types";
+import type { Person } from "@/lib/directory/types";
+import type { Circle, CircleApplication, CircleSeat, JoinPolicy } from "@/lib/circles/types";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";

@@ -1,3 +1,4 @@
+import type { Actor } from "@/lib/auth/actor";
 /**
  * Circle documents: shared by the server and the browser (no server imports).
  *
@@ -47,11 +48,8 @@ export const ACCEPTED_EXTENSIONS = [
   ".webp",
 ];
 
-export interface Uploader {
-  userId: string;
-  personId: string | null;
-  name: string;
-}
+/** Who uploaded a version (stored with it). */
+export type Uploader = Pick<Actor, "userId" | "personId" | "name">;
 
 export interface DocumentVersion {
   number: number;

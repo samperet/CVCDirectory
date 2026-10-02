@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { BookOpen, Plus } from "lucide-react";
 import { moduleTitle, type CircleModule, type InfoFilter } from "@/lib/circles/layout";
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import { AddInformationDialog } from "@/components/circles/add-information-dialog";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/admins";
+import { actorOf } from "@/lib/auth/actor";
 import { deleteThread, editThread, getThread, threadUpdateSchema } from "@/lib/forum/store";
 import { forumProblem } from "@/lib/forum/http";
 import { getTopic } from "@/lib/forum/topics";
@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   if (parsed.data.topicId && !(await getTopic(parsed.data.topicId)))
     return problem("That topic no longer exists", 404);
-  const result = await editThread(params.id, { id: user.id, admin: isAdmin(user) }, parsed.data);
+  const result = await editThread(params.id, actorOf(user), parsed.data);
   return result.ok ? NextResponse.json(result.doc) : forumProblem(result.reason);
 }
 
@@ -35,6 +35,6 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   const user = await getSessionUser();
   if (!user) return problem("Sign in to delete", 401);
 
-  const result = await deleteThread(params.id, { id: user.id, admin: isAdmin(user) });
+  const result = await deleteThread(params.id, actorOf(user));
   return result.ok ? NextResponse.json({ ok: true }) : forumProblem(result.reason);
 }

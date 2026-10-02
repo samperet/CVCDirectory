@@ -6,10 +6,10 @@ import {
   listTaskComments,
   taskCommentInputSchema,
 } from "@/lib/tasks/comments";
-import { parseNumber, taskProblem, tasksContext } from "@/lib/tasks/http";
+import { parseNumber, taskCommentProblem, taskProblem, tasksContext } from "@/lib/tasks/http";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { excerpt, notify } from "@/lib/push/notify";
-import { problem, readBody, throttled } from "@/lib/http";
+import { readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -42,16 +42,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, taskCommentInputSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await addTaskComment(
-    params.id,
-    ctx.task.id,
-    { id: ctx.user.id, name: ctx.user.name },
-    parsed.data
-  );
-  if (!result.ok)
-    return result.reason === "unknown_parent"
-      ? problem("That comment no longer exists", 404)
-      : problem("This circle's tasks have too many comments", 409);
+  const result = await addTaskComment(params.id, ctx.task.id, ctx.actor, parsed.data);
+  if (!result.ok) return taskCommentProblem(result.reason);
 
   // Tell the task's owner and whoever added it, and those in the conversation above this reply.
   const above = ancestors(result.comments, result.comment!).map((entry) => entry.authorId);

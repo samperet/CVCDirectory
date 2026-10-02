@@ -1,19 +1,9 @@
 import { getSessionUser } from "@/lib/auth/session";
 import { readDirectory, readImportedDirectory } from "@/lib/directory/store";
 import { problem } from "@/lib/http";
-import { BOARD_ID } from "./store";
+import { BOARD_ID, type Failure } from "./store";
 import { canManageCircle, isCircleId } from "./icons";
-import { isAdmin } from "@/lib/auth/admins";
-
-type Failure =
-  | "not_found"
-  | "exists"
-  | "duplicate_member"
-  | "last_board_member"
-  | "already_applied"
-  | "not_member"
-  | "full"
-  | "everyone";
+import { actorOf } from "@/lib/auth/actor";
 
 /** Map a circle store failure to an HTTP problem response. */
 export function circleProblem(reason: Failure) {
@@ -38,9 +28,9 @@ export function circleProblem(reason: Failure) {
 }
 
 /**
- * Load the signed-in resident, the directory, and the imported circles (used
- * to seed the circle store), and optionally check they may manage a circle.
- * Admins pass every check.
+ * Load the signed-in resident (and who they are to the stores, `actor`), the
+ * directory, and the imported circles (used to seed the circle store), and
+ * optionally check they may manage a circle. Admins pass every check.
  */
 export async function circleContext(
   options: { circleId?: string; require?: "member-or-board" | "board" } = {}
@@ -51,24 +41,28 @@ export async function circleContext(
   if (!directory || !imported)
     return { error: problem("The directory hasn't been imported yet", 503) } as const;
 
+  const actor = actorOf(user);
   const { circleId, require } = options;
   if (circleId !== undefined) {
     if (!isCircleId(circleId) || !directory.circles.some((circle) => circle.id === circleId)) {
       return { error: problem("Circle not found", 404) } as const;
     }
-    const admin = isAdmin(user);
     if (
       require === "member-or-board" &&
-      !admin &&
+      !actor.admin &&
       !canManageCircle(directory, circleId, user.personId)
     ) {
       return {
         error: problem("Only this circle's members or the Board can change it", 403),
       } as const;
     }
-    if (require === "board" && !admin && !canManageCircle(directory, BOARD_ID, user.personId)) {
+    if (
+      require === "board" &&
+      !actor.admin &&
+      !canManageCircle(directory, BOARD_ID, user.personId)
+    ) {
       return { error: problem("Only the Board can do that", 403) } as const;
     }
   }
-  return { user, personId: user.personId, directory, imported: imported.circles } as const;
+  return { user, actor, personId: user.personId, directory, imported: imported.circles } as const;
 }

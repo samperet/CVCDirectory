@@ -39,8 +39,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ("error" in parsed) return parsed.error;
   const ownerName = personName(ctx.directory, parsed.data.ownerId);
   if (parsed.data.ownerId && !ownerName) return problem("That person isn't in the directory");
-  const author = { userId: ctx.user.id, personId: ctx.user.personId ?? null, name: ctx.user.name };
-  const result = await createTask(params.id, author, parsed.data, ownerName);
+  const result = await createTask(params.id, ctx.actor, parsed.data, ownerName);
   if (!result.ok || !result.task) return taskProblem(result.ok ? "not_found" : result.reason);
   const task = result.task;
   if (task.ownerId && task.ownerId !== ctx.user.personId) {

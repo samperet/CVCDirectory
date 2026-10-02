@@ -7,7 +7,7 @@ import { BackLink } from "@/components/layout/back-link";
 import { ListChecks, MessageSquare, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import { featureEnabled } from "@/lib/circles/features";
 import {
   PRIORITY_LABELS,

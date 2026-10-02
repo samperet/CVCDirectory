@@ -2,9 +2,10 @@ import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
 import { anyoneAddsTasks, featureEnabled } from "@/lib/circles/features";
 import { canUploadTo } from "@/lib/documents/access";
-import { isAdmin } from "@/lib/auth/admins";
 import { problem } from "@/lib/http";
 import type { DirectoryDocument } from "@/lib/directory/types";
+import type { Failure } from "./store";
+import type { Failure as CommentFailure } from "./comments";
 
 /**
  * Who may see and change a circle's tasks. Every signed-in resident sees
@@ -27,13 +28,14 @@ export async function tasksContext(circleId: string, { write = false } = {}) {
     canEdit || (canAdd && task.createdBy.userId === ctx.user.id);
   return {
     user: ctx.user,
+    actor: ctx.actor,
     directory: ctx.directory,
     circle,
     enabled,
     canEdit,
     canAdd,
     ownTask,
-    canModerate: canEdit || isAdmin(ctx.user),
+    canModerate: canEdit || ctx.actor.admin,
   };
 }
 
@@ -43,7 +45,7 @@ export const personName = (directory: DirectoryDocument, personId: string | null
 
 export const parseNumber = (value: string) => (/^\d{1,6}$/.test(value) ? Number(value) : null);
 
-export function taskProblem(reason: "not_found" | "full" | "forbidden") {
+export function taskProblem(reason: Failure) {
   switch (reason) {
     case "not_found":
       return problem("That task no longer exists", 404);
@@ -51,5 +53,17 @@ export function taskProblem(reason: "not_found" | "full" | "forbidden") {
       return problem("This circle has as many tasks as it can hold", 409);
     case "forbidden":
       return problem("Only this circle's members, the Board, and admins can change that", 403);
+  }
+}
+
+export function taskCommentProblem(reason: CommentFailure) {
+  switch (reason) {
+    case "not_found":
+    case "unknown_parent":
+      return problem("That comment no longer exists", 404);
+    case "forbidden":
+      return problem("Only the comment's author can do that", 403);
+    case "full":
+      return problem("This circle's tasks have too many comments", 409);
   }
 }

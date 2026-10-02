@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import { proposalState, type Meeting } from "@/lib/meetings/shared";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { actorOf } from "@/lib/auth/actor";
 import { excerpt, notify } from "@/lib/push/notify";
 import { createThread, listThreads, threadInputSchema, topicOf } from "@/lib/forum/store";
 import { getTopic, listTopics } from "@/lib/forum/topics";
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
   const topic = await getTopic(parsed.data.topicId);
   if (!topic) return problem("That topic no longer exists", 404);
 
-  const doc = await createThread({ id: user.id, name: user.name }, parsed.data);
+  const doc = await createThread(actorOf(user), parsed.data);
   await notify({
     topic: "discussions",
     title: `New discussion in ${topic.name}: ${doc.thread.title}`,

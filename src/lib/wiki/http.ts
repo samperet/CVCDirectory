@@ -2,9 +2,12 @@ import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
 import { problem } from "@/lib/http";
 import { canEditPage, canManagePage, canViewPage } from "./access";
-import { getPage, isSlug, type WikiPage } from "./store";
+import { getPage, isSlug, type Failure, type WikiPage } from "./store";
+import type { Failure as CommentFailure } from "./comments";
+import type { Actor } from "@/lib/auth/actor";
 import { userIdsForPeople } from "@/lib/auth/users";
-import type { Circle, DirectoryDocument } from "@/lib/directory/types";
+import type { DirectoryDocument } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import type { CommunityUser } from "@/lib/auth/users";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 
@@ -14,13 +17,18 @@ import { BOARD_ID, COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
  * `access.ts`). A page someone can't see is "not found" to them.
  */
 
-type Session = { user: CommunityUser; directory: DirectoryDocument; imported: Circle[] };
+type Session = {
+  user: CommunityUser;
+  actor: Actor;
+  directory: DirectoryDocument;
+  imported: Circle[];
+};
 type PageSession = Session & { page: WikiPage; canEdit: boolean; canManage: boolean };
 
 export async function wikiSession(): Promise<{ error: NextResponse } | Session> {
   const ctx = await circleContext();
   if ("error" in ctx) return { error: ctx.error as NextResponse };
-  return { user: ctx.user, directory: ctx.directory, imported: ctx.imported };
+  return { user: ctx.user, actor: ctx.actor, directory: ctx.directory, imported: ctx.imported };
 }
 
 export async function pageContext(
@@ -43,7 +51,7 @@ export async function pageContext(
   return { ...ctx, page, canEdit, canManage };
 }
 
-export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_version" | "conflict") {
+export function wikiProblem(reason: Failure) {
   switch (reason) {
     case "not_found":
       return problem("That page no longer exists", 404);
@@ -55,6 +63,18 @@ export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_versio
       return problem("That version no longer exists", 404);
     case "conflict":
       return problem("Someone else saved this page while you were editing it", 409);
+  }
+}
+
+export function commentProblem(reason: CommentFailure) {
+  switch (reason) {
+    case "not_found":
+    case "unknown_thread":
+      return problem("That comment no longer exists", 404);
+    case "forbidden":
+      return problem("You can't change that comment", 403);
+    case "full":
+      return problem("This page has as many comments as it can hold", 409);
   }
 }
 

@@ -9,7 +9,7 @@ import { deleteBinary, writeBinary } from "@/lib/storage";
 import { ProfileOverride, isPersonId, photoKey, updateProfile } from "@/lib/profiles/store";
 import { formatPhone, normalizeBirthday, profileUpdateSchema } from "@/lib/profiles/validation";
 import { problem, readBody, throttled } from "@/lib/http";
-import { MAX_IMAGE_BYTES, sniffImageType } from "@/lib/images";
+import { MAX_IMAGE_BYTES, readImageUpload } from "@/lib/images";
 
 /**
  * Shared handlers for the profile routes. `/api/profiles/me` acts on the
@@ -148,17 +148,11 @@ export async function uploadProfilePhoto(request: NextRequest, target: Target) {
   if ("error" in found) return found.error;
   const { person } = found;
 
-  const declared = Number(request.headers.get("content-length") ?? 0);
-  if (declared > MAX_IMAGE_BYTES) return problem("Photo must be 1 MB or smaller", 413);
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) return problem("Photo must be 1 MB or smaller", 413);
-
-  const contentType = sniffImageType(bytes);
-  if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
-
-  await writeBinary(photoKey(person.id), { bytes, contentType });
+  const upload = await readImageUpload(request, { maxBytes: MAX_IMAGE_BYTES, label: "Photo" });
+  if ("error" in upload) return upload.error;
+  await writeBinary(photoKey(person.id), upload.file);
   const profile = await updateProfile(person.id, {
-    photo: { contentType, updatedAt: new Date().toISOString() },
+    photo: { contentType: upload.file.contentType, updatedAt: new Date().toISOString() },
   });
   return NextResponse.json({ photo: profile.photo }, { status: 201 });
 }

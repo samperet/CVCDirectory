@@ -11,10 +11,6 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
   if ("error" in ctx) return ctx.error;
   const parsed = restoreSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem("Choose a version to restore");
-  const result = await restoreVersion(
-    params.slug,
-    { userId: ctx.user.id, name: ctx.user.name },
-    parsed.data.index
-  );
+  const result = await restoreVersion(params.slug, ctx.actor, parsed.data.index);
   return result.ok ? NextResponse.json({ page: result.page }) : wikiProblem(result.reason);
 }

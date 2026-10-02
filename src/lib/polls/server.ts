@@ -7,6 +7,7 @@ import {
   VoteFailure,
   pollIsOpen,
 } from "./shared";
+import type { Actor } from "@/lib/auth/actor";
 
 /** Creating, voting in, and closing polls — the parts that don't depend on where a poll lives. */
 
@@ -71,7 +72,7 @@ export function newPoll(input: PollInput): Poll {
  */
 export function castVote(
   poll: Poll,
-  user: { id: string; name: string },
+  user: Pick<Actor, "userId" | "name">,
   optionIds: string[],
   newOption?: string
 ): Poll | VoteFailure {
@@ -93,12 +94,12 @@ export function castVote(
   }
   if (chosen.some((id) => !options.some((option) => option.id === id))) return "invalid_vote";
   if (!poll.multiple && chosen.length > 1) return "invalid_vote";
-  const others = poll.votes.filter((entry) => entry.userId !== user.id);
+  const others = poll.votes.filter((entry) => entry.userId !== user.userId);
   return {
     ...poll,
     options,
     votes: chosen.length
-      ? [...others, { userId: user.id, name: user.name, optionIds: chosen }]
+      ? [...others, { userId: user.userId, name: user.name, optionIds: chosen }]
       : others,
   };
 }

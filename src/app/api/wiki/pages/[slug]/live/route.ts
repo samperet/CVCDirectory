@@ -36,8 +36,5 @@ export async function POST(request: NextRequest, { params }: Params) {
       .catch(() => null)
   );
   if (!parsed.success) return problem("Say whether you're editing");
-  return state(
-    ctx.page,
-    await checkIn(ctx.page.id, { userId: ctx.user.id, name: ctx.user.name }, parsed.data.editing)
-  );
+  return state(ctx.page, await checkIn(ctx.page.id, ctx.actor, parsed.data.editing));
 }

@@ -43,10 +43,7 @@ export async function POST(request: NextRequest) {
   if (!canUploadTo(ctx.user, ctx.directory, keeper) && !(source && source.keeper === keeper)) {
     return problem("You can only start pages kept by your own circles", 403);
   }
-  const result = await createPage(
-    { userId: ctx.user.id, name: ctx.user.name },
-    { ...input, keeper }
-  );
+  const result = await createPage(ctx.actor, { ...input, keeper });
   return result.ok
     ? NextResponse.json({ page: result.page }, { status: 201 })
     : wikiProblem(result.reason);

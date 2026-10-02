@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       params.id,
       params.proposalId,
       params.commentId,
-      { ...ctx.actor, admin: ctx.admin },
+      ctx.actor,
       input.note
     );
     if (!result.ok) return meetingsProblem(result.reason);
@@ -86,9 +86,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await meetingsContext(params.id);
   if ("error" in ctx) return ctx.error;
-  const result = await deleteProposalComment(params.id, params.proposalId, params.commentId, {
-    userId: ctx.user.id,
-    admin: ctx.admin,
-  });
+  const result = await deleteProposalComment(
+    params.id,
+    params.proposalId,
+    params.commentId,
+    ctx.actor
+  );
   return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
 }

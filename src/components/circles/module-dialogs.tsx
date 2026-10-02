@@ -31,7 +31,7 @@ import {
   type InfoView,
   type ModuleType,
 } from "@/lib/circles/layout";
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import { pageStyle } from "@/lib/wiki/colors";
 import { pagesFor } from "@/components/circles/information-module";
 import { useWikiPages } from "@/components/wiki/wiki-client";

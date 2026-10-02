@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import { prepareSquareImage, uploadImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";

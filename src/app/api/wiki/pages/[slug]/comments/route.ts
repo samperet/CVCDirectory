@@ -27,11 +27,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, commentInputSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await addComment(
-    ctx.page.id,
-    { id: ctx.user.id, name: ctx.user.name },
-    parsed.data
-  );
+  const result = await addComment(ctx.page.id, ctx.actor, parsed.data);
   if (!result.ok)
     return result.reason === "unknown_thread"
       ? problem("That comment thread no longer exists", 404)

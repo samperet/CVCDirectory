@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/admins";
+import { actorOf, type Actor } from "@/lib/auth/actor";
 import { problem } from "@/lib/http";
-import type { Actor, Result } from "./store";
+import type { Result } from "./store";
 
 /** The signed-in resident as a resources actor, or an error response. */
 export async function resourceActor(): Promise<{ actor: Actor } | { error: NextResponse }> {
   const user = await getSessionUser();
   if (!user) return { error: problem("Sign in to continue", 401) };
-  return {
-    actor: {
-      userId: user.id,
-      personId: user.personId ?? null,
-      name: user.name,
-      admin: isAdmin(user),
-    },
-  };
+  return { actor: actorOf(user) };
 }
 
 /** Answer with the changed recommendation, or the matching problem. */

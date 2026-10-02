@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
+import type { Actor } from "@/lib/auth/actor";
 
 /**
  * Appreciations are short public thank-you notes that rotate through the
@@ -47,12 +48,12 @@ export async function listAppreciations(limit = 50): Promise<Appreciation[]> {
 }
 
 export async function addAppreciation(
-  author: { id: string; name: string },
+  author: Pick<Actor, "userId" | "name">,
   input: { to: string | null; message: string }
 ): Promise<Appreciation> {
   const appreciation: Appreciation = {
     id: randomUUID(),
-    authorId: author.id,
+    authorId: author.userId,
     authorName: author.name,
     to: input.to,
     message: input.message,

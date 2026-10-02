@@ -1,12 +1,11 @@
 import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
 import { canManageCircle } from "@/lib/circles/icons";
-import { isAdmin } from "@/lib/auth/admins";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
 import { problem } from "@/lib/http";
-import type { Circle } from "@/lib/directory/types";
-import { claimConsents, type Failure, type ProposalActor } from "./store";
+import type { Circle } from "@/lib/circles/types";
+import { claimConsents, type Failure } from "./store";
 import { proposalHref } from "./shared";
 
 /**
@@ -20,9 +19,9 @@ export async function meetingsContext(circleId: string) {
   const ctx = await circleContext({ circleId });
   if ("error" in ctx) return { error: ctx.error as NextResponse };
   const circle = ctx.directory.circles.find((entry) => entry.id === circleId)!;
-  const admin = isAdmin(ctx.user);
+  const { actor } = ctx;
+  const admin = actor.admin;
   const member = circle.seats.some((seat) => seat.personId === ctx.personId);
-  const actor: ProposalActor = { userId: ctx.user.id, personId: ctx.personId, name: ctx.user.name };
   return {
     user: ctx.user,
     directory: ctx.directory,

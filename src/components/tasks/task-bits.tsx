@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Flag } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Circle } from "@/lib/directory/types";
+import type { Circle } from "@/lib/circles/types";
 import {
   STATUS_LABELS,
   TASK_STATUSES,

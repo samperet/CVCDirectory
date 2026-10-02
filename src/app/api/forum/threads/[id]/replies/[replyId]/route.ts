@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { isAdmin } from "@/lib/auth/admins";
+import { actorOf } from "@/lib/auth/actor";
 import { deleteReply, editReply, replyUpdateSchema } from "@/lib/forum/store";
 import { forumProblem } from "@/lib/forum/http";
 import { problem, readBody } from "@/lib/http";
@@ -17,12 +17,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = await readBody(request, replyUpdateSchema);
   if ("error" in parsed) return parsed.error;
 
-  const result = await editReply(
-    params.id,
-    { id: user.id, admin: isAdmin(user) },
-    params.replyId,
-    parsed.data.body
-  );
+  const result = await editReply(params.id, actorOf(user), params.replyId, parsed.data.body);
   return result.ok ? NextResponse.json(result.doc) : forumProblem(result.reason);
 }
 
@@ -31,10 +26,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to delete", 401);
 
-  const result = await deleteReply(
-    params.id,
-    { id: user.id, admin: isAdmin(user) },
-    params.replyId
-  );
+  const result = await deleteReply(params.id, actorOf(user), params.replyId);
   return result.ok ? NextResponse.json(result.doc) : forumProblem(result.reason);
 }

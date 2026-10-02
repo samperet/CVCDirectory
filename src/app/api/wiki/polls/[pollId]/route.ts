@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return problem(`Only ${access.circleName}'s members can vote in this poll`, 403);
   const result = await voteInWikiPoll(
     params.pollId,
-    { id: ctx.user.id, name: ctx.user.name },
+    ctx.actor,
     parsed.data.optionIds,
     parsed.data.newOption
   );
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!entry) return pollProblem("not_found");
   const result = await setWikiPollClosed(
     params.pollId,
-    { id: ctx.user.id, canModerate: pollAccess(ctx.user, ctx.directory, entry).canClose },
+    { ...ctx.actor, canModerate: pollAccess(ctx.user, ctx.directory, entry).canClose },
     parsed.data.closed
   );
   return result.ok

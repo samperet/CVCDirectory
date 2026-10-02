@@ -79,9 +79,7 @@ function score(terms: string[], fields: [text: string, weight: number][]): numbe
 function collect<T>(
   items: T[],
   terms: string[],
-  toResult: (
-    item: T
-  ) => {
+  toResult: (item: T) => {
     fields: [string, number][];
     result: Omit<SearchResult, "score" | "snippet">;
     body?: string;

@@ -100,10 +100,14 @@ async function mutate<T>(
   if (text) await writeText(text.id, text.value);
   const result = await mutateJson<DocumentResult<T>>(INDEX, (raw) => {
     const outcome = change(normalizeIndex(raw));
-    if (typeof outcome === "string") return { write: false, result: { ok: false, reason: outcome } };
+    if (typeof outcome === "string")
+      return { write: false, result: { ok: false, reason: outcome } };
     const stamp = (raw as { textUpdatedAt?: string } | null)?.textUpdatedAt ?? "";
     return {
-      value: { documents: outcome.documents, textUpdatedAt: text ? new Date().toISOString() : stamp },
+      value: {
+        documents: outcome.documents,
+        textUpdatedAt: text ? new Date().toISOString() : stamp,
+      },
       result: { ok: true, value: outcome.value },
     };
   });
@@ -132,7 +136,7 @@ export async function createDocument(
     contentType: file.contentType,
     viewable: file.viewable,
     textChars: file.text.length,
-    uploadedBy: uploader,
+    uploadedBy: { userId: uploader.userId, personId: uploader.personId, name: uploader.name },
     uploadedAt: now,
   };
   await writeBinary(fileKey(id, 1), { bytes: file.bytes, contentType: file.contentType });
@@ -179,15 +183,15 @@ export async function addVersion(
       // Another upload took this version number first: this file is taken back.
       if (documents[index].versions.some((entry) => entry.number === number)) return "conflict";
       const version: DocumentVersion = {
-      number,
-      fileName: file.fileName,
-      size: file.bytes.length,
-      contentType: file.contentType,
-      viewable: file.viewable,
-      textChars: file.text.length,
-      uploadedBy: uploader,
-      uploadedAt: now,
-    };
+        number,
+        fileName: file.fileName,
+        size: file.bytes.length,
+        contentType: file.contentType,
+        viewable: file.viewable,
+        textChars: file.text.length,
+        uploadedBy: { userId: uploader.userId, personId: uploader.personId, name: uploader.name },
+        uploadedAt: now,
+      };
       const next = [...documents];
       next[index] = {
         ...documents[index],

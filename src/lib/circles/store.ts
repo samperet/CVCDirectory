@@ -12,7 +12,7 @@ import {
 } from "./layout";
 import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "./ids";
-import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
+import type { Circle, CircleApplication, CircleKind, CircleSeat } from "@/lib/circles/types";
 
 /**
  * Circles are managed in the app. The store is seeded once from the imported
@@ -179,7 +179,7 @@ export async function readCircles(imported: Circle[]): Promise<Circle[]> {
   return readOrSeedJson(KEY, normalize, () => ({ circles: seedFrom(imported) }));
 }
 
-type Failure =
+export type Failure =
   | "not_found"
   | "exists"
   | "duplicate_member"
@@ -218,7 +218,7 @@ function slugFor(input: { name: string }, taken: Set<string>) {
 
 export function createCircle(
   imported: Circle[],
-  input: { name: string; description: string | null; kind: "circle" | "club" },
+  input: { name: string; description: string | null; kind: CircleKind },
   founder: { personId: string; name: string }
 ) {
   return mutate(imported, (circles) => {
@@ -251,7 +251,7 @@ export function updateCircle(
     name: string;
     description: string | null;
     joinPolicy: "open" | "apply";
-    kind: "circle" | "club";
+    kind: CircleKind;
     modules: CircleModule[];
   }>
 ) {
