@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 import { ResultBody, SEARCH_ICONS, termsOf } from "@/components/search/results";
 
 /**
- * The header's search: a large bar in the middle of the screen, over a
- * dimmed page, with results as you type (a moment after typing stops, from
+ * The header's search: a large, fully rounded bar in the middle of the
+ * screen (the page behind left as it is), with results as you type (a moment after typing stops, from
  * two letters), grouped by kind. ↑ and ↓ choose a result, Enter opens it (or,
  * with none chosen, the full results page), Escape or a click outside closes
  * it. Opened by the magnifying glass, "/", or Ctrl+K (⌘K).
@@ -98,7 +98,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const optionId = (n: number) => `search-choice-${n}`;
   return (
     <div
-      className="fixed inset-0 z-[70] flex justify-center bg-foreground/30 px-4 pt-4 backdrop-blur-sm sm:pt-[12vh]"
+      className="fixed inset-0 z-[70] flex justify-center px-4 pt-4 sm:pt-[12vh]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -107,10 +107,10 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="Search"
-        className="flex h-fit max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-elev sm:max-h-[76vh]"
+        className="flex h-fit max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col gap-2 sm:max-h-[76vh]"
         data-search-palette
       >
-        <div className="relative shrink-0 border-b border-border">
+        <div className="relative shrink-0 rounded-full border border-border bg-white shadow-elev">
           <Search
             className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted"
             aria-hidden
@@ -120,7 +120,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search everything…"
+            placeholder="Search anything"
             type="text"
             inputMode="search"
             enterKeyHint="search"
@@ -130,8 +130,8 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
             aria-expanded={searching}
             aria-controls="search-choices"
             aria-activedescendant={active >= 0 ? optionId(active) : undefined}
-            aria-label="Search everything"
-            className="h-14 w-full bg-transparent pl-14 pr-24 text-lg text-foreground placeholder:text-muted focus:outline-none"
+            aria-label="Search anything"
+            className="h-14 w-full rounded-full bg-transparent pl-14 pr-24 text-lg text-foreground placeholder:text-muted focus:outline-none"
           />
           <span className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
             {isFetching ? (
@@ -148,14 +148,12 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
           id="search-choices"
           role="listbox"
           aria-label="Results"
-          className="overflow-y-auto"
+          className={cn(
+            "overflow-y-auto rounded-2xl border border-border bg-surface shadow-elev",
+            !searching && "hidden"
+          )}
         >
-          {!searching ? (
-            <p className="px-5 py-4 text-sm text-muted">
-              Search people and their skills, circles, pages and files, the forum, tasks, resources,
-              and the loan library.
-            </p>
-          ) : error ? (
+          {!searching ? null : error ? (
             <p className="px-5 py-4 text-sm text-foreground">{(error as Error).message}</p>
           ) : !data ? (
             <p className="px-5 py-4 text-sm text-muted">Searching…</p>
