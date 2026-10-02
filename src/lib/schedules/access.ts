@@ -17,6 +17,9 @@ export function scheduleAccess(
   const personId = user.personId ?? null;
   const canEdit = isAdmin(user) || (!!personId && canManageCircle(directory, circleId, personId));
   const inRotation =
-    !!personId && !!schedule?.households.some((household) => household.members.some((member) => member.personId === personId));
+    !!personId &&
+    !!schedule?.households.some((household) =>
+      household.members.some((member) => member.personId === personId)
+    );
   return { canEdit, canChangeDays: canEdit || inRotation };
 }

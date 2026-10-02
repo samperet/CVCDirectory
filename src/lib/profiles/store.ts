@@ -47,7 +47,11 @@ export async function updateProfile(
 ): Promise<ProfileOverride> {
   return enqueue(KEY, async () => {
     const profiles = await readProfiles();
-    const next: ProfileOverride = { ...profiles[personId], ...patch, updatedAt: new Date().toISOString() };
+    const next: ProfileOverride = {
+      ...profiles[personId],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
     await writeJson(KEY, { profiles: { ...profiles, [personId]: next } });
     return next;
   });
@@ -75,7 +79,9 @@ export function applyProfile(person: Person, override: ProfileOverride | undefin
     landline: has(override, "landline") ? override.landline ?? null : person.landline,
     birthday: has(override, "birthday") ? override.birthday ?? null : person.birthday,
     bio: override.bio ?? null,
-    photoUrl: override.photo ? `/api/profiles/${person.id}/photo?v=${encodeURIComponent(override.photo.updatedAt)}` : null,
+    photoUrl: override.photo
+      ? `/api/profiles/${person.id}/photo?v=${encodeURIComponent(override.photo.updatedAt)}`
+      : null,
   };
 }
 

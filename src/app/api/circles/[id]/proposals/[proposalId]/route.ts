@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteProposal, editProposal, proposalUpdateSchema, readCircleMeetings, startReview, withdrawProposal } from "@/lib/meetings/store";
-import { announceConsents, editProblem, meetingsContext, meetingsProblem, memberUserIds } from "@/lib/meetings/http";
+import {
+  deleteProposal,
+  editProposal,
+  proposalUpdateSchema,
+  readCircleMeetings,
+  startReview,
+  withdrawProposal,
+} from "@/lib/meetings/store";
+import {
+  announceConsents,
+  editProblem,
+  meetingsContext,
+  meetingsProblem,
+  memberUserIds,
+} from "@/lib/meetings/http";
 import { proposalHref, summarizeMeeting } from "@/lib/meetings/shared";
 import { notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
@@ -10,7 +23,13 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string; proposalId: string } };
 
-const longDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: TIME_ZONE, weekday: "short", month: "short", day: "numeric" });
+const longDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", {
+    timeZone: TIME_ZONE,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 
 /** A proposal with its review (comments, objections, history), the meeting it came from, and what you can do. */
 export async function GET(_request: Request, { params }: Params) {
@@ -22,7 +41,13 @@ export async function GET(_request: Request, { params }: Params) {
   if (!proposal) return meetingsProblem("not_found");
   const meeting = meetings.find((entry) => entry.id === proposal.meetingId);
   return NextResponse.json(
-    { proposal, meeting: meeting ? summarizeMeeting(meeting) : null, canEdit: ctx.canEdit, canReview: ctx.canReview, admin: ctx.admin },
+    {
+      proposal,
+      meeting: meeting ? summarizeMeeting(meeting) : null,
+      canEdit: ctx.canEdit,
+      canReview: ctx.canReview,
+      admin: ctx.admin,
+    },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }
@@ -49,7 +74,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     await notify({
       topic: "proposals",
       title: `For review: ${proposal.title}`,
-      body: `${ctx.circle.name}: log any tensions or objections by ${longDate(proposal.review!.deadline!)}.`,
+      body: `${ctx.circle.name}: log any tensions or objections by ${longDate(
+        proposal.review!.deadline!
+      )}.`,
       url: proposalHref(params.id, proposal.id),
       tag: `proposal-${proposal.id}`,
       exceptUserId: ctx.user.id,

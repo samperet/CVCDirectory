@@ -18,7 +18,9 @@ async function load(params: Params["params"]) {
 }
 
 const failure = (reason: string) =>
-  reason === "forbidden" ? problem("Only the comment's author can do that", 403) : problem("That comment no longer exists", 404);
+  reason === "forbidden"
+    ? problem("Only the comment's author can do that", 403)
+    : problem("That comment no longer exists", 404);
 
 /** Edit your comment. */
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -26,7 +28,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, taskCommentUpdateSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await editTaskComment(params.id, ctx.task.id, params.commentId, { id: ctx.user.id }, parsed.data.body);
+  const result = await editTaskComment(
+    params.id,
+    ctx.task.id,
+    params.commentId,
+    { id: ctx.user.id },
+    parsed.data.body
+  );
   return result.ok ? NextResponse.json({ comment: result.comment }) : failure(result.reason);
 }
 
@@ -34,6 +42,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await load(params);
   if ("error" in ctx) return ctx.error;
-  const result = await deleteTaskComment(params.id, ctx.task.id, params.commentId, { id: ctx.user.id, canModerate: ctx.canModerate });
+  const result = await deleteTaskComment(params.id, ctx.task.id, params.commentId, {
+    id: ctx.user.id,
+    canModerate: ctx.canModerate,
+  });
   return result.ok ? NextResponse.json({ ok: true }) : failure(result.reason);
 }

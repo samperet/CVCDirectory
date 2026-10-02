@@ -22,14 +22,19 @@ export function AppSettings() {
 
   const setPreference = useMutation({
     mutationFn: (update: Partial<Preferences>) =>
-      apiFetch<{ preferences: Preferences }>("/api/push/preferences", { method: "PUT", body: JSON.stringify(update) }),
+      apiFetch<{ preferences: Preferences }>("/api/push/preferences", {
+        method: "PUT",
+        body: JSON.stringify(update),
+      }),
     onMutate: (update) => {
       queryClient.setQueryData(["push"], (current: typeof push.info.data) =>
         current ? { ...current, preferences: { ...current.preferences, ...update } } : current
       );
     },
     onSuccess: ({ preferences: saved }) =>
-      queryClient.setQueryData(["push"], (current: typeof push.info.data) => (current ? { ...current, preferences: saved } : current)),
+      queryClient.setQueryData(["push"], (current: typeof push.info.data) =>
+        current ? { ...current, preferences: saved } : current
+      ),
     onError: (err: Error) => {
       queryClient.invalidateQueries({ queryKey: ["push"] });
       toast({ title: "Could not save", description: err.message, variant: "destructive" });
@@ -39,19 +44,23 @@ export function AppSettings() {
   const test = useMutation({
     mutationFn: () => apiFetch("/api/push/test", { method: "POST" }),
     onSuccess: () => toast({ title: "Test sent", description: "It should appear in a moment." }),
-    onError: (err: Error) => toast({ title: "Could not send a test", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not send a test", description: err.message, variant: "destructive" }),
   });
 
   const run = (action: () => Promise<void>, done: string) =>
     action()
       .then(() => toast({ title: done }))
-      .catch((err: Error) => toast({ title: "Notifications", description: err.message, variant: "destructive" }));
+      .catch((err: Error) =>
+        toast({ title: "Notifications", description: err.message, variant: "destructive" })
+      );
 
   const needsInstallFirst = install.ios && !install.installed;
 
   // Arriving from "App & notifications" in the menu: bring this card into view once it has rendered.
   useEffect(() => {
-    if (window.location.hash === "#app") document.getElementById("app")?.scrollIntoView({ behavior: "smooth" });
+    if (window.location.hash === "#app")
+      document.getElementById("app")?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   return (
@@ -70,13 +79,14 @@ export function AppSettings() {
           </Button>
         ) : install.ios ? (
           <p className="text-sm text-foreground-light">
-            In Safari, tap <Share className="inline h-4 w-4 align-text-bottom" aria-label="Share" /> Share, then{" "}
-            <strong>Add to Home Screen</strong>. Open CVC from your home screen to turn on notifications.
+            In Safari, tap <Share className="inline h-4 w-4 align-text-bottom" aria-label="Share" />{" "}
+            Share, then <strong>Add to Home Screen</strong>. Open CVC from your home screen to turn
+            on notifications.
           </p>
         ) : (
           <p className="text-sm text-foreground-light">
-            Use your browser&apos;s menu — <strong>Install app</strong> or <strong>Add to Home screen</strong> — to add CVC
-            to this device.
+            Use your browser&apos;s menu — <strong>Install app</strong> or{" "}
+            <strong>Add to Home screen</strong> — to add CVC to this device.
           </p>
         )}
       </section>
@@ -93,22 +103,40 @@ export function AppSettings() {
           </p>
         ) : push.permission === "denied" ? (
           <p className="text-sm text-foreground-light">
-            Notifications are blocked for this site. Allow them in your browser&apos;s site settings, then reload this page.
+            Notifications are blocked for this site. Allow them in your browser&apos;s site
+            settings, then reload this page.
           </p>
         ) : push.subscribed ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex items-center gap-1.5 text-sm text-foreground-light">
               <Bell className="h-4 w-4 text-primary" /> On for this device.
             </span>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => test.mutate()} disabled={test.isPending}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => test.mutate()}
+              disabled={test.isPending}
+            >
               <Send className="h-4 w-4" /> {test.isPending ? "Sending…" : "Send a test"}
             </Button>
-            <Button size="sm" variant="ghost" className="gap-1.5 text-muted" onClick={() => void run(push.disable, "Notifications turned off for this device")} disabled={push.busy}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 text-muted"
+              onClick={() => void run(push.disable, "Notifications turned off for this device")}
+              disabled={push.busy}
+            >
               <BellOff className="h-4 w-4" /> Turn off
             </Button>
           </div>
         ) : (
-          <Button size="sm" className="w-fit gap-1.5" onClick={() => void run(push.enable, "Notifications are on")} disabled={push.busy}>
+          <Button
+            size="sm"
+            className="w-fit gap-1.5"
+            onClick={() => void run(push.enable, "Notifications are on")}
+            disabled={push.busy}
+          >
             <Bell className="h-4 w-4" /> {push.busy ? "Turning on…" : "Turn on notifications"}
           </Button>
         )}
@@ -117,7 +145,10 @@ export function AppSettings() {
       {preferences && topics ? (
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold text-foreground">Notify me about</h3>
-          <p className="-mt-1 text-xs text-muted">Applies to every device you&apos;ve turned notifications on for. You&apos;re never notified about your own posts.</p>
+          <p className="-mt-1 text-xs text-muted">
+            Applies to every device you&apos;ve turned notifications on for. You&apos;re never
+            notified about your own posts.
+          </p>
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {(Object.keys(topics) as Topic[]).map((topic) => {
               const on = preferences[topic];
@@ -125,7 +156,12 @@ export function AppSettings() {
                 <li key={topic}>
                   <label className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm text-foreground">
                     {topics[topic]}
-                    <input type="checkbox" className="peer sr-only" checked={on} onChange={() => setPreference.mutate({ [topic]: !on })} />
+                    <input
+                      type="checkbox"
+                      className="peer sr-only"
+                      checked={on}
+                      onChange={() => setPreference.mutate({ [topic]: !on })}
+                    />
                     <span
                       aria-hidden
                       className={cn(
@@ -133,7 +169,12 @@ export function AppSettings() {
                         on ? "bg-primary" : "bg-border"
                       )}
                     >
-                      <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", on ? "left-[1.125rem]" : "left-0.5")} />
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+                          on ? "left-[1.125rem]" : "left-0.5"
+                        )}
+                      />
                     </span>
                   </label>
                 </li>

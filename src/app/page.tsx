@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Layers, Share2, MessagesSquare, BookUser, Camera, Lightbulb } from "lucide-react";
+import {
+  ChevronRight,
+  Layers,
+  Share2,
+  MessagesSquare,
+  BookUser,
+  Camera,
+  Lightbulb,
+} from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { MyTasks } from "@/components/tasks/my-tasks";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
@@ -60,8 +68,20 @@ export const metadata = {
 
 /** "Good morning", by the time of day in Vermont. */
 function greeting(now = new Date()) {
-  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: TIME_ZONE }).format(now));
-  return hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone: TIME_ZONE,
+    }).format(now)
+  );
+  return hour < 5
+    ? "Good evening"
+    : hour < 12
+      ? "Good morning"
+      : hour < 17
+        ? "Good afternoon"
+        : "Good evening";
 }
 
 /** The public front page for visitors; the dashboard for signed-in residents. */
@@ -70,7 +90,12 @@ export default async function HomePage() {
   if (!user) return <PublicHome homes={await publicHomes().catch(() => [])} />;
   const [nextEvent] = await getUpcomingEvents(1);
   const firstName = user.name.split(/\s+/)[0];
-  const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: TIME_ZONE }).format(new Date());
+  const today = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: TIME_ZONE,
+  }).format(new Date());
   return (
     <div className="flex flex-col gap-6">
       <section className="relative overflow-hidden rounded-2xl bg-forest px-6 py-7 text-white shadow-soft md:px-8 md:py-9">

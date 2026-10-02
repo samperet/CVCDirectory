@@ -10,8 +10,14 @@ export const dynamic = "force-dynamic";
 
 const id = z.string().regex(/^[a-f0-9]{12}$/);
 const schema = z.object({
-  residents: z.array(z.object({ personId: id, resident: z.boolean() })).max(200).default([]),
-  leaveUnit: z.array(z.object({ personId: id, unit: z.number().int() })).max(100).default([]),
+  residents: z
+    .array(z.object({ personId: id, resident: z.boolean() }))
+    .max(200)
+    .default([]),
+  leaveUnit: z
+    .array(z.object({ personId: id, unit: z.number().int() }))
+    .max(100)
+    .default([]),
   remove: z.array(id).max(100).default([]),
 });
 
@@ -33,7 +39,9 @@ export async function POST(request: NextRequest) {
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; "));
+    return problem(
+      parsed.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ")
+    );
   }
 
   const imported = await readImportedDirectory();
@@ -63,7 +71,9 @@ export async function POST(request: NextRequest) {
     }
     const entries = applyPeopleChanges(imported.people, await readPeopleChanges());
     const result = await leaveUnit(directory, entries, person, unit);
-    results.push(`${person.displayName}: ${result === "left" ? `left unit ${unit}` : result.replace("_", " ")}`);
+    results.push(
+      `${person.displayName}: ${result === "left" ? `left unit ${unit}` : result.replace("_", " ")}`
+    );
   }
 
   for (const personId of parsed.data.remove) {

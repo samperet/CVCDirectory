@@ -21,7 +21,15 @@ import { excerptOf } from "@/lib/wiki/excerpt";
  * a result; a match in a title counts most.
  */
 
-export type SearchKind = "people" | "circles" | "wiki" | "forum" | "documents" | "tasks" | "resources" | "library";
+export type SearchKind =
+  | "people"
+  | "circles"
+  | "wiki"
+  | "forum"
+  | "documents"
+  | "tasks"
+  | "resources"
+  | "library";
 
 export interface SearchResult {
   title: string;
@@ -68,38 +76,64 @@ function score(terms: string[], fields: [text: string, weight: number][]): numbe
   return total;
 }
 
-function collect<T>(items: T[], terms: string[], toResult: (item: T) => { fields: [string, number][]; result: Omit<SearchResult, "score" | "snippet">; body?: string } | null) {
+function collect<T>(
+  items: T[],
+  terms: string[],
+  toResult: (
+    item: T
+  ) => {
+    fields: [string, number][];
+    result: Omit<SearchResult, "score" | "snippet">;
+    body?: string;
+  } | null
+) {
   const results: SearchResult[] = [];
   for (const item of items) {
     const entry = toResult(item);
     if (!entry) continue;
     const points = score(terms, entry.fields);
     if (points === null) continue;
-    results.push({ ...entry.result, snippet: entry.body ? snippetFor(entry.body, terms) : null, score: points });
+    results.push({
+      ...entry.result,
+      snippet: entry.body ? snippetFor(entry.body, terms) : null,
+      score: points,
+    });
   }
   return results;
 }
 
 /** Search everything; each group lists its best `perGroup` results, and how many matched in all. */
-export async function searchSite(query: string, directory: DirectoryDocument, viewer: WikiViewer, perGroup = 5): Promise<SearchGroup[]> {
+export async function searchSite(
+  query: string,
+  directory: DirectoryDocument,
+  viewer: WikiViewer,
+  perGroup = 5
+): Promise<SearchGroup[]> {
   const terms = searchTerms(query);
   if (!terms.length) return [];
   const circles = directory.circles;
   const circleName = (id: string) => circles.find((circle) => circle.id === id)?.name ?? "";
 
-  const [skills, documents, types, forum, recommendations, loans, wikis, tasks] = await Promise.all([
-    listSkills(),
-    listDocuments(),
-    readTypeMap(),
-    searchForum(query),
-    listRecommendations(),
-    listLoanItems(),
-    readPages().then((pages) => visiblePages(viewer, directory, pages)),
-    Promise.all(circles.filter((circle) => featureEnabled(circle, "tasks")).map(async (circle) => ({ circle, tasks: await listTasks(circle.id) }))),
-  ]);
+  const [skills, documents, types, forum, recommendations, loans, wikis, tasks] = await Promise.all(
+    [
+      listSkills(),
+      listDocuments(),
+      readTypeMap(),
+      searchForum(query),
+      listRecommendations(),
+      listLoanItems(),
+      readPages().then((pages) => visiblePages(viewer, directory, pages)),
+      Promise.all(
+        circles
+          .filter((circle) => featureEnabled(circle, "tasks"))
+          .map(async (circle) => ({ circle, tasks: await listTasks(circle.id) }))
+      ),
+    ]
+  );
 
   const skillsOf = new Map<string, string[]>();
-  for (const skill of skills) skillsOf.set(skill.personId, [...(skillsOf.get(skill.personId) ?? []), skill.name]);
+  for (const skill of skills)
+    skillsOf.set(skill.personId, [...(skillsOf.get(skill.personId) ?? []), skill.name]);
 
   const people = collect(directory.people, terms, (person) => {
     const personSkills = skillsOf.get(person.id) ?? [];
@@ -112,7 +146,12 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       result: {
         title: person.displayName,
         href: `/directory/${person.id}`,
-        meta: [`Unit ${person.unit}`, personSkills.length ? `Skills: ${personSkills.join(", ")}` : null].filter(Boolean).join(" · "),
+        meta: [
+          `Unit ${person.unit}`,
+          personSkills.length ? `Skills: ${personSkills.join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
       },
       body: person.bio ?? undefined,
     };
@@ -123,7 +162,11 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       [circle.name, 20],
       [circle.description ?? "", 3],
     ],
-    result: { title: circle.name, href: `/circles/${circle.id}`, meta: circle.kind === "club" ? "Social club" : "Circle" },
+    result: {
+      title: circle.name,
+      href: `/circles/${circle.id}`,
+      meta: circle.kind === "club" ? "Social club" : "Circle",
+    },
     body: circle.description ?? undefined,
   }));
 
@@ -132,7 +175,11 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       [page.title, 20],
       [page.body, 1],
     ],
-    result: { title: page.title, href: `/wiki/${page.slug}`, meta: `Wiki · ${circleName(page.keeper)}` },
+    result: {
+      title: page.title,
+      href: `/wiki/${page.slug}`,
+      meta: `Wiki · ${circleName(page.keeper)}`,
+    },
     // The page as plain text: links by their words; no photos, polls, or markup.
     body: excerptOf(page.body, 50_000),
   }));
@@ -147,7 +194,12 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       result: {
         title: task.title,
         href: `/circles/${circle.id}/tasks/${task.number}`,
-        meta: [`${circle.name} task #${task.number}`, task.status === "done" ? "done" : task.ownerName].filter(Boolean).join(" · "),
+        meta: [
+          `${circle.name} task #${task.number}`,
+          task.status === "done" ? "done" : task.ownerName,
+        ]
+          .filter(Boolean)
+          .join(" · "),
       },
       body: task.description || undefined,
     }))
@@ -160,7 +212,11 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       [entry.body, 2],
       [entry.comments.map((comment) => comment.body).join("\n"), 1],
     ],
-    result: { title: entry.title, href: `/resources/${categorySlug(entry.category)}`, meta: `${entry.category} · recommended by ${entry.submittedBy.name}` },
+    result: {
+      title: entry.title,
+      href: `/resources/${categorySlug(entry.category)}`,
+      meta: `${entry.category} · recommended by ${entry.submittedBy.name}`,
+    },
     body: entry.body,
   }));
 
@@ -171,17 +227,33 @@ export async function searchSite(query: string, directory: DirectoryDocument, vi
       [item.description, 2],
       [item.ownerName, 3],
     ],
-    result: { title: item.title, href: "/library", meta: `${item.category} · lent by ${item.ownerName}${item.available ? "" : " · on loan"}` },
+    result: {
+      title: item.title,
+      href: "/library",
+      meta: `${item.category} · lent by ${item.ownerName}${item.available ? "" : " · on loan"}`,
+    },
     body: item.description || undefined,
   }));
 
   const consented = (doc: DocumentRecord) => consentState(doc) === "consented";
-  const documentHits = await searchDocuments(documents, query, (doc) => `${circleName(doc.circleId)} ${typeLabelFor(doc, types)}${consented(doc) ? " consented" : ""}`);
+  const documentHits = await searchDocuments(
+    documents,
+    query,
+    (doc) =>
+      `${circleName(doc.circleId)} ${typeLabelFor(doc, types)}${consented(doc) ? " consented" : ""}`
+  );
   const documentResults: SearchResult[] = documentHits.map((hit) => ({
     title: hit.doc.title,
     href: `/api/documents/${hit.doc.id}/file`,
     external: true,
-    meta: [circleName(hit.doc.circleId), typeLabelFor(hit.doc, types), consented(hit.doc) ? "Consented" : null, hit.doc.meetingDate].filter(Boolean).join(" · "),
+    meta: [
+      circleName(hit.doc.circleId),
+      typeLabelFor(hit.doc, types),
+      consented(hit.doc) ? "Consented" : null,
+      hit.doc.meetingDate,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     snippet: hit.snippet ?? hit.doc.description ?? null,
     score: hit.score,
   }));

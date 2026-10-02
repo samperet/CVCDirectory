@@ -14,7 +14,11 @@ import { useLogin, usePeople, useRefreshSession, useSession } from "@/lib/auth/c
 /** Where to go after signing in: a same-site path from ?next=, never another origin. */
 function destination(): string {
   const next = new URLSearchParams(window.location.search).get("next");
-  return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") && !next.startsWith("/login")
+  return next &&
+    next.startsWith("/") &&
+    !next.startsWith("//") &&
+    !next.startsWith("/\\") &&
+    !next.startsWith("/login")
     ? next
     : "/";
 }
@@ -102,13 +106,18 @@ export function LoginClient() {
           ) : (
             <form className="flex flex-col gap-6" onSubmit={handleSignIn} noValidate>
               {formError ? (
-                <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <p
+                  role="alert"
+                  className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                >
                   {formError}
                 </p>
               ) : null}
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">Your Name</label>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Your Name
+                </label>
                 <NameCombobox
                   users={people}
                   value={selected}
@@ -148,17 +157,23 @@ export function LoginClient() {
                   </button>
                 </div>
                 <p className="mt-3 text-sm text-muted">
-                  Your phone number is your password. Dashes, dots, spaces, and parentheses are all fine.
+                  Your phone number is your password. Dashes, dots, spaces, and parentheses are all
+                  fine.
                 </p>
               </div>
 
-              <Button type="submit" className="w-full py-3 text-lg" size="lg" disabled={signingIn || isLoading}>
+              <Button
+                type="submit"
+                className="w-full py-3 text-lg"
+                size="lg"
+                disabled={signingIn || isLoading}
+              >
                 {signingIn ? "Signing in…" : "Sign In"}
               </Button>
 
               <p className="text-center text-sm text-muted">
-                Don&apos;t see your name? Only residents with a phone number on the HOA contact list can sign
-                in — ask the Board to update your entry.
+                Don&apos;t see your name? Only residents with a phone number on the HOA contact list
+                can sign in — ask the Board to update your entry.
               </p>
             </form>
           )}

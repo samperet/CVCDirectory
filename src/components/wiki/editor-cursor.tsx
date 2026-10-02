@@ -2,7 +2,14 @@
 
 import { useEffect, type MutableRefObject } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isTextNode, type LexicalEditor } from "lexical";
+import {
+  $getRoot,
+  $getSelection,
+  $isElementNode,
+  $isRangeSelection,
+  $isTextNode,
+  type LexicalEditor,
+} from "lexical";
 import { addComposerChild$, realmPlugin } from "@mdxeditor/editor";
 
 /**
@@ -67,7 +74,9 @@ export function restoreCursor(editor: LexicalEditor, mark: CursorMark, mineAt: n
     // The same block's text, nearest where it should be; else whatever is there.
     let target = children[near];
     for (let step = 0; step <= 3; step++) {
-      const found = [children[near - step], children[near + step]].find((child) => child && child.getTextContent() === mark.text);
+      const found = [children[near - step], children[near + step]].find(
+        (child) => child && child.getTextContent() === mark.text
+      );
       if (found) {
         target = found;
         break;

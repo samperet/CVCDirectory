@@ -23,8 +23,18 @@ export async function tasksContext(circleId: string, { write = false } = {}) {
   if (write && !enabled) return { error: problem(`${circle.name} has turned its tasks off`, 409) };
   const canEdit = enabled && canUploadTo(ctx.user, ctx.directory, circleId);
   const canAdd = canEdit || (enabled && anyoneAddsTasks(circle));
-  const ownTask = (task: { createdBy: { userId: string } }) => canEdit || (canAdd && task.createdBy.userId === ctx.user.id);
-  return { user: ctx.user, directory: ctx.directory, circle, enabled, canEdit, canAdd, ownTask, canModerate: canEdit || isAdmin(ctx.user) };
+  const ownTask = (task: { createdBy: { userId: string } }) =>
+    canEdit || (canAdd && task.createdBy.userId === ctx.user.id);
+  return {
+    user: ctx.user,
+    directory: ctx.directory,
+    circle,
+    enabled,
+    canEdit,
+    canAdd,
+    ownTask,
+    canModerate: canEdit || isAdmin(ctx.user),
+  };
 }
 
 /** A person's name from the directory, if they're in it. */

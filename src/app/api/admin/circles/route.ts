@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic";
  */
 async function circles() {
   const imported = await readImportedDirectory();
-  return imported ? { imported: imported.circles, list: await readCircles(imported.circles) } : null;
+  return imported
+    ? { imported: imported.circles, list: await readCircles(imported.circles) }
+    : null;
 }
 
 export async function GET(request: NextRequest) {
@@ -24,11 +26,19 @@ export async function GET(request: NextRequest) {
   const loaded = await circles();
   if (!loaded) return problem("The directory hasn't been imported yet", 503);
   return NextResponse.json({
-    circles: loaded.list.map((circle) => ({ id: circle.id, name: circle.name, kind: circle.kind ?? "circle", members: circle.seats.length })),
+    circles: loaded.list.map((circle) => ({
+      id: circle.id,
+      name: circle.name,
+      kind: circle.kind ?? "circle",
+      members: circle.seats.length,
+    })),
   });
 }
 
-const schema = z.object({ kind: z.enum(["circle", "club"]), names: z.array(z.string().trim().min(1)).min(1).max(50) });
+const schema = z.object({
+  kind: z.enum(["circle", "club"]),
+  names: z.array(z.string().trim().min(1)).min(1).max(50),
+});
 
 export async function POST(request: NextRequest) {
   const denied = authorize(request);

@@ -3,7 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { File, FileImage, FileSpreadsheet, FileText, Presentation } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { ACCEPTED_EXTENSIONS, DocumentListing, DocumentTypeOption, MAX_DOCUMENT_BYTES } from "@/lib/documents/types";
+import {
+  ACCEPTED_EXTENSIONS,
+  DocumentListing,
+  DocumentTypeOption,
+  MAX_DOCUMENT_BYTES,
+} from "@/lib/documents/types";
 
 /** Pieces shared by the single and bulk document uploads. */
 
@@ -11,7 +16,8 @@ import { ACCEPTED_EXTENSIONS, DocumentListing, DocumentTypeOption, MAX_DOCUMENT_
 export function useCircleTypes(circleId: string) {
   return useQuery({
     queryKey: ["document-types", circleId],
-    queryFn: () => apiFetch<{ types: DocumentTypeOption[] }>(`/api/circles/${circleId}/document-types`),
+    queryFn: () =>
+      apiFetch<{ types: DocumentTypeOption[] }>(`/api/circles/${circleId}/document-types`),
     staleTime: 5 * 60_000,
     enabled: !!circleId,
   });
@@ -34,10 +40,23 @@ export function FileIcon({ contentType, className }: { contentType: string; clas
  * Send a file in pieces (each under the hosting platform's request limit),
  * reporting progress, and return the token that finishes the upload.
  */
-export async function sendFile(file: File, target: { circleId: string; replaces?: string }, onProgress: (sent: number) => void) {
-  const { token, chunkSize, chunks } = await apiFetch<{ token: string; chunkSize: number; chunks: number }>("/api/documents/uploads", {
+export async function sendFile(
+  file: File,
+  target: { circleId: string; replaces?: string },
+  onProgress: (sent: number) => void
+) {
+  const { token, chunkSize, chunks } = await apiFetch<{
+    token: string;
+    chunkSize: number;
+    chunks: number;
+  }>("/api/documents/uploads", {
     method: "POST",
-    body: JSON.stringify({ circleId: target.circleId, fileName: file.name, size: file.size, replaces: target.replaces ?? null }),
+    body: JSON.stringify({
+      circleId: target.circleId,
+      fileName: file.name,
+      size: file.size,
+      replaces: target.replaces ?? null,
+    }),
   });
   for (let index = 0; index < chunks; index++) {
     const piece = file.slice(index * chunkSize, Math.min(file.size, (index + 1) * chunkSize));
@@ -49,8 +68,13 @@ export async function sendFile(file: File, target: { circleId: string; replaces?
       }).catch(() => null);
       if (response?.ok) break;
       if (attempt >= 3 || (response && response.status < 500 && response.status !== 429)) {
-        const detail = await response?.json().then((body) => body?.detail).catch(() => null);
-        throw new Error(detail ?? "The upload was interrupted — check your connection and try again.");
+        const detail = await response
+          ?.json()
+          .then((body) => body?.detail)
+          .catch(() => null);
+        throw new Error(
+          detail ?? "The upload was interrupted — check your connection and try again."
+        );
       }
       await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
     }
@@ -74,7 +98,9 @@ export async function uploadDocument(
   onProgress: (progress: { sent: number; finishing: boolean }) => void
 ) {
   onProgress({ sent: 0, finishing: false });
-  const token = await sendFile(file, { circleId }, (sent) => onProgress({ sent, finishing: false }));
+  const token = await sendFile(file, { circleId }, (sent) =>
+    onProgress({ sent, finishing: false })
+  );
   onProgress({ sent: file.size, finishing: true });
   const { document } = await apiFetch<{ document: DocumentListing }>("/api/documents", {
     method: "POST",
@@ -94,7 +120,12 @@ export function checkFile(file: File) {
 }
 
 /** A starting title from a file's name: "2024-03_board_minutes.pdf" → "2024-03 board minutes". */
-export const titleFromFileName = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+export const titleFromFileName = (name: string) =>
+  name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 /** A meeting date in a file's name, e.g. "Board minutes 2024-03-12.pdf" or "2024_03_12 agenda.docx". */
 export function dateFromFileName(name: string) {

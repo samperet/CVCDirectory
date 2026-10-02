@@ -5,7 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "@/components/layout/back-link";
-import { CornerDownRight, History as HistoryIcon, ListTree, Lock, MessageSquarePlus, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import {
+  CornerDownRight,
+  History as HistoryIcon,
+  ListTree,
+  Lock,
+  MessageSquarePlus,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { WikiPage } from "@/lib/wiki/store";
@@ -15,7 +25,12 @@ import { timeAgo } from "@/lib/time";
 import { DEFAULT_PAGE_COLOR, pageStyle, type PageColor } from "@/lib/wiki/colors";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
 import { ColorSwatches } from "@/components/wiki/color-swatches";
-import { WikiComments, threadsOf, useComments, useQuoteHighlights } from "@/components/wiki/wiki-comments";
+import {
+  WikiComments,
+  threadsOf,
+  useComments,
+  useQuoteHighlights,
+} from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
@@ -35,13 +50,18 @@ function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: bool
     const update = () => {
       const selection = window.getSelection();
       const container = article.current;
-      if (!selection || selection.isCollapsed || !container || !selection.rangeCount) return setPrompt(null);
+      if (!selection || selection.isCollapsed || !container || !selection.rangeCount)
+        return setPrompt(null);
       const range = selection.getRangeAt(0);
       if (!container.contains(range.commonAncestorContainer)) return setPrompt(null);
       const text = selection.toString().replace(/\s+/g, " ").trim();
       if (!text || text.length > 300) return setPrompt(null);
       const rect = range.getBoundingClientRect();
-      setPrompt({ text, top: Math.max(8, rect.top - 44), left: Math.min(window.innerWidth - 120, Math.max(8, rect.left + rect.width / 2 - 56)) });
+      setPrompt({
+        text,
+        top: Math.max(8, rect.top - 44),
+        left: Math.min(window.innerWidth - 120, Math.max(8, rect.left + rect.width / 2 - 56)),
+      });
     };
     document.addEventListener("selectionchange", update);
     window.addEventListener("scroll", update, { passive: true });
@@ -87,18 +107,25 @@ export function WikiPageClient({ slug }: { slug: string }) {
   const canManage = !!data?.canManage;
   const history = data?.history ?? [];
   const reading = mode !== "edit";
-  const { ranges, found: foundIds } = useQuoteHighlights(article, reading ? threads : NO_THREADS, activeId, `${page?.body ?? ""}:${mode}`);
+  const { ranges, found: foundIds } = useQuoteHighlights(
+    article,
+    reading ? threads : NO_THREADS,
+    activeId,
+    `${page?.body ?? ""}:${mode}`
+  );
   const [prompt, dismissPrompt] = useSelectionPrompt(article, reading && wikiOn && !!user);
   const toc = useMemo(() => (page ? tableOfContents(page.body) : []), [page]);
   // While reading: others' saves appear without reloading, and who's editing shows.
   const live = useQuery({
     queryKey: ["wiki-live", slug],
-    queryFn: () => apiFetch<{ updatedAt: string; editors: PageEditor[] }>(`/api/wiki/pages/${slug}/live`),
+    queryFn: () =>
+      apiFetch<{ updatedAt: string; editors: PageEditor[] }>(`/api/wiki/pages/${slug}/live`),
     enabled: !!page && mode !== "edit",
     refetchInterval: 10_000,
   }).data;
   useEffect(() => {
-    if (live && page && live.updatedAt !== page.updatedAt) void queryClient.invalidateQueries({ queryKey: key, exact: true });
+    if (live && page && live.updatedAt !== page.updatedAt)
+      void queryClient.invalidateQueries({ queryKey: key, exact: true });
     // Only when the page's last save changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live?.updatedAt]);
@@ -115,7 +142,11 @@ export function WikiPageClient({ slug }: { slug: string }) {
     queryClient.invalidateQueries({ queryKey: ["wiki"], exact: true });
   };
   const restore = useMutation({
-    mutationFn: (index: number) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}/restore`, { method: "POST", body: JSON.stringify({ index }) }),
+    mutationFn: (index: number) =>
+      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}/restore`, {
+        method: "POST",
+        body: JSON.stringify({ index }),
+      }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
       setViewing(null);
@@ -123,23 +154,42 @@ export function WikiPageClient({ slug }: { slug: string }) {
       // The editor takes the restored text in, as it does anyone's save.
       toast({ title: "Earlier version restored", description: "It's in the editor now." });
     },
-    onError: (err: Error) => toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
   const recolor = useMutation({
-    mutationFn: (color: PageColor) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ color }) }),
+    mutationFn: (color: PageColor) =>
+      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
+        method: "PATCH",
+        body: JSON.stringify({ color }),
+      }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
     },
-    onError: (err: Error) => toast({ title: "Could not change the colour", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not change the colour",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
   const rehome = useMutation({
-    mutationFn: (keeper: string) => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ keeper }) }),
+    mutationFn: (keeper: string) =>
+      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
+        method: "PATCH",
+        body: JSON.stringify({ keeper }),
+      }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
       toast({ title: "Parent circle changed" });
     },
-    onError: (err: Error) => toast({ title: "Could not change the parent circle", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not change the parent circle",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/wiki/pages/${slug}`, { method: "DELETE" }),
@@ -148,7 +198,12 @@ export function WikiPageClient({ slug }: { slug: string }) {
       toast({ title: "Page deleted" });
       router.replace("/wiki");
     },
-    onError: (err: Error) => toast({ title: "Could not delete the page", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not delete the page",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   // Show a thread's passage on the page, or a passage's thread in the comments.
@@ -157,17 +212,24 @@ export function WikiPageClient({ slug }: { slug: string }) {
     const range = ranges.current.get(id);
     if (range) {
       const rect = range.getBoundingClientRect();
-      window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight / 3, behavior: "smooth" });
+      window.scrollTo({
+        top: window.scrollY + rect.top - window.innerHeight / 3,
+        behavior: "smooth",
+      });
     }
   };
   const onArticleClick = (event: React.MouseEvent) => {
-    const doc = document as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null };
+    const doc = document as Document & {
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    };
     const caret = doc.caretRangeFromPoint?.(event.clientX, event.clientY);
     if (!caret) return;
     for (const [id, range] of Array.from(ranges.current.entries())) {
       if (range.isPointInRange(caret.startContainer, caret.startOffset)) {
         setActiveId(id);
-        document.getElementById(`comment-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        document
+          .getElementById(`comment-${id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return;
       }
     }
@@ -181,7 +243,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         {back}
         <Card>
-          <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "That page wasn't found."}</p>
+          <p className="text-sm text-foreground">
+            {(error as Error | null)?.message ?? "That page wasn't found."}
+          </p>
         </Card>
       </div>
     );
@@ -191,9 +255,15 @@ export function WikiPageClient({ slug }: { slug: string }) {
     return (
       <div className="flex flex-col gap-4">
         {back}
-        <Card className="flex flex-col gap-3" style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
+        <Card
+          className="flex flex-col gap-3"
+          style={{ backgroundColor: paper.paper, borderColor: paper.edge }}
+        >
           {/* The page's settings and tools, while editing it. */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 pb-3 text-xs text-muted" data-page-tools>
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 pb-3 text-xs text-muted"
+            data-page-tools
+          >
             {canManage ? (
               <label className="flex items-center gap-2">
                 Parent circle
@@ -214,13 +284,26 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <span>Parent circle {circle?.name ?? "—"}</span>
             )}
             <span className="flex items-center gap-2">
-              Colour <ColorSwatches size="sm" value={page.color ?? DEFAULT_PAGE_COLOR} onChange={(color) => recolor.mutate(color)} disabled={recolor.isPending} />
+              Colour{" "}
+              <ColorSwatches
+                size="sm"
+                value={page.color ?? DEFAULT_PAGE_COLOR}
+                onChange={(color) => recolor.mutate(color)}
+                disabled={recolor.isPending}
+              />
             </span>
             <span className="flex flex-wrap items-center gap-2">
               {canManage ? <PageSettings page={page} slug={slug} onSaved={saved} /> : null}
               {history.length ? (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowHistory(!showHistory)} aria-expanded={showHistory}>
-                  {showHistory ? <X className="h-4 w-4" /> : <HistoryIcon className="h-4 w-4" />} {showHistory ? "Close history" : `History (${history.length})`}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setShowHistory(!showHistory)}
+                  aria-expanded={showHistory}
+                >
+                  {showHistory ? <X className="h-4 w-4" /> : <HistoryIcon className="h-4 w-4" />}{" "}
+                  {showHistory ? "Close history" : `History (${history.length})`}
                 </Button>
               ) : null}
             </span>
@@ -236,9 +319,15 @@ export function WikiPageClient({ slug }: { slug: string }) {
                     <li key={index} className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span className="text-foreground">
                         {version.editedBy.name} · {timeAgo(version.editedAt)}
-                        {version.title !== page.title ? <span className="text-muted"> — “{version.title}”</span> : null}
+                        {version.title !== page.title ? (
+                          <span className="text-muted"> — “{version.title}”</span>
+                        ) : null}
                       </span>
-                      <button type="button" className="text-xs font-medium text-secondary-foreground hover:underline" onClick={() => setViewing(viewing === index ? null : index)}>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-secondary-foreground hover:underline"
+                        onClick={() => setViewing(viewing === index ? null : index)}
+                      >
                         {viewing === index ? "Hide" : "View"}
                       </button>
                       {canEdit ? (
@@ -247,7 +336,12 @@ export function WikiPageClient({ slug }: { slug: string }) {
                           className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline"
                           disabled={restore.isPending}
                           onClick={() => {
-                            if (window.confirm("Make this version the current one? (The current one stays in the history.)")) restore.mutate(index);
+                            if (
+                              window.confirm(
+                                "Make this version the current one? (The current one stays in the history.)"
+                              )
+                            )
+                              restore.mutate(index);
                           }}
                         >
                           <RotateCcw className="h-3 w-3" /> Restore
@@ -258,7 +352,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
               </ul>
               {viewing !== null && history[viewing] ? (
                 <div className="rounded-lg border border-border bg-white p-4">
-                  <p className="mb-2 text-xs font-medium text-muted">Version from {timeAgo(history[viewing].editedAt)}</p>
+                  <p className="mb-2 text-xs font-medium text-muted">
+                    Version from {timeAgo(history[viewing].editedAt)}
+                  </p>
                   <WikiMarkdown source={history[viewing].body} circleId={circleId} pages={pages} />
                 </div>
               ) : null}
@@ -271,7 +367,14 @@ export function WikiPageClient({ slug }: { slug: string }) {
             pages={pages}
             onDone={(updated) => {
               // The editor's copy has the text; settings changed while editing (colour, parent circle, who can see it) are newer here.
-              saved({ ...page, title: updated.title, body: updated.body, updatedAt: updated.updatedAt, updatedBy: updated.updatedBy, historyCount: updated.historyCount });
+              saved({
+                ...page,
+                title: updated.title,
+                body: updated.body,
+                updatedAt: updated.updatedAt,
+                updatedBy: updated.updatedBy,
+                historyCount: updated.historyCount,
+              });
               exitEdit();
             }}
           />
@@ -284,7 +387,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
     <div className="flex flex-col gap-4">
       {back}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card className="flex min-w-0 flex-col gap-4" style={{ backgroundColor: paper.paper, borderColor: paper.edge }}>
+        <Card
+          className="flex min-w-0 flex-col gap-4"
+          style={{ backgroundColor: paper.paper, borderColor: paper.edge }}
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-foreground">{page.title}</h1>
@@ -298,14 +404,22 @@ export function WikiPageClient({ slug }: { slug: string }) {
                   "—"
                 )}
                 {page.view.kind !== "everyone" ? (
-                  <span className="ml-1 inline-flex items-center gap-0.5" title={viewLabel(page.view, circles)}>
+                  <span
+                    className="ml-1 inline-flex items-center gap-0.5"
+                    title={viewLabel(page.view, circles)}
+                  >
                     <Lock className="h-3 w-3" aria-hidden /> {viewLabel(page.view, circles)}
                   </span>
                 ) : null}
                 {" · "}Edited by {page.updatedBy.name} · {timeAgo(page.updatedAt)}
                 {othersEditing.length ? (
-                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary" data-live-editors>
-                    <Pencil className="h-3 w-3" aria-hidden /> {othersEditing.map((editor) => editor.name).join(", ")} {othersEditing.length === 1 ? "is" : "are"} editing
+                  <span
+                    className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary"
+                    data-live-editors
+                  >
+                    <Pencil className="h-3 w-3" aria-hidden />{" "}
+                    {othersEditing.map((editor) => editor.name).join(", ")}{" "}
+                    {othersEditing.length === 1 ? "is" : "are"} editing
                   </span>
                 ) : null}
               </p>
@@ -318,7 +432,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
           </div>
 
           {toc.length >= 3 ? (
-            <nav className="rounded-lg border border-border bg-accent/30 p-3 text-sm lg:hidden" aria-label="On this page">
+            <nav
+              className="rounded-lg border border-border bg-accent/30 p-3 text-sm lg:hidden"
+              aria-label="On this page"
+            >
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
                 <ListTree className="h-3.5 w-3.5" /> On this page
               </p>
@@ -337,7 +454,12 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-destructive"
                 disabled={remove.isPending}
                 onClick={() => {
-                  if (window.confirm(`Delete “${page.title}”, its history, and its comments? This can't be undone.`)) remove.mutate();
+                  if (
+                    window.confirm(
+                      `Delete “${page.title}”, its history, and its comments? This can't be undone.`
+                    )
+                  )
+                    remove.mutate();
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete page
@@ -348,7 +470,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
           {toc.length >= 3 ? (
-            <nav className="hidden rounded-lg border border-border bg-surface p-3 text-sm lg:block" aria-label="On this page">
+            <nav
+              className="hidden rounded-lg border border-border bg-surface p-3 text-sm lg:block"
+              aria-label="On this page"
+            >
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
                 <ListTree className="h-3.5 w-3.5" /> On this page
               </p>
@@ -381,7 +506,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
             setPendingQuote(prompt.text);
             dismissPrompt();
             window.getSelection()?.removeAllRanges();
-            document.getElementById("comments")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            document
+              .getElementById("comments")
+              ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }}
         >
           <MessageSquarePlus className="h-4 w-4" /> Comment
@@ -399,17 +526,25 @@ function LinkedFrom({ circleId, slug }: { circleId: string; slug: string }) {
   });
   if (!data?.backlinks.length) return null;
   return (
-    <nav className="rounded-lg border border-border bg-surface p-3 text-sm" aria-label="Linked from">
+    <nav
+      className="rounded-lg border border-border bg-surface p-3 text-sm"
+      aria-label="Linked from"
+    >
       <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
         <CornerDownRight className="h-3.5 w-3.5" /> Linked from
       </p>
       <ul className="flex flex-col gap-0.5">
         {data.backlinks.map((link) => (
           <li key={`${link.circleId}/${link.slug}`}>
-            <Link href={`/wiki/${link.slug}`} className="text-foreground-light hover:text-foreground hover:underline">
+            <Link
+              href={`/wiki/${link.slug}`}
+              className="text-foreground-light hover:text-foreground hover:underline"
+            >
               {link.title}
             </Link>
-            {link.circleId !== circleId ? <span className="text-xs text-muted"> · {link.circleName}</span> : null}
+            {link.circleId !== circleId ? (
+              <span className="text-xs text-muted"> · {link.circleName}</span>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -422,7 +557,10 @@ function TocList({ toc }: { toc: { level: number; text: string; id: string }[] }
     <ul className="flex flex-col gap-0.5">
       {toc.map((heading, index) => (
         <li key={`${heading.id}-${index}`} style={{ paddingLeft: (heading.level - 1) * 12 }}>
-          <a href={`#${heading.id}`} className="text-foreground-light hover:text-foreground hover:underline">
+          <a
+            href={`#${heading.id}`}
+            className="text-foreground-light hover:text-foreground hover:underline"
+          >
             {heading.text}
           </a>
         </li>

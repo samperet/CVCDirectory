@@ -98,38 +98,49 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
       refreshEverywhere();
       toast({ title: "Profile saved" });
     },
-    onError: (err: Error) => toast({ title: "Could not save profile", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not save profile", description: err.message, variant: "destructive" }),
   });
 
   const upload = useMutation({
-    mutationFn: async (file: File) => uploadImage(`${base}/photo`, await prepareSquareImage(file, 400, "image/jpeg")),
+    mutationFn: async (file: File) =>
+      uploadImage(`${base}/photo`, await prepareSquareImage(file, 400, "image/jpeg")),
     onSuccess: () => {
       refreshEverywhere();
       toast({ title: "Photo updated" });
     },
-    onError: (err: Error) => toast({ title: "Could not upload photo", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not upload photo", description: err.message, variant: "destructive" }),
   });
 
   const removePhoto = useMutation({
     mutationFn: () => apiFetch(`${base}/photo`, { method: "DELETE" }),
     onSuccess: refreshEverywhere,
-    onError: (err: Error) => toast({ title: "Could not remove photo", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not remove photo", description: err.message, variant: "destructive" }),
   });
 
-  if (isLoading || (profile && !form)) return <p className="text-sm text-muted">Loading {own ? "your profile" : "profile"}…</p>;
+  if (isLoading || (profile && !form))
+    return <p className="text-sm text-muted">Loading {own ? "your profile" : "profile"}…</p>;
   if (error || !profile || !form) {
     return (
       <Card>
-        <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "Your profile is unavailable."}</p>
+        <p className="text-sm text-foreground">
+          {(error as Error | null)?.message ?? "Your profile is unavailable."}
+        </p>
       </Card>
     );
   }
 
   // Admins can reset phone numbers without knowing the current one.
   const needsCurrentPhone = !isManager;
-  const phonesChanged = digits(form.phone) !== digits(profile.phone ?? "") || digits(form.landline) !== digits(profile.landline ?? "");
-  const set = (key: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm((current) => (current ? { ...current, [key]: event.target.value } : current));
+  const phonesChanged =
+    digits(form.phone) !== digits(profile.phone ?? "") ||
+    digits(form.landline) !== digits(profile.landline ?? "");
+  const set =
+    (key: keyof FormState) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((current) => (current ? { ...current, [key]: event.target.value } : current));
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -156,7 +167,9 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">{own ? "Your profile" : `Edit ${profile.displayName}`}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {own ? "Your profile" : `Edit ${profile.displayName}`}
+        </h1>
       </div>
 
       <Card className="flex flex-col items-center gap-4 sm:flex-row">
@@ -165,7 +178,9 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
           <p className="text-lg font-semibold text-foreground">{profile.displayName}</p>
           <p className="text-sm text-muted">
             Unit {profile.unit}
-            {profile.role !== "household" ? ` · ${profile.role[0].toUpperCase()}${profile.role.slice(1)}` : ""}
+            {profile.role !== "household"
+              ? ` · ${profile.role[0].toUpperCase()}${profile.role.slice(1)}`
+              : ""}
           </p>
           <div className="flex flex-wrap gap-2">
             <input
@@ -179,12 +194,23 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
                 event.target.value = "";
               }}
             />
-            <Button size="sm" className="gap-1.5" onClick={() => fileInput.current?.click()} disabled={upload.isPending}>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => fileInput.current?.click()}
+              disabled={upload.isPending}
+            >
               <Camera className="h-4 w-4" />
               {upload.isPending ? "Uploading…" : profile.photoUrl ? "Change photo" : "Add a photo"}
             </Button>
             {profile.photoUrl ? (
-              <Button size="sm" variant="ghost" className="gap-1.5 text-muted" onClick={() => removePhoto.mutate()} disabled={removePhoto.isPending}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5 text-muted"
+                onClick={() => removePhoto.mutate()}
+                disabled={removePhoto.isPending}
+              >
                 <Trash2 className="h-4 w-4" /> Remove
               </Button>
             ) : null}
@@ -198,11 +224,23 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
                 Unit
-                <Input type="number" min={1} max={999} value={form.unit} onChange={set("unit")} className="bg-white" required />
+                <Input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={form.unit}
+                  onChange={set("unit")}
+                  className="bg-white"
+                  required
+                />
               </label>
               <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
                 Role
-                <select value={form.role} onChange={set("role")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
+                <select
+                  value={form.role}
+                  onChange={set("role")}
+                  className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+                >
                   <option value="owner">Owner</option>
                   <option value="renter">Renter</option>
                   <option value="household">Household member</option>
@@ -216,44 +254,81 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
                   className="h-4 w-4 rounded border-border accent-primary"
                 />
                 Lives on site
-                <span className="font-normal text-muted">— untick for family or friends who live elsewhere</span>
+                <span className="font-normal text-muted">
+                  — untick for family or friends who live elsewhere
+                </span>
               </label>
             </div>
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
               First name
-              <Input value={form.firstName} maxLength={50} onChange={set("firstName")} className="bg-white" required />
+              <Input
+                value={form.firstName}
+                maxLength={50}
+                onChange={set("firstName")}
+                className="bg-white"
+                required
+              />
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
               Last name
-              <Input value={form.lastName} maxLength={50} onChange={set("lastName")} className="bg-white" />
+              <Input
+                value={form.lastName}
+                maxLength={50}
+                onChange={set("lastName")}
+                className="bg-white"
+              />
             </label>
           </div>
 
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
             Email
-            <Input type="email" value={form.email} maxLength={254} onChange={set("email")} className="bg-white" />
+            <Input
+              type="email"
+              value={form.email}
+              maxLength={254}
+              onChange={set("email")}
+              className="bg-white"
+            />
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
               Mobile phone
-              <Input type="tel" inputMode="tel" value={form.phone} maxLength={40} onChange={set("phone")} className="bg-white" />
+              <Input
+                type="tel"
+                inputMode="tel"
+                value={form.phone}
+                maxLength={40}
+                onChange={set("phone")}
+                className="bg-white"
+              />
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
               Landline
-              <Input type="tel" inputMode="tel" value={form.landline} maxLength={40} onChange={set("landline")} className="bg-white" />
+              <Input
+                type="tel"
+                inputMode="tel"
+                value={form.landline}
+                maxLength={40}
+                onChange={set("landline")}
+                className="bg-white"
+              />
             </label>
           </div>
           <p className="-mt-2 text-xs text-muted">
-            {own ? "Your phone numbers are also how you sign in." : "These phone numbers are also how they sign in."}
+            {own
+              ? "Your phone numbers are also how you sign in."
+              : "These phone numbers are also how they sign in."}
           </p>
 
           {phonesChanged && needsCurrentPhone ? (
             <label className="flex flex-col gap-1 rounded-lg border border-border bg-accent/50 p-3 text-sm font-medium text-foreground">
               Current phone number
-              <span className="text-xs font-normal text-muted">To change a phone number, confirm the one you sign in with now.</span>
+              <span className="text-xs font-normal text-muted">
+                To change a phone number, confirm the one you sign in with now.
+              </span>
               <Input
                 type="password"
                 inputMode="tel"
@@ -269,7 +344,12 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
           <fieldset className="flex flex-col gap-1 text-sm font-medium text-foreground">
             <legend className="mb-1">Birthday</legend>
             <div className="flex gap-2">
-              <select value={form.month} onChange={set("month")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Birthday month">
+              <select
+                value={form.month}
+                onChange={set("month")}
+                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+                aria-label="Birthday month"
+              >
                 <option value="">Month</option>
                 {MONTHS.map((month) => (
                   <option key={month} value={month}>
@@ -277,7 +357,12 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
                   </option>
                 ))}
               </select>
-              <select value={form.day} onChange={set("day")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Birthday day">
+              <select
+                value={form.day}
+                onChange={set("day")}
+                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+                aria-label="Birthday day"
+              >
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((day) => (
                   <option key={day} value={day}>
@@ -301,7 +386,14 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
           </label>
 
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={save.isPending || !form.firstName.trim() || (phonesChanged && needsCurrentPhone && !currentPhone.trim())}>
+            <Button
+              type="submit"
+              disabled={
+                save.isPending ||
+                !form.firstName.trim() ||
+                (phonesChanged && needsCurrentPhone && !currentPhone.trim())
+              }
+            >
               {save.isPending ? "Saving…" : "Save profile"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setForm(toForm(profile))}>

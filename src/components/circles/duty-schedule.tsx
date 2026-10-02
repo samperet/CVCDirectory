@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, ChevronDown, ChevronLeft, ChevronRight, Pencil, Phone } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Phone,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Person } from "@/lib/directory/types";
@@ -49,7 +56,10 @@ const COLORS = [
 const NEEDS_COVER = "bg-red-50 text-red-700 border-red-300 border-dashed";
 
 /** "Tue, Oct 6" for a calendar date, without time-zone drift. */
-export function shortDay(date: string, options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) {
+export function shortDay(
+  date: string,
+  options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }
+) {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
 }
 
@@ -76,9 +86,23 @@ export function useCircleSchedule(circleId: string) {
   });
 }
 
-function HouseholdChip({ household, color, className }: { household?: Household; color: string; className?: string }) {
+function HouseholdChip({
+  household,
+  color,
+  className,
+}: {
+  household?: Household;
+  color: string;
+  className?: string;
+}) {
   return (
-    <span className={cn("inline-block rounded-md border px-1.5 py-0.5 font-medium leading-tight", household ? color : NEEDS_COVER, className)}>
+    <span
+      className={cn(
+        "inline-block rounded-md border px-1.5 py-0.5 font-medium leading-tight",
+        household ? color : NEEDS_COVER,
+        className
+      )}
+    >
       {household?.name ?? "Needs cover"}
     </span>
   );
@@ -113,7 +137,12 @@ function DayEditor({
       toast({ title: `Updated ${shortDay(duty.date)}` });
       onDone();
     },
-    onError: (err: Error) => toast({ title: "Could not update the schedule", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not update the schedule",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   return (
@@ -125,7 +154,9 @@ function DayEditor({
       }}
     >
       <div>
-        <p className="font-semibold text-foreground">{shortDay(duty.date, { weekday: "long", month: "long", day: "numeric" })}</p>
+        <p className="font-semibold text-foreground">
+          {shortDay(duty.date, { weekday: "long", month: "long", day: "numeric" })}
+        </p>
         <p className="text-xs text-muted">
           Regular rotation: {regular ? `${regular.name} (${memberNames(regular)})` : "no one"}
           {duty.override?.updatedBy ? ` · changed by ${duty.override.updatedBy}` : ""}
@@ -147,7 +178,9 @@ function DayEditor({
           <option value="">Needs cover</option>
         </select>
         <Input
-          placeholder={householdId === "" ? "Why? e.g. away Oct 3–10" : "Note, e.g. swapped with Fayre"}
+          placeholder={
+            householdId === "" ? "Why? e.g. away Oct 3–10" : "Note, e.g. swapped with Fayre"
+          }
           value={note}
           maxLength={200}
           onChange={(event) => setNote(event.target.value)}
@@ -160,7 +193,13 @@ function DayEditor({
           {save.isPending ? "Saving…" : "Save"}
         </Button>
         {duty.override ? (
-          <Button type="button" size="sm" variant="outline" disabled={save.isPending} onClick={() => save.mutate(null)}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={save.isPending}
+            onClick={() => save.mutate(null)}
+          >
             Back to regular
           </Button>
         ) : null}
@@ -178,10 +217,19 @@ function DayEditor({
  * legend of households (with members' phone numbers from the directory), and
  * the duty instructions for the current season.
  */
-export function DutyScheduleModule({ circleId, people }: { circleId: string; people: Map<string, Person> }) {
+export function DutyScheduleModule({
+  circleId,
+  people,
+}: {
+  circleId: string;
+  people: Map<string, Person>;
+}) {
   const { user } = useSession();
   const today = todayIso();
-  const [month, setMonth] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }));
+  const [month, setMonth] = useState(() => ({
+    year: Number(today.slice(0, 4)),
+    month: Number(today.slice(5, 7)),
+  }));
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const wide = useWideScreen();
@@ -190,10 +238,19 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
   const schedule = data?.schedule ?? null;
 
   const colorOf = useMemo(
-    () => new Map((schedule?.households ?? []).map((household, index) => [household.id, COLORS[index % COLORS.length]])),
+    () =>
+      new Map(
+        (schedule?.households ?? []).map((household, index) => [
+          household.id,
+          COLORS[index % COLORS.length],
+        ])
+      ),
     [schedule]
   );
-  const householdOf = useMemo(() => new Map((schedule?.households ?? []).map((household) => [household.id, household])), [schedule]);
+  const householdOf = useMemo(
+    () => new Map((schedule?.households ?? []).map((household) => [household.id, household])),
+    [schedule]
+  );
   const days = useMemo(() => monthGrid(month.year, month.month), [month]);
 
   if (isLoading) return null;
@@ -209,7 +266,14 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
   // Duty rotations are specific to the circles that have one; others show nothing.
   if (!schedule) return null;
   if (editing && data.canEdit) {
-    return <ScheduleEditor circleId={circleId} schedule={schedule} people={people} onDone={() => setEditing(false)} />;
+    return (
+      <ScheduleEditor
+        circleId={circleId}
+        schedule={schedule}
+        people={people}
+        onDone={() => setEditing(false)}
+      />
+    );
   }
 
   const monthPrefix = `${month.year}-${String(month.month).padStart(2, "0")}`;
@@ -222,13 +286,16 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
   const firstMonth = schedule.startsOn.slice(0, 7);
   const atFirstMonth = monthPrefix <= firstMonth;
 
-  const mine = schedule.households.find((household) => household.members.some((member) => member.personId && member.personId === user?.personId));
+  const mine = schedule.households.find((household) =>
+    household.members.some((member) => member.personId && member.personId === user?.personId)
+  );
   const myTurns = mine ? upcomingTurns(schedule, mine.id, today, 4) : [];
   const selectedDuty = selected ? dutyFor(schedule, selected) : null;
 
   const currentMonth = Number(today.slice(5, 7));
   const instructions = [...schedule.instructions].sort((a, b) => {
-    const now = (item: typeof a) => (item.months?.length ? (item.months.includes(currentMonth) ? 0 : 2) : 1);
+    const now = (item: typeof a) =>
+      item.months?.length ? (item.months.includes(currentMonth) ? 0 : 2) : 1;
     return now(a) - now(b);
   });
 
@@ -240,9 +307,16 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
         {started(date) ? (
           <span className="flex flex-wrap items-center gap-1.5 text-sm">
-            <HouseholdChip household={household} color={colorOf.get(duty.householdId ?? "") ?? ""} />
-            {household ? <span className="text-foreground-light">{memberNames(household)}</span> : null}
-            {duty.override?.note ? <span className="text-xs text-muted">· {duty.override.note}</span> : null}
+            <HouseholdChip
+              household={household}
+              color={colorOf.get(duty.householdId ?? "") ?? ""}
+            />
+            {household ? (
+              <span className="text-foreground-light">{memberNames(household)}</span>
+            ) : null}
+            {duty.override?.note ? (
+              <span className="text-xs text-muted">· {duty.override.note}</span>
+            ) : null}
           </span>
         ) : (
           <span className="text-sm text-muted">Not started yet</span>
@@ -261,7 +335,9 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
     return (
       <Tag
         key={date}
-        {...(clickable ? { type: "button" as const, onClick: () => setSelected(selected === date ? null : date) } : {})}
+        {...(clickable
+          ? { type: "button" as const, onClick: () => setSelected(selected === date ? null : date) }
+          : {})}
         title={duty.override?.note ?? undefined}
         className={cn(
           "flex min-h-[4.5rem] flex-col items-stretch gap-1 border-b border-r border-border p-1.5 text-left text-[11px]",
@@ -281,9 +357,16 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
           >
             {Number(date.slice(8))}
           </span>
-          {duty.override && inMonth ? <ArrowLeftRight className="h-3 w-3 text-muted" aria-label="Changed from the regular rotation" /> : null}
+          {duty.override && inMonth ? (
+            <ArrowLeftRight
+              className="h-3 w-3 text-muted"
+              aria-label="Changed from the regular rotation"
+            />
+          ) : null}
         </span>
-        {inMonth && started(date) ? <HouseholdChip household={household} color={colorOf.get(duty.householdId ?? "") ?? ""} /> : null}
+        {inMonth && started(date) ? (
+          <HouseholdChip household={household} color={colorOf.get(duty.householdId ?? "") ?? ""} />
+        ) : null}
       </Tag>
     );
   };
@@ -299,7 +382,9 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
             {schedule.title}
           </h2>
           <p className="text-sm text-muted">
-            {data.canChangeDays ? "Tap a day to record a swap or cover." : "Households on the rotation can record swaps and cover."}
+            {data.canChangeDays
+              ? "Tap a day to record a swap or cover."
+              : "Households on the rotation can record swaps and cover."}
           </p>
         </div>
         {data.canEdit ? (
@@ -314,8 +399,14 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
         {summaryFor(addDays(today, 1), `Tomorrow · ${shortDay(addDays(today, 1))}`)}
         {mine ? (
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">Your next turns · {mine.name}</span>
-            <span className="text-sm text-foreground">{myTurns.length ? myTurns.map((turn) => shortDay(turn.date)).join(" · ") : "None coming up"}</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Your next turns · {mine.name}
+            </span>
+            <span className="text-sm text-foreground">
+              {myTurns.length
+                ? myTurns.map((turn) => shortDay(turn.date)).join(" · ")
+                : "None coming up"}
+            </span>
           </div>
         ) : null}
       </div>
@@ -326,17 +417,32 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
             {MONTH_NAMES[month.month - 1]} {month.year}
           </h3>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => step(-1)} disabled={atFirstMonth} aria-label="Previous month">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => step(-1)}
+              disabled={atFirstMonth}
+              aria-label="Previous month"
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setMonth({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) })}
+              onClick={() =>
+                setMonth({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) })
+              }
             >
               Today
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => step(1)} aria-label="Next month">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => step(1)}
+              aria-label="Next month"
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -346,7 +452,10 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
         <div className="hidden overflow-hidden rounded-lg border-l border-t border-border sm:block">
           <div className="grid grid-cols-7">
             {WEEKDAYS.map((day) => (
-              <div key={day} className="border-b border-r border-border bg-accent/60 px-1.5 py-1 text-center text-xs font-semibold text-muted">
+              <div
+                key={day}
+                className="border-b border-r border-border bg-accent/60 px-1.5 py-1 text-center text-xs font-semibold text-muted"
+              >
                 {day.slice(0, 3)}
               </div>
             ))}
@@ -374,28 +483,58 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
                       selected === date && "ring-2 ring-inset ring-ring"
                     )}
                   >
-                    <span className={cn("w-20 shrink-0 tabular-nums", date === today ? "font-semibold text-foreground" : "text-muted")}>
+                    <span
+                      className={cn(
+                        "w-20 shrink-0 tabular-nums",
+                        date === today ? "font-semibold text-foreground" : "text-muted"
+                      )}
+                    >
                       {shortDay(date, { weekday: "short", day: "numeric" })}
                     </span>
-                    <HouseholdChip household={household} color={colorOf.get(duty.householdId ?? "") ?? ""} className="text-xs" />
-                    {duty.override ? <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Changed" /> : null}
-                    {duty.override?.note ? <span className="truncate text-xs text-muted">{duty.override.note}</span> : null}
+                    <HouseholdChip
+                      household={household}
+                      color={colorOf.get(duty.householdId ?? "") ?? ""}
+                      className="text-xs"
+                    />
+                    {duty.override ? (
+                      <ArrowLeftRight
+                        className="h-3.5 w-3.5 shrink-0 text-muted"
+                        aria-label="Changed"
+                      />
+                    ) : null}
+                    {duty.override?.note ? (
+                      <span className="truncate text-xs text-muted">{duty.override.note}</span>
+                    ) : null}
                   </button>
                   {!wide && selected === date && selectedDuty ? (
                     <div className="p-3">
-                      <DayEditor key={date} circleId={circleId} schedule={schedule} duty={selectedDuty} onDone={() => setSelected(null)} />
+                      <DayEditor
+                        key={date}
+                        circleId={circleId}
+                        schedule={schedule}
+                        duty={selectedDuty}
+                        onDone={() => setSelected(null)}
+                      />
                     </div>
                   ) : null}
                 </li>
               );
             })
           ) : (
-            <li className="px-3 py-2 text-sm text-muted">The schedule starts {shortDay(schedule.startsOn)}.</li>
+            <li className="px-3 py-2 text-sm text-muted">
+              The schedule starts {shortDay(schedule.startsOn)}.
+            </li>
           )}
         </ul>
 
         {wide && selectedDuty ? (
-          <DayEditor key={selectedDuty.date} circleId={circleId} schedule={schedule} duty={selectedDuty} onDone={() => setSelected(null)} />
+          <DayEditor
+            key={selectedDuty.date}
+            circleId={circleId}
+            schedule={schedule}
+            duty={selectedDuty}
+            onDone={() => setSelected(null)}
+          />
         ) : null}
       </div>
 
@@ -404,23 +543,42 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
         <ul className="grid gap-2 sm:grid-cols-2">
           {schedule.households.map((household) => {
             const turns = schedule.weekdays
-              .map((ids, day) => (ids.includes(household.id) ? `${ids.length > 1 ? "Alternate " : ""}${WEEKDAYS[day]}s` : null))
+              .map((ids, day) =>
+                ids.includes(household.id)
+                  ? `${ids.length > 1 ? "Alternate " : ""}${WEEKDAYS[day]}s`
+                  : null
+              )
               .filter(Boolean);
             return (
-              <li key={household.id} className="flex flex-col gap-1 rounded-lg border border-border p-3">
+              <li
+                key={household.id}
+                className="flex flex-col gap-1 rounded-lg border border-border p-3"
+              >
                 <div className="flex flex-wrap items-center gap-2">
-                  <HouseholdChip household={household} color={colorOf.get(household.id) ?? ""} className="text-xs" />
-                  <span className="text-xs text-muted">{turns.length ? turns.join(", ") : "Not on the rotation"}</span>
+                  <HouseholdChip
+                    household={household}
+                    color={colorOf.get(household.id) ?? ""}
+                    className="text-xs"
+                  />
+                  <span className="text-xs text-muted">
+                    {turns.length ? turns.join(", ") : "Not on the rotation"}
+                  </span>
                 </div>
                 <ul className="flex flex-col gap-0.5 text-sm">
                   {household.members.map((member, index) => {
                     const person = member.personId ? people.get(member.personId) : undefined;
                     const phone = person?.phone ?? person?.landline;
                     return (
-                      <li key={`${member.name}-${index}`} className="flex flex-wrap items-center gap-x-2 text-foreground-light">
+                      <li
+                        key={`${member.name}-${index}`}
+                        className="flex flex-wrap items-center gap-x-2 text-foreground-light"
+                      >
                         {person?.displayName ?? member.name}
                         {phone ? (
-                          <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1 text-xs text-muted hover:underline">
+                          <a
+                            href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+                            className="inline-flex items-center gap-1 text-xs text-muted hover:underline"
+                          >
                             <Phone className="h-3 w-3" /> {phone}
                           </a>
                         ) : null}
@@ -440,18 +598,29 @@ export function DutyScheduleModule({ circleId, people }: { circleId: string; peo
           {instructions.map((item, index) => {
             const current = !item.months?.length || item.months.includes(currentMonth);
             return (
-              <details key={`${item.title}-${index}`} open={index === 0 || (current && !!item.months?.length)} className="group rounded-lg border border-border">
+              <details
+                key={`${item.title}-${index}`}
+                open={index === 0 || (current && !!item.months?.length)}
+                className="group rounded-lg border border-border"
+              >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-foreground">
                   <span>
                     {item.title}
-                    {item.months?.length && current ? <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">Now</span> : null}
+                    {item.months?.length && current ? (
+                      <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                        Now
+                      </span>
+                    ) : null}
                   </span>
                   <ChevronDown className="h-4 w-4 text-muted transition group-open:rotate-180" />
                 </summary>
                 <ul className="flex list-disc flex-col gap-1 px-4 pb-4 pl-9 text-sm text-foreground-light">
-                  {item.body.split("\n").filter(Boolean).map((line, lineIndex) => (
-                    <li key={lineIndex}>{line}</li>
-                  ))}
+                  {item.body
+                    .split("\n")
+                    .filter(Boolean)
+                    .map((line, lineIndex) => (
+                      <li key={lineIndex}>{line}</li>
+                    ))}
                 </ul>
               </details>
             );

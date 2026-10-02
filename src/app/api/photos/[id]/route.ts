@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/admins";
 import { readBinary } from "@/lib/storage";
-import { captionSchema, isPhotoId, photoFileKey, removePhoto, updateCaption } from "@/lib/photos/store";
+import {
+  captionSchema,
+  isPhotoId,
+  photoFileKey,
+  removePhoto,
+  updateCaption,
+} from "@/lib/photos/store";
 import { PRIVATE_IMAGE_HEADERS } from "@/lib/images";
 import { problem } from "@/lib/http";
 
@@ -33,9 +39,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const caption = captionSchema.safeParse(body?.caption ?? "");
   if (!caption.success) return problem(caption.error.errors[0].message);
 
-  const result = await updateCaption(params.id, { id: user.id, admin: isAdmin(user) }, caption.data);
+  const result = await updateCaption(
+    params.id,
+    { id: user.id, admin: isAdmin(user) },
+    caption.data
+  );
   if (result === "not_found") return problem("Photo not found", 404);
-  if (result === "forbidden") return problem("Only the person who added this photo can edit it", 403);
+  if (result === "forbidden")
+    return problem("Only the person who added this photo can edit it", 403);
   return NextResponse.json({ photo: result });
 }
 

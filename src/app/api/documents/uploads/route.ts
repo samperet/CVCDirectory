@@ -36,17 +36,31 @@ export async function POST(request: NextRequest) {
   if (replaces) {
     const doc = await getDocument(replaces);
     if (!doc) return problem("That document no longer exists", 404);
-    if (!canManageDocument(context.user, context.directory, doc)) return problem("You can't replace this document", 403);
-    const { token } = createUploadToken({ userId: context.user.id, circleId: doc.circleId, fileName, size, replaces });
+    if (!canManageDocument(context.user, context.directory, doc))
+      return problem("You can't replace this document", 403);
+    const { token } = createUploadToken({
+      userId: context.user.id,
+      circleId: doc.circleId,
+      fileName,
+      size,
+      replaces,
+    });
     return NextResponse.json({ token, chunkSize: UPLOAD_CHUNK_BYTES, chunks: chunkCount(size) });
   }
 
   const circle = context.directory.circles.find((entry) => entry.id === circleId);
   if (!circle) return problem("Circle not found", 404);
-  if (!featureEnabled(circle, "documents")) return problem(`${circle.name} has turned documents off`, 409);
+  if (!featureEnabled(circle, "documents"))
+    return problem(`${circle.name} has turned documents off`, 409);
   if (!canUploadTo(context.user, context.directory, circleId)) {
     return problem("Only this circle's members, the Board, and admins can add its documents", 403);
   }
-  const { token } = createUploadToken({ userId: context.user.id, circleId, fileName, size, replaces: null });
+  const { token } = createUploadToken({
+    userId: context.user.id,
+    circleId,
+    fileName,
+    size,
+    replaces: null,
+  });
   return NextResponse.json({ token, chunkSize: UPLOAD_CHUNK_BYTES, chunks: chunkCount(size) });
 }

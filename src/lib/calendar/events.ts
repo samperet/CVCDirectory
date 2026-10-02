@@ -9,7 +9,9 @@ import { TIME_ZONE } from "@/lib/time";
 
 export const CALENDAR_ID = "champlainvalleycohousinginfo@gmail.com";
 export const CALENDAR_TIME_ZONE = TIME_ZONE;
-const FEED_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(CALENDAR_ID)}/public/basic.ics`;
+const FEED_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(
+  CALENDAR_ID
+)}/public/basic.ics`;
 const REVALIDATE_SECONDS = 15 * 60;
 const HORIZON_DAYS = 400;
 
@@ -77,7 +79,8 @@ export function parseUpcoming(ics: string, now = new Date(), limit = 20): Calend
   const occurrences: CalendarEvent[] = [];
 
   const add = (item: ICAL.Event, start: ICAL.Time, end: ICAL.Time, key: string) => {
-    if (String(item.component.getFirstPropertyValue("status") ?? "").toUpperCase() === "CANCELLED") return;
+    if (String(item.component.getFirstPropertyValue("status") ?? "").toUpperCase() === "CANCELLED")
+      return;
     const startMs = instant(start);
     const endMs = instant(end ?? start);
     if (endMs <= nowTime || startMs > horizon) return;
@@ -98,7 +101,11 @@ export function parseUpcoming(ics: string, now = new Date(), limit = 20): Calend
       return;
     }
     const iterator = event.iterator();
-    for (let next = iterator.next(), guard = 0; next && guard < 5000; next = iterator.next(), guard++) {
+    for (
+      let next = iterator.next(), guard = 0;
+      next && guard < 5000;
+      next = iterator.next(), guard++
+    ) {
       if (instant(next) > horizon) break;
       const details = event.getOccurrenceDetails(next);
       add(details.item, details.startDate, details.endDate, `${event.uid}:${next.toString()}`);
@@ -115,7 +122,9 @@ export async function getUpcomingEvents(limit = 20): Promise<CalendarEvent[]> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return parseUpcoming(await res.text(), new Date(), limit);
   } catch (error) {
-    console.error(`[calendar] could not load the community calendar feed: ${(error as Error).message}`);
+    console.error(
+      `[calendar] could not load the community calendar feed: ${(error as Error).message}`
+    );
     return [];
   }
 }

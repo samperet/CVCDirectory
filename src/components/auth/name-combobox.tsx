@@ -116,9 +116,7 @@ export function NameCombobox({
                 onMouseEnter={() => setHighlight(index)}
                 onClick={() => select(user)}
               >
-                <span className="flex items-center gap-1.5 text-foreground">
-                  {user.name}
-                </span>
+                <span className="flex items-center gap-1.5 text-foreground">{user.name}</span>
                 {value?.id === user.id ? <Check className="h-4 w-4 text-primary" /> : null}
               </div>
             ))

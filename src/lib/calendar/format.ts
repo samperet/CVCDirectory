@@ -3,10 +3,28 @@ import type { CalendarEvent } from "./events";
 import { TIME_ZONE } from "@/lib/time";
 const DAY_MS = 86_400_000;
 
-const dateFormat = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, weekday: "long", month: "long", day: "numeric" });
-const shortDate = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, month: "short", day: "numeric" });
-const timeFormat = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, hour: "numeric", minute: "2-digit" });
-const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+const dateFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
+const shortDate = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  month: "short",
+  day: "numeric",
+});
+const timeFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  hour: "numeric",
+  minute: "2-digit",
+});
+const dayKey = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 /** "Wednesday, September 30 · 7:00 – 8:30 PM", in the community's time zone. */
 export function formatWhen(event: CalendarEvent): string {
@@ -22,7 +40,9 @@ export function formatWhen(event: CalendarEvent): string {
   const sameDay = dayKey.format(start) === dayKey.format(end);
   return sameDay
     ? `${dateFormat.format(start)} · ${timeFormat.format(start)} – ${timeFormat.format(end)}`
-    : `${dateFormat.format(start)}, ${timeFormat.format(start)} – ${shortDate.format(end)}, ${timeFormat.format(end)}`;
+    : `${dateFormat.format(start)}, ${timeFormat.format(start)} – ${shortDate.format(
+        end
+      )}, ${timeFormat.format(end)}`;
 }
 
 /** "Today", "Tomorrow", "In 5 days" — relative to now, by calendar day in the community's time zone. */

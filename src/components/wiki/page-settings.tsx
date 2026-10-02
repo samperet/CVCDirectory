@@ -23,7 +23,15 @@ export function viewLabel(view: PageView, circles: { id: string; name: string }[
  * Who can see a page and who can edit it, set by its parent circle (and the
  * Board). Each page has its own settings.
  */
-export function PageSettings({ page, slug, onSaved }: { page: WikiPage; slug: string; onSaved: (page: WikiPage) => void }) {
+export function PageSettings({
+  page,
+  slug,
+  onSaved,
+}: {
+  page: WikiPage;
+  slug: string;
+  onSaved: (page: WikiPage) => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -45,38 +53,89 @@ export function PageSettings({ page, slug, onSaved }: { page: WikiPage; slug: st
   );
 }
 
-function SettingsDialog({ page, slug, onClose, onSaved }: { page: WikiPage; slug: string; onClose: () => void; onSaved: (page: WikiPage) => void }) {
+function SettingsDialog({
+  page,
+  slug,
+  onClose,
+  onSaved,
+}: {
+  page: WikiPage;
+  slug: string;
+  onClose: () => void;
+  onSaved: (page: WikiPage) => void;
+}) {
   const { toast } = useToast();
   const circles = useCircles() ?? [];
   const keeper = page.keeper;
   const [viewKind, setViewKind] = useState<PageView["kind"]>(page.view.kind);
-  const [chosen, setChosen] = useState<Set<string>>(() => new Set(page.view.kind === "circles" ? page.view.circles : []));
+  const [chosen, setChosen] = useState<Set<string>>(
+    () => new Set(page.view.kind === "circles" ? page.view.circles : [])
+  );
   const [edit, setEdit] = useState<PageEdit["kind"]>(page.edit.kind);
   const keeperName = circles.find((circle) => circle.id === keeper)?.name ?? "the parent circle";
-  const others = circles.filter((circle) => circle.id !== keeper && !isCommunity(circle.id) && circle.id !== BOARD_ID);
-  const view: PageView = viewKind === "circles" ? { kind: "circles", circles: Array.from(chosen).filter((id) => id !== keeper) } : { kind: viewKind };
+  const others = circles.filter(
+    (circle) => circle.id !== keeper && !isCommunity(circle.id) && circle.id !== BOARD_ID
+  );
+  const view: PageView =
+    viewKind === "circles"
+      ? { kind: "circles", circles: Array.from(chosen).filter((id) => id !== keeper) }
+      : { kind: viewKind };
   const ready = !(view.kind === "circles" && !view.circles.length);
   const save = useMutation({
-    mutationFn: () => apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, { method: "PATCH", body: JSON.stringify({ view, edit: { kind: edit } }) }),
+    mutationFn: () =>
+      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
+        method: "PATCH",
+        body: JSON.stringify({ view, edit: { kind: edit } }),
+      }),
     onSuccess: ({ page: updated }) => {
       toast({ title: "Settings saved" });
       onSaved(updated);
     },
-    onError: (err: Error) => toast({ title: "Could not save the settings", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not save the settings",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
   const radio = "h-4 w-4 accent-[#3f7d5c]";
   return (
-    <Dialog title="Who can see and edit it" icon={<Settings2 className="h-5 w-5 text-primary" />} onClose={onClose}>
+    <Dialog
+      title="Who can see and edit it"
+      icon={<Settings2 className="h-5 w-5 text-primary" />}
+      onClose={onClose}
+    >
       <fieldset className="flex flex-col gap-1.5 text-sm">
         <legend className="mb-1 font-semibold text-foreground">Who can see it</legend>
         <label className="flex items-center gap-2">
-          <input type="radio" name="view" className={radio} checked={viewKind === "everyone"} onChange={() => setViewKind("everyone")} /> Everyone
+          <input
+            type="radio"
+            name="view"
+            className={radio}
+            checked={viewKind === "everyone"}
+            onChange={() => setViewKind("everyone")}
+          />{" "}
+          Everyone
         </label>
         <label className="flex items-center gap-2">
-          <input type="radio" name="view" className={radio} checked={viewKind === "keeper"} onChange={() => setViewKind("keeper")} /> Only {keeperName}
+          <input
+            type="radio"
+            name="view"
+            className={radio}
+            checked={viewKind === "keeper"}
+            onChange={() => setViewKind("keeper")}
+          />{" "}
+          Only {keeperName}
         </label>
         <label className="flex items-center gap-2">
-          <input type="radio" name="view" className={radio} checked={viewKind === "circles"} onChange={() => setViewKind("circles")} /> {keeperName} and chosen circles
+          <input
+            type="radio"
+            name="view"
+            className={radio}
+            checked={viewKind === "circles"}
+            onChange={() => setViewKind("circles")}
+          />{" "}
+          {keeperName} and chosen circles
         </label>
         {viewKind === "circles" ? (
           <div className="ml-6 grid max-h-40 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-border bg-white p-2 sm:grid-cols-2">
@@ -106,10 +165,24 @@ function SettingsDialog({ page, slug, onClose, onSaved }: { page: WikiPage; slug
       <fieldset className="flex flex-col gap-1.5 text-sm">
         <legend className="mb-1 font-semibold text-foreground">Who can edit it</legend>
         <label className="flex items-center gap-2">
-          <input type="radio" name="edit" className={radio} checked={edit === "keeper"} onChange={() => setEdit("keeper")} /> {keeperName}
+          <input
+            type="radio"
+            name="edit"
+            className={radio}
+            checked={edit === "keeper"}
+            onChange={() => setEdit("keeper")}
+          />{" "}
+          {keeperName}
         </label>
         <label className="flex items-center gap-2">
-          <input type="radio" name="edit" className={radio} checked={edit === "anyone"} onChange={() => setEdit("anyone")} /> Anyone who can see it
+          <input
+            type="radio"
+            name="edit"
+            className={radio}
+            checked={edit === "anyone"}
+            onChange={() => setEdit("anyone")}
+          />{" "}
+          Anyone who can see it
         </label>
       </fieldset>
 

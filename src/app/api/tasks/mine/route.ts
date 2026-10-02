@@ -14,9 +14,19 @@ export async function GET() {
     circles.map(async (circle) =>
       (await listTasks(circle.id))
         .filter((task) => task.ownerId === ctx.personId && task.status !== "done")
-        .map(({ activity: _activity, description: _description, ...task }) => ({ ...task, circleId: circle.id, circleName: circle.name }))
+        .map(({ activity: _activity, description: _description, ...task }) => ({
+          ...task,
+          circleId: circle.id,
+          circleName: circle.name,
+        }))
     )
   );
-  const tasks = lists.flat().sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.createdAt.localeCompare(b.createdAt));
+  const tasks = lists
+    .flat()
+    .sort(
+      (a, b) =>
+        (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") ||
+        a.createdAt.localeCompare(b.createdAt)
+    );
   return NextResponse.json({ tasks }, { headers: { "Cache-Control": "private, no-store" } });
 }

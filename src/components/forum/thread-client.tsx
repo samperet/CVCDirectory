@@ -27,7 +27,11 @@ const HOVER_LAYOUT =
   "[grid-template-areas:'by'_'body'_'act'] [@media(hover:hover)]:grid-cols-[minmax(0,1fr)_auto] [@media(hover:hover)]:[grid-template-areas:'by_act'_'body_body']";
 
 /** Mutations that return the updated thread write it straight into the cache. */
-function useThreadMutation<T>(threadId: string, request: (input: T) => Promise<ForumThreadDocument>, errorTitle: string) {
+function useThreadMutation<T>(
+  threadId: string,
+  request: (input: T) => Promise<ForumThreadDocument>,
+  errorTitle: string
+) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   return useMutation({
@@ -37,26 +41,48 @@ function useThreadMutation<T>(threadId: string, request: (input: T) => Promise<F
       queryClient.invalidateQueries({ queryKey: ["forum", "threads"] });
       queryClient.invalidateQueries({ queryKey: ["forum", "topics"] });
     },
-    onError: (error: Error) => toast({ title: errorTitle, description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: errorTitle, description: error.message, variant: "destructive" }),
   });
 }
 
-function Byline({ name, createdAt, editedAt }: { name?: string; createdAt: string; editedAt?: string | null }) {
+function Byline({
+  name,
+  createdAt,
+  editedAt,
+}: {
+  name?: string;
+  createdAt: string;
+  editedAt?: string | null;
+}) {
   return (
     <>
       {name ? <span className="font-medium text-foreground">{name}</span> : null}
       <time dateTime={createdAt}>{timeAgo(createdAt)}</time>
-      {editedAt ? <span title={`Edited ${new Date(editedAt).toLocaleString()}`}>(edited)</span> : null}
+      {editedAt ? (
+        <span title={`Edited ${new Date(editedAt).toLocaleString()}`}>(edited)</span>
+      ) : null}
     </>
   );
 }
 
-function ActionLink({ onClick, children, danger }: { onClick: () => void; children: React.ReactNode; danger?: boolean }) {
+function ActionLink({
+  onClick,
+  children,
+  danger,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+  danger?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cn("font-medium hover:underline", danger ? "text-muted hover:text-destructive" : "text-secondary-foreground")}
+      className={cn(
+        "font-medium hover:underline",
+        danger ? "text-muted hover:text-destructive" : "text-secondary-foreground"
+      )}
     >
       {children}
     </button>
@@ -75,16 +101,27 @@ function likedByLabel(likes: ForumLike[], currentUserId: string | null) {
  * Like or unlike a post (the opening post when `replyId` is null). The heart
  * fills straight away; if saving fails, the thread is put back as it was.
  */
-function LikeButton({ threadId, replyId, likes = [] }: { threadId: string; replyId: string | null; likes?: ForumLike[] }) {
+function LikeButton({
+  threadId,
+  replyId,
+  likes = [],
+}: {
+  threadId: string;
+  replyId: string | null;
+  likes?: ForumLike[];
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useSession();
   const key = ["forum", "thread", threadId];
   const liked = !!user && likes.some((like) => like.userId === user.id);
-  const url = replyId ? `/api/forum/threads/${threadId}/replies/${replyId}/like` : `/api/forum/threads/${threadId}/like`;
+  const url = replyId
+    ? `/api/forum/threads/${threadId}/replies/${replyId}/like`
+    : `/api/forum/threads/${threadId}/like`;
 
   const toggle = useMutation({
-    mutationFn: (like: boolean) => apiFetch<ForumThreadDocument>(url, { method: like ? "PUT" : "DELETE" }),
+    mutationFn: (like: boolean) =>
+      apiFetch<ForumThreadDocument>(url, { method: like ? "PUT" : "DELETE" }),
     onMutate: async (like: boolean) => {
       if (!user) return;
       await queryClient.cancelQueries({ queryKey: key });
@@ -96,9 +133,13 @@ function LikeButton({ threadId, replyId, likes = [] }: { threadId: string; reply
       if (previous) {
         queryClient.setQueryData<ForumThreadDocument>(key, {
           ...previous,
-          thread: replyId ? previous.thread : { ...previous.thread, likes: update(previous.thread.likes) },
+          thread: replyId
+            ? previous.thread
+            : { ...previous.thread, likes: update(previous.thread.likes) },
           replies: replyId
-            ? previous.replies.map((entry) => (entry.id === replyId ? { ...entry, likes: update(entry.likes) } : entry))
+            ? previous.replies.map((entry) =>
+                entry.id === replyId ? { ...entry, likes: update(entry.likes) } : entry
+              )
             : previous.replies,
         });
       }
@@ -106,7 +147,11 @@ function LikeButton({ threadId, replyId, likes = [] }: { threadId: string; reply
     },
     onError: (error: Error, _like, context) => {
       if (context?.previous) queryClient.setQueryData(key, context.previous);
-      toast({ title: "Could not save your like", description: error.message, variant: "destructive" });
+      toast({
+        title: "Could not save your like",
+        description: error.message,
+        variant: "destructive",
+      });
     },
     onSuccess: (doc) => queryClient.setQueryData(key, doc),
   });
@@ -188,7 +233,15 @@ function ReplyForm({
   );
 }
 
-function EditReplyForm({ threadId, reply, onDone }: { threadId: string; reply: ForumReply; onDone: () => void }) {
+function EditReplyForm({
+  threadId,
+  reply,
+  onDone,
+}: {
+  threadId: string;
+  reply: ForumReply;
+  onDone: () => void;
+}) {
   const [body, setBody] = useState(reply.body);
   const save = useThreadMutation(
     threadId,
@@ -207,9 +260,20 @@ function EditReplyForm({ threadId, reply, onDone }: { threadId: string; reply: F
         if (body.trim()) save.mutate(undefined, { onSuccess: onDone });
       }}
     >
-      <Textarea rows={3} value={body} maxLength={3000} autoFocus onChange={(event) => setBody(event.target.value)} className="bg-white" />
+      <Textarea
+        rows={3}
+        value={body}
+        maxLength={3000}
+        autoFocus
+        onChange={(event) => setBody(event.target.value)}
+        className="bg-white"
+      />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={save.isPending || !body.trim() || body.trim() === reply.body}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={save.isPending || !body.trim() || body.trim() === reply.body}
+        >
           {save.isPending ? "Saving…" : "Save"}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={onDone}>
@@ -246,20 +310,30 @@ function ReplyNode({
 
   const remove = useThreadMutation(
     threadId,
-    () => apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies/${reply.id}`, { method: "DELETE" }),
+    () =>
+      apiFetch<ForumThreadDocument>(`/api/forum/threads/${threadId}/replies/${reply.id}`, {
+        method: "DELETE",
+      }),
     "Could not delete comment"
   );
 
   return (
     <li className={cn(indent && "ml-3 border-l-2 border-border pl-3 md:ml-5 md:pl-4")}>
-      <div id={`reply-${reply.id}`} className="group/post flex scroll-mt-24 flex-col gap-0.5 rounded-lg py-2 transition-colors duration-1000">
+      <div
+        id={`reply-${reply.id}`}
+        className="group/post flex scroll-mt-24 flex-col gap-0.5 rounded-lg py-2 transition-colors duration-1000"
+      >
         {reply.deletedAt ? (
           <p className="text-sm italic text-muted">This comment was deleted.</p>
         ) : (
           // Where the pointer can hover, actions sit beside the byline; on touch screens, under the text.
           <div className={cn("grid gap-x-3 gap-y-1", HOVER_LAYOUT)}>
             <div className="flex min-h-[1.5rem] flex-wrap items-center gap-x-2 text-xs text-muted [grid-area:by]">
-              <Byline name={reply.authorName} createdAt={reply.createdAt} editedAt={reply.editedAt} />
+              <Byline
+                name={reply.authorName}
+                createdAt={reply.createdAt}
+                editedAt={reply.editedAt}
+              />
               {beyondIndent && parentName ? (
                 <span className="inline-flex items-center gap-1">
                   <CornerDownRight className="h-3 w-3" /> replying to {parentName}
@@ -275,8 +349,12 @@ function ReplyNode({
                   </span>
                 ) : null}
                 <div className={cn("flex items-center gap-3", mode === "view" && ON_HOVER)}>
-                  {reply.likes?.length ? null : <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />}
-                  <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>Reply</ActionLink>
+                  {reply.likes?.length ? null : (
+                    <LikeButton threadId={threadId} replyId={reply.id} likes={reply.likes} />
+                  )}
+                  <ActionLink onClick={() => setMode(mode === "reply" ? "view" : "reply")}>
+                    Reply
+                  </ActionLink>
                   {mine && mode === "view" ? (
                     <>
                       <ActionLink onClick={() => setMode("edit")}>Edit</ActionLink>
@@ -297,7 +375,9 @@ function ReplyNode({
               {mode === "edit" ? (
                 <EditReplyForm threadId={threadId} reply={reply} onDone={() => setMode("view")} />
               ) : (
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{reply.body}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                  {reply.body}
+                </p>
               )}
             </div>
           </div>
@@ -309,13 +389,24 @@ function ReplyNode({
             onClick={() => setCollapsed((v) => !v)}
             aria-expanded={!collapsed}
           >
-            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            {collapsed ? `Show ${children.length} ${children.length === 1 ? "reply" : "replies"}` : "Hide replies"}
+            {collapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
+            {collapsed
+              ? `Show ${children.length} ${children.length === 1 ? "reply" : "replies"}`
+              : "Hide replies"}
           </button>
         ) : null}
         {mode === "reply" ? (
           <div className="mt-1">
-            <ReplyForm threadId={threadId} parentId={reply.id} autoFocus onDone={() => setMode("view")} />
+            <ReplyForm
+              threadId={threadId}
+              parentId={reply.id}
+              autoFocus
+              onDone={() => setMode("view")}
+            />
           </div>
         ) : null}
       </div>
@@ -338,7 +429,13 @@ function ReplyNode({
   );
 }
 
-function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; currentUserId: string | null }) {
+function OpeningPost({
+  doc,
+  currentUserId,
+}: {
+  doc: ForumThreadDocument;
+  currentUserId: string | null;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -346,13 +443,18 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
   const { user } = useSession();
   const author = currentUserId !== null && thread.authorId === currentUserId;
   const mine = author || !!user?.isAdmin;
-  const othersReplied = doc.replies.some((reply) => !reply.deletedAt && reply.authorId !== currentUserId);
+  const othersReplied = doc.replies.some(
+    (reply) => !reply.deletedAt && reply.authorId !== currentUserId
+  );
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(thread.title);
   const [body, setBody] = useState(thread.body);
   const topics = useTopics().data?.topics ?? [];
   // A discussion whose topic is gone counts as General.
-  const currentTopic = thread.topicId && topics.some((topic) => topic.id === thread.topicId) ? thread.topicId : "general";
+  const currentTopic =
+    thread.topicId && topics.some((topic) => topic.id === thread.topicId)
+      ? thread.topicId
+      : "general";
   // Only an explicit choice moves the discussion (the topics may load after the page).
   const [topicChoice, setTopicChoice] = useState<string | null>(null);
   const topicId = topicChoice ?? currentTopic;
@@ -362,7 +464,11 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
     () =>
       apiFetch<ForumThreadDocument>(`/api/forum/threads/${thread.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title, body, ...(topicChoice && topicChoice !== currentTopic ? { topicId: topicChoice } : {}) }),
+        body: JSON.stringify({
+          title,
+          body,
+          ...(topicChoice && topicChoice !== currentTopic ? { topicId: topicChoice } : {}),
+        }),
       }),
     "Could not save changes"
   );
@@ -374,17 +480,32 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
       queryClient.invalidateQueries({ queryKey: ["forum", "topics"] });
       router.replace(`/forum/topics/${currentTopic}`);
     },
-    onError: (error: Error) => toast({ title: "Could not delete discussion", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({
+        title: "Could not delete discussion",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
 
   if (editing) {
     return (
       <Card className="flex flex-col gap-3">
-        <Input value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} className="bg-white text-lg font-semibold" aria-label="Title" />
+        <Input
+          value={title}
+          maxLength={160}
+          onChange={(event) => setTitle(event.target.value)}
+          className="bg-white text-lg font-semibold"
+          aria-label="Title"
+        />
         {topics.length > 1 ? (
           <label className="flex items-center gap-2 text-sm text-foreground">
             Topic
-            <select value={topicId} onChange={(event) => setTopicChoice(event.target.value)} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
+            <select
+              value={topicId}
+              onChange={(event) => setTopicChoice(event.target.value)}
+              className="h-9 rounded-lg border border-border bg-white px-2 text-sm"
+            >
               {topics.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.name}
@@ -439,7 +560,9 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
               </span>
             ) : null}
             <div className={cn("flex items-center gap-3", ON_HOVER)}>
-              {thread.likes?.length ? null : <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />}
+              {thread.likes?.length ? null : (
+                <LikeButton threadId={thread.id} replyId={null} likes={thread.likes} />
+              )}
               {mine ? (
                 <>
                   <ActionLink onClick={() => setEditing(true)}>Edit</ActionLink>
@@ -461,7 +584,11 @@ function OpeningPost({ doc, currentUserId }: { doc: ForumThreadDocument; current
           </div>
         </div>
       </div>
-      {thread.body ? <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{thread.body}</p> : null}
+      {thread.body ? (
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+          {thread.body}
+        </p>
+      ) : null}
     </Card>
   );
 }
@@ -474,7 +601,9 @@ export function ThreadClient({ id }: { id: string }) {
   });
   const topics = useTopics().data?.topics;
   // A discussion whose topic is gone shows under General.
-  const topicId = topics?.some((topic) => topic.id === data?.thread.topicId) ? data!.thread.topicId! : "general";
+  const topicId = topics?.some((topic) => topic.id === data?.thread.topicId)
+    ? data!.thread.topicId!
+    : "general";
   const topicName = topics?.find((topic) => topic.id === topicId)?.name ?? "Forum";
 
   // Group the flat reply list by parent; each level reads oldest-first.
@@ -506,7 +635,10 @@ export function ThreadClient({ id }: { id: string }) {
     return (
       <Card className="flex flex-col gap-2">
         <p className="text-sm text-foreground">This discussion could not be found.</p>
-        <Link href="/forum" className="text-sm font-medium text-secondary-foreground underline underline-offset-4">
+        <Link
+          href="/forum"
+          className="text-sm font-medium text-secondary-foreground underline underline-offset-4"
+        >
           Back to the forum
         </Link>
       </Card>
@@ -519,7 +651,11 @@ export function ThreadClient({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       <BackLink href={`/forum/topics/${topicId}`} label={topicName} />
 
-      <OpeningPost key={`${data.thread.editedAt ?? ""}`} doc={data} currentUserId={user?.id ?? null} />
+      <OpeningPost
+        key={`${data.thread.editedAt ?? ""}`}
+        doc={data}
+        currentUserId={user?.id ?? null}
+      />
 
       <Card className="flex flex-col gap-3">
         {topLevel.length ? (

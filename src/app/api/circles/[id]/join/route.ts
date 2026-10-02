@@ -21,7 +21,12 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const person = ctx.directory.people.find((entry) => entry.id === ctx.personId);
   const name = person?.displayName ?? ctx.user.name;
-  const result = await requestToJoin(ctx.imported, params.id, { personId: ctx.personId, name }, parsed.data.message);
+  const result = await requestToJoin(
+    ctx.imported,
+    params.id,
+    { personId: ctx.personId, name },
+    parsed.data.message
+  );
   if (!result.ok) return circleProblem(result.reason);
 
   const { circle, joined } = result.value;
@@ -29,7 +34,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     await notify({
       topic: "circles",
       title: `${name} asked to join ${circle.name}`,
-      body: parsed.data.message ? excerpt(parsed.data.message) : "Approve or decline on the circle's page.",
+      body: parsed.data.message
+        ? excerpt(parsed.data.message)
+        : "Approve or decline on the circle's page.",
       url: `/circles/${circle.id}`,
       tag: `circle-application-${circle.id}`,
       exceptUserId: ctx.user.id,

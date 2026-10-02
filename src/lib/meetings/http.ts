@@ -55,11 +55,13 @@ export function meetingsProblem(reason: Failure) {
   }
 }
 
-export const editProblem = () => problem("Only this circle's members, the Board, and admins can take its minutes", 403);
+export const editProblem = () =>
+  problem("Only this circle's members, the Board, and admins can take its minutes", 403);
 export const reviewProblem = () => problem("Only this circle's members review its proposals", 403);
 
 /** The circle's members' accounts. */
-export const memberUserIds = (circle: Circle) => userIdsForPeople(circle.seats.map((seat) => seat.personId));
+export const memberUserIds = (circle: Circle) =>
+  userIdsForPeople(circle.seats.map((seat) => seat.personId));
 
 /** Tell the circle's members about proposals whose review has just run its course (each once). */
 export async function announceConsents(circle: Circle) {

@@ -36,7 +36,10 @@ type RecognitionConstructor = new () => Recognition;
 
 function recognitionClass(): RecognitionConstructor | null {
   if (typeof window === "undefined") return null;
-  const scope = window as unknown as { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
+  const scope = window as unknown as {
+    SpeechRecognition?: RecognitionConstructor;
+    webkitSpeechRecognition?: RecognitionConstructor;
+  };
   return scope.SpeechRecognition ?? scope.webkitSpeechRecognition ?? null;
 }
 

@@ -59,14 +59,24 @@ export function findQuote(container: HTMLElement, quote: string): Range | null {
   return range;
 }
 
-type HighlightApi = { set: (name: string, highlight: unknown) => void; delete: (name: string) => void };
+type HighlightApi = {
+  set: (name: string, highlight: unknown) => void;
+  delete: (name: string) => void;
+};
 const highlights = (): HighlightApi | null =>
-  typeof CSS !== "undefined" && "highlights" in CSS && typeof (window as unknown as { Highlight?: unknown }).Highlight === "function"
-    ? ((CSS as unknown as { highlights: HighlightApi }).highlights)
+  typeof CSS !== "undefined" &&
+  "highlights" in CSS &&
+  typeof (window as unknown as { Highlight?: unknown }).Highlight === "function"
+    ? (CSS as unknown as { highlights: HighlightApi }).highlights
     : null;
 
 /** Highlight the passages open comment threads are about (browsers without the CSS Highlight API just don't). */
-export function useQuoteHighlights(article: RefObject<HTMLElement>, threads: Thread[], activeId: string | null, content: string) {
+export function useQuoteHighlights(
+  article: RefObject<HTMLElement>,
+  threads: Thread[],
+  activeId: string | null,
+  content: string
+) {
   const ranges = useRef(new Map<string, Range>());
   // Which threads' passages are on the page (the page can change under a comment).
   const [found, setFound] = useState<Set<string>>(new Set());
@@ -82,11 +92,16 @@ export function useQuoteHighlights(article: RefObject<HTMLElement>, threads: Thr
       }
     }
     const ids = Array.from(ranges.current.keys());
-    setFound((current) => (current.size === ids.length && ids.every((id) => current.has(id)) ? current : new Set(ids)));
+    setFound((current) =>
+      current.size === ids.length && ids.every((id) => current.has(id)) ? current : new Set(ids)
+    );
     const api = highlights();
     if (!api) return;
-    const Highlight = (window as unknown as { Highlight: new (...ranges: Range[]) => unknown }).Highlight;
-    const others = Array.from(ranges.current.entries()).filter(([id]) => id !== activeId).map(([, range]) => range);
+    const Highlight = (window as unknown as { Highlight: new (...ranges: Range[]) => unknown })
+      .Highlight;
+    const others = Array.from(ranges.current.entries())
+      .filter(([id]) => id !== activeId)
+      .map(([, range]) => range);
     const active = activeId ? ranges.current.get(activeId) : undefined;
     api.set("wiki-comment", new Highlight(...others));
     if (active) api.set("wiki-comment-active", new Highlight(active));
@@ -99,7 +114,17 @@ export function useQuoteHighlights(article: RefObject<HTMLElement>, threads: Thr
   return { ranges, found };
 }
 
-function CommentBody({ comment, circleId, slug, onChanged }: { comment: WikiComment; circleId: string; slug: string; onChanged: () => void }) {
+function CommentBody({
+  comment,
+  circleId,
+  slug,
+  onChanged,
+}: {
+  comment: WikiComment;
+  circleId: string;
+  slug: string;
+  onChanged: () => void;
+}) {
   const { toast } = useToast();
   const { user } = useSession();
   const [editing, setEditing] = useState(false);
@@ -112,24 +137,38 @@ function CommentBody({ comment, circleId, slug, onChanged }: { comment: WikiComm
       setEditing(false);
       onChanged();
     },
-    onError: (error: Error) => toast({ title: "Could not save", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: "Could not save", description: error.message, variant: "destructive" }),
   });
   const remove = useMutation({
     mutationFn: () => apiFetch(url, { method: "DELETE" }),
     onSuccess: onChanged,
-    onError: (error: Error) => toast({ title: "Could not delete", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: "Could not delete", description: error.message, variant: "destructive" }),
   });
   return (
     <div className="flex flex-col gap-1">
       <p className="text-xs text-muted">
-        <span className="font-medium text-foreground">{comment.authorName}</span> · {timeAgo(comment.createdAt)}
+        <span className="font-medium text-foreground">{comment.authorName}</span> ·{" "}
+        {timeAgo(comment.createdAt)}
         {comment.editedAt ? " (edited)" : ""}
       </p>
       {editing ? (
         <div className="flex flex-col gap-1.5">
-          <Textarea rows={3} value={text} maxLength={2000} onChange={(event) => setText(event.target.value)} className="bg-white text-sm" />
+          <Textarea
+            rows={3}
+            value={text}
+            maxLength={2000}
+            onChange={(event) => setText(event.target.value)}
+            className="bg-white text-sm"
+          />
           <div className="flex gap-2">
-            <Button size="sm" className="h-7" disabled={!text.trim() || save.isPending} onClick={() => save.mutate()}>
+            <Button
+              size="sm"
+              className="h-7"
+              disabled={!text.trim() || save.isPending}
+              onClick={() => save.mutate()}
+            >
               Save
             </Button>
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(false)}>
@@ -143,7 +182,11 @@ function CommentBody({ comment, circleId, slug, onChanged }: { comment: WikiComm
       {!editing && (mine || user?.isAdmin) ? (
         <div className="flex gap-3 text-xs">
           {mine ? (
-            <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setEditing(true)}>
+            <button
+              type="button"
+              className="font-medium text-secondary-foreground hover:underline"
+              onClick={() => setEditing(true)}
+            >
               Edit
             </button>
           ) : null}
@@ -151,7 +194,12 @@ function CommentBody({ comment, circleId, slug, onChanged }: { comment: WikiComm
             type="button"
             className="font-medium text-muted hover:text-destructive hover:underline"
             onClick={() => {
-              if (window.confirm(comment.parentId ? "Delete this reply?" : "Delete this comment and its replies?")) remove.mutate();
+              if (
+                window.confirm(
+                  comment.parentId ? "Delete this reply?" : "Delete this comment and its replies?"
+                )
+              )
+                remove.mutate();
             }}
           >
             Delete
@@ -189,24 +237,35 @@ function ThreadCard({
   const resolved = !!root.resolvedAt;
   const base = `/api/wiki/pages/${slug}/comments`;
   const send = useMutation({
-    mutationFn: () => apiFetch(base, { method: "POST", body: JSON.stringify({ body: reply, parentId: root.id }) }),
+    mutationFn: () =>
+      apiFetch(base, { method: "POST", body: JSON.stringify({ body: reply, parentId: root.id }) }),
     onSuccess: () => {
       setReply("");
       setReplying(false);
       onChanged();
     },
-    onError: (error: Error) => toast({ title: "Could not reply", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: "Could not reply", description: error.message, variant: "destructive" }),
   });
   const resolve = useMutation({
-    mutationFn: (value: boolean) => apiFetch(`${base}/${root.id}`, { method: "PATCH", body: JSON.stringify({ resolved: value }) }),
+    mutationFn: (value: boolean) =>
+      apiFetch(`${base}/${root.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ resolved: value }),
+      }),
     onSuccess: onChanged,
-    onError: (error: Error) => toast({ title: "Could not update", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: "Could not update", description: error.message, variant: "destructive" }),
   });
   const mayResolve = canModerate || user?.id === root.authorId;
   return (
     <li
       id={`comment-${root.id}`}
-      className={cn("flex scroll-mt-24 flex-col gap-2 rounded-lg border bg-white p-3 transition", active ? "border-sun ring-1 ring-sun" : "border-border", resolved && "opacity-75")}
+      className={cn(
+        "flex scroll-mt-24 flex-col gap-2 rounded-lg border bg-white p-3 transition",
+        active ? "border-sun ring-1 ring-sun" : "border-border",
+        resolved && "opacity-75"
+      )}
     >
       {root.quote ? (
         <button
@@ -216,7 +275,9 @@ function ThreadCard({
           title={quoteFound ? "Show this passage" : "This passage has since changed"}
         >
           “{root.quote.length > 160 ? `${root.quote.slice(0, 160)}…` : root.quote}”
-          {!quoteFound && !resolved ? <span className="not-italic text-muted"> — no longer on the page</span> : null}
+          {!quoteFound && !resolved ? (
+            <span className="not-italic text-muted"> — no longer on the page</span>
+          ) : null}
         </button>
       ) : null}
       <CommentBody comment={root} circleId={circleId} slug={slug} onChanged={onChanged} />
@@ -224,25 +285,48 @@ function ThreadCard({
         <ul className="ml-2 flex flex-col gap-2 border-l-2 border-border pl-3">
           {replies.map((comment) => (
             <li key={comment.id}>
-              <CommentBody comment={comment} circleId={circleId} slug={slug} onChanged={onChanged} />
+              <CommentBody
+                comment={comment}
+                circleId={circleId}
+                slug={slug}
+                onChanged={onChanged}
+              />
             </li>
           ))}
         </ul>
       ) : null}
       {resolved ? (
         <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
-          <Check className="h-3.5 w-3.5 text-primary" /> Resolved by {root.resolvedBy} · {timeAgo(root.resolvedAt!)}
+          <Check className="h-3.5 w-3.5 text-primary" /> Resolved by {root.resolvedBy} ·{" "}
+          {timeAgo(root.resolvedAt!)}
           {mayResolve ? (
-            <button type="button" className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline" onClick={() => resolve.mutate(false)}>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline"
+              onClick={() => resolve.mutate(false)}
+            >
               <RotateCcw className="h-3 w-3" /> Reopen
             </button>
           ) : null}
         </p>
       ) : replying ? (
         <div className="flex flex-col gap-1.5">
-          <Textarea autoFocus rows={2} placeholder="Reply…" value={reply} maxLength={2000} onChange={(event) => setReply(event.target.value)} className="bg-white text-sm" />
+          <Textarea
+            autoFocus
+            rows={2}
+            placeholder="Reply…"
+            value={reply}
+            maxLength={2000}
+            onChange={(event) => setReply(event.target.value)}
+            className="bg-white text-sm"
+          />
           <div className="flex gap-2">
-            <Button size="sm" className="h-7" disabled={!reply.trim() || send.isPending} onClick={() => send.mutate()}>
+            <Button
+              size="sm"
+              className="h-7"
+              disabled={!reply.trim() || send.isPending}
+              onClick={() => send.mutate()}
+            >
               Reply
             </Button>
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setReplying(false)}>
@@ -253,12 +337,21 @@ function ThreadCard({
       ) : (
         <div className="flex gap-3 text-xs">
           {user ? (
-            <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setReplying(true)}>
+            <button
+              type="button"
+              className="font-medium text-secondary-foreground hover:underline"
+              onClick={() => setReplying(true)}
+            >
               Reply
             </button>
           ) : null}
           {mayResolve ? (
-            <button type="button" className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline" onClick={() => resolve.mutate(true)} disabled={resolve.isPending}>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 font-medium text-secondary-foreground hover:underline"
+              onClick={() => resolve.mutate(true)}
+              disabled={resolve.isPending}
+            >
               <Check className="h-3.5 w-3.5" /> Resolve
             </button>
           ) : null}
@@ -300,7 +393,8 @@ export function WikiComments({
   const [text, setText] = useState("");
   const [showResolved, setShowResolved] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["wiki-comments", circleId, slug] });
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ["wiki-comments", circleId, slug] });
   const open = threads.filter((thread) => !thread.root.resolvedAt);
   const resolved = threads.filter((thread) => thread.root.resolvedAt);
 
@@ -320,7 +414,12 @@ export function WikiComments({
       refresh();
       onActivate(comment.id);
     },
-    onError: (error: Error) => toast({ title: "Could not post the comment", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({
+        title: "Could not post the comment",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
 
   const card = (thread: Thread) => (
@@ -347,8 +446,15 @@ export function WikiComments({
         <div className="flex flex-col gap-2">
           {pendingQuote ? (
             <div className="flex items-start gap-2 rounded-md border-l-4 border-sun/70 bg-white px-2 py-1 text-xs italic text-foreground-light">
-              <span className="flex-1">“{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”</span>
-              <button type="button" onClick={onClearQuote} aria-label="Comment on the whole page instead" className="not-italic text-muted hover:text-foreground">
+              <span className="flex-1">
+                “{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”
+              </span>
+              <button
+                type="button"
+                onClick={onClearQuote}
+                aria-label="Comment on the whole page instead"
+                className="not-italic text-muted hover:text-foreground"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -363,19 +469,33 @@ export function WikiComments({
             maxLength={2000}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && text.trim()) post.mutate();
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && text.trim())
+                post.mutate();
             }}
             className="bg-white text-sm"
           />
-          <Button size="sm" className="w-fit" disabled={!text.trim() || post.isPending} onClick={() => post.mutate()}>
+          <Button
+            size="sm"
+            className="w-fit"
+            disabled={!text.trim() || post.isPending}
+            onClick={() => post.mutate()}
+          >
             {post.isPending ? "Posting…" : "Comment"}
           </Button>
         </div>
       ) : null}
-      {open.length ? <ul className="flex flex-col gap-2">{open.map(card)}</ul> : <p className="text-xs text-muted">No open comments.</p>}
+      {open.length ? (
+        <ul className="flex flex-col gap-2">{open.map(card)}</ul>
+      ) : (
+        <p className="text-xs text-muted">No open comments.</p>
+      )}
       {resolved.length ? (
         <div className="flex flex-col gap-2">
-          <button type="button" className="w-fit text-xs font-medium text-secondary-foreground hover:underline" onClick={() => setShowResolved((value) => !value)}>
+          <button
+            type="button"
+            className="w-fit text-xs font-medium text-secondary-foreground hover:underline"
+            onClick={() => setShowResolved((value) => !value)}
+          >
             {showResolved ? "Hide" : "Show"} {resolved.length} resolved
           </button>
           {showResolved ? <ul className="flex flex-col gap-2">{resolved.map(card)}</ul> : null}

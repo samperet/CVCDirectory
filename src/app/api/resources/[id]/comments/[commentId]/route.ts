@@ -13,7 +13,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in found) return found.error;
   const parsed = await readBody(request, commentSchema);
   if ("error" in parsed) return parsed.error;
-  return resourceResponse(await editComment(params.id, params.commentId, found.actor, parsed.data.body));
+  return resourceResponse(
+    await editComment(params.id, params.commentId, found.actor, parsed.data.body)
+  );
 }
 
 /** Delete your comment (admins can delete any). */

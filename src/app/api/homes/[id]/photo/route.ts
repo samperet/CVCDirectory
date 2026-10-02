@@ -33,7 +33,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   const ctx = await homesManager();
   if ("error" in ctx) return ctx.error;
   if (!isHomeId(params.id) || !(await getHome(params.id))) return notFound();
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413);
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_HOME_PHOTO_BYTES)
+    return problem("Photos must be 3 MB or smaller", 413);
   const bytes = new Uint8Array(await request.arrayBuffer());
   if (bytes.length > MAX_HOME_PHOTO_BYTES) return problem("Photos must be 3 MB or smaller", 413);
   const contentType = sniffImageType(bytes);

@@ -35,10 +35,17 @@ export function problem(detail: string, status = 400, title = TITLES[status] ?? 
  * to return (every validation message, joined). `fallback` stands in for a
  * missing or unparsable body (e.g. `{}` where every field is optional).
  */
-export async function readBody<S extends ZodTypeAny>(request: Request, schema: S, fallback: unknown = null): Promise<{ data: z.output<S> } | { error: NextResponse }> {
+export async function readBody<S extends ZodTypeAny>(
+  request: Request,
+  schema: S,
+  fallback: unknown = null
+): Promise<{ data: z.output<S> } | { error: NextResponse }> {
   const parsed = schema.safeParse(await request.json().catch(() => fallback));
-  return parsed.success ? { data: parsed.data } : { error: problem(parsed.error.errors.map((err) => err.message).join(", ")) };
+  return parsed.success
+    ? { data: parsed.data }
+    : { error: problem(parsed.error.errors.map((err) => err.message).join(", ")) };
 }
 
 /** The 429 to return when this address has made too many `key` requests lately — else null. */
-export const throttled = (request: NextRequest, key: string, message = "Too many requests") => (rateLimit(`${key}:${request.ip ?? "anonymous"}`) ? null : problem(message, 429));
+export const throttled = (request: NextRequest, key: string, message = "Too many requests") =>
+  rateLimit(`${key}:${request.ip ?? "anonymous"}`) ? null : problem(message, 429);

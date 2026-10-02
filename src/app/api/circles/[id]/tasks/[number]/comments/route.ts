@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/lib/tasks/store";
-import { addTaskComment, ancestors, listTaskComments, taskCommentInputSchema } from "@/lib/tasks/comments";
+import {
+  addTaskComment,
+  ancestors,
+  listTaskComments,
+  taskCommentInputSchema,
+} from "@/lib/tasks/comments";
 import { parseNumber, taskProblem, tasksContext } from "@/lib/tasks/http";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { excerpt, notify } from "@/lib/push/notify";
@@ -23,7 +28,10 @@ async function load(params: Params["params"], write = false) {
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await load(params);
   if ("error" in ctx) return ctx.error;
-  return NextResponse.json({ comments: await listTaskComments(params.id, ctx.task.id), canModerate: ctx.canModerate }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { comments: await listTaskComments(params.id, ctx.task.id), canModerate: ctx.canModerate },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /** Comment on a task, or reply to a comment (`parentId`): any resident. */
@@ -34,12 +42,22 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, taskCommentInputSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await addTaskComment(params.id, ctx.task.id, { id: ctx.user.id, name: ctx.user.name }, parsed.data);
-  if (!result.ok) return result.reason === "unknown_parent" ? problem("That comment no longer exists", 404) : problem("This circle's tasks have too many comments", 409);
+  const result = await addTaskComment(
+    params.id,
+    ctx.task.id,
+    { id: ctx.user.id, name: ctx.user.name },
+    parsed.data
+  );
+  if (!result.ok)
+    return result.reason === "unknown_parent"
+      ? problem("That comment no longer exists", 404)
+      : problem("This circle's tasks have too many comments", 409);
 
   // Tell the task's owner and whoever added it, and those in the conversation above this reply.
   const above = ancestors(result.comments, result.comment!).map((entry) => entry.authorId);
-  const recipients = Array.from(new Set([ctx.task.createdBy.userId, ...(await userIdsForPeople([ctx.task.ownerId])), ...above]));
+  const recipients = Array.from(
+    new Set([ctx.task.createdBy.userId, ...(await userIdsForPeople([ctx.task.ownerId])), ...above])
+  );
   await notify({
     topic: "tasks",
     title: `${ctx.user.name} commented on “${ctx.task.title}”`,

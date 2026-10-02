@@ -32,12 +32,23 @@ export function PersonClient({ personId: requested }: { personId: string }) {
   // An old link to an entry that's since been combined into one profile opens that profile.
   const personId = data?.aliases?.[requested] ?? requested;
   const person = data?.people.find((entry) => entry.id === personId);
-  const memberships = useMemo(() => (data ? membershipsByPerson(data.circles).get(personId) ?? [] : []), [data, personId]);
+  const memberships = useMemo(
+    () => (data ? membershipsByPerson(data.circles).get(personId) ?? [] : []),
+    [data, personId]
+  );
   const units = person ? unitsOf(person) : [];
-  const combinedFrom = data ? Object.values(data.aliases ?? {}).filter((to) => to === personId).length + 1 : 1;
-  const households = data && person
-    ? units.map((unit) => ({ unit, people: data.people.filter((entry) => entry.id !== person.id && unitsOf(entry).includes(unit)) }))
-    : [];
+  const combinedFrom = data
+    ? Object.values(data.aliases ?? {}).filter((to) => to === personId).length + 1
+    : 1;
+  const households =
+    data && person
+      ? units.map((unit) => ({
+          unit,
+          people: data.people.filter(
+            (entry) => entry.id !== person.id && unitsOf(entry).includes(unit)
+          ),
+        }))
+      : [];
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["directory"] });
   const split = useMutation({
     mutationFn: () => apiFetch(`/api/directory/people/${personId}/entries`, { method: "DELETE" }),
@@ -45,24 +56,32 @@ export function PersonClient({ personId: requested }: { personId: string }) {
       refresh();
       toast({ title: "Split into separate entries" });
     },
-    onError: (err: Error) => toast({ title: "Could not split", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not split", description: err.message, variant: "destructive" }),
   });
   const combine = useMutation({
-    mutationFn: (otherId: string) => apiFetch(`/api/directory/people/${personId}/entries`, { method: "POST", body: JSON.stringify({ otherId }) }),
+    mutationFn: (otherId: string) =>
+      apiFetch(`/api/directory/people/${personId}/entries`, {
+        method: "POST",
+        body: JSON.stringify({ otherId }),
+      }),
     onSuccess: () => {
       setCombining("");
       refresh();
       toast({ title: "Combined into one profile", description: "They're listed under each unit." });
     },
-    onError: (err: Error) => toast({ title: "Could not combine", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not combine", description: err.message, variant: "destructive" }),
   });
   const leave = useMutation({
-    mutationFn: (unit: number) => apiFetch(`/api/directory/people/${personId}/units/${unit}`, { method: "DELETE" }),
+    mutationFn: (unit: number) =>
+      apiFetch(`/api/directory/people/${personId}/units/${unit}`, { method: "DELETE" }),
     onSuccess: (_data, unit) => {
       refresh();
       toast({ title: `${person?.displayName ?? "They"} no longer listed in unit ${unit}` });
     },
-    onError: (err: Error) => toast({ title: "Could not update", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not update", description: err.message, variant: "destructive" }),
   });
 
   const remove = useMutation({
@@ -72,15 +91,21 @@ export function PersonClient({ personId: requested }: { personId: string }) {
       toast({ title: `${person?.displayName ?? "They"} removed from the directory` });
       router.replace("/directory");
     },
-    onError: (err: Error) => toast({ title: "Could not remove", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not remove", description: err.message, variant: "destructive" }),
   });
 
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (error || !person) {
     return (
       <Card className="flex flex-col gap-2">
-        <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "That person isn't in the directory."}</p>
-        <Link href="/directory" className="text-sm font-medium text-secondary-foreground underline underline-offset-4">
+        <p className="text-sm text-foreground">
+          {(error as Error | null)?.message ?? "That person isn't in the directory."}
+        </p>
+        <Link
+          href="/directory"
+          className="text-sm font-medium text-secondary-foreground underline underline-offset-4"
+        >
           Back to the directory
         </Link>
       </Card>
@@ -101,13 +126,17 @@ export function PersonClient({ personId: requested }: { personId: string }) {
           <div className="flex flex-col items-center gap-1.5 sm:items-start">
             <h1 className="text-2xl font-semibold text-foreground">{person.displayName}</h1>
             <p className="text-sm text-muted">
-              {units.length > 1 ? `Units ${units.slice(0, -1).join(", ")} & ${units[units.length - 1]}` : `Unit ${person.unit}`}
+              {units.length > 1
+                ? `Units ${units.slice(0, -1).join(", ")} & ${units[units.length - 1]}`
+                : `Unit ${person.unit}`}
             </p>
             <RoleTag person={person} />
           </div>
         </div>
 
-        {person.bio ? <p className="whitespace-pre-wrap text-foreground-light">{person.bio}</p> : null}
+        {person.bio ? (
+          <p className="whitespace-pre-wrap text-foreground-light">{person.bio}</p>
+        ) : null}
         <PersonSkills personId={person.id} />
 
         <div className="flex flex-col gap-2 text-sm">
@@ -118,7 +147,8 @@ export function PersonClient({ personId: requested }: { personId: string }) {
           ) : null}
           {person.landline ? (
             <a href={`tel:${digits(person.landline)}`} className={`${row} w-fit hover:underline`}>
-              <Home className="h-4 w-4 text-muted" /> {person.landline} <span className="text-muted">(landline)</span>
+              <Home className="h-4 w-4 text-muted" /> {person.landline}{" "}
+              <span className="text-muted">(landline)</span>
             </a>
           ) : null}
           {person.email ? (
@@ -131,7 +161,9 @@ export function PersonClient({ personId: requested }: { personId: string }) {
               <Cake className="h-4 w-4 text-muted" /> Birthday: {person.birthday}
             </span>
           ) : null}
-          {!person.phone && !person.landline && !person.email && !person.birthday ? <p className="text-muted">No contact details yet.</p> : null}
+          {!person.phone && !person.landline && !person.email && !person.birthday ? (
+            <p className="text-muted">No contact details yet.</p>
+          ) : null}
         </div>
 
         {memberships.length ? (
@@ -140,7 +172,10 @@ export function PersonClient({ personId: requested }: { personId: string }) {
             <ul className="flex flex-col gap-1.5">
               {memberships.map(({ circle, position }) => (
                 <li key={circle.id}>
-                  <Link href={`/circles/${circle.id}`} className="flex w-fit items-center gap-2 text-sm text-foreground-light hover:underline">
+                  <Link
+                    href={`/circles/${circle.id}`}
+                    className="flex w-fit items-center gap-2 text-sm text-foreground-light hover:underline"
+                  >
                     <CircleIcon circle={circle} size={24} /> {circle.name}
                     <span className="text-muted">· {sentence(position ?? "Member")}</span>
                   </Link>
@@ -158,8 +193,12 @@ export function PersonClient({ personId: requested }: { personId: string }) {
               <ul className="flex flex-wrap gap-x-4 gap-y-2">
                 {people.map((entry) => (
                   <li key={entry.id}>
-                    <Link href={`/directory/${entry.id}`} className="flex items-center gap-2 text-sm text-foreground-light hover:underline">
-                      <Avatar name={entry.displayName} photoUrl={entry.photoUrl} size={24} /> {entry.displayName}
+                    <Link
+                      href={`/directory/${entry.id}`}
+                      className="flex items-center gap-2 text-sm text-foreground-light hover:underline"
+                    >
+                      <Avatar name={entry.displayName} photoUrl={entry.photoUrl} size={24} />{" "}
+                      {entry.displayName}
                     </Link>
                   </li>
                 ))}
@@ -183,7 +222,13 @@ export function PersonClient({ personId: requested }: { personId: string }) {
               </Button>
             ) : null}
             {user?.isAdmin && !isMe ? (
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => viewAs.mutate(person.id)} disabled={viewAs.isPending}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => viewAs.mutate(person.id)}
+                disabled={viewAs.isPending}
+              >
                 <Eye className="h-4 w-4" /> {viewAs.isPending ? "Switching…" : "View as"}
               </Button>
             ) : null}
@@ -194,7 +239,12 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                 className="gap-1.5"
                 disabled={split.isPending}
                 onClick={() => {
-                  if (window.confirm(`Split ${person.displayName} back into ${combinedFrom} separate entries, one per listing? Do this only if they're different people.`)) split.mutate();
+                  if (
+                    window.confirm(
+                      `Split ${person.displayName} back into ${combinedFrom} separate entries, one per listing? Do this only if they're different people.`
+                    )
+                  )
+                    split.mutate();
                 }}
               >
                 <Split className="h-4 w-4" /> Split entries
@@ -209,7 +259,16 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                     className="gap-1.5"
                     disabled={leave.isPending}
                     onClick={() => {
-                      if (window.confirm(`Take ${person.displayName} out of unit ${unit}? They'll stay listed in the other${units.length > 2 ? "s" : ""}.`)) leave.mutate(unit);
+                      if (
+                        window.confirm(
+                          `Take ${
+                            person.displayName
+                          } out of unit ${unit}? They'll stay listed in the other${
+                            units.length > 2 ? "s" : ""
+                          }.`
+                        )
+                      )
+                        leave.mutate(unit);
                     }}
                   >
                     <LogOut className="h-4 w-4" /> Remove from unit {unit}
@@ -232,7 +291,8 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                   }
                 }}
               >
-                <Trash2 className="h-4 w-4" /> {remove.isPending ? "Removing…" : "Remove from directory"}
+                <Trash2 className="h-4 w-4" />{" "}
+                {remove.isPending ? "Removing…" : "Remove from directory"}
               </Button>
             ) : null}
           </div>
@@ -244,7 +304,14 @@ export function PersonClient({ personId: requested }: { personId: string }) {
             onSubmit={(event) => {
               event.preventDefault();
               const other = data.people.find((entry) => entry.id === combining);
-              if (other && window.confirm(`Combine ${other.displayName} (unit ${unitsOf(other).join(" & ")}) into ${person.displayName}'s profile? They'll be listed under both units.`)) {
+              if (
+                other &&
+                window.confirm(
+                  `Combine ${other.displayName} (unit ${unitsOf(other).join(" & ")}) into ${
+                    person.displayName
+                  }'s profile? They'll be listed under both units.`
+                )
+              ) {
                 combine.mutate(combining);
               }
             }}
@@ -268,7 +335,12 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                   </option>
                 ))}
             </select>
-            <Button type="submit" size="sm" variant="outline" disabled={!combining || combine.isPending}>
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              disabled={!combining || combine.isPending}
+            >
               Combine
             </Button>
           </form>

@@ -7,7 +7,14 @@ import { readDirectory } from "@/lib/directory/store";
 import { canManageHomes } from "@/lib/homes/access";
 
 export interface SessionPayload {
-  user: (PublicUser & { photoUrl: string | null; isAdmin: boolean; canManageDirectory: boolean; canManageHomes: boolean }) | null;
+  user:
+    | (PublicUser & {
+        photoUrl: string | null;
+        isAdmin: boolean;
+        canManageDirectory: boolean;
+        canManageHomes: boolean;
+      })
+    | null;
   /** While an admin views as this resident: who is really signed in. */
   viewAs: { by: string } | null;
 }
@@ -23,7 +30,10 @@ export async function sessionPayload(): Promise<SessionPayload> {
   if (!user) return { user: null, viewAs: null };
   const [profiles, directory] = await Promise.all([readProfiles(), readDirectory()]);
   const photo = user.personId ? profiles[user.personId]?.photo : null;
-  const photoUrl = photo && user.personId ? `/api/profiles/${user.personId}/photo?v=${encodeURIComponent(photo.updatedAt)}` : null;
+  const photoUrl =
+    photo && user.personId
+      ? `/api/profiles/${user.personId}/photo?v=${encodeURIComponent(photo.updatedAt)}`
+      : null;
   return {
     user: {
       ...toPublicUser(user),

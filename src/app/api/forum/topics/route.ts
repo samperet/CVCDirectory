@@ -34,5 +34,7 @@ export async function POST(request: NextRequest) {
   const parsed = await readBody(request, topicInputSchema);
   if ("error" in parsed) return parsed.error;
   const result = await createTopic(parsed.data);
-  return result.ok ? NextResponse.json({ topic: result.value }, { status: 201 }) : topicProblem(result.reason);
+  return result.ok
+    ? NextResponse.json({ topic: result.value }, { status: 201 })
+    : topicProblem(result.reason);
 }

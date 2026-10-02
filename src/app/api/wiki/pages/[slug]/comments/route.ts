@@ -13,7 +13,10 @@ type Params = { params: { slug: string } };
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
   if ("error" in ctx) return ctx.error;
-  return NextResponse.json({ comments: await listComments(ctx.page.id) }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { comments: await listComments(ctx.page.id) },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /** Comment on the page (optionally on a passage, `quote`), or reply in a thread (`parentId`): anyone who can see it. */
@@ -24,15 +27,28 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, commentInputSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await addComment(ctx.page.id, { id: ctx.user.id, name: ctx.user.name }, parsed.data);
-  if (!result.ok) return result.reason === "unknown_thread" ? problem("That comment thread no longer exists", 404) : problem("This page has too many comments", 409);
+  const result = await addComment(
+    ctx.page.id,
+    { id: ctx.user.id, name: ctx.user.name },
+    parsed.data
+  );
+  if (!result.ok)
+    return result.reason === "unknown_thread"
+      ? problem("That comment thread no longer exists", 404)
+      : problem("This page has too many comments", 409);
 
   // Tell the people who wrote the page, and the others in this thread (who can still see it).
   const history = await getHistory(ctx.page.id);
-  const writers = new Set([ctx.page.createdBy.userId, ctx.page.updatedBy.userId, ...history.map((version) => version.editedBy.userId)]);
+  const writers = new Set([
+    ctx.page.createdBy.userId,
+    ctx.page.updatedBy.userId,
+    ...history.map((version) => version.editedBy.userId),
+  ]);
   const inThread = result.thread.map((entry) => entry.authorId);
   const audience = await pageAudience(ctx.directory, ctx.page);
-  const recipients = Array.from(new Set([...writers, ...inThread])).filter((id) => !audience || audience.includes(id));
+  const recipients = Array.from(new Set([...writers, ...inThread])).filter(
+    (id) => !audience || audience.includes(id)
+  );
   await notify({
     topic: "wiki",
     title: `${ctx.user.name} commented on “${ctx.page.title}”`,

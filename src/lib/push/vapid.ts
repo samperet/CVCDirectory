@@ -14,7 +14,9 @@ const KEY = "push/vapid.json";
 let cached: Keys | null = null;
 
 const isKeys = (value: unknown): value is Keys =>
-  !!value && typeof (value as Keys).publicKey === "string" && typeof (value as Keys).privateKey === "string";
+  !!value &&
+  typeof (value as Keys).publicKey === "string" &&
+  typeof (value as Keys).privateKey === "string";
 
 export async function vapidKeys(): Promise<Keys> {
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {

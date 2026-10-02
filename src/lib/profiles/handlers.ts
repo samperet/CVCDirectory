@@ -43,7 +43,10 @@ async function resolve(target: Target) {
 export async function getProfile(target: Target) {
   const found = await resolve(target);
   if ("error" in found) return found.error;
-  return NextResponse.json({ profile: found.person }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { profile: found.person },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /**
@@ -69,7 +72,9 @@ export async function patchProfile(request: NextRequest, target: Target) {
     const lastName = input.lastName ?? person.lastName;
     const displayName = `${firstName} ${lastName}`.trim();
     const taken = directory.people.some(
-      (other) => other.id !== person.id && other.displayName.localeCompare(displayName, undefined, { sensitivity: "base" }) === 0
+      (other) =>
+        other.id !== person.id &&
+        other.displayName.localeCompare(displayName, undefined, { sensitivity: "base" }) === 0
     );
     if (taken) return problem("Another resident already uses that name", 409);
     patch.firstName = firstName;
@@ -82,11 +87,15 @@ export async function patchProfile(request: NextRequest, target: Target) {
     const value = input[field];
     if (value === undefined) continue;
     const formatted = value ? formatPhone(value) : null;
-    if (value && !formatted) return problem(`Enter a 10-digit ${field === "phone" ? "phone" : "landline"} number`);
+    if (value && !formatted)
+      return problem(`Enter a 10-digit ${field === "phone" ? "phone" : "landline"} number`);
     if (phoneDigits(formatted) !== phoneDigits(person[field])) patch[field] = formatted;
   }
   if (patch.phone !== undefined || patch.landline !== undefined) {
-    if (!admin && (!input.currentPhone || !phoneMatches(input.currentPhone, [person.phone, person.landline]))) {
+    if (
+      !admin &&
+      (!input.currentPhone || !phoneMatches(input.currentPhone, [person.phone, person.landline]))
+    ) {
       return problem("Enter your current phone number to change your phone numbers", 403);
     }
     const phone = patch.phone !== undefined ? patch.phone : person.phone;
@@ -106,8 +115,13 @@ export async function patchProfile(request: NextRequest, target: Target) {
 
   // Unit and owner/renter are the directory managers' to change.
   if (input.unit !== undefined || input.role !== undefined || input.resident !== undefined) {
-    if (!admin) return problem("Only the Board Secretary and admins can change a unit, role, or where someone lives", 403);
-    if (input.resident !== undefined && input.resident !== (person.resident !== false)) patch.resident = input.resident;
+    if (!admin)
+      return problem(
+        "Only the Board Secretary and admins can change a unit, role, or where someone lives",
+        403
+      );
+    if (input.resident !== undefined && input.resident !== (person.resident !== false))
+      patch.resident = input.resident;
     if (input.unit !== undefined && input.unit !== person.unit) patch.unit = input.unit;
     if (input.role !== undefined && input.role !== person.role) patch.role = input.role;
   }
@@ -115,7 +129,8 @@ export async function patchProfile(request: NextRequest, target: Target) {
   await updateProfile(person.id, patch);
   if (patch.resident !== undefined) {
     // A combined profile lives on site if any of its entries does, so mark them all.
-    for (const entry of entriesOf(directory, person.id).slice(1)) await updateProfile(entry, { resident: patch.resident });
+    for (const entry of entriesOf(directory, person.id).slice(1))
+      await updateProfile(entry, { resident: patch.resident });
   }
   if (patch.firstName !== undefined) {
     await renameUserForPerson(person.id, `${patch.firstName} ${patch.lastName ?? ""}`.trim());
@@ -142,7 +157,9 @@ export async function uploadProfilePhoto(request: NextRequest, target: Target) {
   if (!contentType) return problem("Upload a JPEG, PNG, or WebP image", 415);
 
   await writeBinary(photoKey(person.id), { bytes, contentType });
-  const profile = await updateProfile(person.id, { photo: { contentType, updatedAt: new Date().toISOString() } });
+  const profile = await updateProfile(person.id, {
+    photo: { contentType, updatedAt: new Date().toISOString() },
+  });
   return NextResponse.json({ photo: profile.photo }, { status: 201 });
 }
 

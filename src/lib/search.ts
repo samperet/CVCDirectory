@@ -3,7 +3,12 @@
 /** How often `term` appears in `haystack` (counting stops at 50). */
 export const occurrences = (haystack: string, term: string) => {
   let count = 0;
-  for (let at = haystack.indexOf(term); at !== -1 && count < 50; at = haystack.indexOf(term, at + term.length)) count++;
+  for (
+    let at = haystack.indexOf(term);
+    at !== -1 && count < 50;
+    at = haystack.indexOf(term, at + term.length)
+  )
+    count++;
   return count;
 };
 
@@ -18,7 +23,9 @@ export function snippetFor(text: string, terms: string[]) {
   if (at === -1) return null;
   const start = Math.max(0, at - 90);
   const end = Math.min(text.length, at + 160);
-  return `${start > 0 ? "…" : ""}${text.slice(start, end).replace(/\s+/g, " ").trim()}${end < text.length ? "…" : ""}`;
+  return `${start > 0 ? "…" : ""}${text.slice(start, end).replace(/\s+/g, " ").trim()}${
+    end < text.length ? "…" : ""
+  }`;
 }
 
 /** Split a search into terms; "quoted phrases" stay together. */

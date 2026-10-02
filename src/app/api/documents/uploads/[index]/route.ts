@@ -18,12 +18,19 @@ export async function PUT(request: NextRequest, { params }: { params: { index: s
 
   const index = Number(params.index);
   const count = chunkCount(grant.size);
-  if (!Number.isInteger(index) || index < 0 || index >= count) return problem("Unknown piece of the upload");
-  const expected = index < count - 1 ? UPLOAD_CHUNK_BYTES : grant.size - UPLOAD_CHUNK_BYTES * (count - 1);
-  if (Number(request.headers.get("content-length") ?? 0) > UPLOAD_CHUNK_BYTES) return problem("Piece too large", 413);
+  if (!Number.isInteger(index) || index < 0 || index >= count)
+    return problem("Unknown piece of the upload");
+  const expected =
+    index < count - 1 ? UPLOAD_CHUNK_BYTES : grant.size - UPLOAD_CHUNK_BYTES * (count - 1);
+  if (Number(request.headers.get("content-length") ?? 0) > UPLOAD_CHUNK_BYTES)
+    return problem("Piece too large", 413);
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length !== expected) return problem("That piece of the upload is the wrong size — please try again");
+  if (bytes.length !== expected)
+    return problem("That piece of the upload is the wrong size — please try again");
 
-  await writeBinary(chunkKey(grant.uploadId, index), { bytes, contentType: "application/octet-stream" });
+  await writeBinary(chunkKey(grant.uploadId, index), {
+    bytes,
+    contentType: "application/octet-stream",
+  });
   return NextResponse.json({ ok: true });
 }

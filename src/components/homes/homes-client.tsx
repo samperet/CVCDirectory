@@ -17,8 +17,13 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 const KEY = ["homes"];
-export const STATUS_LABELS: Record<HomeStatus, string> = { available: "For sale", pending: "Sale pending", sold: "Sold (hidden)" };
-const photoUrl = (home: HomeListing) => (home.photo ? `/api/homes/${home.id}/photo?v=${encodeURIComponent(home.photo.updatedAt)}` : null);
+export const STATUS_LABELS: Record<HomeStatus, string> = {
+  available: "For sale",
+  pending: "Sale pending",
+  sold: "Sold (hidden)",
+};
+const photoUrl = (home: HomeListing) =>
+  home.photo ? `/api/homes/${home.id}/photo?v=${encodeURIComponent(home.photo.updatedAt)}` : null;
 
 interface FormState {
   title: string;
@@ -46,7 +51,17 @@ const toForm = (home?: HomeListing): FormState => ({
   status: home?.status ?? "available",
 });
 
-function Field({ label, hint, children, className }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
+function Field({
+  label,
+  hint,
+  children,
+  className,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <label className={cn("flex flex-col gap-1 text-sm font-medium text-foreground", className)}>
       <span>
@@ -66,8 +81,10 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
   const [preview, setPreview] = useState<string | null>(home ? photoUrl(home) : null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const set = (key: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm((current) => ({ ...current, [key]: event.target.value }));
+  const set =
+    (key: keyof FormState) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((current) => ({ ...current, [key]: event.target.value }));
 
   const save = useMutation({
     mutationFn: async () => {
@@ -76,15 +93,27 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
         ? await apiFetch<{ home: HomeListing }>(`/api/homes/${home.id}`, { method: "PATCH", body })
         : await apiFetch<{ home: HomeListing }>("/api/homes", { method: "POST", body });
       if (photo) await uploadImage(`/api/homes/${saved.id}/photo`, await preparePhoto(photo, 1600));
-      else if (removePhoto && home?.photo) await apiFetch(`/api/homes/${saved.id}/photo`, { method: "DELETE" });
+      else if (removePhoto && home?.photo)
+        await apiFetch(`/api/homes/${saved.id}/photo`, { method: "DELETE" });
       return saved;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEY });
-      toast({ title: home ? "Listing saved" : "Home listed", description: form.status === "sold" ? "It's hidden from the homepage." : "It's on the public homepage." });
+      toast({
+        title: home ? "Listing saved" : "Home listed",
+        description:
+          form.status === "sold"
+            ? "It's hidden from the homepage."
+            : "It's on the public homepage.",
+      });
       onDone();
     },
-    onError: (error: Error) => toast({ title: "Could not save the listing", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({
+        title: "Could not save the listing",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
 
   return (
@@ -96,27 +125,59 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
       }}
     >
       <p className="rounded-lg border border-sun/60 bg-sun/10 px-3 py-2 text-sm text-foreground">
-        <Globe className="mr-1 inline h-4 w-4 align-text-bottom" /> Everything here — including the contact details — appears on the public homepage while the home is for sale or
-        sale pending.
+        <Globe className="mr-1 inline h-4 w-4 align-text-bottom" /> Everything here — including the
+        contact details — appears on the public homepage while the home is for sale or sale pending.
       </p>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]">
         <Field label="Title">
-          <Input required value={form.title} maxLength={120} onChange={set("title")} placeholder="e.g. Sunny 3-bedroom on the green" className="bg-white" />
+          <Input
+            required
+            value={form.title}
+            maxLength={120}
+            onChange={set("title")}
+            placeholder="e.g. Sunny 3-bedroom on the green"
+            className="bg-white"
+          />
         </Field>
         <Field label="Unit" hint="(optional)">
-          <Input type="number" min={1} max={999} value={form.unit} onChange={set("unit")} className="bg-white" />
+          <Input
+            type="number"
+            min={1}
+            max={999}
+            value={form.unit}
+            onChange={set("unit")}
+            className="bg-white"
+          />
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Price" hint="(optional)">
-          <Input value={form.price} maxLength={40} onChange={set("price")} placeholder="e.g. $525,000" className="bg-white" />
+          <Input
+            value={form.price}
+            maxLength={40}
+            onChange={set("price")}
+            placeholder="e.g. $525,000"
+            className="bg-white"
+          />
         </Field>
         <Field label="Details" hint="(optional)">
-          <Input value={form.details} maxLength={160} onChange={set("details")} placeholder="e.g. 3 bedrooms · 2 baths · 1,450 sq ft" className="bg-white" />
+          <Input
+            value={form.details}
+            maxLength={160}
+            onChange={set("details")}
+            placeholder="e.g. 3 bedrooms · 2 baths · 1,450 sq ft"
+            className="bg-white"
+          />
         </Field>
       </div>
       <Field label="Description" hint="(optional)">
-        <Textarea rows={4} value={form.description} maxLength={2000} onChange={set("description")} className="bg-white" />
+        <Textarea
+          rows={4}
+          value={form.description}
+          maxLength={2000}
+          onChange={set("description")}
+          className="bg-white"
+        />
       </Field>
 
       <div className="flex flex-col gap-2">
@@ -126,7 +187,11 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
         <div className="flex flex-wrap items-center gap-3">
           {preview && !removePhoto ? (
             // eslint-disable-next-line @next/next/no-img-element -- a local preview or a stored listing photo
-            <img src={preview} alt="" className="h-20 w-28 rounded-lg border border-border object-cover" />
+            <img
+              src={preview}
+              alt=""
+              className="h-20 w-28 rounded-lg border border-border object-cover"
+            />
           ) : null}
           <input
             ref={fileInput}
@@ -143,8 +208,15 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
               event.target.value = "";
             }}
           />
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileInput.current?.click()}>
-            <Camera className="h-4 w-4" /> {preview && !removePhoto ? "Change photo" : "Add a photo"}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => fileInput.current?.click()}
+          >
+            <Camera className="h-4 w-4" />{" "}
+            {preview && !removePhoto ? "Change photo" : "Add a photo"}
           </Button>
           {preview && !removePhoto ? (
             <Button
@@ -166,23 +238,55 @@ function HomeForm({ home, onDone }: { home?: HomeListing; onDone: () => void }) 
       <fieldset className="grid gap-4 rounded-lg border border-border bg-accent/30 p-3 sm:grid-cols-3">
         <legend className="px-1 text-sm font-semibold text-foreground">Contact for buyers</legend>
         <Field label="Name">
-          <Input required value={form.contactName} maxLength={80} onChange={set("contactName")} placeholder="Seller or agent" className="bg-white" />
+          <Input
+            required
+            value={form.contactName}
+            maxLength={80}
+            onChange={set("contactName")}
+            placeholder="Seller or agent"
+            className="bg-white"
+          />
         </Field>
         <Field label="Email">
-          <Input type="email" value={form.contactEmail} maxLength={254} onChange={set("contactEmail")} className="bg-white" />
+          <Input
+            type="email"
+            value={form.contactEmail}
+            maxLength={254}
+            onChange={set("contactEmail")}
+            className="bg-white"
+          />
         </Field>
         <Field label="Phone">
-          <Input type="tel" value={form.contactPhone} maxLength={30} onChange={set("contactPhone")} className="bg-white" />
+          <Input
+            type="tel"
+            value={form.contactPhone}
+            maxLength={30}
+            onChange={set("contactPhone")}
+            className="bg-white"
+          />
         </Field>
-        <p className="text-xs text-muted sm:col-span-3">Give an email address, a phone number, or both.</p>
+        <p className="text-xs text-muted sm:col-span-3">
+          Give an email address, a phone number, or both.
+        </p>
       </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
         <Field label="Listing link" hint="(optional — e.g. the realtor's page)">
-          <Input type="url" value={form.link} maxLength={500} onChange={set("link")} placeholder="https://" className="bg-white" />
+          <Input
+            type="url"
+            value={form.link}
+            maxLength={500}
+            onChange={set("link")}
+            placeholder="https://"
+            className="bg-white"
+          />
         </Field>
         <Field label="Status">
-          <select value={form.status} onChange={set("status")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
+          <select
+            value={form.status}
+            onChange={set("status")}
+            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+          >
             {(Object.keys(STATUS_LABELS) as HomeStatus[]).map((status) => (
               <option key={status} value={status}>
                 {STATUS_LABELS[status]}
@@ -208,9 +312,14 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const setStatus = useMutation({
-    mutationFn: (status: HomeStatus) => apiFetch(`/api/homes/${home.id}`, { method: "PATCH", body: JSON.stringify({ ...toForm(home), unit: home.unit, status }) }),
+    mutationFn: (status: HomeStatus) =>
+      apiFetch(`/api/homes/${home.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...toForm(home), unit: home.unit, status }),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
-    onError: (error: Error) => toast({ title: "Could not update", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: "Could not update", description: error.message, variant: "destructive" }),
   });
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/homes/${home.id}`, { method: "DELETE" }),
@@ -218,16 +327,25 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
       queryClient.invalidateQueries({ queryKey: KEY });
       toast({ title: "Listing removed" });
     },
-    onError: (error: Error) => toast({ title: "Could not remove", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({ title: "Could not remove", description: error.message, variant: "destructive" }),
   });
   const photo = photoUrl(home);
   return (
-    <Card className={cn("flex flex-col gap-4 p-5 sm:flex-row", home.status === "sold" && "opacity-70")}>
+    <Card
+      className={cn("flex flex-col gap-4 p-5 sm:flex-row", home.status === "sold" && "opacity-70")}
+    >
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element -- stored listing photo
-        <img src={photo} alt="" className="h-32 w-full shrink-0 rounded-lg object-cover sm:h-28 sm:w-40" />
+        <img
+          src={photo}
+          alt=""
+          className="h-32 w-full shrink-0 rounded-lg object-cover sm:h-28 sm:w-40"
+        />
       ) : (
-        <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-lg bg-accent text-xs text-muted sm:w-40">No photo</div>
+        <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-lg bg-accent text-xs text-muted sm:w-40">
+          No photo
+        </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -235,14 +353,20 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-xs font-medium",
-              home.status === "available" ? "bg-primary/30 text-primary-foreground" : home.status === "pending" ? "bg-sun/30 text-foreground" : "bg-border text-muted"
+              home.status === "available"
+                ? "bg-primary/30 text-primary-foreground"
+                : home.status === "pending"
+                  ? "bg-sun/30 text-foreground"
+                  : "bg-border text-muted"
             )}
           >
             {STATUS_LABELS[home.status]}
           </span>
         </div>
         <p className="text-sm text-foreground-light">
-          {[home.unit ? `Unit ${home.unit}` : null, home.price, home.details].filter(Boolean).join(" · ")}
+          {[home.unit ? `Unit ${home.unit}` : null, home.price, home.details]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         <p className="text-sm text-foreground-light">
           Contact: {home.contactName}
@@ -250,7 +374,12 @@ function ListingCard({ home, onEdit }: { home: HomeListing; onEdit: () => void }
           {home.contactPhone ? ` · ${home.contactPhone}` : ""}
         </p>
         {home.link ? (
-          <a href={home.link} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1 text-sm font-medium text-secondary-foreground hover:underline">
+          <a
+            href={home.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1 text-sm font-medium text-secondary-foreground hover:underline"
+          >
             <ExternalLink className="h-3.5 w-3.5" /> Listing link
           </a>
         ) : null}
@@ -303,18 +432,24 @@ export function HomesClient() {
   if (user && !user.canManageHomes) {
     return (
       <Card>
-        <p className="text-sm text-foreground">Only admins and the Board can manage homes for sale.</p>
+        <p className="text-sm text-foreground">
+          Only admins and the Board can manage homes for sale.
+        </p>
       </Card>
     );
   }
   const homes = data?.homes ?? [];
-  const current = editing && editing !== "new" ? homes.find((home) => home.id === editing) : undefined;
+  const current =
+    editing && editing !== "new" ? homes.find((home) => home.id === editing) : undefined;
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">Homes for sale</h1>
         <div className="flex items-center gap-3">
-          <Link href="/welcome#homes-for-sale" className="text-sm font-medium text-secondary-foreground hover:underline">
+          <Link
+            href="/welcome#homes-for-sale"
+            className="text-sm font-medium text-secondary-foreground hover:underline"
+          >
             See it on the homepage
           </Link>
           {editing === null ? (
@@ -327,7 +462,9 @@ export function HomesClient() {
       {editing !== null ? (
         <Card className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">{current ? `Edit “${current.title}”` : "List a home"}</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              {current ? `Edit “${current.title}”` : "List a home"}
+            </h2>
             <Button variant="ghost" size="icon" onClick={() => setEditing(null)} aria-label="Close">
               <X className="h-4 w-4" />
             </Button>

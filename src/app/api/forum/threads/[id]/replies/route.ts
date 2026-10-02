@@ -23,7 +23,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (!result.ok) return forumProblem(result.reason);
   // Tell the people in this discussion: whoever started it and everyone who has replied.
   const { thread, replies } = result.doc;
-  const participants = Array.from(new Set([thread.authorId, ...replies.filter((reply) => !reply.deletedAt).map((reply) => reply.authorId)]));
+  const participants = Array.from(
+    new Set([
+      thread.authorId,
+      ...replies.filter((reply) => !reply.deletedAt).map((reply) => reply.authorId),
+    ])
+  );
   await notify({
     topic: "replies",
     title: `${user.name} replied in “${thread.title}”`,

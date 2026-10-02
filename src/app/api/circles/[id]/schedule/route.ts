@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
-import { deleteSchedule, readSchedule, saveSchedule, scheduleSetupSchema } from "@/lib/schedules/store";
+import {
+  deleteSchedule,
+  readSchedule,
+  saveSchedule,
+  scheduleSetupSchema,
+} from "@/lib/schedules/store";
 import { scheduleAccess } from "@/lib/schedules/access";
 import { problem, readBody } from "@/lib/http";
 
@@ -27,11 +32,15 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PUT(request: NextRequest, { params }: Params) {
   const context = await circleContext({ circleId: params.id, require: "member-or-board" });
   if ("error" in context) return context.error;
-  if (!(await readSchedule(params.id))) return problem("This circle doesn't have a duty schedule", 404);
+  if (!(await readSchedule(params.id)))
+    return problem("This circle doesn't have a duty schedule", 404);
   const parsed = await readBody(request, scheduleSetupSchema);
   if ("error" in parsed) return parsed.error;
   const schedule = await saveSchedule(params.id, parsed.data);
-  return NextResponse.json({ schedule, ...scheduleAccess(context.user, context.directory, params.id, schedule) });
+  return NextResponse.json({
+    schedule,
+    ...scheduleAccess(context.user, context.directory, params.id, schedule),
+  });
 }
 
 /** Remove the circle's schedule. */

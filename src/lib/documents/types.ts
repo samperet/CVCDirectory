@@ -31,7 +31,20 @@ export const UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 
 /** File extensions residents may upload. */
 export const ACCEPTED_EXTENSIONS = [
-  ".pdf", ".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt", ".txt", ".csv", ".md", ".jpg", ".jpeg", ".png", ".webp",
+  ".pdf",
+  ".docx",
+  ".xlsx",
+  ".pptx",
+  ".doc",
+  ".xls",
+  ".ppt",
+  ".txt",
+  ".csv",
+  ".md",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
 ];
 
 export interface Uploader {
@@ -84,9 +97,13 @@ export interface DocumentConsent {
  * "consented" while the consented version is current; "changed" once a newer
  * version has replaced it; null if the circle hasn't consented.
  */
-export function consentState(doc: Pick<DocumentRecord, "consent" | "versions">): "consented" | "changed" | null {
+export function consentState(
+  doc: Pick<DocumentRecord, "consent" | "versions">
+): "consented" | "changed" | null {
   if (!doc.consent) return null;
-  return doc.consent.version === doc.versions[doc.versions.length - 1]?.number ? "consented" : "changed";
+  return doc.consent.version === doc.versions[doc.versions.length - 1]?.number
+    ? "consented"
+    : "changed";
 }
 
 /** A document as listed or found by search, with what the viewer may do. */

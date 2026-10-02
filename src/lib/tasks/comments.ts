@@ -9,8 +9,20 @@ import type { TaskComment } from "./shared";
  */
 
 const MAX_COMMENTS = 5000;
-const body = z.string().trim().min(1, "Write a comment").max(4000, "Comments must be 4000 characters or fewer");
-export const taskCommentInputSchema = z.object({ body, parentId: z.string().uuid().nullable().optional().transform((value) => value ?? null) });
+const body = z
+  .string()
+  .trim()
+  .min(1, "Write a comment")
+  .max(4000, "Comments must be 4000 characters or fewer");
+export const taskCommentInputSchema = z.object({
+  body,
+  parentId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
+});
 export const taskCommentUpdateSchema = z.object({ body });
 
 const key = (circleId: string) => `task-comments/${circleId}.json`;
@@ -38,9 +50,16 @@ export function ancestors(comments: TaskComment[], comment: TaskComment) {
 }
 
 type Failure = "not_found" | "forbidden" | "full" | "unknown_parent";
-export type TaskCommentResult = { ok: true; comment: TaskComment | null; comments: TaskComment[] } | { ok: false; reason: Failure };
+export type TaskCommentResult =
+  | { ok: true; comment: TaskComment | null; comments: TaskComment[] }
+  | { ok: false; reason: Failure };
 
-async function mutate(circleId: string, change: (comments: TaskComment[]) => { comments: TaskComment[]; comment: TaskComment | null } | Failure): Promise<TaskCommentResult> {
+async function mutate(
+  circleId: string,
+  change: (
+    comments: TaskComment[]
+  ) => { comments: TaskComment[]; comment: TaskComment | null } | Failure
+): Promise<TaskCommentResult> {
   return enqueue<TaskCommentResult>(key(circleId), async () => {
     const result = change(normalize(await readJson(key(circleId))));
     if (typeof result === "string") return { ok: false, reason: result };
@@ -49,10 +68,19 @@ async function mutate(circleId: string, change: (comments: TaskComment[]) => { c
   });
 }
 
-export function addTaskComment(circleId: string, taskId: string, author: { id: string; name: string }, input: { body: string; parentId: string | null }) {
+export function addTaskComment(
+  circleId: string,
+  taskId: string,
+  author: { id: string; name: string },
+  input: { body: string; parentId: string | null }
+) {
   return mutate(circleId, (comments) => {
     if (comments.length >= MAX_COMMENTS) return "full";
-    if (input.parentId && !comments.some((entry) => entry.id === input.parentId && entry.taskId === taskId)) return "unknown_parent";
+    if (
+      input.parentId &&
+      !comments.some((entry) => entry.id === input.parentId && entry.taskId === taskId)
+    )
+      return "unknown_parent";
     const comment: TaskComment = {
       id: randomUUID(),
       taskId,
@@ -67,13 +95,24 @@ export function addTaskComment(circleId: string, taskId: string, author: { id: s
 }
 
 /** Change what you wrote. */
-export function editTaskComment(circleId: string, taskId: string, commentId: string, actor: { id: string }, body: string) {
+export function editTaskComment(
+  circleId: string,
+  taskId: string,
+  commentId: string,
+  actor: { id: string },
+  body: string
+) {
   return mutate(circleId, (comments) => {
-    const comment = comments.find((entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted);
+    const comment = comments.find(
+      (entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted
+    );
     if (!comment) return "not_found";
     if (comment.authorId !== actor.id) return "forbidden";
     const updated = { ...comment, body, editedAt: new Date().toISOString() };
-    return { comments: comments.map((entry) => (entry.id === commentId ? updated : entry)), comment: updated };
+    return {
+      comments: comments.map((entry) => (entry.id === commentId ? updated : entry)),
+      comment: updated,
+    };
   });
 }
 
@@ -82,13 +121,22 @@ export function editTaskComment(circleId: string, taskId: string, commentId: str
  * "deleted", so the conversation under it still makes sense; one without goes
  * — and so does a deleted parent left with no replies.
  */
-export function deleteTaskComment(circleId: string, taskId: string, commentId: string, actor: { id: string; canModerate: boolean }) {
+export function deleteTaskComment(
+  circleId: string,
+  taskId: string,
+  commentId: string,
+  actor: { id: string; canModerate: boolean }
+) {
   return mutate(circleId, (comments) => {
-    const comment = comments.find((entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted);
+    const comment = comments.find(
+      (entry) => entry.id === commentId && entry.taskId === taskId && !entry.deleted
+    );
     if (!comment) return "not_found";
     if (!actor.canModerate && comment.authorId !== actor.id) return "forbidden";
     let next = comments.some((entry) => entry.parentId === commentId)
-      ? comments.map((entry) => (entry.id === commentId ? { ...entry, body: "", deleted: true } : entry))
+      ? comments.map((entry) =>
+          entry.id === commentId ? { ...entry, body: "", deleted: true } : entry
+        )
       : comments.filter((entry) => entry.id !== commentId);
     // Tidy up deleted comments that no longer have anything under them.
     for (let parentId = comment.parentId; parentId; ) {
@@ -103,7 +151,10 @@ export function deleteTaskComment(circleId: string, taskId: string, commentId: s
 
 /** Remove a task's comments (when the task is deleted). */
 export function deleteCommentsForTask(circleId: string, taskId: string) {
-  return mutate(circleId, (comments) => ({ comments: comments.filter((entry) => entry.taskId !== taskId), comment: null }));
+  return mutate(circleId, (comments) => ({
+    comments: comments.filter((entry) => entry.taskId !== taskId),
+    comment: null,
+  }));
 }
 
 /** Remove a circle's task comments (when the circle is deleted). */

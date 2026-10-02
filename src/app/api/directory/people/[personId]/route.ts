@@ -19,7 +19,8 @@ export async function DELETE(_request: Request, { params }: { params: { personId
   if (!user) return problem("Sign in to continue", 401);
   const [directory, imported] = await Promise.all([readDirectory(), readImportedDirectory()]);
   if (!directory || !imported) return problem("The directory hasn't been imported yet", 503);
-  if (!canManageDirectory(user, directory)) return problem("Only the Board Secretary and admins can remove people", 403);
+  if (!canManageDirectory(user, directory))
+    return problem("Only the Board Secretary and admins can remove people", 403);
   if (!isPersonId(params.personId)) return problem("Person not found", 404);
   const person = findPerson(directory, params.personId);
   if (!person) return problem("Person not found", 404);

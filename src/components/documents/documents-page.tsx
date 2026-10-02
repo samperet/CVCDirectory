@@ -12,14 +12,28 @@ import { useDirectoryQuery } from "@/components/directory/use-directory";
 export function DocumentsPage() {
   const { data } = useDirectoryQuery();
   const { user } = useSession();
-  const circles = (data?.circles ?? []).map((circle) => ({ id: circle.id, name: circle.name })).sort((a, b) => a.name.localeCompare(b.name));
+  const circles = (data?.circles ?? [])
+    .map((circle) => ({ id: circle.id, name: circle.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   // Where this resident can add documents: their own circles — or every circle, for the Board and admins.
   const inCircle = (circleId: string) =>
-    !!user?.personId && !!data?.circles.some((circle) => circle.id === circleId && circle.seats.some((seat) => seat.personId === user.personId));
+    !!user?.personId &&
+    !!data?.circles.some(
+      (circle) =>
+        circle.id === circleId && circle.seats.some((seat) => seat.personId === user.personId)
+    );
   // Everyone is in the Community circle.
-  const documentsOn = new Set((data?.circles ?? []).filter((circle) => featureEnabled(circle, "documents")).map((circle) => circle.id));
+  const documentsOn = new Set(
+    (data?.circles ?? [])
+      .filter((circle) => featureEnabled(circle, "documents"))
+      .map((circle) => circle.id)
+  );
   const uploadCircles = (
-    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId) ? circles : circles.filter((circle) => inCircle(circle.id) || (isCommunity(circle.id) && !!user?.personId))
+    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId)
+      ? circles
+      : circles.filter(
+          (circle) => inCircle(circle.id) || (isCommunity(circle.id) && !!user?.personId)
+        )
   ).filter((circle) => documentsOn.has(circle.id));
   return (
     <div className="flex flex-col gap-6">

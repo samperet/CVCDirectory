@@ -23,7 +23,10 @@ export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPage
     const byId = new Map(pages.map((page) => [page.id, page]));
     return filter.pageIds.flatMap((id) => byId.get(id) ?? []);
   }
-  if (filter.kind === "circle") return pages.filter((page) => page.keeper === filter.circleId).sort((a, b) => a.title.localeCompare(b.title));
+  if (filter.kind === "circle")
+    return pages
+      .filter((page) => page.keeper === filter.circleId)
+      .sort((a, b) => a.title.localeCompare(b.title));
   return pages
     .filter((page) => !filter.circleId || page.keeper === filter.circleId)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
@@ -31,7 +34,8 @@ export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPage
 }
 
 /** The circle whose pages a filter lists, if it lists one circle's. */
-export const filterCircle = (filter: InfoFilter) => (filter.kind === "pages" ? undefined : filter.circleId);
+export const filterCircle = (filter: InfoFilter) =>
+  filter.kind === "pages" ? undefined : filter.circleId;
 
 /**
  * An Information module on a circle's page: the wiki pages it was set to
@@ -39,7 +43,17 @@ export const filterCircle = (filter: InfoFilter) => (filter.kind === "pages" ? u
  * When it lists this circle's own pages, whoever can start pages for the
  * circle can add one here.
  */
-export function InformationModule({ circle, module, canAdd, narrow }: { circle: Circle; module: CircleModule; canAdd: boolean; narrow: boolean }) {
+export function InformationModule({
+  circle,
+  module,
+  canAdd,
+  narrow,
+}: {
+  circle: Circle;
+  module: CircleModule;
+  canAdd: boolean;
+  narrow: boolean;
+}) {
   const { data, isLoading } = useWikiPages();
   const circles = useCircles();
   const [adding, setAdding] = useState(false);
@@ -57,7 +71,8 @@ export function InformationModule({ circle, module, canAdd, narrow }: { circle: 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold text-foreground">
           <ModuleToggle />
-          <BookOpen className="h-5 w-5 shrink-0 text-primary" aria-hidden /> <span className="min-w-0 break-words">{moduleTitle(module)}</span>
+          <BookOpen className="h-5 w-5 shrink-0 text-primary" aria-hidden />{" "}
+          <span className="min-w-0 break-words">{moduleTitle(module)}</span>
         </h2>
         {canAdd && ownPages ? (
           <Button className="gap-1" onClick={() => setAdding(true)}>
@@ -68,13 +83,27 @@ export function InformationModule({ circle, module, canAdd, narrow }: { circle: 
       {isLoading ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : pages.length ? (
-        <PageGrid pages={pages} all={all} view={info.view} circleId={circle.id} circleNames={circleNames} narrow={narrow} />
+        <PageGrid
+          pages={pages}
+          all={all}
+          view={info.view}
+          circleId={circle.id}
+          circleNames={circleNames}
+          narrow={narrow}
+        />
       ) : (
-        <p className="text-sm text-muted">{canAdd && ownPages ? "Nothing here yet — add the first piece of information." : "Nothing here yet."}</p>
+        <p className="text-sm text-muted">
+          {canAdd && ownPages
+            ? "Nothing here yet — add the first piece of information."
+            : "Nothing here yet."}
+        </p>
       )}
       {total && listed && listedName ? (
         <div className="border-t border-border pt-3 text-sm">
-          <Link href={`/wiki?keeper=${listed}`} className="font-medium text-secondary-foreground hover:underline">
+          <Link
+            href={`/wiki?keeper=${listed}`}
+            className="font-medium text-secondary-foreground hover:underline"
+          >
             All {listedName} pages in the wiki ({total})
           </Link>
         </div>

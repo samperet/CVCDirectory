@@ -13,9 +13,25 @@ import {
 } from "@/lib/meetings/shared";
 import { cn } from "@/lib/utils";
 
-export type MeetingsResponse = { meetings: MeetingSummary[]; proposals: ProposalSummary[]; canEdit: boolean; canReview: boolean };
-export type MeetingResponse = { meeting: Meeting; proposals: ProposalSummary[]; canEdit: boolean; canReview: boolean };
-export type ProposalResponse = { proposal: Proposal; meeting: MeetingSummary | null; canEdit: boolean; canReview: boolean; admin: boolean };
+export type MeetingsResponse = {
+  meetings: MeetingSummary[];
+  proposals: ProposalSummary[];
+  canEdit: boolean;
+  canReview: boolean;
+};
+export type MeetingResponse = {
+  meeting: Meeting;
+  proposals: ProposalSummary[];
+  canEdit: boolean;
+  canReview: boolean;
+};
+export type ProposalResponse = {
+  proposal: Proposal;
+  meeting: MeetingSummary | null;
+  canEdit: boolean;
+  canReview: boolean;
+  admin: boolean;
+};
 
 export const meetingsQuery = (circleId: string) => ({
   queryKey: ["meetings", circleId],
@@ -36,11 +52,19 @@ export { meetingHref, proposalHref } from "@/lib/meetings/shared";
 
 /** "Thu, Oct 2, 2026", from YYYY-MM-DD. */
 export const meetingDate = (date: string) =>
-  new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
 /** "Oct 7, 4:05 pm". */
 export const dateTime = (iso: string) =>
-  new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).replace(" AM", " am").replace(" PM", " pm");
+  new Date(iso)
+    .toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    .replace(" AM", " am")
+    .replace(" PM", " pm");
 
 /** The time now, ticking each minute (for review clocks). */
 export function useNow() {
@@ -61,10 +85,27 @@ const STATE_STYLES: Record<ProposalState, string> = {
 };
 
 /** Where a proposal stands, as a pill: "3 days left", "Paused: 1 objection", "Consented". */
-export function ProposalBadge({ proposal, objections, now, className }: { proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">; objections: number; now: number; className?: string }) {
+export function ProposalBadge({
+  proposal,
+  objections,
+  now,
+  className,
+}: {
+  proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">;
+  objections: number;
+  now: number;
+  className?: string;
+}) {
   const state = proposalState(proposal, now);
   return (
-    <span className={cn("inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold", STATE_STYLES[state], className)} data-state={state}>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold",
+        STATE_STYLES[state],
+        className
+      )}
+      data-state={state}
+    >
       {statusLine(proposal, objections, now)}
     </span>
   );

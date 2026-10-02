@@ -44,18 +44,34 @@ import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
 import { searchTerms } from "@/lib/search";
 
-type ListResponse = { documents: DocumentListing[]; total: number; typeOptions: string[]; yearOptions?: string[] };
+type ListResponse = {
+  documents: DocumentListing[];
+  total: number;
+  typeOptions: string[];
+  yearOptions?: string[];
+};
 
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
-  `/api/documents/${doc.id}/file?${new URLSearchParams({ ...(version ? { v: String(version) } : {}), ...(download ? { download: "1" } : {}) })}`;
+  `/api/documents/${doc.id}/file?${new URLSearchParams({
+    ...(version ? { v: String(version) } : {}),
+    ...(download ? { download: "1" } : {}),
+  })}`;
 
 const shortDate = (iso: string) =>
-  new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
 /** Wrap each search term in the text with <mark>. */
 function Highlighted({ text, terms }: { text: string; terms: string[] }) {
   if (!terms.length) return <>{text}</>;
-  const pattern = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
+  const pattern = new RegExp(
+    `(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "gi"
+  );
   return (
     <>
       {text.split(pattern).map((part, index) =>
@@ -76,10 +92,18 @@ function Progress({ sent, total, finishing }: { sent: number; total: number; fin
   return (
     <div className="flex flex-col gap-1" role="status">
       <div className="h-2 overflow-hidden rounded-full bg-border">
-        <div className={cn("h-full rounded-full bg-primary transition-all", finishing && "animate-pulse")} style={{ width: `${finishing ? 100 : percent}%` }} />
+        <div
+          className={cn(
+            "h-full rounded-full bg-primary transition-all",
+            finishing && "animate-pulse"
+          )}
+          style={{ width: `${finishing ? 100 : percent}%` }}
+        />
       </div>
       <p className="text-xs text-muted">
-        {finishing ? "Processing — reading the document for search…" : `Uploading ${formatBytes(sent)} of ${formatBytes(total)}`}
+        {finishing
+          ? "Processing — reading the document for search…"
+          : `Uploading ${formatBytes(sent)} of ${formatBytes(total)}`}
       </p>
     </div>
   );
@@ -102,18 +126,30 @@ function DetailsFields({
   /** The circle's types (plus, when editing, the document's current type if the circle has since removed it). */
   types: DocumentTypeOption[];
 }) {
-  const set = (key: keyof DetailsForm) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    onChange({ ...form, [key]: event.target.value });
+  const set =
+    (key: keyof DetailsForm) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      onChange({ ...form, [key]: event.target.value });
   return (
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
         Title
-        <Input value={form.title} maxLength={160} onChange={set("title")} className="bg-white" required />
+        <Input
+          value={form.title}
+          maxLength={160}
+          onChange={set("title")}
+          className="bg-white"
+          required
+        />
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Type
-          <select value={form.type} onChange={set("type")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
+          <select
+            value={form.type}
+            onChange={set("type")}
+            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+          >
             {types.map((type) => (
               <option key={type.id} value={type.id}>
                 {type.label}
@@ -122,13 +158,25 @@ function DetailsFields({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-          Meeting date <span className="text-xs font-normal text-muted">(for minutes and agendas)</span>
-          <Input type="date" value={form.meetingDate} onChange={set("meetingDate")} className="bg-white" />
+          Meeting date{" "}
+          <span className="text-xs font-normal text-muted">(for minutes and agendas)</span>
+          <Input
+            type="date"
+            value={form.meetingDate}
+            onChange={set("meetingDate")}
+            className="bg-white"
+          />
         </label>
       </div>
       <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
         Description <span className="text-xs font-normal text-muted">(optional)</span>
-        <Textarea rows={2} value={form.description} maxLength={1000} onChange={set("description")} className="bg-white" />
+        <Textarea
+          rows={2}
+          value={form.description}
+          maxLength={1000}
+          onChange={set("description")}
+          className="bg-white"
+        />
       </label>
     </div>
   );
@@ -161,7 +209,15 @@ function ConsentBadge({ doc }: { doc: DocumentListing }) {
   );
 }
 
-function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: string[]; showCircle: boolean }) {
+function DocumentRow({
+  doc,
+  terms,
+  showCircle,
+}: {
+  doc: DocumentListing;
+  terms: string[];
+  showCircle: boolean;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const replaceInput = useRef<HTMLInputElement>(null);
@@ -172,37 +228,60 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
     meetingDate: doc.meetingDate ?? "",
     description: doc.description ?? "",
   });
-  const [replacing, setReplacing] = useState<{ file: File; sent: number; finishing: boolean } | null>(null);
+  const [replacing, setReplacing] = useState<{
+    file: File;
+    sent: number;
+    finishing: boolean;
+  } | null>(null);
   const version = currentVersion(doc);
   const consent = consentState(doc);
   const today = new Date().toLocaleDateString("en-CA");
   const [consenting, setConsenting] = useState(false);
-  const [consentDate, setConsentDate] = useState(doc.meetingDate && doc.meetingDate <= today ? doc.meetingDate : today);
+  const [consentDate, setConsentDate] = useState(
+    doc.meetingDate && doc.meetingDate <= today ? doc.meetingDate : today
+  );
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] });
   const circleTypes = useCircleTypes(doc.circleId).data?.types ?? [];
-  const editTypes = circleTypes.some((type) => type.id === doc.type) ? circleTypes : [{ id: doc.type, label: doc.typeLabel }, ...circleTypes];
+  const editTypes = circleTypes.some((type) => type.id === doc.type)
+    ? circleTypes
+    : [{ id: doc.type, label: doc.typeLabel }, ...circleTypes];
 
   const save = useMutation({
     mutationFn: () =>
       apiFetch(`/api/documents/${doc.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title: form.title, type: form.type, meetingDate: form.meetingDate || null, description: form.description || null }),
+        body: JSON.stringify({
+          title: form.title,
+          type: form.type,
+          meetingDate: form.meetingDate || null,
+          description: form.description || null,
+        }),
       }),
     onSuccess: () => {
       setMode("view");
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Could not save", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not save", description: err.message, variant: "destructive" }),
   });
 
   const markConsented = useMutation({
-    mutationFn: () => apiFetch(`/api/documents/${doc.id}/consent`, { method: "PUT", body: JSON.stringify({ date: consentDate }) }),
+    mutationFn: () =>
+      apiFetch(`/api/documents/${doc.id}/consent`, {
+        method: "PUT",
+        body: JSON.stringify({ date: consentDate }),
+      }),
     onSuccess: () => {
       setConsenting(false);
       toast({ title: "Marked consented" });
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Could not record consent", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not record consent",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
   const withdraw = useMutation({
     mutationFn: () => apiFetch(`/api/documents/${doc.id}/consent`, { method: "DELETE" }),
@@ -210,7 +289,12 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
       toast({ title: "Consent withdrawn" });
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Could not withdraw consent", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not withdraw consent",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const remove = useMutation({
@@ -219,21 +303,28 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
       toast({ title: "Document deleted" });
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Could not delete", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not delete", description: err.message, variant: "destructive" }),
   });
 
   const replace = useMutation({
     mutationFn: async (file: File) => {
       setReplacing({ file, sent: 0, finishing: false });
-      const token = await sendFile(file, { circleId: doc.circleId, replaces: doc.id }, (sent) => setReplacing({ file, sent, finishing: false }));
+      const token = await sendFile(file, { circleId: doc.circleId, replaces: doc.id }, (sent) =>
+        setReplacing({ file, sent, finishing: false })
+      );
       setReplacing({ file, sent: file.size, finishing: true });
       return apiFetch("/api/documents", { method: "POST", body: JSON.stringify({ token }) });
     },
     onSuccess: () => {
-      toast({ title: "New version uploaded", description: "Earlier versions are kept in the history." });
+      toast({
+        title: "New version uploaded",
+        description: "Earlier versions are kept in the history.",
+      });
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Upload failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" }),
     onSettled: () => setReplacing(null),
   });
 
@@ -242,7 +333,11 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
       <li className="flex flex-col gap-3 py-4">
         <DetailsFields form={form} onChange={setForm} types={editTypes} />
         <div className="flex gap-2">
-          <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending || !form.title.trim()}>
+          <Button
+            size="sm"
+            onClick={() => save.mutate()}
+            disabled={save.isPending || !form.title.trim()}
+          >
             {save.isPending ? "Saving…" : "Save"}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setMode("view")}>
@@ -253,12 +348,16 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
     );
   }
 
-  const action = "inline-flex h-7 min-w-[1.75rem] items-center justify-center gap-0.5 rounded-md px-1 text-muted transition hover:bg-accent hover:text-foreground disabled:opacity-50";
+  const action =
+    "inline-flex h-7 min-w-[1.75rem] items-center justify-center gap-0.5 rounded-md px-1 text-muted transition hover:bg-accent hover:text-foreground disabled:opacity-50";
   return (
     <li className="group/post flex flex-col gap-1 py-2.5">
       {/* The title on its own line, never cut off; its details and actions on the line below. */}
       <div className="flex items-start gap-3">
-        <FileIcon contentType={version.contentType} className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <FileIcon
+          contentType={version.contentType}
+          className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+        />
         <a
           href={fileUrl(doc)}
           target={version.viewable ? "_blank" : undefined}
@@ -270,19 +369,38 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-8">
         <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">{doc.typeLabel}</span>
+          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
+            {doc.typeLabel}
+          </span>
           <ConsentBadge doc={doc} />
           {showCircle ? (
-            <Link href={`/circles/${doc.circleId}#documents`} className="font-medium hover:text-foreground hover:underline">
+            <Link
+              href={`/circles/${doc.circleId}#documents`}
+              className="font-medium hover:text-foreground hover:underline"
+            >
               {doc.circleName}
             </Link>
           ) : null}
-          <span className="whitespace-nowrap">{doc.meetingDate ? `Meeting ${shortDate(doc.meetingDate)}` : shortDate(documentDate(doc))}</span>
+          <span className="whitespace-nowrap">
+            {doc.meetingDate
+              ? `Meeting ${shortDate(doc.meetingDate)}`
+              : shortDate(documentDate(doc))}
+          </span>
           <span>by {version.uploadedBy.name}</span>
         </p>
 
-        <div className={cn("ml-auto flex shrink-0 items-center", mode === "view" && !replacing && !consenting && ON_HOVER)}>
-          <a href={fileUrl(doc, undefined, true)} className={action} aria-label={`Download ${doc.title}`} title="Download">
+        <div
+          className={cn(
+            "ml-auto flex shrink-0 items-center",
+            mode === "view" && !replacing && !consenting && ON_HOVER
+          )}
+        >
+          <a
+            href={fileUrl(doc, undefined, true)}
+            className={action}
+            aria-label={`Download ${doc.title}`}
+            title="Download"
+          >
             <Download className="h-4 w-4" />
           </a>
           {doc.versions.length > 1 ? (
@@ -303,7 +421,14 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm(`Withdraw the record that ${doc.circleName || "the circle"} consented to “${doc.title}”?`)) withdraw.mutate();
+                  if (
+                    window.confirm(
+                      `Withdraw the record that ${doc.circleName || "the circle"} consented to “${
+                        doc.title
+                      }”?`
+                    )
+                  )
+                    withdraw.mutate();
                 }}
                 disabled={withdraw.isPending}
                 className={cn(action, "text-pine")}
@@ -327,7 +452,13 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
           ) : null}
           {doc.canManage ? (
             <>
-              <button type="button" onClick={() => setMode("edit")} className={action} aria-label="Edit details" title="Edit details">
+              <button
+                type="button"
+                onClick={() => setMode("edit")}
+                className={action}
+                aria-label="Edit details"
+                title="Edit details"
+              >
                 <Pencil className="h-4 w-4" />
               </button>
               <input
@@ -340,7 +471,12 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
                   event.target.value = "";
                   if (!file) return;
                   const problem = checkFile(file);
-                  if (problem) toast({ title: "Can't upload that file", description: problem, variant: "destructive" });
+                  if (problem)
+                    toast({
+                      title: "Can't upload that file",
+                      description: problem,
+                      variant: "destructive",
+                    });
                   else replace.mutate(file);
                 }}
               />
@@ -357,7 +493,14 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm(`Delete “${doc.title}” and all ${doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"}? This can't be undone.`)) remove.mutate();
+                  if (
+                    window.confirm(
+                      `Delete “${doc.title}” and all ${
+                        doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"
+                      }? This can't be undone.`
+                    )
+                  )
+                    remove.mutate();
                 }}
                 disabled={remove.isPending}
                 className={cn(action, "hover:bg-destructive/10 hover:text-destructive")}
@@ -381,10 +524,21 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
         >
           <label className="flex items-center gap-2 text-foreground">
             {doc.circleName ? `${doc.circleName} consented on` : "Consented on"}
-            <Input type="date" value={consentDate} max={today} onChange={(event) => setConsentDate(event.target.value)} className="h-8 w-auto bg-white" required />
+            <Input
+              type="date"
+              value={consentDate}
+              max={today}
+              onChange={(event) => setConsentDate(event.target.value)}
+              className="h-8 w-auto bg-white"
+              required
+            />
           </label>
           <Button type="submit" size="sm" disabled={!consentDate || markConsented.isPending}>
-            {markConsented.isPending ? "Saving…" : consent === "changed" ? `Mark version ${version.number} consented` : "Mark consented"}
+            {markConsented.isPending
+              ? "Saving…"
+              : consent === "changed"
+                ? `Mark version ${version.number} consented`
+                : "Mark consented"}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setConsenting(false)}>
             Cancel
@@ -402,24 +556,40 @@ function DocumentRow({ doc, terms, showCircle }: { doc: DocumentListing; terms: 
         </p>
       ) : null}
 
-
-
       {replacing ? (
         <div className="pl-8">
-          <Progress sent={replacing.sent} total={replacing.file.size} finishing={replacing.finishing} />
+          <Progress
+            sent={replacing.sent}
+            total={replacing.file.size}
+            finishing={replacing.finishing}
+          />
         </div>
       ) : null}
 
       {mode === "history" ? (
         <ol className="ml-8 flex flex-col divide-y divide-border rounded-lg border border-border text-xs">
           {[...doc.versions].reverse().map((entry) => (
-            <li key={entry.number} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+            <li
+              key={entry.number}
+              className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+            >
               <span className="text-foreground-light">
                 <strong className="text-foreground">Version {entry.number}</strong>
-                {entry.number === version.number ? " (current)" : ""} · {entry.fileName} · {shortDate(entry.uploadedAt)}
-                {doc.consent?.version === entry.number ? <span className="font-medium text-pine"> · consented {shortDate(doc.consent.date)}</span> : null}
+                {entry.number === version.number ? " (current)" : ""} · {entry.fileName} ·{" "}
+                {shortDate(entry.uploadedAt)}
+                {doc.consent?.version === entry.number ? (
+                  <span className="font-medium text-pine">
+                    {" "}
+                    · consented {shortDate(doc.consent.date)}
+                  </span>
+                ) : null}
               </span>
-              <a href={fileUrl(doc, entry.number, true)} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground" aria-label={`Download version ${entry.number}`} title="Download">
+              <a
+                href={fileUrl(doc, entry.number, true)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground"
+                aria-label={`Download version ${entry.number}`}
+                title="Download"
+              >
                 <Download className="h-4 w-4" />
               </a>
             </li>
@@ -435,19 +605,24 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const loaded = useCircleTypes(circleId).data?.types;
-  const [rows, setRows] = useState<{ id: string | null; label: string; key: number }[] | null>(null);
+  const [rows, setRows] = useState<{ id: string | null; label: string; key: number }[] | null>(
+    null
+  );
   const [adding, setAdding] = useState("");
   const nextKey = useRef(0);
 
   useEffect(() => {
-    if (loaded && !rows) setRows(loaded.map((type) => ({ id: type.id, label: type.label, key: nextKey.current++ })));
+    if (loaded && !rows)
+      setRows(loaded.map((type) => ({ id: type.id, label: type.label, key: nextKey.current++ })));
   }, [loaded, rows]);
 
   const save = useMutation({
     mutationFn: () =>
       apiFetch<{ types: DocumentTypeOption[] }>(`/api/circles/${circleId}/document-types`, {
         method: "PUT",
-        body: JSON.stringify({ types: (rows ?? []).map((row) => ({ id: row.id, label: row.label })) }),
+        body: JSON.stringify({
+          types: (rows ?? []).map((row) => ({ id: row.id, label: row.label })),
+        }),
       }),
     onSuccess: (response) => {
       queryClient.setQueryData(["document-types", circleId], response);
@@ -455,7 +630,8 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
       toast({ title: "Document types saved" });
       onDone();
     },
-    onError: (err: Error) => toast({ title: "Could not save types", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not save types", description: err.message, variant: "destructive" }),
   });
 
   if (!rows) return <p className="text-sm text-muted">Loading types…</p>;
@@ -474,19 +650,26 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
     setAdding("");
   };
   const labels = rows.map((row) => row.label.trim().toLowerCase());
-  const invalid = !rows.length || labels.some((label) => !label) || new Set(labels).size !== labels.length;
+  const invalid =
+    !rows.length || labels.some((label) => !label) || new Set(labels).size !== labels.length;
 
   return (
     <Card className="flex flex-col gap-3 p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-base font-semibold text-foreground">Document types</h3>
-        <Button variant="ghost" size="icon" onClick={onDone} disabled={save.isPending} aria-label="Cancel">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDone}
+          disabled={save.isPending}
+          aria-label="Cancel"
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>
       <p className="-mt-1 text-xs text-muted">
-        The choices this circle uses when adding documents. Renaming a type renames it on every document; removing one
-        leaves existing documents as they are.
+        The choices this circle uses when adding documents. Renaming a type renames it on every
+        document; removing one leaves existing documents as they are.
       </p>
       <ul className="flex flex-col gap-2">
         {rows.map((row, index) => (
@@ -494,14 +677,34 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
             <Input
               value={row.label}
               maxLength={40}
-              onChange={(event) => setRows((current) => current!.map((entry) => (entry.key === row.key ? { ...entry, label: event.target.value } : entry)))}
+              onChange={(event) =>
+                setRows((current) =>
+                  current!.map((entry) =>
+                    entry.key === row.key ? { ...entry, label: event.target.value } : entry
+                  )
+                )
+              }
               className="bg-white"
               aria-label={`Type ${index + 1}`}
             />
-            <Button variant="ghost" size="icon" className="shrink-0" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${row.label} up`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              disabled={index === 0}
+              onClick={() => move(index, -1)}
+              aria-label={`Move ${row.label} up`}
+            >
               <ArrowUp className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="shrink-0" disabled={index === rows.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${row.label} down`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              disabled={index === rows.length - 1}
+              onClick={() => move(index, 1)}
+              aria-label={`Move ${row.label} down`}
+            >
               <ArrowDown className="h-4 w-4" />
             </Button>
             <Button
@@ -509,7 +712,9 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
               size="icon"
               className="shrink-0 text-muted hover:text-destructive"
               disabled={rows.length <= 1}
-              onClick={() => setRows((current) => current!.filter((entry) => entry.key !== row.key))}
+              onClick={() =>
+                setRows((current) => current!.filter((entry) => entry.key !== row.key))
+              }
               aria-label={`Remove ${row.label}`}
             >
               <Trash2 className="h-4 w-4" />
@@ -525,7 +730,13 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
             add();
           }}
         >
-          <Input placeholder="Add a type, e.g. Work plan" value={adding} maxLength={40} onChange={(event) => setAdding(event.target.value)} className="bg-white" />
+          <Input
+            placeholder="Add a type, e.g. Work plan"
+            value={adding}
+            maxLength={40}
+            onChange={(event) => setAdding(event.target.value)}
+            className="bg-white"
+          />
           <Button type="submit" variant="outline" disabled={!adding.trim()}>
             Add
           </Button>
@@ -538,7 +749,9 @@ function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => voi
         <Button variant="outline" onClick={onDone} disabled={save.isPending}>
           Cancel
         </Button>
-        {invalid ? <span className="text-xs text-muted">Each type needs a different, non-empty name.</span> : null}
+        {invalid ? (
+          <span className="text-xs text-muted">Each type needs a different, non-empty name.</span>
+        ) : null}
       </div>
     </Card>
   );
@@ -551,11 +764,16 @@ function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
     <li className="flex items-start gap-3 py-4">
       <MessagesSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
       <div className="min-w-0 flex-1">
-        <Link href={href} className="font-medium text-foreground underline-offset-4 hover:underline">
+        <Link
+          href={href}
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
           <Highlighted text={hit.title} terms={terms} />
         </Link>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">Forum</span>
+          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
+            Forum
+          </span>
           <span>started by {hit.authorName}</span>
           <span>
             {hit.replyCount} {hit.replyCount === 1 ? "reply" : "replies"}
@@ -615,11 +833,22 @@ export function DocumentsPanel({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const filters = { q: debounced, circle: circleId ?? circle, type, year, sort, consented: consentedOnly ? "1" : "" };
+  const filters = {
+    q: debounced,
+    circle: circleId ?? circle,
+    type,
+    year,
+    sort,
+    consented: consentedOnly ? "1" : "",
+  };
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["documents", filters],
     queryFn: () =>
-      apiFetch<ListResponse>(`/api/documents?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][])}`),
+      apiFetch<ListResponse>(
+        `/api/documents?${new URLSearchParams(
+          Object.entries(filters).filter(([, value]) => value) as [string, string][]
+        )}`
+      ),
     placeholderData: (previous) => previous,
   });
   const terms = useMemo(() => searchTerms(debounced), [debounced]);
@@ -627,14 +856,22 @@ export function DocumentsPanel({
   const searchingForum = !circleId && !!debounced && !circle && !type;
   const forum = useQuery({
     queryKey: ["forum", "search", debounced],
-    queryFn: () => apiFetch<{ threads: ForumSearchHit[]; total: number }>(`/api/forum/search?${new URLSearchParams({ q: debounced })}`),
+    queryFn: () =>
+      apiFetch<{ threads: ForumSearchHit[]; total: number }>(
+        `/api/forum/search?${new URLSearchParams({ q: debounced })}`
+      ),
     enabled: searchingForum,
     placeholderData: (previous) => previous,
   });
   // Type names in use (each circle names its own), for the filter; kept while a type is chosen.
-  const typeOptions = useMemo(() => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(), [data, type]);
+  const typeOptions = useMemo(
+    () => Array.from(new Set([...(data?.typeOptions ?? []), ...(type ? [type] : [])])).sort(),
+    [data, type]
+  );
   const filtered = !!(debounced || type || year || consentedOnly || (!circleId && circle));
-  const yearOptions = Array.from(new Set([...(data?.yearOptions ?? []), ...(year ? [year] : [])])).sort((a, b) => b.localeCompare(a));
+  const yearOptions = Array.from(
+    new Set([...(data?.yearOptions ?? []), ...(year ? [year] : [])])
+  ).sort((a, b) => b.localeCompare(a));
   const clearFilters = () => {
     setQuery("");
     setDebounced("");
@@ -652,7 +889,9 @@ export function DocumentsPanel({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <Input
             type="search"
-            placeholder={circleId ? "Search this circle's documents" : "Search all documents and the forum"}
+            placeholder={
+              circleId ? "Search this circle's documents" : "Search all documents and the forum"
+            }
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="bg-white pl-9"
@@ -660,7 +899,12 @@ export function DocumentsPanel({
           />
         </div>
         {!circleId && circles ? (
-          <select value={circle} onChange={(event) => setCircle(event.target.value)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Circle">
+          <select
+            value={circle}
+            onChange={(event) => setCircle(event.target.value)}
+            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+            aria-label="Circle"
+          >
             <option value="">All circles</option>
             {circles.map((entry) => (
               <option key={entry.id} value={entry.id}>
@@ -669,7 +913,12 @@ export function DocumentsPanel({
             ))}
           </select>
         ) : null}
-        <select value={type} onChange={(event) => setType(event.target.value)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Type">
+        <select
+          value={type}
+          onChange={(event) => setType(event.target.value)}
+          className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+          aria-label="Type"
+        >
           <option value="">All types</option>
           {typeOptions.map((entry) => (
             <option key={entry} value={entry}>
@@ -680,15 +929,31 @@ export function DocumentsPanel({
         <label
           className={cn(
             "flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-sm transition",
-            consentedOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-white text-foreground/80 hover:bg-accent"
+            consentedOnly
+              ? "border-primary bg-primary/15 text-foreground"
+              : "border-border bg-white text-foreground/80 hover:bg-accent"
           )}
           title="Only documents the circle has consented to"
         >
-          <input type="checkbox" checked={consentedOnly} onChange={(event) => setConsentedOnly(event.target.checked)} className="sr-only" />
-          <BadgeCheck className={cn("h-4 w-4", consentedOnly ? "text-pine" : "text-muted")} aria-hidden /> Consented only
+          <input
+            type="checkbox"
+            checked={consentedOnly}
+            onChange={(event) => setConsentedOnly(event.target.checked)}
+            className="sr-only"
+          />
+          <BadgeCheck
+            className={cn("h-4 w-4", consentedOnly ? "text-pine" : "text-muted")}
+            aria-hidden
+          />{" "}
+          Consented only
         </label>
         {!circleId && yearOptions.length > 1 ? (
-          <select value={year} onChange={(event) => setYear(event.target.value)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Year">
+          <select
+            value={year}
+            onChange={(event) => setYear(event.target.value)}
+            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+            aria-label="Year"
+          >
             <option value="">All years</option>
             {yearOptions.map((entry) => (
               <option key={entry} value={entry}>
@@ -699,7 +964,12 @@ export function DocumentsPanel({
         ) : null}
         <label className="flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white pl-3 text-sm text-muted">
           <ArrowUpDown className="h-4 w-4" aria-hidden />
-          <select value={sort} onChange={(event) => setSort(event.target.value)} className="h-full rounded-lg bg-transparent pr-2 text-foreground focus:outline-none" aria-label="Sort">
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value)}
+            className="h-full rounded-lg bg-transparent pr-2 text-foreground focus:outline-none"
+            aria-label="Sort"
+          >
             <option value="">{debounced ? "Best match" : "Newest"}</option>
             {debounced ? <option value="newest">Newest</option> : null}
             <option value="oldest">Oldest</option>
@@ -708,7 +978,11 @@ export function DocumentsPanel({
           </select>
         </label>
         {filtered || sort ? (
-          <button type="button" onClick={clearFilters} className="inline-flex h-10 items-center gap-1 px-1 text-sm font-medium text-muted hover:text-foreground">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex h-10 items-center gap-1 px-1 text-sm font-medium text-muted hover:text-foreground"
+          >
             <X className="h-4 w-4" aria-hidden /> Clear
           </button>
         ) : null}
@@ -729,9 +1003,22 @@ export function DocumentsPanel({
         ) : null}
       </div>
 
-      {editingTypes && circleId ? <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} /> : null}
-      {adding && circleId ? <BulkUpload circles={[{ id: circleId, name: circleName ?? "this circle" }]} onDone={() => setAdding(false)} /> : null}
-      {bulk && !circleId ? <BulkUpload circles={uploadCircles} initialCircleId={circle || undefined} onDone={() => setBulk(false)} /> : null}
+      {editingTypes && circleId ? (
+        <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} />
+      ) : null}
+      {adding && circleId ? (
+        <BulkUpload
+          circles={[{ id: circleId, name: circleName ?? "this circle" }]}
+          onDone={() => setAdding(false)}
+        />
+      ) : null}
+      {bulk && !circleId ? (
+        <BulkUpload
+          circles={uploadCircles}
+          initialCircleId={circle || undefined}
+          onDone={() => setBulk(false)}
+        />
+      ) : null}
 
       {isLoading ? (
         <p className="text-sm text-muted">Loading documents…</p>
@@ -743,30 +1030,50 @@ export function DocumentsPanel({
             <p className={cn("text-xs text-muted", isFetching && "opacity-60")}>
               {data.total} {data.total === 1 ? "document" : "documents"}
               {debounced ? ` matching “${debounced}”` : ""}
-              {data.total > data.documents.length ? ` (showing the best ${data.documents.length})` : ""}
+              {data.total > data.documents.length
+                ? ` (showing the best ${data.documents.length})`
+                : ""}
             </p>
           ) : null}
           <ul className={cn("divide-y divide-border", isFetching && "opacity-60")}>
             {data.documents.map((doc) => (
-              <DocumentRow key={`${doc.id}-${doc.updatedAt}`} doc={doc} terms={terms} showCircle={!circleId} />
+              <DocumentRow
+                key={`${doc.id}-${doc.updatedAt}`}
+                doc={doc}
+                terms={terms}
+                showCircle={!circleId}
+              />
             ))}
           </ul>
         </>
       ) : (
         <p className="text-sm text-muted">
-          {filtered ? "No documents match." : circleId ? (canUpload ? "No documents yet — add the first one." : "No documents yet.") : "No documents yet."}
+          {filtered
+            ? "No documents match."
+            : circleId
+              ? canUpload
+                ? "No documents yet — add the first one."
+                : "No documents yet."
+              : "No documents yet."}
         </p>
       )}
 
       {searchingForum && forum.data ? (
-        <section className="flex flex-col gap-1 border-t border-border pt-4" aria-label="Forum results">
+        <section
+          className="flex flex-col gap-1 border-t border-border pt-4"
+          aria-label="Forum results"
+        >
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <MessagesSquare className="h-4 w-4 text-primary" aria-hidden /> Forum
           </h3>
           <p className={cn("text-xs text-muted", forum.isFetching && "opacity-60")}>
             {forum.data.total
-              ? `${forum.data.total} ${forum.data.total === 1 ? "discussion" : "discussions"} matching “${debounced}”${
-                  forum.data.total > forum.data.threads.length ? ` (showing the best ${forum.data.threads.length})` : ""
+              ? `${forum.data.total} ${
+                  forum.data.total === 1 ? "discussion" : "discussions"
+                } matching “${debounced}”${
+                  forum.data.total > forum.data.threads.length
+                    ? ` (showing the best ${forum.data.threads.length})`
+                    : ""
                 }`
               : "No discussions match."}
           </p>

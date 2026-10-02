@@ -9,10 +9,15 @@ export type { PublicUser };
 export function useSession() {
   const query = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: () => apiFetch<{ user: PublicUser | null; viewAs?: { by: string } | null }>("/api/auth/me"),
+    queryFn: () =>
+      apiFetch<{ user: PublicUser | null; viewAs?: { by: string } | null }>("/api/auth/me"),
     staleTime: 30_000,
   });
-  return { user: query.data?.user ?? null, viewAs: query.data?.viewAs ?? null, isLoading: query.isLoading };
+  return {
+    user: query.data?.user ?? null,
+    viewAs: query.data?.viewAs ?? null,
+    isLoading: query.isLoading,
+  };
 }
 
 /**
@@ -22,8 +27,12 @@ export function useSession() {
 export function useViewAs() {
   return useMutation({
     mutationFn: (personId: string | null) =>
-      apiFetch("/api/auth/view-as", personId ? { method: "POST", body: JSON.stringify({ personId }) } : { method: "DELETE" }),
-    onSuccess: (_result, personId) => window.location.assign(personId ? "/" : window.location.pathname),
+      apiFetch(
+        "/api/auth/view-as",
+        personId ? { method: "POST", body: JSON.stringify({ personId }) } : { method: "DELETE" }
+      ),
+    onSuccess: (_result, personId) =>
+      window.location.assign(personId ? "/" : window.location.pathname),
   });
 }
 

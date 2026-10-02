@@ -8,13 +8,31 @@ import { BackLink } from "@/components/layout/back-link";
 import { Check, LayoutGrid, LogOut, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
-import type { Circle, CircleApplication, CircleSeat, JoinPolicy, Person } from "@/lib/directory/types";
+import type {
+  Circle,
+  CircleApplication,
+  CircleSeat,
+  JoinPolicy,
+  Person,
+} from "@/lib/directory/types";
 import { Avatar } from "@/components/profile/avatar";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { IconControls } from "@/components/circles/icon-controls";
 import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
-import { ModuleEditor, CircleModules, ModuleToggle, type ModuleViews } from "@/components/circles/circle-modules";
-import { AddModuleDialog, InformationSettings, MODULE_ICONS, TasksSettings, describeFilter, describeTasks } from "@/components/circles/module-dialogs";
+import {
+  ModuleEditor,
+  CircleModules,
+  ModuleToggle,
+  type ModuleViews,
+} from "@/components/circles/circle-modules";
+import {
+  AddModuleDialog,
+  InformationSettings,
+  MODULE_ICONS,
+  TasksSettings,
+  describeFilter,
+  describeTasks,
+} from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { InformationModule } from "@/components/circles/information-module";
@@ -31,11 +49,24 @@ import { timeAgo } from "@/lib/time";
 import { BOARD_ID, isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 
-const ROLES = ["Member", "Op leader", "Delegate", "Facilitator", "Secretary", "Treasurer", "President", "At-large"];
+const ROLES = [
+  "Member",
+  "Op leader",
+  "Delegate",
+  "Facilitator",
+  "Secretary",
+  "Treasurer",
+  "President",
+  "At-large",
+];
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Circle mutations all refresh the shared directory query. */
-function useCircleMutation<T>(request: (input: T) => Promise<unknown>, errorTitle: string, onDone?: () => void) {
+function useCircleMutation<T>(
+  request: (input: T) => Promise<unknown>,
+  errorTitle: string,
+  onDone?: () => void
+) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   return useMutation({
@@ -45,31 +76,74 @@ function useCircleMutation<T>(request: (input: T) => Promise<unknown>, errorTitl
       queryClient.invalidateQueries({ queryKey: ["circle-applications"] });
       onDone?.();
     },
-    onError: (err: Error) => toast({ title: errorTitle, description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: errorTitle, description: err.message, variant: "destructive" }),
   });
 }
 
-function RoleInputs({ position, termEnds, onPosition, onTerm }: { position: string; termEnds: string; onPosition: (v: string) => void; onTerm: (v: string) => void }) {
+function RoleInputs({
+  position,
+  termEnds,
+  onPosition,
+  onTerm,
+}: {
+  position: string;
+  termEnds: string;
+  onPosition: (v: string) => void;
+  onTerm: (v: string) => void;
+}) {
   return (
     <>
-      <Input placeholder="Role" list="circle-roles" value={position} maxLength={40} onChange={(e) => onPosition(e.target.value)} className="h-9 bg-white" aria-label="Role" />
-      <Input placeholder="Term ends (optional)" value={termEnds} maxLength={30} onChange={(e) => onTerm(e.target.value)} className="h-9 bg-white" aria-label="Term ends" />
+      <Input
+        placeholder="Role"
+        list="circle-roles"
+        value={position}
+        maxLength={40}
+        onChange={(e) => onPosition(e.target.value)}
+        className="h-9 bg-white"
+        aria-label="Role"
+      />
+      <Input
+        placeholder="Term ends (optional)"
+        value={termEnds}
+        maxLength={30}
+        onChange={(e) => onTerm(e.target.value)}
+        className="h-9 bg-white"
+        aria-label="Term ends"
+      />
     </>
   );
 }
 
-function MemberRow({ circle, seat, person, canManage }: { circle: Circle; seat: CircleSeat; person?: Person; canManage: boolean }) {
+function MemberRow({
+  circle,
+  seat,
+  person,
+  canManage,
+}: {
+  circle: Circle;
+  seat: CircleSeat;
+  person?: Person;
+  canManage: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [position, setPosition] = useState(seat.position ?? "");
   const [termEnds, setTermEnds] = useState(seat.termEnds ?? "");
   const name = person?.displayName ?? seat.name ?? "";
 
   const save = useCircleMutation(
-    () => apiFetch(`/api/circles/${circle.id}/members/${seat.id}`, { method: "PATCH", body: JSON.stringify({ position, termEnds }) }),
+    () =>
+      apiFetch(`/api/circles/${circle.id}/members/${seat.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ position, termEnds }),
+      }),
     "Could not update member",
     () => setEditing(false)
   );
-  const remove = useCircleMutation(() => apiFetch(`/api/circles/${circle.id}/members/${seat.id}`, { method: "DELETE" }), "Could not remove member");
+  const remove = useCircleMutation(
+    () => apiFetch(`/api/circles/${circle.id}/members/${seat.id}`, { method: "DELETE" }),
+    "Could not remove member"
+  );
 
   return (
     <li className="flex flex-col gap-2 py-2.5">
@@ -77,7 +151,10 @@ function MemberRow({ circle, seat, person, canManage }: { circle: Circle; seat: 
         <Avatar name={name} photoUrl={person?.photoUrl} size={32} />
         <div className="min-w-0 flex-1">
           {seat.personId ? (
-            <Link href={`/directory/${seat.personId}`} className="block truncate text-sm font-medium text-foreground hover:underline">
+            <Link
+              href={`/directory/${seat.personId}`}
+              className="block truncate text-sm font-medium text-foreground hover:underline"
+            >
               {name}
             </Link>
           ) : (
@@ -92,7 +169,13 @@ function MemberRow({ circle, seat, person, canManage }: { circle: Circle; seat: 
         </div>
         {canManage && seat.id && !editing ? (
           <div className="flex shrink-0">
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)} aria-label={`Edit ${name}'s role`}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={() => setEditing(true)}
+              aria-label={`Edit ${name}'s role`}
+            >
               <Pencil className="h-4 w-4" />
             </Button>
             <Button
@@ -118,7 +201,12 @@ function MemberRow({ circle, seat, person, canManage }: { circle: Circle; seat: 
             save.mutate(undefined);
           }}
         >
-          <RoleInputs position={position} termEnds={termEnds} onPosition={setPosition} onTerm={setTermEnds} />
+          <RoleInputs
+            position={position}
+            termEnds={termEnds}
+            onPosition={setPosition}
+            onTerm={setTermEnds}
+          />
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={save.isPending}>
               Save
@@ -168,8 +256,18 @@ function AddMember({ circle, candidates }: { circle: Circle; candidates: NameOpt
         if (person) add.mutate(undefined);
       }}
     >
-      <NameCombobox users={candidates} value={person} onChange={setPerson} placeholder="Search residents…" />
-      <RoleInputs position={position} termEnds={termEnds} onPosition={setPosition} onTerm={setTermEnds} />
+      <NameCombobox
+        users={candidates}
+        value={person}
+        onChange={setPerson}
+        placeholder="Search residents…"
+      />
+      <RoleInputs
+        position={position}
+        termEnds={termEnds}
+        onPosition={setPosition}
+        onTerm={setTermEnds}
+      />
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={!person || add.isPending}>
           {add.isPending ? "Adding…" : "Add to circle"}
@@ -183,7 +281,15 @@ function AddMember({ circle, candidates }: { circle: Circle; candidates: NameOpt
 }
 
 /** Edit a circle's name and description — and, for the Board and admins, whether it's an official circle or a social club. */
-function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetKind: boolean; onDone: () => void }) {
+function DetailsEditor({
+  circle,
+  canSetKind,
+  onDone,
+}: {
+  circle: Circle;
+  canSetKind: boolean;
+  onDone: () => void;
+}) {
   const [form, setForm] = useState({ name: circle.name, description: circle.description ?? "" });
   const [club, setClub] = useState(circle.kind === "club");
   const kindChanged = club !== (circle.kind === "club");
@@ -191,7 +297,10 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
     () =>
       apiFetch(`/api/circles/${circle.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ ...form, ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}) }),
+        body: JSON.stringify({
+          ...form,
+          ...(canSetKind && kindChanged ? { kind: club ? "club" : "circle" } : {}),
+        }),
       }),
     "Could not save circle",
     onDone
@@ -204,7 +313,13 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
         save.mutate(undefined);
       }}
     >
-      <Input value={form.name} maxLength={80} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="bg-white" aria-label="Circle name" />
+      <Input
+        value={form.name}
+        maxLength={80}
+        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        className="bg-white"
+        aria-label="Circle name"
+      />
       <Textarea
         rows={3}
         placeholder="What does this circle take care of?"
@@ -216,7 +331,12 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
       />
       {canSetKind ? (
         <label className="flex items-center gap-2 text-sm text-foreground">
-          <input type="checkbox" checked={club} onChange={(event) => setClub(event.target.checked)} className="h-4 w-4 accent-primary" />
+          <input
+            type="checkbox"
+            checked={club}
+            onChange={(event) => setClub(event.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
           Social club <span className="text-muted">— not an official sociocratic circle</span>
         </label>
       ) : null}
@@ -235,18 +355,34 @@ function DetailsEditor({ circle, canSetKind, onDone }: { circle: Circle; canSetK
 type ApplicationsResponse = { applications: CircleApplication[]; mine: CircleApplication | null };
 
 /** Join, apply, withdraw, or leave — for the signed-in resident. */
-function JoinControls({ circle, isMember, mine }: { circle: Circle; isMember: boolean; mine: CircleApplication | null }) {
+function JoinControls({
+  circle,
+  isMember,
+  mine,
+}: {
+  circle: Circle;
+  isMember: boolean;
+  mine: CircleApplication | null;
+}) {
   const { toast } = useToast();
   const [applying, setApplying] = useState(false);
   const [message, setMessage] = useState("");
   const open = circle.joinPolicy === "open";
   const join = useCircleMutation(
-    () => apiFetch<{ joined: boolean }>(`/api/circles/${circle.id}/join`, { method: "POST", body: JSON.stringify({ message: message || undefined }) }),
+    () =>
+      apiFetch<{ joined: boolean }>(`/api/circles/${circle.id}/join`, {
+        method: "POST",
+        body: JSON.stringify({ message: message || undefined }),
+      }),
     open ? "Could not join" : "Could not apply",
     () => {
       setApplying(false);
       setMessage("");
-      toast(open ? { title: `You've joined ${circle.name}` } : { title: "Application sent", description: "The circle's members will let you know." });
+      toast(
+        open
+          ? { title: `You've joined ${circle.name}` }
+          : { title: "Application sent", description: "The circle's members will let you know." }
+      );
     }
   );
   const leave = useCircleMutation(
@@ -274,8 +410,16 @@ function JoinControls({ circle, isMember, mine }: { circle: Circle; isMember: bo
     return (
       <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-accent/40 p-3 text-sm">
         <p className="font-medium text-foreground">Your application is waiting</p>
-        <p className="text-xs text-muted">Sent {timeAgo(mine.createdAt)}. A member will approve it.</p>
-        <Button size="sm" variant="ghost" className="w-fit px-0 text-muted hover:bg-transparent hover:text-foreground" disabled={leave.isPending} onClick={() => leave.mutate(undefined)}>
+        <p className="text-xs text-muted">
+          Sent {timeAgo(mine.createdAt)}. A member will approve it.
+        </p>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="w-fit px-0 text-muted hover:bg-transparent hover:text-foreground"
+          disabled={leave.isPending}
+          onClick={() => leave.mutate(undefined)}
+        >
           Withdraw
         </Button>
       </div>
@@ -283,7 +427,11 @@ function JoinControls({ circle, isMember, mine }: { circle: Circle; isMember: bo
   }
   if (open) {
     return (
-      <Button className="w-full gap-1.5" disabled={join.isPending} onClick={() => join.mutate(undefined)}>
+      <Button
+        className="w-full gap-1.5"
+        disabled={join.isPending}
+        onClick={() => join.mutate(undefined)}
+      >
         <UserPlus className="h-4 w-4" /> {join.isPending ? "Joining…" : "Join circle"}
       </Button>
     );
@@ -327,7 +475,11 @@ function JoinControls({ circle, isMember, mine }: { circle: Circle; isMember: bo
 /** Whether anyone can join, or members approve applications (the circle's members or the Board choose). */
 function JoinPolicySetting({ circle }: { circle: Circle }) {
   const save = useCircleMutation(
-    (joinPolicy: JoinPolicy) => apiFetch(`/api/circles/${circle.id}`, { method: "PATCH", body: JSON.stringify({ joinPolicy }) }),
+    (joinPolicy: JoinPolicy) =>
+      apiFetch(`/api/circles/${circle.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ joinPolicy }),
+      }),
     "Could not save"
   );
   return (
@@ -346,10 +498,21 @@ function JoinPolicySetting({ circle }: { circle: Circle }) {
   );
 }
 
-function ApplicationRow({ circle, application, person }: { circle: Circle; application: CircleApplication; person?: Person }) {
+function ApplicationRow({
+  circle,
+  application,
+  person,
+}: {
+  circle: Circle;
+  application: CircleApplication;
+  person?: Person;
+}) {
   const decide = useCircleMutation(
     (approve: boolean) =>
-      apiFetch(`/api/circles/${circle.id}/applications/${application.id}`, { method: "POST", body: JSON.stringify({ approve }) }),
+      apiFetch(`/api/circles/${circle.id}/applications/${application.id}`, {
+        method: "POST",
+        body: JSON.stringify({ approve }),
+      }),
     "Could not answer the application"
   );
   return (
@@ -357,15 +520,27 @@ function ApplicationRow({ circle, application, person }: { circle: Circle; appli
       <div className="flex items-center gap-2.5">
         <Avatar name={application.name} photoUrl={person?.photoUrl} size={32} />
         <div className="min-w-0 flex-1">
-          <Link href={`/directory/${application.personId}`} className="block truncate text-sm font-medium text-foreground hover:underline">
+          <Link
+            href={`/directory/${application.personId}`}
+            className="block truncate text-sm font-medium text-foreground hover:underline"
+          >
             {person?.displayName ?? application.name}
           </Link>
           <p className="text-xs text-muted">Applied {timeAgo(application.createdAt)}</p>
         </div>
       </div>
-      {application.message ? <p className="whitespace-pre-wrap rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">{application.message}</p> : null}
+      {application.message ? (
+        <p className="whitespace-pre-wrap rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">
+          {application.message}
+        </p>
+      ) : null}
       <div className="flex gap-2">
-        <Button size="sm" className="h-8 gap-1" disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+        <Button
+          size="sm"
+          className="h-8 gap-1"
+          disabled={decide.isPending}
+          onClick={() => decide.mutate(true)}
+        >
           <Check className="h-4 w-4" /> Approve
         </Button>
         <Button
@@ -415,21 +590,34 @@ function MembersModule({
           <EmailCircleButton circle={circle} people={people} className="-mr-2" />
         </div>
         {!canManage ? (
-          <p className="text-xs text-muted">{circle.joinPolicy === "open" ? "Anyone can join this circle." : "This circle's members approve new members."}</p>
+          <p className="text-xs text-muted">
+            {circle.joinPolicy === "open"
+              ? "Anyone can join this circle."
+              : "This circle's members approve new members."}
+          </p>
         ) : null}
       </div>
 
-      {data && !isMember ? <JoinControls circle={circle} isMember={false} mine={data.mine} /> : null}
+      {data && !isMember ? (
+        <JoinControls circle={circle} isMember={false} mine={data.mine} />
+      ) : null}
       {canManage ? <JoinPolicySetting circle={circle} /> : null}
 
       {canManage && applications.length ? (
         <section className="flex flex-col gap-1 rounded-lg border border-primary/50 bg-accent/40 px-3 py-2">
           <h3 className="text-sm font-semibold text-foreground">
-            {applications.length === 1 ? "1 person wants to join" : `${applications.length} people want to join`}
+            {applications.length === 1
+              ? "1 person wants to join"
+              : `${applications.length} people want to join`}
           </h3>
           <ul className="divide-y divide-border">
             {applications.map((application) => (
-              <ApplicationRow key={application.id} circle={circle} application={application} person={people.get(application.personId)} />
+              <ApplicationRow
+                key={application.id}
+                circle={circle}
+                application={application}
+                person={people.get(application.personId)}
+              />
             ))}
           </ul>
         </section>
@@ -463,9 +651,15 @@ export function CircleDetailClient({ id }: { id: string }) {
   const { data, isLoading, error } = useDirectoryQuery();
 
   const circle = data?.circles.find((entry) => entry.id === id);
-  const people = useMemo(() => new Map((data?.people ?? []).map((person) => [person.id, person])), [data]);
+  const people = useMemo(
+    () => new Map((data?.people ?? []).map((person) => [person.id, person])),
+    [data]
+  );
   const inCircle = (circleId: string) =>
-    !!user?.personId && !!data?.circles.some((c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId));
+    !!user?.personId &&
+    !!data?.circles.some(
+      (c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId)
+    );
   // Admins can manage every circle, as the Board can.
   const onBoard = sitsOnBoard(data?.circles ?? [], user?.personId) || !!user?.isAdmin;
   const isMember = inCircle(id);
@@ -474,16 +668,21 @@ export function CircleDetailClient({ id }: { id: string }) {
   const community = isCommunity(id);
   const canUpload = canManage || (community && !!user?.personId);
 
-  const remove = useCircleMutation(() => apiFetch(`/api/circles/${id}`, { method: "DELETE" }), "Could not delete circle", () =>
-    router.replace("/circles")
+  const remove = useCircleMutation(
+    () => apiFetch(`/api/circles/${id}`, { method: "DELETE" }),
+    "Could not delete circle",
+    () => router.replace("/circles")
   );
   const scheduleQuery = useCircleSchedule(id);
   const schedule = scheduleQuery.data?.schedule ?? null;
   // Editing the page: the modules being worked on, until they're saved — and the dialog open on them.
   const [pageDraft, setPageDraft] = useState<CircleModule[] | null>(null);
-  const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "settings"; module: CircleModule } | null>(null);
+  const [dialog, setDialog] = useState<
+    { kind: "add" } | { kind: "settings"; module: CircleModule } | null
+  >(null);
   const saveModules = useCircleMutation(
-    (modules: CircleModule[]) => apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ modules }) }),
+    (modules: CircleModule[]) =>
+      apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ modules }) }),
     "Could not save the page",
     () => setPageDraft(null)
   );
@@ -492,8 +691,13 @@ export function CircleDetailClient({ id }: { id: string }) {
   if (error || !data || !circle) {
     return (
       <Card className="flex flex-col gap-2">
-        <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "That circle wasn't found."}</p>
-        <Link href="/circles" className="text-sm font-medium text-secondary-foreground underline underline-offset-4">
+        <p className="text-sm text-foreground">
+          {(error as Error | null)?.message ?? "That circle wasn't found."}
+        </p>
+        <Link
+          href="/circles"
+          className="text-sm font-medium text-secondary-foreground underline underline-offset-4"
+        >
           All circles
         </Link>
       </Card>
@@ -509,7 +713,8 @@ export function CircleDetailClient({ id }: { id: string }) {
 
   // The page's modules, in the order (and sizes) the circle chose.
   const modules = modulesFor(circle, { hasSchedule: !!schedule });
-  const circleName = (circleId: string) => data.circles.find((entry) => entry.id === circleId)?.name;
+  const circleName = (circleId: string) =>
+    data.circles.find((entry) => entry.id === circleId)?.name;
   const icon = (module: CircleModule) => {
     const Icon = MODULE_ICONS[module.type];
     return <Icon className="h-5 w-5 text-primary" aria-hidden />;
@@ -522,14 +727,47 @@ export function CircleDetailClient({ id }: { id: string }) {
           title,
           icon: icon(module),
           detail: module.info ? describeFilter(module.info.filter, circleName) : undefined,
-          content: <InformationModule circle={circle} module={module} canAdd={canUpload} narrow={module.size === "small"} />,
+          content: (
+            <InformationModule
+              circle={circle}
+              module={module}
+              canAdd={canUpload}
+              narrow={module.size === "small"}
+            />
+          ),
         };
       case "members":
-        return community ? undefined : { title, icon: icon(module), content: <MembersModule circle={circle} people={people} candidates={candidates} canManage={canManage} isMember={isMember} /> };
+        return community
+          ? undefined
+          : {
+              title,
+              icon: icon(module),
+              content: (
+                <MembersModule
+                  circle={circle}
+                  people={people}
+                  candidates={candidates}
+                  canManage={canManage}
+                  isMember={isMember}
+                />
+              ),
+            };
       case "meetings":
-        return community ? undefined : { title, icon: icon(module), content: <MeetingsModule circle={circle} title={title} /> };
+        return community
+          ? undefined
+          : {
+              title,
+              icon: icon(module),
+              content: <MeetingsModule circle={circle} title={title} />,
+            };
       case "schedule":
-        return schedule ? { title, icon: icon(module), content: <DutyScheduleModule circleId={id} people={people} /> } : undefined;
+        return schedule
+          ? {
+              title,
+              icon: icon(module),
+              content: <DutyScheduleModule circleId={id} people={people} />,
+            }
+          : undefined;
       case "tasks":
         return {
           title,
@@ -550,13 +788,19 @@ export function CircleDetailClient({ id }: { id: string }) {
               <h2 className="flex items-center gap-1 text-lg font-semibold text-foreground">
                 <ModuleToggle /> {title}
               </h2>
-              <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} canEditTypes={canManage} />
+              <DocumentsPanel
+                circleId={id}
+                circleName={circle.name}
+                canUpload={canUpload}
+                canEditTypes={canManage}
+              />
             </Card>
           ),
         };
     }
   };
-  const sectionsOf = (list: CircleModule[]): ModuleViews => Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
+  const sectionsOf = (list: CircleModule[]): ModuleViews =>
+    Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
   const editing = pageDraft ?? [];
 
   return (
@@ -572,15 +816,23 @@ export function CircleDetailClient({ id }: { id: string }) {
         <CircleIcon circle={circle} size={96} />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           {editingDetails ? (
-            <DetailsEditor circle={circle} canSetKind={onBoard && circle.id !== BOARD_ID && !community} onDone={() => setEditingDetails(false)} />
+            <DetailsEditor
+              circle={circle}
+              canSetKind={onBoard && circle.id !== BOARD_ID && !community}
+              onDone={() => setEditingDetails(false)}
+            />
           ) : (
             <>
               <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
               {circle.kind === "club" ? (
-                <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">Social club</span>
+                <span className="w-fit rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                  Social club
+                </span>
               ) : null}
               {circle.description ? (
-                <p className="whitespace-pre-wrap text-sm text-foreground-light">{circle.description}</p>
+                <p className="whitespace-pre-wrap text-sm text-foreground-light">
+                  {circle.description}
+                </p>
               ) : canManage ? (
                 <p className="text-sm text-muted">No description yet.</p>
               ) : null}
@@ -588,11 +840,23 @@ export function CircleDetailClient({ id }: { id: string }) {
           )}
           {canManage && !editingDetails ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingDetails(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setEditingDetails(true)}
+              >
                 <Pencil className="h-4 w-4" /> Edit details
               </Button>
               <IconControls circle={circle} />
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPageDraft(pageDraft ? null : modules)} aria-pressed={!!pageDraft} disabled={scheduleQuery.isLoading}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setPageDraft(pageDraft ? null : modules)}
+                aria-pressed={!!pageDraft}
+                disabled={scheduleQuery.isLoading}
+              >
                 <LayoutGrid className="h-4 w-4" /> Edit page
               </Button>
               {onBoard && circle.id !== BOARD_ID && !community ? (
@@ -601,7 +865,8 @@ export function CircleDetailClient({ id }: { id: string }) {
                   variant="ghost"
                   className="gap-1.5 text-muted hover:text-destructive"
                   onClick={() => {
-                    if (window.confirm(`Delete ${circle.name}? This can't be undone.`)) remove.mutate(undefined);
+                    if (window.confirm(`Delete ${circle.name}? This can't be undone.`))
+                      remove.mutate(undefined);
                   }}
                   disabled={remove.isPending}
                 >
@@ -617,20 +882,35 @@ export function CircleDetailClient({ id }: { id: string }) {
         <>
           <div className="sticky top-16 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-primary/50 bg-accent px-4 py-3 shadow-soft">
             <p className="w-full text-sm text-foreground sm:w-auto sm:min-w-0 sm:flex-1">
-              <strong>Edit this page</strong> — add modules, drag them or use the arrows, and set their sizes (on wider screens). Everyone sees this page.
+              <strong>Edit this page</strong> — add modules, drag them or use the arrows, and set
+              their sizes (on wider screens). Everyone sees this page.
             </p>
-            <Button size="sm" variant="outline" className="gap-1" onClick={() => setDialog({ kind: "add" })}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => setDialog({ kind: "add" })}
+            >
               <Plus className="h-4 w-4" /> Add module
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setPageDraft(null)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={() => saveModules.mutate(pageDraft)} disabled={saveModules.isPending}>
+            <Button
+              size="sm"
+              onClick={() => saveModules.mutate(pageDraft)}
+              disabled={saveModules.isPending}
+            >
               {saveModules.isPending ? "Saving…" : "Save page"}
             </Button>
           </div>
           {editing.length ? (
-            <ModuleEditor modules={editing} sections={sectionsOf(editing)} onChange={setPageDraft} onSettings={(module) => setDialog({ kind: "settings", module })} />
+            <ModuleEditor
+              modules={editing}
+              sections={sectionsOf(editing)}
+              onChange={setPageDraft}
+              onSettings={(module) => setDialog({ kind: "settings", module })}
+            />
           ) : (
             <Card>
               <p className="text-sm text-muted">Nothing on this page yet — add a module.</p>

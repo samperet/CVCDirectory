@@ -3,7 +3,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Search, Share2, Layers, Grid, MessagesSquare, BookOpen, BookUser, CalendarDays, Camera, Lightbulb, Eye } from "lucide-react";
+import {
+  Menu,
+  Search,
+  Share2,
+  Layers,
+  Grid,
+  MessagesSquare,
+  BookOpen,
+  BookUser,
+  CalendarDays,
+  Camera,
+  Lightbulb,
+  Eye,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -66,7 +79,9 @@ function SearchButton({ active }: { active: boolean }) {
         title="Search ( / )"
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
-          active || open ? "bg-primary text-primary-foreground shadow-soft" : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
+          active || open
+            ? "bg-primary text-primary-foreground shadow-soft"
+            : "bg-surface text-foreground/70 hover:bg-accent hover:text-foreground"
         )}
       >
         <Search className="h-4 w-4" />
@@ -87,7 +102,10 @@ function SearchButton({ active }: { active: boolean }) {
             }}
             className="relative"
           >
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+              aria-hidden
+            />
             <Input
               autoFocus
               value={text}
@@ -99,11 +117,17 @@ function SearchButton({ active }: { active: boolean }) {
             />
           </form>
           <div className="mt-2 border-t border-border pt-2">
-            <Link href="/documents" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-accent">
+            <Link
+              href="/documents"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-accent"
+            >
               <SectionArt href="/documents" size={32} />
               <span className="flex flex-col">
                 <span className="text-sm font-medium text-foreground">All documents</span>
-                <span className="text-xs text-muted">Browse every circle&apos;s, with filters and sorting</span>
+                <span className="text-xs text-muted">
+                  Browse every circle&apos;s, with filters and sorting
+                </span>
               </span>
             </Link>
           </div>
@@ -114,7 +138,8 @@ function SearchButton({ active }: { active: boolean }) {
 }
 
 /** A section is active on its own page and the pages under it (e.g. a circle, a forum thread). */
-const isActive = (pathname: string, href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+const isActive = (pathname: string, href: string) =>
+  pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -135,7 +160,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      const typing =
+        !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
       if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
         router.push("/search");
@@ -161,7 +187,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen flex-col bg-background">
         <header className="border-b border-border bg-background/90">
           <div className="mx-auto flex max-w-6xl items-center px-4 py-3 md:px-6">
-            <Link href="/" className="flex items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground">
+            <Link
+              href="/"
+              className="flex items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground"
+            >
               <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
               CVC Directory
             </Link>
@@ -199,7 +228,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         ) : null}
         <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground"
+          >
             <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
             CVC Directory
           </Link>
@@ -218,20 +250,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden items-center gap-2 xl:flex">
             <nav className="flex gap-0.5">
               {/* The logo leads to the dashboard, so the desktop bar leaves it out to fit every section. */}
-              {links.filter((link) => link.href !== "/").map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
-                    isActive(pathname, link.href)
-                      ? "bg-primary text-primary-foreground shadow-soft"
-                      : "text-foreground/70 hover:bg-accent hover:text-foreground"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {links
+                .filter((link) => link.href !== "/")
+                .map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition",
+                      isActive(pathname, link.href)
+                        ? "bg-primary text-primary-foreground shadow-soft"
+                        : "text-foreground/70 hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
             </nav>
             <SearchButton active={pathname === "/search"} />
             <UserMenu />

@@ -8,7 +8,10 @@ import type { DirectoryDocument } from "./types";
  * whoever holds the Secretary seat on the Board (so it follows the role as
  * the Board changes).
  */
-export function canManageDirectory(user: { personId?: string | null }, directory: DirectoryDocument) {
+export function canManageDirectory(
+  user: { personId?: string | null },
+  directory: DirectoryDocument
+) {
   if (isAdmin(user)) return true;
   return !!user.personId && holdsSeat(directory, BOARD_ID, user.personId, /secretary/i);
 }

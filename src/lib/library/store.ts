@@ -27,7 +27,11 @@ const optionalText = (max: number, label: string) =>
   z.string().trim().max(max, `${label} must be ${max} characters or fewer`).optional();
 
 export const loanItemInputSchema = z.object({
-  title: z.string().trim().min(2, "Name the item (at least 2 characters)").max(80, "Name must be 80 characters or fewer"),
+  title: z
+    .string()
+    .trim()
+    .min(2, "Name the item (at least 2 characters)")
+    .max(80, "Name must be 80 characters or fewer"),
   category: optionalText(40, "Category").transform((value) => value || "General"),
   description: optionalText(500, "Description").transform((value) => value ?? ""),
 });
@@ -60,7 +64,8 @@ export async function addLoanItem(
 ): Promise<LoanItem | "limit"> {
   return enqueue(KEY, async () => {
     const items = normalize(await readJson(KEY));
-    if (items.filter((item) => item.ownerPersonId === owner.personId).length >= MAX_PER_PERSON) return "limit" as const;
+    if (items.filter((item) => item.ownerPersonId === owner.personId).length >= MAX_PER_PERSON)
+      return "limit" as const;
     const now = new Date().toISOString();
     const item: LoanItem = {
       id: randomUUID(),
@@ -87,7 +92,8 @@ export interface LoanActor {
   admin: boolean;
 }
 
-const mayChange = (item: LoanItem, actor: LoanActor) => actor.admin || item.ownerPersonId === actor.personId;
+const mayChange = (item: LoanItem, actor: LoanActor) =>
+  actor.admin || item.ownerPersonId === actor.personId;
 
 export async function updateLoanItem(
   actor: LoanActor,

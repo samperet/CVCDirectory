@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to continue", 401);
-  const parsed = z.object({ endpoint: z.string().max(1000) }).safeParse(await request.json().catch(() => null));
+  const parsed = z
+    .object({ endpoint: z.string().max(1000) })
+    .safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem("Say which device to turn off");
   await removeSubscriptions([parsed.data.endpoint], user.id);
   return NextResponse.json({ ok: true });

@@ -8,8 +8,20 @@ import remarkDirective from "remark-directive";
 import { remarkWikiDirectives } from "@/lib/wiki/directives";
 import { headingSlug } from "@/lib/wiki/sections";
 import type { WikiPageSummary } from "@/lib/wiki/store";
-import { WIKI_LINK, normalizeWikiLinks, parseWikiLink, wikiLinksIn, type CircleRef } from "@/lib/wiki/links";
-import { docFileUrl, findDoc, pageTitled, useDocTitles, type DocRef } from "@/components/wiki/link-data";
+import {
+  WIKI_LINK,
+  normalizeWikiLinks,
+  parseWikiLink,
+  wikiLinksIn,
+  type CircleRef,
+} from "@/lib/wiki/links";
+import {
+  docFileUrl,
+  findDoc,
+  pageTitled,
+  useDocTitles,
+  type DocRef,
+} from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
 import { DEFAULT_PAGE_COLOR } from "@/lib/wiki/colors";
@@ -50,18 +62,29 @@ function linkWikiPages(source: string, { circleId, pageId, circles, pages, docs 
     if (link.kind === "doc") {
       if (!docs) return `[${text}](#${mdTitle("pending")})`;
       const doc = findDoc(docs, link.title, link.circleId, circleId);
-      return doc ? `[${text}](${docFileUrl(doc.id)}${mdTitle(`doc:${doc.circleName}`)})` : `[${text}](#${mdTitle("doc-missing")})`;
+      return doc
+        ? `[${text}](${docFileUrl(doc.id)}${mdTitle(`doc:${doc.circleName}`)})`
+        : `[${text}](#${mdTitle("doc-missing")})`;
     }
     if (!pages) return `[${text}](#${mdTitle("pending")})`;
     const page = pageTitled(pages, link.title);
-    if (!page) return `[${text}](/wiki?new=${encodeURIComponent(link.title)}${pageId ? `&from=${pageId}` : ""}${mdTitle("missing")})`;
+    if (!page)
+      return `[${text}](/wiki?new=${encodeURIComponent(link.title)}${
+        pageId ? `&from=${pageId}` : ""
+      }${mdTitle("missing")})`;
     return `[${text}](/wiki/${page.slug}${mdTitle(`page:${page.color ?? DEFAULT_PAGE_COLOR}:`)})`;
   });
 }
 
 function textOf(children: ReactNode): string {
   return Children.toArray(children)
-    .map((child) => (typeof child === "string" || typeof child === "number" ? String(child) : isValidElement(child) ? textOf(child.props.children) : ""))
+    .map((child) =>
+      typeof child === "string" || typeof child === "number"
+        ? String(child)
+        : isValidElement(child)
+          ? textOf(child.props.children)
+          : ""
+    )
     .join("");
 }
 
@@ -81,38 +104,77 @@ const components: Components = {
   p: ({ node: _node, ...props }) => <p className="leading-relaxed" {...props} />,
   ul: ({ node: _node, ...props }) => <ul className="list-disc space-y-1 pl-6" {...props} />,
   ol: ({ node: _node, ...props }) => <ol className="list-decimal space-y-1 pl-6" {...props} />,
-  blockquote: ({ node: _node, ...props }) => <blockquote className="border-l-4 border-border pl-4 text-muted" {...props} />,
-  code: ({ node: _node, className, ...props }) => <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />,
-  pre: ({ node: _node, ...props }) => <pre className="overflow-x-auto rounded-lg bg-accent p-3 text-sm [&_code]:bg-transparent [&_code]:p-0" {...props} />,
+  blockquote: ({ node: _node, ...props }) => (
+    <blockquote className="border-l-4 border-border pl-4 text-muted" {...props} />
+  ),
+  code: ({ node: _node, className, ...props }) => (
+    <code className={cn("rounded bg-accent px-1 py-0.5 text-[0.9em]", className)} {...props} />
+  ),
+  pre: ({ node: _node, ...props }) => (
+    <pre
+      className="overflow-x-auto rounded-lg bg-accent p-3 text-sm [&_code]:bg-transparent [&_code]:p-0"
+      {...props}
+    />
+  ),
   hr: () => <hr className="border-border" />,
   // A poll the page holds (`::poll{id="…"}`), or another page shown in it (`::embed{page="…"}`).
   div: ({ node: _node, ...props }) => {
     const data = props as Record<string, unknown>;
     if (typeof data["data-poll"] === "string") return <WikiPollBlock pollId={data["data-poll"]} />;
-    if (typeof data["data-embed"] === "string") return <EmbedBlock target={data["data-embed"]} section={typeof data["data-section"] === "string" ? data["data-section"] : undefined} />;
+    if (typeof data["data-embed"] === "string")
+      return (
+        <EmbedBlock
+          target={data["data-embed"]}
+          section={typeof data["data-section"] === "string" ? data["data-section"] : undefined}
+        />
+      );
     return <div {...props} />;
   },
-  details: ({ node: _node, ...props }) => <details className="wiki-details group rounded-lg border border-border bg-surface px-4 py-2 [&>*+*]:mt-3" {...props} />,
+  details: ({ node: _node, ...props }) => (
+    <details
+      className="wiki-details group rounded-lg border border-border bg-surface px-4 py-2 [&>*+*]:mt-3"
+      {...props}
+    />
+  ),
   summary: ({ node: _node, ...props }) => (
-    <summary className="-mx-4 -my-2 cursor-pointer select-none rounded-lg px-4 py-2 font-semibold text-foreground hover:bg-accent/60 group-open:rounded-b-none group-open:border-b group-open:border-border" {...props} />
+    <summary
+      className="-mx-4 -my-2 cursor-pointer select-none rounded-lg px-4 py-2 font-semibold text-foreground hover:bg-accent/60 group-open:rounded-b-none group-open:border-b group-open:border-border"
+      {...props}
+    />
   ),
   table: ({ node: _node, ...props }) => (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm" {...props} />
     </div>
   ),
-  th: ({ node: _node, ...props }) => <th className="border border-border bg-accent/60 px-2 py-1 text-left font-semibold" {...props} />,
-  td: ({ node: _node, ...props }) => <td className="border border-border px-2 py-1 align-top" {...props} />,
+  th: ({ node: _node, ...props }) => (
+    <th
+      className="border border-border bg-accent/60 px-2 py-1 text-left font-semibold"
+      {...props}
+    />
+  ),
+  td: ({ node: _node, ...props }) => (
+    <td className="border border-border px-2 py-1 align-top" {...props} />
+  ),
   // Wiki links are tags (see WikiTag); other links stay underlined text.
   a: ({ node: _node, href = "", title, children }) => {
     const mark = title?.startsWith(MARK) ? title.slice(MARK.length) : null;
     if (mark === "pending") return <WikiTag kind="pending" label={children} />;
     if (mark === "doc-missing") return <WikiTag kind="doc-missing" label={children} />;
-    if (mark?.startsWith("doc:")) return <WikiTag kind="doc" label={children} href={href} circleName={mark.slice(4)} />;
+    if (mark?.startsWith("doc:"))
+      return <WikiTag kind="doc" label={children} href={href} circleName={mark.slice(4)} />;
     if (mark === "missing") return <WikiTag kind="missing" label={children} href={href} />;
     if (mark?.startsWith("page:")) {
       const [color, ...name] = mark.slice(5).split(":");
-      return <WikiTag kind="page" label={children} href={href} color={color} circleName={name.join(":") || null} />;
+      return (
+        <WikiTag
+          kind="page"
+          label={children}
+          href={href}
+          color={color}
+          circleName={name.join(":") || null}
+        />
+      );
     }
     const className = "font-medium text-secondary-foreground underline underline-offset-4";
     if (href.startsWith("/")) {
@@ -134,7 +196,12 @@ const components: Components = {
       <span className="my-1 block">
         <a href={src} target="_blank" rel="noopener" className="block w-fit">
           {/* eslint-disable-next-line @next/next/no-img-element -- private, already-sized photos */}
-          <img src={src} alt={alt ?? ""} loading="lazy" className="max-h-[32rem] w-auto max-w-full rounded-lg border border-border bg-accent/40" />
+          <img
+            src={src}
+            alt={alt ?? ""}
+            loading="lazy"
+            className="max-h-[32rem] w-auto max-w-full rounded-lg border border-border bg-accent/40"
+          />
         </a>
         {alt ? <span className="mt-1 block text-xs text-muted">{alt}</span> : null}
       </span>
@@ -144,7 +211,12 @@ const components: Components = {
 };
 
 /** What a page's links need: the circles, the wiki's pages, and (if it links any) the documents. */
-function useLinkData(source: string, circleId: string, pages: WikiPageSummary[] | undefined, pageId?: string): LinkData {
+function useLinkData(
+  source: string,
+  circleId: string,
+  pages: WikiPageSummary[] | undefined,
+  pageId?: string
+): LinkData {
   const circles = useCircles();
   const links = useMemo(() => (circles ? wikiLinksIn(source, circles) : []), [source, circles]);
   const docs = useDocTitles(links.some((link) => link.kind === "doc")).data;
@@ -155,20 +227,36 @@ function useLinkData(source: string, circleId: string, pages: WikiPageSummary[] 
 const WIKI_IMAGE = /^\/api\/circles\/[a-z0-9-]+\/wiki\/images\/[0-9a-f-]{36}$/;
 
 /** A wiki page's Markdown, as formatted text. Raw HTML isn't rendered; photos added to a wiki show, other images as their description. */
-export function WikiMarkdown({ source, circleId, pages, pageId }: { source: string; circleId: string; pages: WikiPageSummary[] | undefined; pageId?: string }) {
+export function WikiMarkdown({
+  source,
+  circleId,
+  pages,
+  pageId,
+}: {
+  source: string;
+  circleId: string;
+  pages: WikiPageSummary[] | undefined;
+  pageId?: string;
+}) {
   const linkData = useLinkData(source, circleId, pages, pageId);
   const circleName = linkData.circles?.find((circle) => circle.id === circleId)?.name;
   const wiki = useMemo(() => ({ circleId, circleName }), [circleId, circleName]);
   // Pages embedded in this one know it's already open (so it never shows inside itself).
   const outer = useContext(EmbedChain);
   const self = pageId ?? null;
-  const chain = useMemo(() => (self && outer[outer.length - 1] !== self ? [...outer, self] : outer), [outer, self]);
+  const chain = useMemo(
+    () => (self && outer[outer.length - 1] !== self ? [...outer, self] : outer),
+    [outer, self]
+  );
   if (!source.trim()) return <p className="text-sm text-muted">This page is empty.</p>;
   return (
     <WikiCircleContext.Provider value={wiki}>
       <EmbedChain.Provider value={chain}>
         <div className="flex flex-col gap-3 break-words text-foreground">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]} components={components}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]}
+            components={components}
+          >
             {linkWikiPages(normalizeWikiLinks(source), linkData)}
           </ReactMarkdown>
         </div>

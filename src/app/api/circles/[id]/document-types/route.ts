@@ -16,7 +16,9 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 const schema = z.object({
-  types: z.array(z.object({ id: z.string().max(40).nullable().optional(), label: z.string().max(60) })).max(40),
+  types: z
+    .array(z.object({ id: z.string().max(40).nullable().optional(), label: z.string().max(60) }))
+    .max(40),
 });
 
 /** Replace a circle's document types: its members, the Board, or an admin. */

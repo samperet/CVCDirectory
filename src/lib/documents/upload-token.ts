@@ -20,7 +20,8 @@ export interface UploadGrant {
 }
 
 const TTL_MS = 60 * 60 * 1000;
-const sign = (payload: string) => createHmac("sha256", authSecret()).update(`document-upload:${payload}`).digest("base64url");
+const sign = (payload: string) =>
+  createHmac("sha256", authSecret()).update(`document-upload:${payload}`).digest("base64url");
 
 export function createUploadToken(grant: Omit<UploadGrant, "uploadId" | "expiresAt">) {
   const full: UploadGrant = { ...grant, uploadId: randomUUID(), expiresAt: Date.now() + TTL_MS };
@@ -46,4 +47,5 @@ export function readUploadToken(token: string | null, userId: string): UploadGra
 }
 
 export const chunkCount = (size: number) => Math.ceil(size / UPLOAD_CHUNK_BYTES);
-export const chunkKey = (uploadId: string, index: number) => `documents/uploads/${uploadId}/${index}`;
+export const chunkKey = (uploadId: string, index: number) =>
+  `documents/uploads/${uploadId}/${index}`;

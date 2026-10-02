@@ -19,7 +19,10 @@ function headingOf(line: string): { level: number; text: string } | null {
   const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
   if (!match) return null;
   const text = match[2]
-    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target.slice(target.lastIndexOf(":") + 1))
+    .replace(
+      /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+      (_m, target: string, label?: string) => label ?? target.slice(target.lastIndexOf(":") + 1)
+    )
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/[*_`~]/g, "")
     .replace(/\\([^\s])/g, "$1")
@@ -85,7 +88,8 @@ export function sectionOf(markdown: string, heading: string): string | null {
 export const EMBED_DIRECTIVE = /^[ \t]*::embed\{([^}\n]*)\}[ \t]*$/gm;
 
 /** The value of `name="…"` in a directive's attributes. */
-const attribute = (attributes: string, name: string) => attributes.match(new RegExp(`(?:^|\\s)${name}="([^"\\n]*)"`))?.[1]?.trim();
+const attribute = (attributes: string, name: string) =>
+  attributes.match(new RegExp(`(?:^|\\s)${name}="([^"\\n]*)"`))?.[1]?.trim();
 
 /** The pages (and sections) a page embeds, outside code. */
 export function embedsIn(markdown: string): { page: string; section?: string }[] {
@@ -103,7 +107,10 @@ export function embedsIn(markdown: string): { page: string; section?: string }[]
 }
 
 /** The directive embedding a page (or one of its sections). */
-export const embedText = (page: string, section?: string) => `::embed{page="${page.replace(/"/g, "")}"${section ? ` section="${section.replace(/"/g, "")}"` : ""}}`;
+export const embedText = (page: string, section?: string) =>
+  `::embed{page="${page.replace(/"/g, "")}"${
+    section ? ` section="${section.replace(/"/g, "")}"` : ""
+  }}`;
 
 /** The pages a page embeds (read as links are). */
 export function embeddedPages(markdown: string, circles: CircleRef[]) {

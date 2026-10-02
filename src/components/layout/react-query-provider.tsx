@@ -8,7 +8,13 @@ import type { SessionPayload } from "@/lib/auth/me";
  * `session` is who's signed in, worked out on the server with the page, so
  * the app renders the right layout on its first paint (no flash while it asks).
  */
-export function ReactQueryProvider({ children, session }: { children: ReactNode; session?: SessionPayload }) {
+export function ReactQueryProvider({
+  children,
+  session,
+}: {
+  children: ReactNode;
+  session?: SessionPayload;
+}) {
   const [client] = useState(() => {
     const queryClient = new QueryClient({
       defaultOptions: {

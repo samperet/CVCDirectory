@@ -14,7 +14,10 @@ export function forumProblem(reason: Failure) {
     case "full":
       return problem("This discussion has reached its reply limit", 409);
     case "has_replies":
-      return problem("Others have replied, so this discussion can't be deleted — you can still edit your post", 409);
+      return problem(
+        "Others have replied, so this discussion can't be deleted — you can still edit your post",
+        409
+      );
     case "empty_post":
       return problem("Write something in your post");
   }

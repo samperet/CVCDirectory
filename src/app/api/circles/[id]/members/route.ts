@@ -16,6 +16,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const person = ctx.directory.people.find((entry) => entry.id === parsed.data.personId);
   if (!person) return problem("That resident isn't in the directory", 404);
 
-  const result = await addMember(ctx.imported, params.id, { ...parsed.data, name: person.displayName });
-  return result.ok ? NextResponse.json({ circle: result.value }, { status: 201 }) : circleProblem(result.reason);
+  const result = await addMember(ctx.imported, params.id, {
+    ...parsed.data,
+    name: person.displayName,
+  });
+  return result.ok
+    ? NextResponse.json({ circle: result.value }, { status: 201 })
+    : circleProblem(result.reason);
 }

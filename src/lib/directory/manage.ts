@@ -15,7 +15,12 @@ import type { Circle, DirectoryDocument, Person } from "./types";
 
 /** The directory entries that make up a profile (more than one when it's listed in several households). */
 export function entriesOf(directory: DirectoryDocument, personId: string) {
-  return [personId, ...Object.entries(directory.aliases ?? {}).filter(([, to]) => to === personId).map(([from]) => from)];
+  return [
+    personId,
+    ...Object.entries(directory.aliases ?? {})
+      .filter(([, to]) => to === personId)
+      .map(([from]) => from),
+  ];
 }
 
 /** Find a profile by its id or any of its entries' ids. */
@@ -38,7 +43,11 @@ async function removeEntry(entryId: string, importedCircles: Circle[]) {
  * can't sign in), and their profile, photo, and notifications go too. What
  * they posted stays, under their name.
  */
-export async function removeFromDirectory(directory: DirectoryDocument, importedCircles: Circle[], person: Person) {
+export async function removeFromDirectory(
+  directory: DirectoryDocument,
+  importedCircles: Circle[],
+  person: Person
+) {
   for (const entry of entriesOf(directory, person.id)) await removeEntry(entry, importedCircles);
 }
 
@@ -57,7 +66,11 @@ export async function leaveUnit(
   if (units.length < 2) return "only_unit";
   const entries = entriesOf(directory, person.id);
   // Where each entry was listed originally (the profile's own unit may have been edited).
-  const originalUnit = new Map(importedEntries.filter((entry) => entries.includes(entry.id)).map((entry) => [entry.id, entry.unit]));
+  const originalUnit = new Map(
+    importedEntries
+      .filter((entry) => entries.includes(entry.id))
+      .map((entry) => [entry.id, entry.unit])
+  );
   const leaving = entries.find((id) => id !== person.id && originalUnit.get(id) === unit);
   if (leaving) {
     await removeEntry(leaving, []);

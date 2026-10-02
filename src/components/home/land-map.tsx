@@ -13,7 +13,8 @@ const VIEWS = {
     center: [44.305, -73.27] as [number, number],
     zoom: 11,
     tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
     label: "Street map of Charlotte, Vermont, with CVC marked",
   },
@@ -21,7 +22,8 @@ const VIEWS = {
   satellite: {
     center: CVC,
     zoom: 16,
-    tiles: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    tiles:
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
     maxZoom: 18,
     label: "Satellite view of CVC's land",
@@ -33,7 +35,13 @@ const VIEWS = {
  * doesn't take the scroll wheel (or, on phones, one-finger drags), so the
  * page scrolls past it as usual.
  */
-export function LandMap({ view, className = "" }: { view: keyof typeof VIEWS; className?: string }) {
+export function LandMap({
+  view,
+  className = "",
+}: {
+  view: keyof typeof VIEWS;
+  className?: string;
+}) {
   const container = useRef<HTMLDivElement>(null);
   const { label } = VIEWS[view];
 
@@ -49,10 +57,24 @@ export function LandMap({ view, className = "" }: { view: keyof typeof VIEWS; cl
         scrollWheelZoom: false,
         dragging: !L.Browser.mobile,
       });
-      L.tileLayer(settings.tiles, { attribution: settings.attribution, maxZoom: settings.maxZoom }).addTo(map);
-      const pin = L.divIcon({ className: "", html: '<span class="cvc-map-pin"></span>', iconSize: [20, 20], iconAnchor: [10, 10] });
+      L.tileLayer(settings.tiles, {
+        attribution: settings.attribution,
+        maxZoom: settings.maxZoom,
+      }).addTo(map);
+      const pin = L.divIcon({
+        className: "",
+        html: '<span class="cvc-map-pin"></span>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
       const marker = L.marker(CVC, { icon: pin, title: "CVC", keyboard: false }).addTo(map);
-      if (view === "street") marker.bindTooltip("CVC", { permanent: true, direction: "right", offset: [10, 0], className: "cvc-map-label" });
+      if (view === "street")
+        marker.bindTooltip("CVC", {
+          permanent: true,
+          direction: "right",
+          offset: [10, 0],
+          className: "cvc-map-label",
+        });
     });
     return () => {
       cancelled = true;
@@ -60,5 +82,12 @@ export function LandMap({ view, className = "" }: { view: keyof typeof VIEWS; cl
     };
   }, [view]);
 
-  return <div ref={container} role="region" aria-label={label} className={`isolate z-0 overflow-hidden rounded-2xl bg-accent shadow-elev ${className}`} />;
+  return (
+    <div
+      ref={container}
+      role="region"
+      aria-label={label}
+      className={`isolate z-0 overflow-hidden rounded-2xl bg-accent shadow-elev ${className}`}
+    />
+  );
 }

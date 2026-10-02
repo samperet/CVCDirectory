@@ -13,5 +13,11 @@ export const BOARD_ID = "board";
 export const isCommunity = (circleId: string) => circleId === COMMUNITY_ID;
 
 /** Whether a resident sits on the Board. */
-export const sitsOnBoard = (circles: Pick<Circle, "id" | "seats">[], personId: string | null | undefined) =>
-  !!personId && circles.some((circle) => circle.id === BOARD_ID && circle.seats.some((seat) => seat.personId === personId));
+export const sitsOnBoard = (
+  circles: Pick<Circle, "id" | "seats">[],
+  personId: string | null | undefined
+) =>
+  !!personId &&
+  circles.some(
+    (circle) => circle.id === BOARD_ID && circle.seats.some((seat) => seat.personId === personId)
+  );

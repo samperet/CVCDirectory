@@ -2,7 +2,8 @@ import { ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { CALENDAR_ID, CALENDAR_TIME_ZONE as TIME_ZONE } from "@/lib/calendar/events";
 // Opening this link in Google Calendar offers to add it to your own calendars.
-const SUBSCRIBE_URL = "https://calendar.google.com/calendar/u/0?cid=Y2hhbXBsYWludmFsbGV5Y29ob3VzaW5naW5mb0BnbWFpbC5jb20";
+const SUBSCRIBE_URL =
+  "https://calendar.google.com/calendar/u/0?cid=Y2hhbXBsYWludmFsbGV5Y29ob3VzaW5naW5mb0BnbWFpbC5jb20";
 
 function embedUrl(mode: "MONTH" | "AGENDA") {
   const params = new URLSearchParams({

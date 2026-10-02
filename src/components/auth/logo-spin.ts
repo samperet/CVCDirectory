@@ -25,7 +25,9 @@ export interface LogoSpin {
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 export function prefersReducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 export function startLogoSpin(node: HTMLElement): LogoSpin {
@@ -76,7 +78,10 @@ export function startLogoSpin(node: HTMLElement): LogoSpin {
         // Glide to the next whole turn at least half a turn ahead, starting
         // at the current speed (an ease-out cubic starts at 3 × distance / time).
         const to = Math.ceil((angle + 180) / 360) * 360;
-        const duration = Math.min(Math.max((3 * (to - angle)) / velocity, MIN_SETTLE_MS / 1000), MAX_SETTLE_MS / 1000);
+        const duration = Math.min(
+          Math.max((3 * (to - angle)) / velocity, MIN_SETTLE_MS / 1000),
+          MAX_SETTLE_MS / 1000
+        );
         settle = { from: angle, to, start: now, duration: duration * 1000 };
         phase = "settle";
       }

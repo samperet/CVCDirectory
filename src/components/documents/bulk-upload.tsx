@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Check, RotateCcw, Upload, X } from "lucide-react";
 import { ACCEPTED_EXTENSIONS, formatBytes } from "@/lib/documents/types";
-import { FileIcon, checkFile, dateFromFileName, titleFromFileName, uploadDocument, useCircleTypes } from "@/components/documents/upload";
+import {
+  FileIcon,
+  checkFile,
+  dateFromFileName,
+  titleFromFileName,
+  uploadDocument,
+  useCircleTypes,
+} from "@/components/documents/upload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,11 +42,23 @@ let nextKey = 0;
  * its name has one), all editable; they upload one after another, and any
  * that fail can be retried.
  */
-export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id: string; name: string }[]; initialCircleId?: string; onDone: () => void }) {
+export function BulkUpload({
+  circles,
+  initialCircleId,
+  onDone,
+}: {
+  circles: { id: string; name: string }[];
+  initialCircleId?: string;
+  onDone: () => void;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
-  const [circleId, setCircleId] = useState(initialCircleId && circles.some((circle) => circle.id === initialCircleId) ? initialCircleId : circles[0]?.id ?? "");
+  const [circleId, setCircleId] = useState(
+    initialCircleId && circles.some((circle) => circle.id === initialCircleId)
+      ? initialCircleId
+      : circles[0]?.id ?? ""
+  );
   const [rows, setRows] = useState<Row[]>([]);
   // On a circle's own page there's only that circle: no need to choose.
   const single = circles.length === 1;
@@ -54,11 +73,16 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
   useEffect(() => {
     if (!types.length) return;
     setRows((current) =>
-      current.map((row) => (row.status === "done" || types.some((type) => type.id === row.type) ? row : { ...row, type: types[0].id }))
+      current.map((row) =>
+        row.status === "done" || types.some((type) => type.id === row.type)
+          ? row
+          : { ...row, type: types[0].id }
+      )
     );
   }, [types]);
 
-  const update = (key: string, change: Partial<Row>) => setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)));
+  const update = (key: string, change: Partial<Row>) =>
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)));
 
   const add = (files: FileList | null) => {
     if (!files?.length) return;
@@ -82,17 +106,26 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
     }
     setRows((current) => {
       const room = MAX_FILES - current.filter((row) => row.status !== "done").length;
-      if (added.length > room) rejected.push(`Only ${MAX_FILES} files at a time — ${added.length - Math.max(room, 0)} left out.`);
+      if (added.length > room)
+        rejected.push(
+          `Only ${MAX_FILES} files at a time — ${added.length - Math.max(room, 0)} left out.`
+        );
       return [...current, ...added.slice(0, Math.max(room, 0))];
     });
     if (rejected.length) {
-      toast({ title: rejected.length === 1 ? "A file was skipped" : `${rejected.length} files were skipped`, description: rejected.slice(0, 4).join(" · "), variant: "destructive" });
+      toast({
+        title:
+          rejected.length === 1 ? "A file was skipped" : `${rejected.length} files were skipped`,
+        description: rejected.slice(0, 4).join(" · "),
+        variant: "destructive",
+      });
     }
   };
 
   const pending = rows.filter((row) => row.status === "waiting" || row.status === "failed");
   const done = rows.filter((row) => row.status === "done").length;
-  const ready = !!circleId && pending.length > 0 && pending.every((row) => row.title.trim() && row.type);
+  const ready =
+    !!circleId && pending.length > 0 && pending.every((row) => row.title.trim() && row.type);
 
   const uploadAll = async () => {
     setRunning(true);
@@ -100,12 +133,21 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
     let failed = 0;
     for (const [index, row] of pending.entries()) {
       setBatch({ current: index + 1, total: pending.length });
-      update(row.key, { status: "uploading", error: undefined, progress: { sent: 0, finishing: false } });
+      update(row.key, {
+        status: "uploading",
+        error: undefined,
+        progress: { sent: 0, finishing: false },
+      });
       try {
         await uploadDocument(
           row.file,
           circleId,
-          { title: row.title.trim(), type: row.type, meetingDate: row.meetingDate || null, description: null },
+          {
+            title: row.title.trim(),
+            type: row.type,
+            meetingDate: row.meetingDate || null,
+            description: null,
+          },
           (progress) => update(row.key, { progress })
         );
         update(row.key, { status: "done", progress: null });
@@ -119,18 +161,27 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
     queryClient.invalidateQueries({ queryKey: ["documents"] });
     const circleName = circles.find((circle) => circle.id === circleId)?.name ?? "the circle";
     if (failed) {
-      toast({ title: `${succeeded} uploaded, ${failed} failed`, description: "Check the files marked below and try them again.", variant: "destructive" });
+      toast({
+        title: `${succeeded} uploaded, ${failed} failed`,
+        description: "Check the files marked below and try them again.",
+        variant: "destructive",
+      });
     } else {
-      toast({ title: `${succeeded} ${succeeded === 1 ? "document" : "documents"} added to ${circleName}` });
+      toast({
+        title: `${succeeded} ${succeeded === 1 ? "document" : "documents"} added to ${circleName}`,
+      });
     }
   };
 
-  const setAllTypes = (type: string) => setRows((current) => current.map((row) => (row.status === "done" ? row : { ...row, type })));
+  const setAllTypes = (type: string) =>
+    setRows((current) => current.map((row) => (row.status === "done" ? row : { ...row, type })));
 
   return (
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-foreground">{single ? `Add documents to ${circles[0].name}` : "Upload documents"}</h3>
+        <h3 className="text-base font-semibold text-foreground">
+          {single ? `Add documents to ${circles[0].name}` : "Upload documents"}
+        </h3>
         <Button variant="ghost" size="icon" onClick={onDone} disabled={running} aria-label="Close">
           <X className="h-4 w-4" />
         </Button>
@@ -138,21 +189,21 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
 
       <div className="grid gap-3 sm:grid-cols-2">
         {single ? null : (
-        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-          Circle
-          <select
-            value={circleId}
-            onChange={(event) => setCircleId(event.target.value)}
-            disabled={running}
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
-          >
-            {circles.map((circle) => (
-              <option key={circle.id} value={circle.id}>
-                {circle.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+            Circle
+            <select
+              value={circleId}
+              onChange={(event) => setCircleId(event.target.value)}
+              disabled={running}
+              className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+            >
+              {circles.map((circle) => (
+                <option key={circle.id} value={circle.id}>
+                  {circle.name}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
         {rows.length > 1 && pending.length ? (
           <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
@@ -205,17 +256,29 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
         )}
       >
         <Upload className="h-5 w-5 text-primary" aria-hidden />
-        <span className="font-medium text-foreground">{rows.length ? "Add more files" : "Choose files, or drop them here"}</span>
-        <span className="text-xs text-muted">Up to {MAX_FILES} at a time · PDF, Word, Excel, PowerPoint, text, or image · up to 50 MB each</span>
+        <span className="font-medium text-foreground">
+          {rows.length ? "Add more files" : "Choose files, or drop them here"}
+        </span>
+        <span className="text-xs text-muted">
+          Up to {MAX_FILES} at a time · PDF, Word, Excel, PowerPoint, text, or image · up to 50 MB
+          each
+        </span>
       </button>
 
       {rows.length ? (
         <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-white">
           {rows.map((row) => {
             const locked = running || row.status === "done" || row.status === "uploading";
-            const percent = row.progress ? (row.progress.finishing ? 100 : Math.round((row.progress.sent / row.file.size) * 100)) : 0;
+            const percent = row.progress
+              ? row.progress.finishing
+                ? 100
+                : Math.round((row.progress.sent / row.file.size) * 100)
+              : 0;
             return (
-              <li key={row.key} className={cn("flex flex-col gap-2 p-3", row.status === "done" && "bg-accent/40")}>
+              <li
+                key={row.key}
+                className={cn("flex flex-col gap-2 p-3", row.status === "done" && "bg-accent/40")}
+              >
                 <div className="flex items-center gap-2 text-xs text-muted">
                   <FileIcon contentType={row.file.type} className="h-4 w-4 shrink-0 text-primary" />
                   <span className="min-w-0 flex-1 truncate" title={row.file.name}>
@@ -226,13 +289,17 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
                       <Check className="h-4 w-4" /> Added
                     </span>
                   ) : row.status === "uploading" ? (
-                    <span className="shrink-0 tabular-nums">{row.progress?.finishing ? "Reading for search…" : `${percent}%`}</span>
+                    <span className="shrink-0 tabular-nums">
+                      {row.progress?.finishing ? "Reading for search…" : `${percent}%`}
+                    </span>
                   ) : !running ? (
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0 text-muted"
-                      onClick={() => setRows((current) => current.filter((entry) => entry.key !== row.key))}
+                      onClick={() =>
+                        setRows((current) => current.filter((entry) => entry.key !== row.key))
+                      }
                       aria-label={`Remove ${row.file.name}`}
                     >
                       <X className="h-4 w-4" />
@@ -278,7 +345,13 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
                 )}
                 {row.status === "uploading" ? (
                   <div className="h-1.5 overflow-hidden rounded-full bg-border">
-                    <div className={cn("h-full rounded-full bg-primary transition-all", row.progress?.finishing && "animate-pulse")} style={{ width: `${percent}%` }} />
+                    <div
+                      className={cn(
+                        "h-full rounded-full bg-primary transition-all",
+                        row.progress?.finishing && "animate-pulse"
+                      )}
+                      style={{ width: `${percent}%` }}
+                    />
                   </div>
                 ) : null}
                 {row.status === "failed" ? (
@@ -295,8 +368,16 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
       {rows.length ? (
         <div className="flex flex-wrap items-center gap-2">
           {pending.length ? (
-            <Button onClick={() => void uploadAll()} disabled={!ready || running} className="gap-1.5">
-              {rows.some((row) => row.status === "failed") && !running ? <RotateCcw className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+            <Button
+              onClick={() => void uploadAll()}
+              disabled={!ready || running}
+              className="gap-1.5"
+            >
+              {rows.some((row) => row.status === "failed") && !running ? (
+                <RotateCcw className="h-4 w-4" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
               {running
                 ? `Uploading ${batch.current} of ${batch.total}…`
                 : rows.some((row) => row.status === "failed")
@@ -309,7 +390,11 @@ export function BulkUpload({ circles, initialCircleId, onDone }: { circles: { id
           </Button>
           <span className="text-xs text-muted">
             {done ? `${done} added.` : ""}
-            {pending.length ? `${done ? " " : ""}Meeting dates are filled in from file names like 2024-03-12 — check them before uploading.` : ""}
+            {pending.length
+              ? `${
+                  done ? " " : ""
+                }Meeting dates are filled in from file names like 2024-03-12 — check them before uploading.`
+              : ""}
           </span>
         </div>
       ) : null}

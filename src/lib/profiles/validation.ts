@@ -9,7 +9,9 @@ const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 export function normalizeBirthday(input: string): string | null {
   const match = input.trim().match(/^([A-Za-z]+)\.?\s+(\d{1,2})$/);
   if (!match) return null;
-  const month = MONTHS.findIndex((name) => name.toLowerCase().startsWith(match[1].toLowerCase().slice(0, 3)));
+  const month = MONTHS.findIndex((name) =>
+    name.toLowerCase().startsWith(match[1].toLowerCase().slice(0, 3))
+  );
   const day = Number(match[2]);
   if (month === -1 || day < 1 || day > DAYS_IN_MONTH[month]) return null;
   return `${MONTHS[month]} ${day}`;
@@ -19,14 +21,18 @@ export function normalizeBirthday(input: string): string | null {
 export function formatPhone(input: string): string | null {
   let digits = input.replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
-  return digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` : null;
+  return digits.length === 10
+    ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+    : null;
 }
 
 /** Empty strings clear a field. */
 export const profileUpdateSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(50).optional(),
   lastName: z.string().trim().max(50).optional(),
-  email: z.union([z.literal(""), z.string().trim().email("Enter a valid email address").max(254)]).optional(),
+  email: z
+    .union([z.literal(""), z.string().trim().email("Enter a valid email address").max(254)])
+    .optional(),
   phone: z.string().trim().max(40).optional(),
   landline: z.string().trim().max(40).optional(),
   birthday: z.string().trim().max(20).optional(),

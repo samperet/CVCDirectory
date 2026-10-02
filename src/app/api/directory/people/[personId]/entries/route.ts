@@ -15,7 +15,8 @@ async function managerContext() {
   if (!user) return { error: problem("Sign in to continue", 401) } as const;
   const directory = await readDirectory();
   if (!directory) return { error: problem("The directory hasn't been imported yet", 503) } as const;
-  if (!canManageDirectory(user, directory)) return { error: problem("Only the Board Secretary and admins can do that", 403) } as const;
+  if (!canManageDirectory(user, directory))
+    return { error: problem("Only the Board Secretary and admins can do that", 403) } as const;
   return { user, directory } as const;
 }
 
@@ -28,11 +29,16 @@ export async function POST(request: NextRequest, { params }: Params) {
   const context = await managerContext();
   if ("error" in context) return context.error;
   const { directory } = context;
-  const parsed = z.object({ otherId: z.string().regex(/^[a-f0-9]{12}$/) }).safeParse(await request.json().catch(() => null));
+  const parsed = z
+    .object({ otherId: z.string().regex(/^[a-f0-9]{12}$/) })
+    .safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem("Choose the entry to combine");
   const keep = directory.aliases?.[params.personId] ?? params.personId;
   const other = directory.aliases?.[parsed.data.otherId] ?? parsed.data.otherId;
-  if (!directory.people.some((person) => person.id === keep) || !directory.people.some((person) => person.id === other)) {
+  if (
+    !directory.people.some((person) => person.id === keep) ||
+    !directory.people.some((person) => person.id === other)
+  ) {
     return problem("Person not found", 404);
   }
   if (keep === other) return problem("Those are already the same profile");
@@ -46,7 +52,12 @@ export async function DELETE(_request: Request, { params }: Params) {
   if ("error" in context) return context.error;
   const { directory } = context;
   const id = directory.aliases?.[params.personId] ?? params.personId;
-  const entries = [id, ...Object.entries(directory.aliases ?? {}).filter(([, to]) => to === id).map(([from]) => from)];
+  const entries = [
+    id,
+    ...Object.entries(directory.aliases ?? {})
+      .filter(([, to]) => to === id)
+      .map(([from]) => from),
+  ];
   if (entries.length < 2) return problem("This profile isn't combined from several entries");
   await separatePeople(entries);
   return NextResponse.json({ ok: true, entries });

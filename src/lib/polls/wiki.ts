@@ -35,16 +35,28 @@ export interface WikiPoll {
 }
 
 export const wikiPollInputSchema = z.object({
-  question: z.string().trim().min(3, "Ask a question (at least 3 characters)").max(160, "Questions must be 160 characters or fewer"),
-  details: z.string().trim().max(1000, "Details must be 1000 characters or fewer").optional().transform((value) => value || null),
+  question: z
+    .string()
+    .trim()
+    .min(3, "Ask a question (at least 3 characters)")
+    .max(160, "Questions must be 160 characters or fewer"),
+  details: z
+    .string()
+    .trim()
+    .max(1000, "Details must be 1000 characters or fewer")
+    .optional()
+    .transform((value) => value || null),
   membersOnly: z.boolean().default(false),
   poll: pollInputSchema,
 });
 
 /** `::poll{id="…"}` (or `#id`), on its own line: the polls a page holds. */
-export const POLL_DIRECTIVE = /^[ \t]*::poll\{[^}\n]*?(?:id="?([0-9a-f-]{36})"?|#([0-9a-f-]{36}))[^}\n]*\}[ \t]*$/gim;
+export const POLL_DIRECTIVE =
+  /^[ \t]*::poll\{[^}\n]*?(?:id="?([0-9a-f-]{36})"?|#([0-9a-f-]{36}))[^}\n]*\}[ \t]*$/gim;
 export function pollIdsIn(markdown: string) {
-  return Array.from(markdown.matchAll(POLL_DIRECTIVE)).map((match) => (match[1] ?? match[2]).toLowerCase());
+  return Array.from(markdown.matchAll(POLL_DIRECTIVE)).map((match) =>
+    (match[1] ?? match[2]).toLowerCase()
+  );
 }
 
 const KEY = "wiki/polls.json";
@@ -66,7 +78,9 @@ export async function getWikiPoll(id: string): Promise<WikiPoll | null> {
 export type PollFailure = "not_found" | "forbidden" | VoteFailure;
 export type PollResult = { ok: true; poll: WikiPoll | null } | { ok: false; reason: PollFailure };
 
-function mutate(change: (polls: WikiPoll[]) => { polls: WikiPoll[]; poll: WikiPoll | null } | PollFailure): Promise<PollResult> {
+function mutate(
+  change: (polls: WikiPoll[]) => { polls: WikiPoll[]; poll: WikiPoll | null } | PollFailure
+): Promise<PollResult> {
   return mutateJson<PollResult>(KEY, (raw) => {
     const result = change(normalize(raw));
     if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
@@ -101,11 +115,19 @@ function update(id: string, change: (entry: WikiPoll) => WikiPoll | PollFailure)
     if (!entry) return "not_found";
     const next = change(entry);
     if (typeof next === "string") return next;
-    return { polls: polls.map((candidate) => (candidate.id === id ? next : candidate)), poll: next };
+    return {
+      polls: polls.map((candidate) => (candidate.id === id ? next : candidate)),
+      poll: next,
+    };
   });
 }
 
-export function voteInWikiPoll(id: string, user: { id: string; name: string }, optionIds: string[], newOption?: string) {
+export function voteInWikiPoll(
+  id: string,
+  user: { id: string; name: string },
+  optionIds: string[],
+  newOption?: string
+) {
   return update(id, (entry) => {
     const poll = castVote(entry.poll, user, optionIds, newOption);
     return typeof poll === "string" ? poll : { ...entry, poll };
@@ -113,8 +135,16 @@ export function voteInWikiPoll(id: string, user: { id: string; name: string }, o
 }
 
 /** Its author may close or reopen a poll — and so may those who moderate the wiki. */
-export function setWikiPollClosed(id: string, actor: { id: string; canModerate: boolean }, closed: boolean) {
-  return update(id, (entry) => (actor.canModerate || entry.authorId === actor.id ? { ...entry, poll: withClosed(entry.poll, closed) } : "forbidden"));
+export function setWikiPollClosed(
+  id: string,
+  actor: { id: string; canModerate: boolean },
+  closed: boolean
+) {
+  return update(id, (entry) =>
+    actor.canModerate || entry.authorId === actor.id
+      ? { ...entry, poll: withClosed(entry.poll, closed) }
+      : "forbidden"
+  );
 }
 
 /** Mark polls as announced; returns the ones that weren't yet. */
@@ -124,7 +154,10 @@ export async function claimAnnouncements(ids: string[]): Promise<WikiPoll[]> {
   await mutate((polls) => {
     fresh = polls.filter((entry) => ids.includes(entry.id) && !entry.announced);
     if (!fresh.length) return { polls, poll: null };
-    return { polls: polls.map((entry) => (fresh.includes(entry) ? { ...entry, announced: true } : entry)), poll: null };
+    return {
+      polls: polls.map((entry) => (fresh.includes(entry) ? { ...entry, announced: true } : entry)),
+      poll: null,
+    };
   });
   return fresh;
 }
@@ -134,13 +167,22 @@ export async function claimAnnouncements(ids: string[]): Promise<WikiPoll[]> {
  * it (members-only polls: its circle's members). Its author can close it,
  * and so can admins and — outside Community — its circle's members.
  */
-export function pollAccess(user: { id: string; personId?: string | null; isAdmin?: boolean }, directory: DirectoryDocument, poll: WikiPoll) {
+export function pollAccess(
+  user: { id: string; personId?: string | null; isAdmin?: boolean },
+  directory: DirectoryDocument,
+  poll: WikiPoll
+) {
   const circle = directory.circles.find((entry) => entry.id === poll.circleId);
   const community = isCommunity(poll.circleId);
-  const member = community || (!!user.personId && !!circle?.seats.some((seat) => seat.personId === user.personId));
+  const member =
+    community ||
+    (!!user.personId && !!circle?.seats.some((seat) => seat.personId === user.personId));
   return {
     circleName: circle?.name ?? "the circle",
-    canClose: poll.authorId === user.id || isAdmin(user) || (!community && canUploadTo(user, directory, poll.circleId)),
+    canClose:
+      poll.authorId === user.id ||
+      isAdmin(user) ||
+      (!community && canUploadTo(user, directory, poll.circleId)),
     canVote: !poll.membersOnly || member,
     memberIds: circle?.seats.map((seat) => seat.personId) ?? [],
   };

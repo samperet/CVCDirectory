@@ -6,7 +6,17 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** A centred dialog over the page; Escape or a click outside closes it. */
-export function Dialog({ title, icon, onClose, children }: { title: string; icon?: React.ReactNode; onClose: () => void; children: React.ReactNode }) {
+export function Dialog({
+  title,
+  icon,
+  onClose,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -14,7 +24,10 @@ export function Dialog({ title, icon, onClose, children }: { title: string; icon
   }, [onClose]);
   const id = `dialog-${title.replace(/\W+/g, "-").toLowerCase()}`;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -26,7 +39,13 @@ export function Dialog({ title, icon, onClose, children }: { title: string; icon
           <h2 id={id} className="flex items-center gap-2 text-lg font-semibold text-foreground">
             {icon} {title}
           </h2>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label="Close">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>

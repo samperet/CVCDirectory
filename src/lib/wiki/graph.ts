@@ -44,7 +44,10 @@ export interface WikiGraph {
 const pageNode = (pageId: string) => `page:${pageId}`;
 
 /** The map as `viewer` sees it: only the pages they can see (and so only the links between those). */
-export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiViewer): Promise<WikiGraph> {
+export async function buildWikiGraph(
+  directory: DirectoryDocument,
+  viewer: WikiViewer
+): Promise<WikiGraph> {
   const circles = directory.circles;
   const pages = visiblePages(viewer, directory, await readPages());
 
@@ -59,7 +62,14 @@ export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiV
   };
   const addCircle = (circleId: string) => {
     const circle = circles.find((entry) => entry.id === circleId);
-    if (circle && !nodes.has(`circle:${circle.id}`)) nodes.set(`circle:${circle.id}`, { id: `circle:${circle.id}`, kind: "circle", label: circle.name, href: `/circles/${circle.id}`, circleId: circle.id });
+    if (circle && !nodes.has(`circle:${circle.id}`))
+      nodes.set(`circle:${circle.id}`, {
+        id: `circle:${circle.id}`,
+        kind: "circle",
+        label: circle.name,
+        href: `/circles/${circle.id}`,
+        circleId: circle.id,
+      });
   };
 
   // Pages, each with the circle that keeps it.
@@ -93,6 +103,8 @@ export async function buildWikiGraph(directory: DirectoryDocument, viewer: WikiV
   return {
     nodes: Array.from(nodes.values()),
     edges,
-    circles: circles.filter((circle) => nodes.has(`circle:${circle.id}`)).map((circle) => ({ id: circle.id, name: circle.name })),
+    circles: circles
+      .filter((circle) => nodes.has(`circle:${circle.id}`))
+      .map((circle) => ({ id: circle.id, name: circle.name })),
   };
 }

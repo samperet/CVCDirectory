@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Bell, Eye, EyeOff, Globe, History, Home, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import {
+  Bell,
+  Eye,
+  EyeOff,
+  Globe,
+  History,
+  Home,
+  LogOut,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLogout, usePeople, useSession, useViewAs } from "@/lib/auth/client";
 import { NameCombobox } from "@/components/auth/name-combobox";
@@ -33,7 +43,13 @@ export function UserMenu() {
 
   return (
     <div className="relative">
-      <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap pl-1.5 max-sm:pr-1.5" onClick={() => setOpen((value) => !value)} aria-label={`Account menu for ${user.name}`}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2 whitespace-nowrap pl-1.5 max-sm:pr-1.5"
+        onClick={() => setOpen((value) => !value)}
+        aria-label={`Account menu for ${user.name}`}
+      >
         <Avatar name={user.name} photoUrl={user.photoUrl} size={24} />
         {/* On phones the avatar alone keeps the header on one line; the menu shows the name. */}
         <span className="hidden sm:inline">{user.name}</span>
@@ -94,7 +110,9 @@ export function UserMenu() {
             {user.isAdmin && !viewAs ? (
               picking ? (
                 <div className="mb-2 flex flex-col gap-1.5 rounded-lg border border-border bg-accent/40 p-2">
-                  <p className="text-xs text-muted">See the app as this resident does (read-only):</p>
+                  <p className="text-xs text-muted">
+                    See the app as this resident does (read-only):
+                  </p>
                   <NameCombobox
                     users={people.filter((person) => person.id !== user.personId)}
                     value={null}
@@ -103,23 +121,45 @@ export function UserMenu() {
                     placeholder="Choose a resident…"
                     onChange={(person) =>
                       view.mutate(person.id, {
-                        onError: (err) => toast({ title: "Could not switch view", description: (err as Error).message, variant: "destructive" }),
+                        onError: (err) =>
+                          toast({
+                            title: "Could not switch view",
+                            description: (err as Error).message,
+                            variant: "destructive",
+                          }),
                       })
                     }
                   />
                 </div>
               ) : (
-                <Button variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2" onClick={() => setPicking(true)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mb-1 w-full justify-start gap-2"
+                  onClick={() => setPicking(true)}
+                >
                   <Eye className="h-4 w-4" /> View as resident…
                 </Button>
               )
             ) : null}
             {viewAs ? (
-              <Button variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2" onClick={() => view.mutate(null)} disabled={view.isPending}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-1 w-full justify-start gap-2"
+                onClick={() => view.mutate(null)}
+                disabled={view.isPending}
+              >
                 <EyeOff className="h-4 w-4" /> Exit view
               </Button>
             ) : null}
-            <Button variant="outline" size="sm" className="w-full gap-2" onClick={signOut} disabled={logout.isPending}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={signOut}
+              disabled={logout.isPending}
+            >
               <LogOut className="h-4 w-4" />
               {logout.isPending ? "Signing out…" : "Sign out"}
             </Button>

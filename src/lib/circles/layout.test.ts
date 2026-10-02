@@ -12,16 +12,32 @@ describe("modulesFor", () => {
   it("derives a page for a circle that never saved one: its own pages, members, meetings, tasks, documents", () => {
     const modules = modulesFor({ id: "lcc" }, { hasSchedule: false });
     expect(types(modules)).toEqual(["information", "members", "meetings", "tasks", "documents"]);
-    expect(modules[0].info).toEqual({ filter: { kind: "circle", circleId: "lcc" }, view: "summary" });
+    expect(modules[0].info).toEqual({
+      filter: { kind: "circle", circleId: "lcc" },
+      view: "summary",
+    });
   });
 
   it("leaves out what the circle had turned off, and adds a duty schedule where there is one", () => {
-    const modules = modulesFor({ id: "lcc", features: { tasks: false, documents: false } }, { hasSchedule: true });
+    const modules = modulesFor(
+      { id: "lcc", features: { tasks: false, documents: false } },
+      { hasSchedule: true }
+    );
     expect(types(modules)).toEqual(["information", "members", "meetings", "schedule"]);
   });
 
   it("keeps the order and sizes of an older layout, then the rest as they come by default", () => {
-    const modules = modulesFor({ id: "lcc", layout: [{ id: "documents", size: "small" }, { id: "information", size: "full" }], infoView: "titles" }, { hasSchedule: false });
+    const modules = modulesFor(
+      {
+        id: "lcc",
+        layout: [
+          { id: "documents", size: "small" },
+          { id: "information", size: "full" },
+        ],
+        infoView: "titles",
+      },
+      { hasSchedule: false }
+    );
     expect(modules.map((module) => [module.type, module.size])).toEqual([
       ["documents", "small"],
       ["information", "full"],
@@ -33,7 +49,11 @@ describe("modulesFor", () => {
   });
 
   it("gives Community no members or meetings (it's everyone)", () => {
-    expect(types(modulesFor({ id: "community" }, { hasSchedule: false }))).toEqual(["information", "tasks", "documents"]);
+    expect(types(modulesFor({ id: "community" }, { hasSchedule: false }))).toEqual([
+      "information",
+      "tasks",
+      "documents",
+    ]);
   });
 });
 

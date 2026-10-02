@@ -8,7 +8,10 @@ import { problem, throttled } from "@/lib/http";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ photos: await listPhotos() }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { photos: await listPhotos() },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /** Add a photo: the image as the raw request body, with an optional `?caption=`. */

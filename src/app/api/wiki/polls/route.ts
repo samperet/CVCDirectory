@@ -32,6 +32,13 @@ export async function POST(request: NextRequest) {
   const parsed = wikiPollInputSchema.safeParse(body);
   if (!parsed.success) return problem(parsed.error.errors.map((err) => err.message).join(", "));
   const membersOnly = !isCommunity(ctx.page.keeper) && parsed.data.membersOnly;
-  const poll = await createWikiPoll(ctx.page.keeper, { id: ctx.user.id, name: ctx.user.name }, { ...parsed.data, membersOnly });
-  return NextResponse.json({ poll: { ...poll, ...pollAccess(ctx.user, ctx.directory, poll), memberIds: undefined } }, { status: 201 });
+  const poll = await createWikiPoll(
+    ctx.page.keeper,
+    { id: ctx.user.id, name: ctx.user.name },
+    { ...parsed.data, membersOnly }
+  );
+  return NextResponse.json(
+    { poll: { ...poll, ...pollAccess(ctx.user, ctx.directory, poll), memberIds: undefined } },
+    { status: 201 }
+  );
 }

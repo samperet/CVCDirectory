@@ -19,8 +19,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (result.ok) {
     // Tell whoever made the recommendation, and everyone else who has commented on it.
     const item = result.value;
-    const recommender = item.submittedBy.personId ? await getUserForPerson(item.submittedBy.personId) : null;
-    const people = Array.from(new Set([...(recommender ? [recommender.id] : []), ...item.comments.map((comment) => comment.authorId)]));
+    const recommender = item.submittedBy.personId
+      ? await getUserForPerson(item.submittedBy.personId)
+      : null;
+    const people = Array.from(
+      new Set([
+        ...(recommender ? [recommender.id] : []),
+        ...item.comments.map((comment) => comment.authorId),
+      ])
+    );
     await notify({
       topic: "resources",
       title: `${found.actor.name} commented on ${item.title}`,

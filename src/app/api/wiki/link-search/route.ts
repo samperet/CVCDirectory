@@ -37,21 +37,48 @@ export async function GET(request: NextRequest) {
       const score = page.id === pageId ? null : rank(page.title, page.keeper === circleId);
       return score === null
         ? []
-        : [{ circleId: page.keeper, circleName: ctx.directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "", title: page.title, slug: page.slug, color: page.color ?? DEFAULT_PAGE_COLOR, score }];
+        : [
+            {
+              circleId: page.keeper,
+              circleName:
+                ctx.directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "",
+              title: page.title,
+              slug: page.slug,
+              color: page.color ?? DEFAULT_PAGE_COLOR,
+              score,
+            },
+          ];
     })
     .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title))
     .slice(0, PAGES);
 
-  const circleName = (id: string) => ctx.directory.circles.find((circle) => circle.id === id)?.name ?? "";
+  const circleName = (id: string) =>
+    ctx.directory.circles.find((circle) => circle.id === id)?.name ?? "";
   const allDocuments = query ? await listDocuments() : [];
   // Another circle's document with the same title: the link then names the circle.
   const ambiguous = (doc: (typeof allDocuments)[number]) =>
-    allDocuments.some((other) => other.id !== doc.id && other.circleId !== doc.circleId && other.title.toLowerCase() === doc.title.toLowerCase());
+    allDocuments.some(
+      (other) =>
+        other.id !== doc.id &&
+        other.circleId !== doc.circleId &&
+        other.title.toLowerCase() === doc.title.toLowerCase()
+    );
   const documents = query
     ? allDocuments
         .flatMap((doc) => {
           const score = rank(doc.title, doc.circleId === circleId);
-          return score === null ? [] : [{ id: doc.id, title: doc.title, circleId: doc.circleId, circleName: circleName(doc.circleId), ambiguous: ambiguous(doc), score }];
+          return score === null
+            ? []
+            : [
+                {
+                  id: doc.id,
+                  title: doc.title,
+                  circleId: doc.circleId,
+                  circleName: circleName(doc.circleId),
+                  ambiguous: ambiguous(doc),
+                  score,
+                },
+              ];
         })
         .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title))
         .slice(0, DOCUMENTS)
@@ -59,5 +86,8 @@ export async function GET(request: NextRequest) {
 
   // Whether a page with exactly this title is in the wiki already (so "New page" isn't offered).
   const exists = !!query && all.some((page) => page.title.toLowerCase() === query);
-  return NextResponse.json({ pages, documents, exists }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { pages, documents, exists },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }

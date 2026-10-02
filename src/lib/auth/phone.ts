@@ -19,7 +19,9 @@ export function phoneMatches(entered: string, onFile: (string | null)[]): boolea
     const expected = phoneDigits(stored);
     if (expected.length < 7 || expected.length !== candidate.length) continue;
     // Keep scanning after a match so timing doesn't depend on which number matched.
-    if (timingSafeEqual(new Uint8Array(Buffer.from(candidate)), new Uint8Array(Buffer.from(expected)))) {
+    if (
+      timingSafeEqual(new Uint8Array(Buffer.from(candidate)), new Uint8Array(Buffer.from(expected)))
+    ) {
       matched = true;
     }
   }

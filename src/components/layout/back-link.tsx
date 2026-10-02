@@ -103,7 +103,15 @@ export function NavigationTrail() {
 }
 
 /** "← <the page you came from>" — or, with nowhere to go back to, "← `label`" to `href`. */
-export function BackLink({ href, label, className }: { href: string; label: string; className?: string }) {
+export function BackLink({
+  href,
+  label,
+  className,
+}: {
+  href: string;
+  label: string;
+  className?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [previous, setPrevious] = useState<Stop | null>(null);
@@ -121,7 +129,8 @@ export function BackLink({ href, label, className }: { href: string; label: stri
     <Link
       href={previous?.path ?? href}
       onClick={(event) => {
-        if (!previous || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+        if (!previous || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
+          return;
         event.preventDefault();
         try {
           sessionStorage.setItem(GOING_BACK, "1");
@@ -130,9 +139,12 @@ export function BackLink({ href, label, className }: { href: string; label: stri
         }
         router.push(previous.path);
       }}
-      className={className ?? "inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground"}
+      className={
+        className ?? "inline-flex w-fit items-center gap-1 text-sm text-muted hover:text-foreground"
+      }
     >
-      <ArrowLeft className="h-4 w-4" /> {previous ? (pathOf(previous.path) === "/" ? "Dashboard" : previous.name || "Back") : label}
+      <ArrowLeft className="h-4 w-4" />{" "}
+      {previous ? (pathOf(previous.path) === "/" ? "Dashboard" : previous.name || "Back") : label}
     </Link>
   );
 }

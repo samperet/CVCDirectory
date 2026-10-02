@@ -1,11 +1,28 @@
 "use client";
 
 import "@mdxeditor/editor/style.css";
-import { forwardRef, useContext, useImperativeHandle, useMemo, useRef, useState, type MutableRefObject } from "react";
+import {
+  forwardRef,
+  useContext,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import type { LexicalEditor } from "lexical";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, AtSign, BarChart3, ChevronDown, ChevronsUpDown, FilePlus2, LayoutList, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  AtSign,
+  BarChart3,
+  ChevronDown,
+  ChevronsUpDown,
+  FilePlus2,
+  LayoutList,
+  X,
+} from "lucide-react";
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
@@ -61,7 +78,8 @@ export interface RichEditorHandle {
 }
 
 /** A collapsible section (`:::details{title="…"}`) in the editor: its title, and what it hides. */
-const isLabel = (child: ContainerDirective["children"][number]) => !!(child.data as { directiveLabel?: boolean } | undefined)?.directiveLabel;
+const isLabel = (child: ContainerDirective["children"][number]) =>
+  !!(child.data as { directiveLabel?: boolean } | undefined)?.directiveLabel;
 /** The text of an mdast node and everything in it. */
 function plainText(node: object): string {
   const { value, children } = node as { value?: unknown; children?: object[] };
@@ -75,12 +93,18 @@ function DetailsEditor({ mdastNode }: { mdastNode: ContainerDirective }) {
   const title = mdastNode.attributes?.title ?? (label ? plainText(label) : "");
   return (
     <div className="my-2 rounded-lg border border-border bg-surface">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-1.5" contentEditable={false}>
+      <div
+        className="flex items-center gap-2 border-b border-border px-3 py-1.5"
+        contentEditable={false}
+      >
         <ChevronDown className="h-4 w-4 shrink-0 text-muted" aria-hidden />
         <input
           value={title}
           onChange={(event) =>
-            update({ attributes: { ...mdastNode.attributes, title: event.target.value }, children: mdastNode.children.filter((child) => !isLabel(child)) })
+            update({
+              attributes: { ...mdastNode.attributes, title: event.target.value },
+              children: mdastNode.children.filter((child) => !isLabel(child)),
+            })
           }
           onKeyDown={(event) => event.stopPropagation()}
           placeholder="Section title (shown when collapsed)"
@@ -95,7 +119,10 @@ function DetailsEditor({ mdastNode }: { mdastNode: ContainerDirective }) {
           getContent={(node) => node.children.filter((child) => !isLabel(child))}
           getUpdatedMdastNode={(node, children) => ({
             ...node,
-            children: [...node.children.filter(isLabel), ...(children as ContainerDirective["children"])],
+            children: [
+              ...node.children.filter(isLabel),
+              ...(children as ContainerDirective["children"]),
+            ],
           })}
         />
       </div>
@@ -120,13 +147,28 @@ function PollDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
   const id = (mdastNode.attributes?.id ?? "").toLowerCase();
   const entry = data?.polls.find((poll) => poll.id === id);
   return (
-    <div className="my-2 flex items-start gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2" contentEditable={false}>
+    <div
+      className="my-2 flex items-start gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2"
+      contentEditable={false}
+    >
       <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">{entry ? entry.question : data ? "A poll that's no longer available" : "Poll"}</p>
-        {entry ? <p className="truncate text-xs text-muted">{entry.poll.options.map((option) => option.text).join(" · ")}</p> : null}
+        <p className="text-sm font-semibold text-foreground">
+          {entry ? entry.question : data ? "A poll that's no longer available" : "Poll"}
+        </p>
+        {entry ? (
+          <p className="truncate text-xs text-muted">
+            {entry.poll.options.map((option) => option.text).join(" · ")}
+          </p>
+        ) : null}
       </div>
-      <button type="button" onClick={remove} className="rounded p-1 text-muted hover:bg-accent hover:text-foreground" aria-label="Take the poll out of the page" title="Take out of the page">
+      <button
+        type="button"
+        onClick={remove}
+        className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
+        aria-label="Take the poll out of the page"
+        title="Take out of the page"
+      >
         <X className="h-4 w-4" />
       </button>
     </div>
@@ -154,7 +196,10 @@ function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
   const found = pageTitled(useQuery(wikiPagesQuery()).data?.pages, link?.title ?? "");
   const circle = circles?.find((entry) => entry.id === found?.keeper);
   return (
-    <div className="my-2 rounded-lg border border-border bg-accent/30 px-3 py-2" contentEditable={false}>
+    <div
+      className="my-2 rounded-lg border border-border bg-accent/30 px-3 py-2"
+      contentEditable={false}
+    >
       <div className="flex items-start gap-2">
         <LayoutList className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
         <div className="min-w-0 flex-1">
@@ -164,7 +209,12 @@ function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
           </p>
           <p className="text-xs text-muted">
             Shown here{circle && circle.id !== wiki?.circleId ? `, from ${circle.name}` : ""} ·{" "}
-            <button type="button" className="font-medium text-secondary-foreground hover:underline" onClick={() => setPreview(!preview)} aria-expanded={preview}>
+            <button
+              type="button"
+              className="font-medium text-secondary-foreground hover:underline"
+              onClick={() => setPreview(!preview)}
+              aria-expanded={preview}
+            >
               {preview ? "Hide preview" : "Show preview"}
             </button>
           </p>
@@ -181,7 +231,13 @@ function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
             <ArrowUpRight className="h-4 w-4" />
           </a>
         ) : null}
-        <button type="button" onClick={remove} className="rounded p-1 text-muted hover:bg-accent hover:text-foreground" aria-label="Take the embedded page out" title="Take out of the page">
+        <button
+          type="button"
+          onClick={remove}
+          className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
+          aria-label="Take the embedded page out"
+          title="Take out of the page"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -250,15 +306,24 @@ export const RichEditor = forwardRef<
     /** The same handle as the ref (refs don't pass through a lazily loaded component). */
     control?: MutableRefObject<RichEditorHandle | null>;
   }
->(function RichEditor({ markdown, circleId, circleName, pageId, pageSlug, onChange, onError, onCreatePage, control }, ref) {
+>(function RichEditor(
+  { markdown, circleId, circleName, pageId, pageSlug, onChange, onError, onCreatePage, control },
+  ref
+) {
   const editor = useRef<MDXEditorMethods>(null);
   const lexical = useRef<LexicalEditor | null>(null);
   const [polling, setPolling] = useState(false);
   const [addingDocument, setAddingDocument] = useState(false);
   const [embedding, setEmbedding] = useState(false);
   // Documents go into the circle's documents, so only while it has them turned on.
-  const documentsOn = featureEnabled(useCircles()?.find((circle) => circle.id === circleId), "documents");
-  const wiki = useMemo(() => ({ circleId, circleName, pageSlug }), [circleId, circleName, pageSlug]);
+  const documentsOn = featureEnabled(
+    useCircles()?.find((circle) => circle.id === circleId),
+    "documents"
+  );
+  const wiki = useMemo(
+    () => ({ circleId, circleName, pageSlug }),
+    [circleId, circleName, pageSlug]
+  );
   // The plugin is set up once, so it reads the latest callback through a ref.
   const createRef = useRef(onCreatePage);
   createRef.current = onCreatePage;
@@ -268,7 +333,11 @@ export const RichEditor = forwardRef<
     try {
       return await uploadWikiImage(pageSlug, file);
     } catch (error) {
-      toast({ title: "Could not add the photo", description: (error as Error).message, variant: "destructive" });
+      toast({
+        title: "Could not add the photo",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -286,104 +355,137 @@ export const RichEditor = forwardRef<
   useImperativeHandle(ref, () => handle);
   if (control) control.current = handle;
   const insert = (text: string) => {
-    editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(text)), { preventScroll: true });
+    editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(text)), {
+      preventScroll: true,
+    });
   };
   return (
     <WikiCircleContext.Provider value={wiki}>
-    <MDXEditor
-      ref={editor}
-      markdown={protectWikiLinks(markdown)}
-      onChange={(value) => onChange(normalizeWikiLinks(value))}
-      onError={onError}
-      suppressHtmlProcessing
-      className="wiki-editor rounded-lg border border-border bg-white"
-      contentEditableClassName="wiki-prose min-h-[20rem] px-4 py-3"
-      placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
-      plugins={[
-        headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
-        listsPlugin(),
-        quotePlugin(),
-        thematicBreakPlugin(),
-        linkPlugin(),
-        linkDialogPlugin(),
-        tablePlugin(),
-        imagePlugin({ imageUploadHandler: uploadPhoto, disableImageResize: true, disableImageSettingsButton: true }),
-        codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
-        codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" }, autoLoadLanguageSupport: false }),
-        markdownShortcutPlugin(),
-        directivesPlugin({ directiveDescriptors: [detailsDirective, pollDirective, embedDirective, textDirectives, otherDirectives] }),
-        wikiLinkPlugin(),
-        editorBridgePlugin({ target: lexical }),
-        mentionPlugin({ circleId, circleName, pageId, onCreatePage: (title) => createRef.current(title) }),
-        toolbarPlugin({
-          toolbarClassName: "wiki-toolbar",
-          toolbarContents: () => (
-            <>
-              <UndoRedo />
-              <Separator />
-              <BlockTypeSelect />
-              <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
-              <Separator />
-              <ListsToggle options={["bullet", "number", "check"]} />
-              <Separator />
-              <CreateLink />
-              <ButtonWithTooltip title="Link a page or document (or type @)" onClick={() => insert(" @")}>
-                <AtSign className="h-5 w-5" />
-              </ButtonWithTooltip>
-              <Separator />
-              <InsertImage />
-              {documentsOn ? (
-                <ButtonWithTooltip title="Add a document" onClick={() => setAddingDocument(true)}>
-                  <FilePlus2 className="h-5 w-5" />
+      <MDXEditor
+        ref={editor}
+        markdown={protectWikiLinks(markdown)}
+        onChange={(value) => onChange(normalizeWikiLinks(value))}
+        onError={onError}
+        suppressHtmlProcessing
+        className="wiki-editor rounded-lg border border-border bg-white"
+        contentEditableClassName="wiki-prose min-h-[20rem] px-4 py-3"
+        placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
+        plugins={[
+          headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
+          listsPlugin(),
+          quotePlugin(),
+          thematicBreakPlugin(),
+          linkPlugin(),
+          linkDialogPlugin(),
+          tablePlugin(),
+          imagePlugin({
+            imageUploadHandler: uploadPhoto,
+            disableImageResize: true,
+            disableImageSettingsButton: true,
+          }),
+          codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
+          codeMirrorPlugin({
+            codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" },
+            autoLoadLanguageSupport: false,
+          }),
+          markdownShortcutPlugin(),
+          directivesPlugin({
+            directiveDescriptors: [
+              detailsDirective,
+              pollDirective,
+              embedDirective,
+              textDirectives,
+              otherDirectives,
+            ],
+          }),
+          wikiLinkPlugin(),
+          editorBridgePlugin({ target: lexical }),
+          mentionPlugin({
+            circleId,
+            circleName,
+            pageId,
+            onCreatePage: (title) => createRef.current(title),
+          }),
+          toolbarPlugin({
+            toolbarClassName: "wiki-toolbar",
+            toolbarContents: () => (
+              <>
+                <UndoRedo />
+                <Separator />
+                <BlockTypeSelect />
+                <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
+                <Separator />
+                <ListsToggle options={["bullet", "number", "check"]} />
+                <Separator />
+                <CreateLink />
+                <ButtonWithTooltip
+                  title="Link a page or document (or type @)"
+                  onClick={() => insert(" @")}
+                >
+                  <AtSign className="h-5 w-5" />
                 </ButtonWithTooltip>
-              ) : null}
-              <ButtonWithTooltip title="Show another page here" onClick={() => setEmbedding(true)}>
-                <LayoutList className="h-5 w-5" />
-              </ButtonWithTooltip>
-              <InsertTable />
-              <ButtonWithTooltip title="Collapsible section" onClick={() => insert(':::details{title="Details"}\nWhat this section hides.\n:::')}>
-                <ChevronsUpDown className="h-5 w-5" />
-              </ButtonWithTooltip>
-              <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
-                <BarChart3 className="h-5 w-5" />
-              </ButtonWithTooltip>
-            </>
-          ),
-        }),
-      ]}
-    />
-    {addingDocument ? (
-      <AddDocumentDialog
-        circle={{ id: circleId, name: circleName }}
-        onClose={() => setAddingDocument(false)}
-        onAdded={(link) => {
-          setAddingDocument(false);
-          insert(` ${link} `);
-        }}
+                <Separator />
+                <InsertImage />
+                {documentsOn ? (
+                  <ButtonWithTooltip title="Add a document" onClick={() => setAddingDocument(true)}>
+                    <FilePlus2 className="h-5 w-5" />
+                  </ButtonWithTooltip>
+                ) : null}
+                <ButtonWithTooltip
+                  title="Show another page here"
+                  onClick={() => setEmbedding(true)}
+                >
+                  <LayoutList className="h-5 w-5" />
+                </ButtonWithTooltip>
+                <InsertTable />
+                <ButtonWithTooltip
+                  title="Collapsible section"
+                  onClick={() =>
+                    insert(':::details{title="Details"}\nWhat this section hides.\n:::')
+                  }
+                >
+                  <ChevronsUpDown className="h-5 w-5" />
+                </ButtonWithTooltip>
+                <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
+                  <BarChart3 className="h-5 w-5" />
+                </ButtonWithTooltip>
+              </>
+            ),
+          }),
+        ]}
       />
-    ) : null}
-    {embedding ? (
-      <EmbedPageDialog
-        circle={{ id: circleId, name: circleName }}
-        pageId={pageId}
-        onClose={() => setEmbedding(false)}
-        onChosen={(directive) => {
-          setEmbedding(false);
-          insert(directive);
-        }}
-      />
-    ) : null}
-    {polling ? (
-      <NewPollDialog
-        circle={{ id: circleId, name: circleName }}
-        pageSlug={pageSlug}
-        onClose={() => setPolling(false)}
-        onCreated={(poll) => {
-          setPolling(false);
-          insert(`\n::poll{id="${poll.id}"}\n`);
-        }}
-      />
-    ) : null}
+      {addingDocument ? (
+        <AddDocumentDialog
+          circle={{ id: circleId, name: circleName }}
+          onClose={() => setAddingDocument(false)}
+          onAdded={(link) => {
+            setAddingDocument(false);
+            insert(` ${link} `);
+          }}
+        />
+      ) : null}
+      {embedding ? (
+        <EmbedPageDialog
+          circle={{ id: circleId, name: circleName }}
+          pageId={pageId}
+          onClose={() => setEmbedding(false)}
+          onChosen={(directive) => {
+            setEmbedding(false);
+            insert(directive);
+          }}
+        />
+      ) : null}
+      {polling ? (
+        <NewPollDialog
+          circle={{ id: circleId, name: circleName }}
+          pageSlug={pageSlug}
+          onClose={() => setPolling(false)}
+          onCreated={(poll) => {
+            setPolling(false);
+            insert(`\n::poll{id="${poll.id}"}\n`);
+          }}
+        />
+      ) : null}
     </WikiCircleContext.Provider>
   );
 });

@@ -36,14 +36,24 @@ export function NotificationsNudge() {
     }
   };
 
-  if (!install.installed || dismissed || !push.ready || !push.supported || push.subscribed || push.permission === "denied") return null;
+  if (
+    !install.installed ||
+    dismissed ||
+    !push.ready ||
+    !push.supported ||
+    push.subscribed ||
+    push.permission === "denied"
+  )
+    return null;
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-primary/50 bg-accent p-4 sm:flex-row sm:items-center">
       <Bell className="hidden h-6 w-6 shrink-0 text-primary sm:block" aria-hidden />
       <div className="flex-1 text-sm">
         <p className="font-semibold text-foreground">Hear when neighbors post</p>
-        <p className="text-foreground-light">Get a notification for new discussions, replies to yours, appreciations, photos, and more.</p>
+        <p className="text-foreground-light">
+          Get a notification for new discussions, replies to yours, appreciations, photos, and more.
+        </p>
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -52,8 +62,15 @@ export function NotificationsNudge() {
           onClick={() =>
             push
               .enable()
-              .then(() => toast({ title: "Notifications are on", description: "Choose what you hear about on your profile." }))
-              .catch((err: Error) => toast({ title: "Notifications", description: err.message, variant: "destructive" }))
+              .then(() =>
+                toast({
+                  title: "Notifications are on",
+                  description: "Choose what you hear about on your profile.",
+                })
+              )
+              .catch((err: Error) =>
+                toast({ title: "Notifications", description: err.message, variant: "destructive" })
+              )
           }
         >
           {push.busy ? "Turning on…" : "Turn on"}

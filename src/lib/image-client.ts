@@ -3,7 +3,11 @@
  * uploads are small and consistent. PNG keeps transparency (for logos and
  * icons); JPEG keeps photos small.
  */
-export async function prepareSquareImage(file: File, size: number, type: "image/jpeg" | "image/png"): Promise<Blob> {
+export async function prepareSquareImage(
+  file: File,
+  size: number,
+  type: "image/jpeg" | "image/png"
+): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
@@ -15,10 +19,24 @@ export async function prepareSquareImage(file: File, size: number, type: "image/
   canvas.width = canvas.height = Math.min(size, side);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Your browser couldn't process the image.");
-  context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+  context.drawImage(
+    bitmap,
+    (bitmap.width - side) / 2,
+    (bitmap.height - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
   bitmap.close();
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))), type, 0.85)
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))),
+      type,
+      0.85
+    )
   );
 }
 
@@ -45,15 +63,26 @@ export async function preparePhoto(file: File, maxSide = 2400): Promise<Blob> {
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))), "image/jpeg", 0.85)
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))),
+      "image/jpeg",
+      0.85
+    )
   );
 }
 
 /** Upload a prepared image as the raw request body; throws with the server's message on failure. */
 export async function uploadImage(url: string, blob: Blob): Promise<void> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": blob.type },
+    body: blob,
+  });
   if (!res.ok) {
-    const detail = await res.json().then((body) => body?.detail).catch(() => null);
+    const detail = await res
+      .json()
+      .then((body) => body?.detail)
+      .catch(() => null);
     throw new Error(detail ?? "Upload failed");
   }
 }
@@ -67,7 +96,11 @@ export async function uploadImage(url: string, blob: Blob): Promise<void> {
 export async function uploadWikiImage(pageSlug: string, file: File): Promise<string> {
   const keep = file.type === "image/png" && file.size <= 1.5 * 1024 * 1024;
   const blob = keep ? file : await preparePhoto(file, 2000);
-  const res = await fetch(`/api/wiki/images?page=${encodeURIComponent(pageSlug)}`, { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+  const res = await fetch(`/api/wiki/images?page=${encodeURIComponent(pageSlug)}`, {
+    method: "POST",
+    headers: { "Content-Type": blob.type },
+    body: blob,
+  });
   const body = await res.json().catch(() => null);
   if (!res.ok || !body?.url) throw new Error(body?.detail ?? "Upload failed");
   return body.url as string;

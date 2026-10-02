@@ -1,11 +1,25 @@
 /** Wiki pages' colours: a page is drawn in its colour, and shows as a card of it. Shared by the server and the browser. */
 
 /** A page's colours: the page is drawn in it, and so is its card in a circle's Information. */
-export const PAGE_COLORS = ["white", "yellow", "orange", "red", "pink", "lavender", "blue", "teal", "green", "grey"] as const;
+export const PAGE_COLORS = [
+  "white",
+  "yellow",
+  "orange",
+  "red",
+  "pink",
+  "lavender",
+  "blue",
+  "teal",
+  "green",
+  "grey",
+] as const;
 export type PageColor = (typeof PAGE_COLORS)[number];
 
 /** Soft paper, a darker edge, and the swatch shown when choosing. Text stays the usual dark ink. */
-export const PAGE_STYLES: Record<PageColor, { label: string; paper: string; edge: string; swatch: string }> = {
+export const PAGE_STYLES: Record<
+  PageColor,
+  { label: string; paper: string; edge: string; swatch: string }
+> = {
   white: { label: "White", paper: "#ffffff", edge: "#dfe5df", swatch: "#ffffff" },
   yellow: { label: "Yellow", paper: "#fff7d1", edge: "#ecd77a", swatch: "#f6dc6b" },
   orange: { label: "Orange", paper: "#ffead6", edge: "#f0c196", swatch: "#f4ad6c" },
@@ -19,4 +33,9 @@ export const PAGE_STYLES: Record<PageColor, { label: string; paper: string; edge
 };
 /** A page with no colour of its own is white. */
 export const DEFAULT_PAGE_COLOR: PageColor = "white";
-export const pageStyle = (color: string | null | undefined) => PAGE_STYLES[(PAGE_COLORS as readonly string[]).includes(color ?? "") ? (color as PageColor) : DEFAULT_PAGE_COLOR];
+export const pageStyle = (color: string | null | undefined) =>
+  PAGE_STYLES[
+    (PAGE_COLORS as readonly string[]).includes(color ?? "")
+      ? (color as PageColor)
+      : DEFAULT_PAGE_COLOR
+  ];

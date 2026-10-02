@@ -22,7 +22,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const result =
     "body" in parsed.data
       ? await editComment(ctx.page.id, params.commentId, { id: ctx.user.id }, parsed.data.body)
-      : await setResolved(ctx.page.id, params.commentId, { id: ctx.user.id, name: ctx.user.name, canModerate: ctx.canEdit || isAdmin(ctx.user) }, parsed.data.resolved);
+      : await setResolved(
+          ctx.page.id,
+          params.commentId,
+          { id: ctx.user.id, name: ctx.user.name, canModerate: ctx.canEdit || isAdmin(ctx.user) },
+          parsed.data.resolved
+        );
   return result.ok ? NextResponse.json({ comment: result.comment }) : commentProblem(result.reason);
 }
 
@@ -30,6 +35,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
   if ("error" in ctx) return ctx.error;
-  const result = await deleteComment(ctx.page.id, params.commentId, { id: ctx.user.id, admin: isAdmin(ctx.user) });
+  const result = await deleteComment(ctx.page.id, params.commentId, {
+    id: ctx.user.id,
+    admin: isAdmin(ctx.user),
+  });
   return result.ok ? NextResponse.json({ ok: true }) : commentProblem(result.reason);
 }

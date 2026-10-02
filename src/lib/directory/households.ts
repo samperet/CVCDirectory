@@ -14,7 +14,10 @@ import type { Person } from "./types";
 const key = (person: Person) => person.displayName.trim().toLowerCase().replace(/\s+/g, " ");
 
 const completeness = (person: Person) =>
-  (person.phone || person.landline ? 8 : 0) + (person.email ? 4 : 0) + (person.resident === true ? 2 : 0) + (person.birthday ? 1 : 0);
+  (person.phone || person.landline ? 8 : 0) +
+  (person.email ? 4 : 0) +
+  (person.resident === true ? 2 : 0) +
+  (person.birthday ? 1 : 0);
 
 export function combineDuplicates(
   people: Person[],
@@ -64,10 +67,13 @@ export function combineDuplicates(
     done.add(find(person.id));
     const primary = [...group].sort(
       (a, b) =>
-        Number(explicitKeeps.has(b.id)) - Number(explicitKeeps.has(a.id)) || completeness(b) - completeness(a) || a.unit - b.unit
+        Number(explicitKeeps.has(b.id)) - Number(explicitKeeps.has(a.id)) ||
+        completeness(b) - completeness(a) ||
+        a.unit - b.unit
     )[0];
     const others = group.filter((entry) => entry.id !== primary.id);
-    const fill = <K extends keyof Person>(field: K) => primary[field] ?? others.find((entry) => entry[field])?.[field] ?? null;
+    const fill = <K extends keyof Person>(field: K) =>
+      primary[field] ?? others.find((entry) => entry[field])?.[field] ?? null;
     const units = Array.from(new Set(group.map((entry) => entry.unit))).sort((a, b) => a - b);
     combined.push({
       ...primary,

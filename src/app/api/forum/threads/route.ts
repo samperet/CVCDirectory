@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
   const topic = request.nextUrl.searchParams.get("topic");
   const [threads, topics] = await Promise.all([listThreads(), listTopics()]);
   const known = new Set(topics.map((entry) => entry.id));
-  return NextResponse.json({ threads: topic ? threads.filter((thread) => topicOf(thread, known) === topic) : threads });
+  return NextResponse.json({
+    threads: topic ? threads.filter((thread) => topicOf(thread, known) === topic) : threads,
+  });
 }
 
 export async function POST(request: NextRequest) {

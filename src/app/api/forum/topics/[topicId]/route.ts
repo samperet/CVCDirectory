@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/auth/admins";
 import { moveTopicThreads } from "@/lib/forum/store";
-import { GENERAL_TOPIC_ID, deleteTopic, isTopicId, updateTopic, topicUpdateSchema } from "@/lib/forum/topics";
+import {
+  GENERAL_TOPIC_ID,
+  deleteTopic,
+  isTopicId,
+  updateTopic,
+  topicUpdateSchema,
+} from "@/lib/forum/topics";
 import { topicProblem } from "@/lib/forum/topics-http";
 import { problem, readBody } from "@/lib/http";
 

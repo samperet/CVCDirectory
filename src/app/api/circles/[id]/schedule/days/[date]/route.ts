@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string; date: string } };
 
-async function change(params: Params["params"], body: { householdId: string | null; note?: string | null } | null) {
+async function change(
+  params: Params["params"],
+  body: { householdId: string | null; note?: string | null } | null
+) {
   const context = await circleContext({ circleId: params.id });
   if ("error" in context) return context.error;
   if (!isIsoDate(params.date)) return problem("Use a date like 2026-09-01");
@@ -17,7 +20,10 @@ async function change(params: Params["params"], body: { householdId: string | nu
   if (!schedule) return problem("This circle has no duty schedule", 404);
   const access = scheduleAccess(context.user, context.directory, params.id, schedule);
   if (!access.canChangeDays) {
-    return problem("Only households on the rotation, the circle, and the Board can change who's on duty", 403);
+    return problem(
+      "Only households on the rotation, the circle, and the Board can change who's on duty",
+      403
+    );
   }
   const result = await setDayChange(params.id, params.date, body, context.user.name);
   if (result === "not_found") return problem("This circle has no duty schedule", 404);

@@ -1,6 +1,15 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { INFO_VIEWS, MAX_CHOSEN_PAGES, MAX_MODULES, MODULE_TYPES, RECENT_LIMITS, MODULE_SIZES, TASK_ADDERS, type CircleModule } from "./layout";
+import {
+  INFO_VIEWS,
+  MAX_CHOSEN_PAGES,
+  MAX_MODULES,
+  MODULE_TYPES,
+  RECENT_LIMITS,
+  MODULE_SIZES,
+  TASK_ADDERS,
+  type CircleModule,
+} from "./layout";
 import { enqueue, readJson, writeJson } from "@/lib/storage";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "./ids";
 import type { Circle, CircleApplication, CircleSeat } from "@/lib/directory/types";
@@ -19,7 +28,12 @@ export { BOARD_ID, COMMUNITY_ID, isCommunity };
  * It always exists, can't be deleted or joined, holds community documents
  * (any resident can add them), and has the Community Forum.
  */
-const COMMUNITY: Circle = { id: COMMUNITY_ID, name: "Community", description: "Everyone who lives at CVC.", seats: [] };
+const COMMUNITY: Circle = {
+  id: COMMUNITY_ID,
+  name: "Community",
+  description: "Everyone who lives at CVC.",
+  seats: [],
+};
 
 const text = (max: number, label: string) =>
   z.string().trim().max(max, `${label} must be ${max} characters or fewer`);
@@ -28,36 +42,68 @@ const kind = z.enum(["circle", "club"]);
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,80}$/, "Not a valid id");
 const infoFilter = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("pages"), pageIds: z.array(id).min(1, "Choose at least one page").max(MAX_CHOSEN_PAGES, `Choose up to ${MAX_CHOSEN_PAGES} pages`) }),
+  z.object({
+    kind: z.literal("pages"),
+    pageIds: z
+      .array(id)
+      .min(1, "Choose at least one page")
+      .max(MAX_CHOSEN_PAGES, `Choose up to ${MAX_CHOSEN_PAGES} pages`),
+  }),
   z.object({ kind: z.literal("circle"), circleId: id }),
-  z.object({ kind: z.literal("recent"), limit: z.number().int().min(RECENT_LIMITS.min).max(RECENT_LIMITS.max), circleId: id.optional() }),
+  z.object({
+    kind: z.literal("recent"),
+    limit: z.number().int().min(RECENT_LIMITS.min).max(RECENT_LIMITS.max),
+    circleId: id.optional(),
+  }),
 ]);
 const moduleSchema = z
   .object({
     id,
     type: z.enum(MODULE_TYPES),
     size: z.enum(MODULE_SIZES),
-    title: text(60, "A module's title").optional().transform((value) => value || undefined),
+    title: text(60, "A module's title")
+      .optional()
+      .transform((value) => value || undefined),
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
   })
-  .refine((module) => (module.type === "information") === !!module.info, "Information modules (only) choose which pages they show")
-  .refine((module) => module.type === "tasks" || !module.tasks, "Only a Tasks module says who can add tasks")
-  .transform(({ title, info, tasks, ...module }): CircleModule => ({ ...module, ...(title ? { title } : {}), ...(info ? { info } : {}), ...(tasks ? { tasks } : {}) }));
+  .refine(
+    (module) => (module.type === "information") === !!module.info,
+    "Information modules (only) choose which pages they show"
+  )
+  .refine(
+    (module) => module.type === "tasks" || !module.tasks,
+    "Only a Tasks module says who can add tasks"
+  )
+  .transform(
+    ({ title, info, tasks, ...module }): CircleModule => ({
+      ...module,
+      ...(title ? { title } : {}),
+      ...(info ? { info } : {}),
+      ...(tasks ? { tasks } : {}),
+    })
+  );
 
 /** The page's modules, in order: any number of Information modules, the others once each. */
 export const modulesSchema = z
   .array(moduleSchema)
   .max(MAX_MODULES, `Up to ${MAX_MODULES} modules`)
-  .refine((modules) => new Set(modules.map((module) => module.id)).size === modules.length, "Each module once")
+  .refine(
+    (modules) => new Set(modules.map((module) => module.id)).size === modules.length,
+    "Each module once"
+  )
   .refine((modules) => {
-    const others = modules.filter((module) => module.type !== "information").map((module) => module.type);
+    const others = modules
+      .filter((module) => module.type !== "information")
+      .map((module) => module.type);
     return new Set(others).size === others.length;
   }, "Members, meetings, the duty schedule, tasks, and documents can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),
-  description: text(1000, "Description").optional().transform((value) => value || null),
+  description: text(1000, "Description")
+    .optional()
+    .transform((value) => value || null),
   kind: kind.default("club"),
 });
 
@@ -73,7 +119,11 @@ export const circleUpdateSchema = circleInputSchema
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
 export const joinInputSchema = z
-  .object({ message: text(500, "Message").optional().transform((value) => value || null) })
+  .object({
+    message: text(500, "Message")
+      .optional()
+      .transform((value) => value || null),
+  })
   .default({});
 
 export const decisionSchema = z.object({ approve: z.boolean() });
@@ -82,14 +132,24 @@ const MAX_APPLICATIONS = 100;
 
 export const memberInputSchema = z.object({
   personId: z.string().regex(/^[a-f0-9]{12}$/, "Choose a resident"),
-  position: text(40, "Role").optional().transform((value) => value || null),
-  termEnds: text(30, "Term").optional().transform((value) => value || null),
+  position: text(40, "Role")
+    .optional()
+    .transform((value) => value || null),
+  termEnds: text(30, "Term")
+    .optional()
+    .transform((value) => value || null),
 });
 
 export const memberUpdateSchema = z
   .object({
-    position: text(40, "Role").nullable().optional().transform((value) => value || null),
-    termEnds: text(30, "Term").nullable().optional().transform((value) => value || null),
+    position: text(40, "Role")
+      .nullable()
+      .optional()
+      .transform((value) => value || null),
+    termEnds: text(30, "Term")
+      .nullable()
+      .optional()
+      .transform((value) => value || null),
   })
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
@@ -125,7 +185,15 @@ export async function readCircles(imported: Circle[]): Promise<Circle[]> {
   });
 }
 
-type Failure = "not_found" | "exists" | "duplicate_member" | "last_board_member" | "already_applied" | "not_member" | "full" | "everyone";
+type Failure =
+  | "not_found"
+  | "exists"
+  | "duplicate_member"
+  | "last_board_member"
+  | "already_applied"
+  | "not_member"
+  | "full"
+  | "everyone";
 export type CircleResult<T = Circle> = { ok: true; value: T } | { ok: false; reason: Failure };
 
 async function mutate<T>(
@@ -170,7 +238,15 @@ export function createCircle(
       name: input.name,
       description: input.description,
       ...(input.kind === "club" ? { kind: "club" as const } : {}),
-      seats: [{ id: randomUUID(), personId: founder.personId, name: founder.name, position: "Member", termEnds: null }],
+      seats: [
+        {
+          id: randomUUID(),
+          personId: founder.personId,
+          name: founder.name,
+          position: "Member",
+          termEnds: null,
+        },
+      ],
     };
     return { circles: [...circles, circle], value: circle };
   });
@@ -192,9 +268,7 @@ export function updateCircle(
     if (index === -1) return "not_found";
     const clash = circles.some(
       (circle) =>
-        circle.id !== id &&
-        !!update.name &&
-        circle.name.toLowerCase() === update.name.toLowerCase()
+        circle.id !== id && !!update.name && circle.name.toLowerCase() === update.name.toLowerCase()
     );
     if (clash) return "exists";
     const next = [...circles];
@@ -232,7 +306,8 @@ export function addMember(
     const index = circles.findIndex((circle) => circle.id === id);
     if (index === -1) return "not_found";
     if (isCommunity(id)) return "everyone";
-    if (circles[index].seats.some((seat) => seat.personId === member.personId)) return "duplicate_member";
+    if (circles[index].seats.some((seat) => seat.personId === member.personId))
+      return "duplicate_member";
     const seat: CircleSeat = { id: randomUUID(), ...member };
     const next = [...circles];
     next[index] = { ...next[index], seats: [...next[index].seats, seat] };
@@ -240,12 +315,23 @@ export function addMember(
   });
 }
 
-export function updateMember(imported: Circle[], id: string, memberId: string, update: { position?: string | null; termEnds?: string | null }) {
+export function updateMember(
+  imported: Circle[],
+  id: string,
+  memberId: string,
+  update: { position?: string | null; termEnds?: string | null }
+) {
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
-    if (index === -1 || !circles[index].seats.some((seat) => seat.id === memberId)) return "not_found";
+    if (index === -1 || !circles[index].seats.some((seat) => seat.id === memberId))
+      return "not_found";
     const next = [...circles];
-    next[index] = { ...next[index], seats: next[index].seats.map((seat) => (seat.id === memberId ? { ...seat, ...update } : seat)) };
+    next[index] = {
+      ...next[index],
+      seats: next[index].seats.map((seat) =>
+        seat.id === memberId ? { ...seat, ...update } : seat
+      ),
+    };
     return { circles: next, value: next[index] };
   });
 }
@@ -256,9 +342,12 @@ export function removePersonFromCircles(imported: Circle[], personId: string) {
     let removed = 0;
     const next = circles.map((circle) => {
       const seats = circle.seats.filter((seat) => seat.personId !== personId);
-      const applications = (circle.applications ?? []).filter((application) => application.personId !== personId);
+      const applications = (circle.applications ?? []).filter(
+        (application) => application.personId !== personId
+      );
       removed += circle.seats.length - seats.length;
-      return seats.length === circle.seats.length && applications.length === (circle.applications ?? []).length
+      return seats.length === circle.seats.length &&
+        applications.length === (circle.applications ?? []).length
         ? circle
         : { ...circle, seats, applications };
     });
@@ -269,7 +358,8 @@ export function removePersonFromCircles(imported: Circle[], personId: string) {
 export function removeMember(imported: Circle[], id: string, memberId: string) {
   return mutate(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
-    if (index === -1 || !circles[index].seats.some((seat) => seat.id === memberId)) return "not_found";
+    if (index === -1 || !circles[index].seats.some((seat) => seat.id === memberId))
+      return "not_found";
     const seats = circles[index].seats.filter((seat) => seat.id !== memberId);
     // The Board is who can manage every circle; never leave it empty.
     if (id === BOARD_ID && !seats.some((seat) => seat.personId)) return "last_board_member";
@@ -291,25 +381,39 @@ const memberSeat = (person: { personId: string; name: string }): CircleSeat => (
  * A resident asks to join: in a circle anyone can join they become a member
  * straight away; otherwise their application waits for the circle's members.
  */
-export function requestToJoin(imported: Circle[], id: string, person: { personId: string; name: string }, message: string | null) {
-  return mutate<{ circle: Circle; joined: boolean; application: CircleApplication | null }>(imported, (circles) => {
-    const index = circles.findIndex((circle) => circle.id === id);
-    if (index === -1) return "not_found";
-    if (isCommunity(id)) return "everyone";
-    const circle = circles[index];
-    if (circle.seats.some((seat) => seat.personId === person.personId)) return "duplicate_member";
-    const next = [...circles];
-    if (circle.joinPolicy === "open") {
-      next[index] = { ...circle, seats: [...circle.seats, memberSeat(person)] };
-      return { circles: next, value: { circle: next[index], joined: true, application: null } };
+export function requestToJoin(
+  imported: Circle[],
+  id: string,
+  person: { personId: string; name: string },
+  message: string | null
+) {
+  return mutate<{ circle: Circle; joined: boolean; application: CircleApplication | null }>(
+    imported,
+    (circles) => {
+      const index = circles.findIndex((circle) => circle.id === id);
+      if (index === -1) return "not_found";
+      if (isCommunity(id)) return "everyone";
+      const circle = circles[index];
+      if (circle.seats.some((seat) => seat.personId === person.personId)) return "duplicate_member";
+      const next = [...circles];
+      if (circle.joinPolicy === "open") {
+        next[index] = { ...circle, seats: [...circle.seats, memberSeat(person)] };
+        return { circles: next, value: { circle: next[index], joined: true, application: null } };
+      }
+      const applications = circle.applications ?? [];
+      if (applications.some((application) => application.personId === person.personId))
+        return "already_applied";
+      if (applications.length >= MAX_APPLICATIONS) return "full";
+      const application: CircleApplication = {
+        id: randomUUID(),
+        ...person,
+        message,
+        createdAt: new Date().toISOString(),
+      };
+      next[index] = { ...circle, applications: [...applications, application] };
+      return { circles: next, value: { circle: next[index], joined: false, application } };
     }
-    const applications = circle.applications ?? [];
-    if (applications.some((application) => application.personId === person.personId)) return "already_applied";
-    if (applications.length >= MAX_APPLICATIONS) return "full";
-    const application: CircleApplication = { id: randomUUID(), ...person, message, createdAt: new Date().toISOString() };
-    next[index] = { ...circle, applications: [...applications, application] };
-    return { circles: next, value: { circle: next[index], joined: false, application } };
-  });
+  );
 }
 
 /** A resident leaves a circle, or withdraws their application to it. */
@@ -319,7 +423,9 @@ export function leaveCircle(imported: Circle[], id: string, personId: string) {
     if (index === -1) return "not_found";
     const circle = circles[index];
     const seats = circle.seats.filter((seat) => seat.personId !== personId);
-    const applications = (circle.applications ?? []).filter((application) => application.personId !== personId);
+    const applications = (circle.applications ?? []).filter(
+      (application) => application.personId !== personId
+    );
     const left = seats.length < circle.seats.length;
     const withdrew = applications.length < (circle.applications ?? []).length;
     if (!left && !withdrew) return "not_member";
@@ -331,7 +437,12 @@ export function leaveCircle(imported: Circle[], id: string, personId: string) {
 }
 
 /** Approve (they join as a member) or decline an application. */
-export function decideApplication(imported: Circle[], id: string, applicationId: string, approve: boolean) {
+export function decideApplication(
+  imported: Circle[],
+  id: string,
+  applicationId: string,
+  approve: boolean
+) {
   return mutate<{ circle: Circle; application: CircleApplication }>(imported, (circles) => {
     const index = circles.findIndex((circle) => circle.id === id);
     if (index === -1) return "not_found";
@@ -340,7 +451,8 @@ export function decideApplication(imported: Circle[], id: string, applicationId:
     if (!application) return "not_found";
     const applications = (circle.applications ?? []).filter((entry) => entry.id !== applicationId);
     const alreadyMember = circle.seats.some((seat) => seat.personId === application.personId);
-    const seats = approve && !alreadyMember ? [...circle.seats, memberSeat(application)] : circle.seats;
+    const seats =
+      approve && !alreadyMember ? [...circle.seats, memberSeat(application)] : circle.seats;
     const next = [...circles];
     next[index] = { ...circle, seats, applications };
     return { circles: next, value: { circle: next[index], application } };

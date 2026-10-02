@@ -28,7 +28,10 @@ export async function listSignIns(): Promise<SignInEntry[]> {
 }
 
 /** Record a sign-in. Never throws: a logging failure must not block signing in. */
-export async function recordSignIn(person: { id: string; displayName: string }, viewedBy?: string): Promise<void> {
+export async function recordSignIn(
+  person: { id: string; displayName: string },
+  viewedBy?: string
+): Promise<void> {
   try {
     await enqueue(KEY, async () => {
       const entries = normalize(await readJson(KEY));

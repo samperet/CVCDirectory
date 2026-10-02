@@ -17,7 +17,10 @@
  * keep readable links.
  */
 export const normalizeWikiLinks = (markdown: string) =>
-  markdown.replace(/\\?\[\\?\[((?:\\[^[\]\n]|[^\]\n\\]){1,240})\\?\]\\?\]/g, (_match, inner: string) => `[[${inner.replace(/\\([!-/:-@[-`{-~])/g, "$1")}]]`);
+  markdown.replace(
+    /\\?\[\\?\[((?:\\[^[\]\n]|[^\]\n\\]){1,240})\\?\]\\?\]/g,
+    (_match, inner: string) => `[[${inner.replace(/\\([!-/:-@[-`{-~])/g, "$1")}]]`
+  );
 
 /**
  * Ready for the visual editor: colons inside links escaped, so "[[O&M:Water]]"
@@ -30,7 +33,9 @@ export function protectWikiLinks(markdown: string) {
     .split("\n")
     .map((line) => {
       if (/^\s*(```|~~~)/.test(line)) inCode = !inCode;
-      return inCode ? line : line.replace(/\[\[[^\]\n]{1,360}\]\]/g, (link) => link.replace(/:/g, "\\:"));
+      return inCode
+        ? line
+        : line.replace(/\[\[[^\]\n]{1,360}\]\]/g, (link) => link.replace(/:/g, "\\:"));
     })
     .join("\n");
 }
@@ -44,13 +49,20 @@ export interface CircleRef {
   code?: string;
 }
 
-export type WikiLinkTarget = { kind: "page"; title: string } | { kind: "doc"; circleId: string | null; title: string };
+export type WikiLinkTarget =
+  | { kind: "page"; title: string }
+  | { kind: "doc"; circleId: string | null; title: string };
 
 /** The circle a link's prefix names — by name, short code, or id — if any. */
 export function circleNamed(prefix: string, circles: CircleRef[]) {
   const wanted = prefix.trim().toLowerCase();
   if (!wanted) return undefined;
-  return circles.find((circle) => circle.name.toLowerCase() === wanted || circle.id.toLowerCase() === wanted || circle.code?.toLowerCase() === wanted);
+  return circles.find(
+    (circle) =>
+      circle.name.toLowerCase() === wanted ||
+      circle.id.toLowerCase() === wanted ||
+      circle.code?.toLowerCase() === wanted
+  );
 }
 
 /** Split "O&M:Pellet Stove" into its circle and the rest, when the part before the colon names a circle. */
@@ -58,7 +70,8 @@ function splitCircle(text: string, circles: CircleRef[]): { circle?: CircleRef; 
   const colon = text.indexOf(":");
   if (colon > 0) {
     const circle = circleNamed(text.slice(0, colon), circles);
-    if (circle && text.slice(colon + 1).trim()) return { circle, rest: text.slice(colon + 1).trim() };
+    if (circle && text.slice(colon + 1).trim())
+      return { circle, rest: text.slice(colon + 1).trim() };
   }
   return { rest: text.trim() };
 }
@@ -80,7 +93,10 @@ export function wikiLinksIn(markdown: string, circles: CircleRef[]) {
     .replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, "")
     .replace(/`[^`\n]*`/g, "");
   for (const match of Array.from(text.matchAll(WIKI_LINK))) {
-    links.push({ ...parseWikiLink(match[1], circles), ...(match[2] ? { label: match[2].trim() } : {}) });
+    links.push({
+      ...parseWikiLink(match[1], circles),
+      ...(match[2] ? { label: match[2].trim() } : {}),
+    });
   }
   return links;
 }
@@ -89,6 +105,13 @@ export function wikiLinksIn(markdown: string, circles: CircleRef[]) {
 export const pageLinkText = (title: string) => `[[${title}]]`;
 
 /** The text to insert for a link to a document; `ambiguous` when another circle has a document with the same title. */
-export function docLinkText(title: string, circle: CircleRef | undefined, fromCircleId: string, ambiguous: boolean) {
-  return circle && ambiguous && circle.id !== fromCircleId ? `[[doc:${circle.name}:${title}]]` : `[[doc:${title}]]`;
+export function docLinkText(
+  title: string,
+  circle: CircleRef | undefined,
+  fromCircleId: string,
+  ambiguous: boolean
+) {
+  return circle && ambiguous && circle.id !== fromCircleId
+    ? `[[doc:${circle.name}:${title}]]`
+    : `[[doc:${title}]]`;
 }

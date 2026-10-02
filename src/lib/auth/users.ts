@@ -34,7 +34,9 @@ function normalizeUsers(raw: unknown): CommunityUser[] {
   if (!Array.isArray(doc.users)) return [];
   return doc.users.filter(
     (user): user is CommunityUser =>
-      !!user && typeof (user as CommunityUser).id === "string" && typeof (user as CommunityUser).name === "string"
+      !!user &&
+      typeof (user as CommunityUser).id === "string" &&
+      typeof (user as CommunityUser).name === "string"
   );
 }
 
@@ -42,7 +44,9 @@ async function readUsers(): Promise<CommunityUser[]> {
   return normalizeUsers(await readJson(USERS_KEY));
 }
 
-async function mutateUsers<T>(mutate: (users: CommunityUser[]) => { users: CommunityUser[]; result: T }): Promise<T> {
+async function mutateUsers<T>(
+  mutate: (users: CommunityUser[]) => { users: CommunityUser[]; result: T }
+): Promise<T> {
   return enqueue(USERS_KEY, async () => {
     const users = normalizeUsers(await readJson(USERS_KEY));
     const { users: updated, result } = mutate(users);
@@ -69,7 +73,9 @@ export async function getUserForPerson(personId: string): Promise<CommunityUser 
 /** The account ids of these residents (those who have signed in), e.g. to notify a circle's members. */
 export async function userIdsForPeople(personIds: (string | null)[]): Promise<string[]> {
   const wanted = new Set(personIds.filter(Boolean));
-  return (await readUsers()).filter((user) => user.personId && wanted.has(user.personId)).map((user) => user.id);
+  return (await readUsers())
+    .filter((user) => user.personId && wanted.has(user.personId))
+    .map((user) => user.id);
 }
 
 /**
@@ -77,14 +83,19 @@ export async function userIdsForPeople(personIds: (string | null)[]): Promise<st
  * name-only account with the same name is claimed by the resident, since the
  * phone number proved who they are.
  */
-export async function userForPerson(person: { id: string; displayName: string }): Promise<CommunityUser> {
+export async function userForPerson(person: {
+  id: string;
+  displayName: string;
+}): Promise<CommunityUser> {
   return mutateUsers<CommunityUser>((users) => {
     const linked = users.find((user) => user.personId === person.id);
     if (linked) {
       return { users, result: linked };
     }
     const sameName = users.findIndex(
-      (user) => !user.personId && user.name.localeCompare(person.displayName, undefined, { sensitivity: "base" }) === 0
+      (user) =>
+        !user.personId &&
+        user.name.localeCompare(person.displayName, undefined, { sensitivity: "base" }) === 0
     );
     if (sameName !== -1) {
       const next = [...users];

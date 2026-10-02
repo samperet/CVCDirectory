@@ -74,7 +74,10 @@ function matchPairs(a: string[], b: string[]): [number, number][] {
   const table = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      table[i][j] = a[start + i] === b[start + j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
+      table[i][j] =
+        a[start + i] === b[start + j]
+          ? table[i + 1][j + 1] + 1
+          : Math.max(table[i + 1][j], table[i][j + 1]);
     }
   }
   const pairs: [number, number][] = [];
@@ -91,8 +94,10 @@ function matchPairs(a: string[], b: string[]): [number, number][] {
   return pairs;
 }
 
-const same = (x: string[], y: string[]) => x.length === y.length && x.every((value, index) => value === y[index]);
-const startsWith = (x: string[], prefix: string[]) => x.length > prefix.length && prefix.every((value, index) => value === x[index]);
+const same = (x: string[], y: string[]) =>
+  x.length === y.length && x.every((value, index) => value === y[index]);
+const startsWith = (x: string[], prefix: string[]) =>
+  x.length > prefix.length && prefix.every((value, index) => value === x[index]);
 
 /**
  * Merge `mine` and `theirs`, both edited from `base`. Where only one side
@@ -133,7 +138,8 @@ export function mergeText(base: string, mine: string, theirs: string): MergeResu
     const before = out.length;
     if (same(aChunk, bChunk) || same(bChunk, oChunk)) takeMine(a0, a);
     else if (same(aChunk, oChunk) || !aChunk.length) out.push(...bChunk);
-    else if (!bChunk.length && oChunk.length) takeMine(a0, a); // they deleted what I edited: keep my edit
+    else if (!bChunk.length && oChunk.length)
+      takeMine(a0, a); // they deleted what I edited: keep my edit
     else if (!oChunk.length) {
       // Both added here: keep both.
       takeMine(a0, a);

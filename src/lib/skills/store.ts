@@ -19,7 +19,11 @@ export interface SkillEntry {
 }
 
 export const skillInputSchema = z.object({
-  name: z.string().trim().min(2, "Skill must be at least 2 characters").max(60, "Skill must be 60 characters or fewer"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Skill must be at least 2 characters")
+    .max(60, "Skill must be 60 characters or fewer"),
   category: z
     .string()
     .trim()
@@ -40,7 +44,9 @@ export async function listSkills(): Promise<SkillEntry[]> {
   return normalize(await readJson(KEY));
 }
 
-export type AddSkillResult = { ok: true; skill: SkillEntry } | { ok: false; reason: "duplicate" | "limit" };
+export type AddSkillResult =
+  | { ok: true; skill: SkillEntry }
+  | { ok: false; reason: "duplicate" | "limit" };
 
 export async function addSkill(
   person: { id: string; name: string },
@@ -49,7 +55,11 @@ export async function addSkill(
   return enqueue<AddSkillResult>(KEY, async () => {
     const skills = normalize(await readJson(KEY));
     const mine = skills.filter((skill) => skill.personId === person.id);
-    if (mine.some((skill) => skill.name.localeCompare(input.name, undefined, { sensitivity: "base" }) === 0)) {
+    if (
+      mine.some(
+        (skill) => skill.name.localeCompare(input.name, undefined, { sensitivity: "base" }) === 0
+      )
+    ) {
       return { ok: false, reason: "duplicate" };
     }
     if (mine.length >= MAX_PER_PERSON) return { ok: false, reason: "limit" };

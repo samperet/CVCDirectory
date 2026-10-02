@@ -20,10 +20,14 @@ interface SkillListing {
 
 // Shared with the Skills page, so a skill added in one place shows in the other.
 function useSkills() {
-  return useQuery({ queryKey: ["skills"], queryFn: () => apiFetch<{ skills: SkillListing[] }>("/api/skills") });
+  return useQuery({
+    queryKey: ["skills"],
+    queryFn: () => apiFetch<{ skills: SkillListing[] }>("/api/skills"),
+  });
 }
 
-const chip = "inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-3 py-1 text-sm text-foreground";
+const chip =
+  "inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-3 py-1 text-sm text-foreground";
 
 /** A resident's skills on their directory page; each leads to everyone searchable for it. */
 export function PersonSkills({ personId }: { personId: string }) {
@@ -37,7 +41,11 @@ export function PersonSkills({ personId }: { personId: string }) {
       <ul className="flex flex-wrap gap-1.5">
         {skills.map((skill) => (
           <li key={skill.id}>
-            <Link href={`/search?${new URLSearchParams({ q: skill.name })}`} className={`${chip} transition hover:border-primary hover:bg-accent`} title={`Everyone with “${skill.name}”`}>
+            <Link
+              href={`/search?${new URLSearchParams({ q: skill.name })}`}
+              className={`${chip} transition hover:border-primary hover:bg-accent`}
+              title={`Everyone with “${skill.name}”`}
+            >
               {skill.name}
             </Link>
           </li>
@@ -56,17 +64,28 @@ export function MySkills() {
   const [name, setName] = useState("");
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["skills"] });
   const add = useMutation({
-    mutationFn: () => apiFetch("/api/skills", { method: "POST", body: JSON.stringify({ name: name.trim() }) }),
+    mutationFn: () =>
+      apiFetch("/api/skills", { method: "POST", body: JSON.stringify({ name: name.trim() }) }),
     onSuccess: () => {
       setName("");
       refresh();
     },
-    onError: (error: Error) => toast({ title: "Could not add the skill", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({
+        title: "Could not add the skill",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/skills/${id}`, { method: "DELETE" }),
     onSuccess: refresh,
-    onError: (error: Error) => toast({ title: "Could not remove the skill", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({
+        title: "Could not remove the skill",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
   return (
     <Card className="flex flex-col gap-3">
@@ -74,7 +93,9 @@ export function MySkills() {
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Sparkles className="h-5 w-5 text-primary" aria-hidden /> Your skills
         </h2>
-        <p className="text-sm text-muted">What you could help neighbors with. They show on your directory page and in search.</p>
+        <p className="text-sm text-muted">
+          What you could help neighbors with. They show on your directory page and in search.
+        </p>
       </div>
       {isLoading ? (
         <p className="text-sm text-muted">Loading…</p>
@@ -105,8 +126,20 @@ export function MySkills() {
           if (name.trim().length >= 2) add.mutate();
         }}
       >
-        <Input value={name} maxLength={60} onChange={(event) => setName(event.target.value)} placeholder="e.g. Bike repair, Spanish, Canning" className="bg-white" aria-label="A skill" />
-        <Button type="submit" variant="outline" className="shrink-0 gap-1" disabled={name.trim().length < 2 || add.isPending}>
+        <Input
+          value={name}
+          maxLength={60}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="e.g. Bike repair, Spanish, Canning"
+          className="bg-white"
+          aria-label="A skill"
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          className="shrink-0 gap-1"
+          disabled={name.trim().length < 2 || add.isPending}
+        >
           <Plus className="h-4 w-4" /> Add
         </Button>
       </form>

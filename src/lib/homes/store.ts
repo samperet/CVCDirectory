@@ -31,7 +31,8 @@ export interface HomeListing {
   updatedBy: string;
 }
 
-const text = (max: number, label: string) => z.string().trim().max(max, `${label} must be ${max} characters or fewer`);
+const text = (max: number, label: string) =>
+  z.string().trim().max(max, `${label} must be ${max} characters or fewer`);
 const optional = (max: number, label: string) =>
   text(max, label)
     .nullable()
@@ -40,8 +41,18 @@ const optional = (max: number, label: string) =>
 
 export const homeInputSchema = z
   .object({
-    title: text(120, "Title").min(3, "Give the listing a title, e.g. “3-bedroom home on the green”"),
-    unit: z.coerce.number().int().min(1).max(999).nullable().optional().transform((value) => value ?? null),
+    title: text(120, "Title").min(
+      3,
+      "Give the listing a title, e.g. “3-bedroom home on the green”"
+    ),
+    unit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(999)
+      .nullable()
+      .optional()
+      .transform((value) => value ?? null),
     price: optional(40, "Price"),
     details: optional(160, "Details"),
     description: optional(2000, "Description"),
@@ -68,7 +79,10 @@ export const homeInputSchema = z
       .transform((value) => value || null),
     status: z.enum(["available", "pending", "sold"]).default("available"),
   })
-  .refine((value) => value.contactEmail || value.contactPhone, { message: "Give an email address or a phone number for buyers", path: ["contactEmail"] });
+  .refine((value) => value.contactEmail || value.contactPhone, {
+    message: "Give an email address or a phone number for buyers",
+    path: ["contactEmail"],
+  });
 
 export type HomeInput = z.infer<typeof homeInputSchema>;
 
@@ -85,13 +99,18 @@ function normalize(raw: unknown): HomeListing[] {
 
 /** Every listing, newest first. */
 export async function listHomes(): Promise<HomeListing[]> {
-  return normalize(await readJson(KEY)).slice().reverse();
+  return normalize(await readJson(KEY))
+    .slice()
+    .reverse();
 }
 
 /** What the public homepage shows: available homes, then those under contract. */
 export async function publicHomes(): Promise<HomeListing[]> {
   const homes = await listHomes();
-  return [...homes.filter((home) => home.status === "available"), ...homes.filter((home) => home.status === "pending")];
+  return [
+    ...homes.filter((home) => home.status === "available"),
+    ...homes.filter((home) => home.status === "pending"),
+  ];
 }
 
 export async function getHome(id: string) {
@@ -100,7 +119,11 @@ export async function getHome(id: string) {
 
 type Result = { ok: true; home: HomeListing | null } | { ok: false; reason: "not_found" | "full" };
 
-async function mutate(change: (homes: HomeListing[]) => { homes: HomeListing[]; home: HomeListing | null } | "not_found" | "full"): Promise<Result> {
+async function mutate(
+  change: (
+    homes: HomeListing[]
+  ) => { homes: HomeListing[]; home: HomeListing | null } | "not_found" | "full"
+): Promise<Result> {
   return enqueue<Result>(KEY, async () => {
     const result = change(normalize(await readJson(KEY)));
     if (typeof result === "string") return { ok: false, reason: result };
@@ -113,7 +136,14 @@ export function createHome(input: HomeInput, by: string) {
   return mutate((homes) => {
     if (homes.length >= MAX_LISTINGS) return "full";
     const now = new Date().toISOString();
-    const home: HomeListing = { id: randomUUID(), ...input, photo: null, createdAt: now, updatedAt: now, updatedBy: by };
+    const home: HomeListing = {
+      id: randomUUID(),
+      ...input,
+      photo: null,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: by,
+    };
     return { homes: [...homes, home], home };
   });
 }
@@ -122,18 +152,31 @@ export function updateHome(id: string, input: Partial<HomeInput>, by: string) {
   return mutate((homes) => {
     const home = homes.find((entry) => entry.id === id);
     if (!home) return "not_found";
-    const updated: HomeListing = { ...home, ...input, updatedAt: new Date().toISOString(), updatedBy: by };
+    const updated: HomeListing = {
+      ...home,
+      ...input,
+      updatedAt: new Date().toISOString(),
+      updatedBy: by,
+    };
     return { homes: homes.map((entry) => (entry.id === id ? updated : entry)), home: updated };
   });
 }
 
 export async function deleteHome(id: string) {
-  const result = await mutate((homes) => (homes.some((home) => home.id === id) ? { homes: homes.filter((home) => home.id !== id), home: null } : "not_found"));
+  const result = await mutate((homes) =>
+    homes.some((home) => home.id === id)
+      ? { homes: homes.filter((home) => home.id !== id), home: null }
+      : "not_found"
+  );
   if (result.ok) await deleteBinary(photoKey(id)).catch(() => undefined);
   return result;
 }
 
-export async function setHomePhoto(id: string, photo: { bytes: Uint8Array; contentType: string } | null, by: string) {
+export async function setHomePhoto(
+  id: string,
+  photo: { bytes: Uint8Array; contentType: string } | null,
+  by: string
+) {
   if (photo) await writeBinary(photoKey(id), photo);
   else await deleteBinary(photoKey(id)).catch(() => undefined);
   return mutate((homes) => {
@@ -150,4 +193,5 @@ export async function setHomePhoto(id: string, photo: { bytes: Uint8Array; conte
 }
 
 /** A listing's photo address (versioned, so it can be cached). */
-export const homePhotoUrl = (home: HomeListing) => (home.photo ? `/api/homes/${home.id}/photo?v=${encodeURIComponent(home.photo.updatedAt)}` : null);
+export const homePhotoUrl = (home: HomeListing) =>
+  home.photo ? `/api/homes/${home.id}/photo?v=${encodeURIComponent(home.photo.updatedAt)}` : null;

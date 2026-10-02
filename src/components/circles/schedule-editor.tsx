@@ -5,7 +5,17 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Person } from "@/lib/directory/types";
-import { DutyInstructions, DutySchedule, Household, MONTH_NAMES, WEEKDAYS, addDays, regularDuty, todayIso, weekdayOf } from "@/lib/schedules/rotation";
+import {
+  DutyInstructions,
+  DutySchedule,
+  Household,
+  MONTH_NAMES,
+  WEEKDAYS,
+  addDays,
+  regularDuty,
+  todayIso,
+  weekdayOf,
+} from "@/lib/schedules/rotation";
 import type { ScheduleResponse } from "@/components/circles/duty-schedule";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,7 +35,14 @@ const slug = (name: string) =>
 
 function blankSetup(): Setup {
   const today = todayIso();
-  return { title: "Duty schedule", startsOn: today, anchor: today, households: [], weekdays: [[], [], [], [], [], [], []], instructions: [] };
+  return {
+    title: "Duty schedule",
+    startsOn: today,
+    anchor: today,
+    households: [],
+    weekdays: [[], [], [], [], [], [], []],
+    instructions: [],
+  };
 }
 
 /** One household: its name and members, each linked to their directory entry when the name matches one. */
@@ -45,7 +62,13 @@ function HouseholdRow({
     const name = member.trim();
     if (!name) return;
     const person = people.find((entry) => entry.displayName.toLowerCase() === name.toLowerCase());
-    onChange({ ...household, members: [...household.members, { name: person?.displayName ?? name, personId: person?.id ?? null }] });
+    onChange({
+      ...household,
+      members: [
+        ...household.members,
+        { name: person?.displayName ?? name, personId: person?.id ?? null },
+      ],
+    });
     setMember("");
   };
   return (
@@ -58,19 +81,33 @@ function HouseholdRow({
           className="bg-white font-medium"
           aria-label="Household name"
         />
-        <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted hover:text-destructive" onClick={onRemove} aria-label={`Remove ${household.name}`}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted hover:text-destructive"
+          onClick={onRemove}
+          aria-label={`Remove ${household.name}`}
+        >
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {household.members.map((entry, index) => (
-          <span key={`${entry.name}-${index}`} className="inline-flex items-center gap-1 rounded-full bg-secondary py-0.5 pl-2.5 pr-1 text-xs text-secondary-foreground">
+          <span
+            key={`${entry.name}-${index}`}
+            className="inline-flex items-center gap-1 rounded-full bg-secondary py-0.5 pl-2.5 pr-1 text-xs text-secondary-foreground"
+          >
             {entry.name}
-            {!entry.personId ? <span className="text-secondary-foreground/60">(not in directory)</span> : null}
+            {!entry.personId ? (
+              <span className="text-secondary-foreground/60">(not in directory)</span>
+            ) : null}
             <button
               type="button"
               className="rounded-full p-0.5 hover:bg-white/60"
-              onClick={() => onChange({ ...household, members: household.members.filter((_, i) => i !== index) })}
+              onClick={() =>
+                onChange({ ...household, members: household.members.filter((_, i) => i !== index) })
+              }
               aria-label={`Remove ${entry.name}`}
             >
               <X className="h-3 w-3" />
@@ -94,7 +131,13 @@ function HouseholdRow({
           className="bg-white"
           aria-label={`Add a member to ${household.name}`}
         />
-        <Button type="button" size="sm" variant="outline" onClick={add} disabled={!member.trim() || household.members.length >= 8}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={add}
+          disabled={!member.trim() || household.members.length >= 8}
+        >
           Add
         </Button>
       </div>
@@ -102,7 +145,13 @@ function HouseholdRow({
   );
 }
 
-function MonthToggles({ months, onChange }: { months: number[]; onChange: (months: number[]) => void }) {
+function MonthToggles({
+  months,
+  onChange,
+}: {
+  months: number[];
+  onChange: (months: number[]) => void;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       <span className="mr-1 text-xs text-muted">Applies in</span>
@@ -115,8 +164,17 @@ function MonthToggles({ months, onChange }: { months: number[]; onChange: (month
             type="button"
             aria-pressed={on}
             title={name}
-            onClick={() => onChange(on ? months.filter((m) => m !== month) : [...months, month].sort((a, b) => a - b))}
-            className={cn("h-7 w-8 rounded-md border text-xs", on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-white text-muted")}
+            onClick={() =>
+              onChange(
+                on ? months.filter((m) => m !== month) : [...months, month].sort((a, b) => a - b)
+              )
+            }
+            className={cn(
+              "h-7 w-8 rounded-md border text-xs",
+              on
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-white text-muted"
+            )}
           >
             {name.slice(0, 3)}
           </button>
@@ -150,7 +208,10 @@ export function ScheduleEditor({
     const { overrides: _overrides, updatedAt: _updatedAt, ...setup } = schedule;
     return structuredClone(setup);
   });
-  const directory = useMemo(() => Array.from(people.values()).sort((a, b) => a.displayName.localeCompare(b.displayName)), [people]);
+  const directory = useMemo(
+    () => Array.from(people.values()).sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [people]
+  );
   const today = todayIso();
 
   const update = (change: Partial<Setup>) => setDraft((current) => ({ ...current, ...change }));
@@ -169,7 +230,8 @@ export function ScheduleEditor({
     for (let n = 2; taken.has(id); n++) id = `household-${draft.households.length + n}`;
     update({ households: [...draft.households, { id, name: "", members: [] }] });
   };
-  const setTurn = (day: number, turn: string[]) => update({ weekdays: draft.weekdays.map((entry, i) => (i === day ? turn : entry)) });
+  const setTurn = (day: number, turn: string[]) =>
+    update({ weekdays: draft.weekdays.map((entry, i) => (i === day ? turn : entry)) });
   const setInstructions = (index: number, item: DutyInstructions) =>
     update({ instructions: draft.instructions.map((entry, i) => (i === index ? item : entry)) });
 
@@ -183,24 +245,35 @@ export function ScheduleEditor({
         ids.add(id);
         return { ...household, id, name: household.name.trim() };
       });
-      const rename = new Map(draft.households.map((household, index) => [household.id, households[index].id]));
+      const rename = new Map(
+        draft.households.map((household, index) => [household.id, households[index].id])
+      );
       const body: Setup = {
         ...draft,
         households,
         weekdays: draft.weekdays.map((turn) => turn.map((id) => rename.get(id) ?? id)),
         instructions: draft.instructions.filter((item) => item.title.trim()),
       };
-      return apiFetch<ScheduleResponse>(`/api/circles/${circleId}/schedule`, { method: "PUT", body: JSON.stringify(body) });
+      return apiFetch<ScheduleResponse>(`/api/circles/${circleId}/schedule`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
     },
     onSuccess: (response) => {
       queryClient.setQueryData(["circle-schedule", circleId], response);
       toast({ title: "Schedule saved" });
       onDone();
     },
-    onError: (err: Error) => toast({ title: "Could not save the schedule", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not save the schedule",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
-  const nameOf = (id: string) => draft.households.find((household) => household.id === id)?.name || "Unnamed household";
+  const nameOf = (id: string) =>
+    draft.households.find((household) => household.id === id)?.name || "Unnamed household";
   const unnamed = draft.households.some((household) => !household.name.trim());
 
   return (
@@ -214,11 +287,21 @@ export function ScheduleEditor({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="flex flex-1 flex-col gap-1 text-sm font-medium text-foreground">
           Schedule title
-          <Input value={draft.title} maxLength={80} onChange={(event) => update({ title: event.target.value })} className="bg-white" />
+          <Input
+            value={draft.title}
+            maxLength={80}
+            onChange={(event) => update({ title: event.target.value })}
+            className="bg-white"
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Starts on
-          <Input type="date" value={draft.startsOn} onChange={(event) => event.target.value && update({ startsOn: event.target.value })} className="bg-white" />
+          <Input
+            type="date"
+            value={draft.startsOn}
+            onChange={(event) => event.target.value && update({ startsOn: event.target.value })}
+            className="bg-white"
+          />
         </label>
       </div>
 
@@ -239,7 +322,14 @@ export function ScheduleEditor({
         ) : (
           <p className="text-sm text-muted">No households yet.</p>
         )}
-        <Button type="button" size="sm" variant="outline" className="w-fit gap-1.5" onClick={addHousehold} disabled={draft.households.length >= 30}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-fit gap-1.5"
+          onClick={addHousehold}
+          disabled={draft.households.length >= 30}
+        >
           <Plus className="h-4 w-4" /> Add household
         </Button>
       </section>
@@ -247,7 +337,10 @@ export function ScheduleEditor({
       <section className="flex flex-col gap-3">
         <div>
           <h3 className="text-base font-semibold text-foreground">Weekly rotation</h3>
-          <p className="text-xs text-muted">Give each weekday a household. Add more to a day and they take it in turn, one week each.</p>
+          <p className="text-xs text-muted">
+            Give each weekday a household. Add more to a day and they take it in turn, one week
+            each.
+          </p>
         </div>
         <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
           {WEEKDAYS.map((dayName, day) => {
@@ -263,7 +356,12 @@ export function ScheduleEditor({
                       {index > 0 ? <span className="text-xs text-muted">then</span> : null}
                       <select
                         value={id}
-                        onChange={(event) => setTurn(day, turn.map((entry, i) => (i === index ? event.target.value : entry)))}
+                        onChange={(event) =>
+                          setTurn(
+                            day,
+                            turn.map((entry, i) => (i === index ? event.target.value : entry))
+                          )
+                        }
                         className="h-9 rounded-lg border border-border bg-white px-2 text-sm"
                         aria-label={`${dayName}, turn ${index + 1}`}
                       >
@@ -276,7 +374,12 @@ export function ScheduleEditor({
                       <button
                         type="button"
                         className="rounded-full p-1 text-muted hover:bg-accent hover:text-foreground"
-                        onClick={() => setTurn(day, turn.filter((_, i) => i !== index))}
+                        onClick={() =>
+                          setTurn(
+                            day,
+                            turn.filter((_, i) => i !== index)
+                          )
+                        }
                         aria-label={`Remove from ${dayName}`}
                       >
                         <X className="h-3.5 w-3.5" />
@@ -331,7 +434,9 @@ export function ScheduleEditor({
                 variant="ghost"
                 size="icon"
                 className="shrink-0 text-muted hover:text-destructive"
-                onClick={() => update({ instructions: draft.instructions.filter((_, i) => i !== index) })}
+                onClick={() =>
+                  update({ instructions: draft.instructions.filter((_, i) => i !== index) })
+                }
                 aria-label="Remove these instructions"
               >
                 <Trash2 className="h-4 w-4" />
@@ -346,7 +451,10 @@ export function ScheduleEditor({
               className="bg-white"
               aria-label="Instructions"
             />
-            <MonthToggles months={item.months ?? []} onChange={(months) => setInstructions(index, { ...item, months })} />
+            <MonthToggles
+              months={item.months ?? []}
+              onChange={(months) => setInstructions(index, { ...item, months })}
+            />
           </div>
         ))}
         <Button
@@ -354,7 +462,9 @@ export function ScheduleEditor({
           size="sm"
           variant="outline"
           className="w-fit gap-1.5"
-          onClick={() => update({ instructions: [...draft.instructions, { title: "", body: "", months: [] }] })}
+          onClick={() =>
+            update({ instructions: [...draft.instructions, { title: "", body: "", months: [] }] })
+          }
           disabled={draft.instructions.length >= 6}
         >
           <Plus className="h-4 w-4" /> Add instructions
@@ -362,7 +472,10 @@ export function ScheduleEditor({
       </section>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        <Button onClick={() => save.mutate()} disabled={save.isPending || !draft.title.trim() || !draft.households.length || unnamed}>
+        <Button
+          onClick={() => save.mutate()}
+          disabled={save.isPending || !draft.title.trim() || !draft.households.length || unnamed}
+        >
           {save.isPending ? "Saving…" : "Save schedule"}
         </Button>
         <Button variant="outline" onClick={onDone} disabled={save.isPending}>

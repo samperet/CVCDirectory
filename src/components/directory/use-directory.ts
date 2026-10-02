@@ -9,7 +9,10 @@ import type { Circle, DirectoryDocument } from "@/lib/directory/types";
  * query, which anything that changes it refreshes by invalidating
  * `["directory"]`.
  */
-export const directoryQuery = () => ({ queryKey: ["directory"] as const, queryFn: () => apiFetch<DirectoryDocument>("/api/directory") });
+export const directoryQuery = () => ({
+  queryKey: ["directory"] as const,
+  queryFn: () => apiFetch<DirectoryDocument>("/api/directory"),
+});
 
 export const useDirectoryQuery = () => useQuery(directoryQuery());
 

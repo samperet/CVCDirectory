@@ -21,11 +21,20 @@ export async function POST(request: NextRequest) {
   const parsed = await readBody(request, circleInputSchema);
   if ("error" in parsed) return parsed.error;
 
-  if (parsed.data.kind === "circle" && !isAdmin(ctx.user) && !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)) {
+  if (
+    parsed.data.kind === "circle" &&
+    !isAdmin(ctx.user) &&
+    !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)
+  ) {
     return problem("Only the Board can form an official circle — start a social club instead", 403);
   }
 
   const founder = ctx.directory.people.find((person) => person.id === ctx.personId);
-  const result = await createCircle(ctx.imported, parsed.data, { personId: ctx.personId, name: founder?.displayName ?? ctx.user.name });
-  return result.ok ? NextResponse.json({ circle: result.value }, { status: 201 }) : circleProblem(result.reason);
+  const result = await createCircle(ctx.imported, parsed.data, {
+    personId: ctx.personId,
+    name: founder?.displayName ?? ctx.user.name,
+  });
+  return result.ok
+    ? NextResponse.json({ circle: result.value }, { status: 201 })
+    : circleProblem(result.reason);
 }

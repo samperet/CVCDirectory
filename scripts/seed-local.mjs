@@ -47,7 +47,12 @@ const people = PEOPLE.map(([id, firstName, lastName, unit, role], index) => ({
   email: `${firstName.toLowerCase()}@example.org`,
   birthday: null,
 }));
-const seat = (personId, position) => ({ position, termEnds: null, personId, name: people.find((person) => person.id === personId).displayName });
+const seat = (personId, position) => ({
+  position,
+  termEnds: null,
+  personId,
+  name: people.find((person) => person.id === personId).displayName,
+});
 const now = new Date().toISOString();
 
 save("directory/directory.json", {
@@ -56,8 +61,18 @@ save("directory/directory.json", {
   importedAt: now,
   people,
   circles: [
-    { id: "board", code: "B", name: "Board", seats: [seat("000000000001", "President"), seat("000000000002", "Secretary")] },
-    { id: "lcc", code: "LCC", name: "Land Care Circle", seats: [seat("000000000003", "Op leader"), seat("000000000004", "Member")] },
+    {
+      id: "board",
+      code: "B",
+      name: "Board",
+      seats: [seat("000000000001", "President"), seat("000000000002", "Secretary")],
+    },
+    {
+      id: "lcc",
+      code: "LCC",
+      name: "Land Care Circle",
+      seats: [seat("000000000003", "Op leader"), seat("000000000004", "Member")],
+    },
   ],
   carsheds: [],
 });
@@ -82,12 +97,21 @@ const page = (id, slug, title, body, color) => ({
 save("wiki/pages.json", {
   version: 1,
   pages: [
-    page(1, "pellet-stove", "Pellet Stove", 'The stove in the common house.\n\nSee [[Maintenance log]].\n\n:::details{title="Winter care"}\nEmpty the ash pan.\n:::', "green"),
+    page(
+      1,
+      "pellet-stove",
+      "Pellet Stove",
+      'The stove in the common house.\n\nSee [[Maintenance log]].\n\n:::details{title="Winter care"}\nEmpty the ash pan.\n:::',
+      "green"
+    ),
     page(2, "maintenance-log", "Maintenance log", "**Sep 12**: cleaned."),
     page(3, "mowing", "Mowing", "Mow the east field.", "blue"),
   ],
 });
 
 console.log("Seeded .data/ with sample data. Sign in as:");
-for (const person of people) console.log(`  ${person.displayName.padEnd(12)} id ${person.id}  phone ${person.phone}`);
-console.log("\nStart with: AUTH_SECRET=local-test ADMIN_PERSON_IDS=000000000006 npm run dev  (Finn Fir is then an admin)");
+for (const person of people)
+  console.log(`  ${person.displayName.padEnd(12)} id ${person.id}  phone ${person.phone}`);
+console.log(
+  "\nStart with: AUTH_SECRET=local-test ADMIN_PERSON_IDS=000000000006 npm run dev  (Finn Fir is then an admin)"
+);

@@ -72,9 +72,14 @@ export async function addPhoto(
 }
 
 type Actor = { id: string; admin: boolean };
-const mayChange = (photo: Photo, actor: Actor) => actor.admin || (photo.uploaderId !== null && photo.uploaderId === actor.id);
+const mayChange = (photo: Photo, actor: Actor) =>
+  actor.admin || (photo.uploaderId !== null && photo.uploaderId === actor.id);
 
-export async function updateCaption(id: string, actor: Actor, caption: string): Promise<Photo | "not_found" | "forbidden"> {
+export async function updateCaption(
+  id: string,
+  actor: Actor,
+  caption: string
+): Promise<Photo | "not_found" | "forbidden"> {
   return enqueue(KEY, async () => {
     const photos = normalize(await readJson(KEY));
     const index = photos.findIndex((photo) => photo.id === id);

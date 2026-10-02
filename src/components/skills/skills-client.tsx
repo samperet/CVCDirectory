@@ -20,7 +20,17 @@ interface SkillListing {
   mine: boolean;
 }
 
-const SUGGESTED_CATEGORIES = ["Maintenance", "Gardening", "Community", "Safety", "Cooking", "Tech", "Arts", "Care", "General"];
+const SUGGESTED_CATEGORIES = [
+  "Maintenance",
+  "Gardening",
+  "Community",
+  "Safety",
+  "Cooking",
+  "Tech",
+  "Arts",
+  "Care",
+  "General",
+];
 
 /** Same skill offered by several residents, matched case-insensitively. */
 interface GroupedSkill {
@@ -46,7 +56,10 @@ export function SkillsClient() {
   const mine = skills.filter((skill) => skill.mine);
 
   const categories = useMemo(
-    () => Array.from(new Set([...SUGGESTED_CATEGORIES, ...skills.map((skill) => skill.category)])).sort(),
+    () =>
+      Array.from(
+        new Set([...SUGGESTED_CATEGORIES, ...skills.map((skill) => skill.category)])
+      ).sort(),
     [skills]
   );
 
@@ -55,8 +68,18 @@ export function SkillsClient() {
     const bySkill = new Map<string, GroupedSkill>();
     for (const skill of skills) {
       const key = skill.name.toLowerCase();
-      const group = bySkill.get(key) ?? { key, name: skill.name, category: skill.category, members: [] };
-      group.members.push({ skillId: skill.id, personId: skill.personId, personName: skill.personName, unit: skill.unit });
+      const group = bySkill.get(key) ?? {
+        key,
+        name: skill.name,
+        category: skill.category,
+        members: [],
+      };
+      group.members.push({
+        skillId: skill.id,
+        personId: skill.personId,
+        personName: skill.personName,
+        unit: skill.unit,
+      });
       bySkill.set(key, group);
     }
     const visible = Array.from(bySkill.values()).filter(
@@ -79,18 +102,23 @@ export function SkillsClient() {
 
   const add = useMutation({
     mutationFn: () =>
-      apiFetch("/api/skills", { method: "POST", body: JSON.stringify({ name, category: category || undefined }) }),
+      apiFetch("/api/skills", {
+        method: "POST",
+        body: JSON.stringify({ name, category: category || undefined }),
+      }),
     onSuccess: () => {
       setName("");
       invalidate();
     },
-    onError: (err: Error) => toast({ title: "Could not add skill", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not add skill", description: err.message, variant: "destructive" }),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/skills/${id}`, { method: "DELETE" }),
     onSuccess: invalidate,
-    onError: (err: Error) => toast({ title: "Could not remove skill", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not remove skill", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -99,7 +127,8 @@ export function SkillsClient() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Your skills</h2>
           <p className="text-sm text-muted">
-            Skills you add are listed under your name{user ? ` (${user.name})` : ""} so neighbors know who to ask.
+            Skills you add are listed under your name{user ? ` (${user.name})` : ""} so neighbors
+            know who to ask.
           </p>
         </div>
         {mine.length ? (
@@ -153,7 +182,11 @@ export function SkillsClient() {
               <option key={cat} value={cat} />
             ))}
           </datalist>
-          <Button type="submit" className="shrink-0 gap-1 whitespace-nowrap" disabled={add.isPending || name.trim().length < 2}>
+          <Button
+            type="submit"
+            className="shrink-0 gap-1 whitespace-nowrap"
+            disabled={add.isPending || name.trim().length < 2}
+          >
             <Plus className="h-4 w-4" />
             {add.isPending ? "Adding…" : "Add skill"}
           </Button>
@@ -188,14 +221,23 @@ export function SkillsClient() {
                     <p className="font-semibold text-foreground">{group.name}</p>
                     <ul className="flex flex-col gap-1 text-sm">
                       {group.members.map((member) => (
-                        <li key={member.skillId} className="flex items-center text-foreground-light">
+                        <li
+                          key={member.skillId}
+                          className="flex items-center text-foreground-light"
+                        >
                           {member.personName}
-                          {member.unit !== null ? <span className="ml-1.5 text-xs text-muted">Unit {member.unit}</span> : null}
+                          {member.unit !== null ? (
+                            <span className="ml-1.5 text-xs text-muted">Unit {member.unit}</span>
+                          ) : null}
                           {user?.isAdmin ? (
                             <button
                               type="button"
                               onClick={() => {
-                                if (window.confirm(`Remove “${group.name}” from ${member.personName}'s skills?`)) {
+                                if (
+                                  window.confirm(
+                                    `Remove “${group.name}” from ${member.personName}'s skills?`
+                                  )
+                                ) {
                                   remove.mutate(member.skillId);
                                 }
                               }}
@@ -217,7 +259,9 @@ export function SkillsClient() {
         ) : (
           <Card>
             <p className="text-sm text-muted">
-              {query ? `No skills match “${query}”.` : "No skills listed yet — add yours above to get things started."}
+              {query
+                ? `No skills match “${query}”.`
+                : "No skills listed yet — add yours above to get things started."}
             </p>
           </Card>
         )}

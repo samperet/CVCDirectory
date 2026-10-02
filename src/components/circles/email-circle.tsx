@@ -24,7 +24,15 @@ interface Recipient {
  * from the directory; members without an email on file are listed so they
  * can be reached another way.
  */
-function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people: Map<string, Person>; onClose: () => void }) {
+function EmailCircleDialog({
+  circle,
+  people,
+  onClose,
+}: {
+  circle: Circle;
+  people: Map<string, Person>;
+  onClose: () => void;
+}) {
   const { toast } = useToast();
   const { user } = useSession();
   const recipients = useMemo<Recipient[]>(
@@ -45,16 +53,24 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
   // Each role in the circle, with who holds it, most-filled first.
   const roles = useMemo(() => {
     const byRole = new Map<string, Recipient[]>();
-    for (const recipient of recipients) byRole.set(recipient.role, [...(byRole.get(recipient.role) ?? []), recipient]);
-    return Array.from(byRole.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    for (const recipient of recipients)
+      byRole.set(recipient.role, [...(byRole.get(recipient.role) ?? []), recipient]);
+    return Array.from(byRole.entries()).sort(
+      (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])
+    );
   }, [recipients]);
 
   const [scope, setScope] = useState<"everyone" | "roles">("everyone");
   const [chosenRoles, setChosenRoles] = useState<string[]>([]);
-  const chosen = scope === "everyone" ? recipients : recipients.filter((recipient) => chosenRoles.includes(recipient.role));
+  const chosen =
+    scope === "everyone"
+      ? recipients
+      : recipients.filter((recipient) => chosenRoles.includes(recipient.role));
   // You don't need to email yourself.
   const others = chosen.filter((recipient) => !recipient.me);
-  const addresses = Array.from(new Set(others.map((recipient) => recipient.email).filter((email): email is string => !!email)));
+  const addresses = Array.from(
+    new Set(others.map((recipient) => recipient.email).filter((email): email is string => !!email))
+  );
   const missing = others.filter((recipient) => !recipient.email);
 
   useEffect(() => {
@@ -67,11 +83,24 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
   const copy = () =>
     navigator.clipboard
       .writeText(addresses.join(", "))
-      .then(() => toast({ title: `${addresses.length} ${addresses.length === 1 ? "address" : "addresses"} copied` }))
-      .catch(() => toast({ title: "Couldn't copy", description: "Your browser blocked the clipboard.", variant: "destructive" }));
+      .then(() =>
+        toast({
+          title: `${addresses.length} ${addresses.length === 1 ? "address" : "addresses"} copied`,
+        })
+      )
+      .catch(() =>
+        toast({
+          title: "Couldn't copy",
+          description: "Your browser blocked the clipboard.",
+          variant: "destructive",
+        })
+      );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -80,10 +109,19 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 id={`email-${circle.id}`} className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <h2
+            id={`email-${circle.id}`}
+            className="flex items-center gap-2 text-lg font-semibold text-foreground"
+          >
             <Mail className="h-5 w-5 text-primary" aria-hidden /> Email {circle.name}
           </h2>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label="Close">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -96,7 +134,13 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
               scope === "everyone" ? "border-primary ring-1 ring-primary" : "border-border"
             )}
           >
-            <input type="radio" name={`scope-${circle.id}`} checked={scope === "everyone"} onChange={() => setScope("everyone")} className="h-4 w-4 accent-primary" />
+            <input
+              type="radio"
+              name={`scope-${circle.id}`}
+              checked={scope === "everyone"}
+              onChange={() => setScope("everyone")}
+              className="h-4 w-4 accent-primary"
+            />
             The whole circle <span className="text-muted">({recipients.length})</span>
           </label>
           <label
@@ -105,7 +149,13 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
               scope === "roles" ? "border-primary ring-1 ring-primary" : "border-border"
             )}
           >
-            <input type="radio" name={`scope-${circle.id}`} checked={scope === "roles"} onChange={() => setScope("roles")} className="h-4 w-4 accent-primary" />
+            <input
+              type="radio"
+              name={`scope-${circle.id}`}
+              checked={scope === "roles"}
+              onChange={() => setScope("roles")}
+              className="h-4 w-4 accent-primary"
+            />
             Only certain roles
           </label>
           {scope === "roles" ? (
@@ -116,12 +166,20 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
                     <input
                       type="checkbox"
                       checked={chosenRoles.includes(role)}
-                      onChange={() => setChosenRoles((current) => (current.includes(role) ? current.filter((entry) => entry !== role) : [...current, role]))}
+                      onChange={() =>
+                        setChosenRoles((current) =>
+                          current.includes(role)
+                            ? current.filter((entry) => entry !== role)
+                            : [...current, role]
+                        )
+                      }
                       className="mt-0.5 h-4 w-4 accent-primary"
                     />
                     <span>
                       {role} <span className="text-muted">({holders.length})</span>
-                      <span className="block text-xs text-muted">{holders.map((holder) => (holder.me ? "You" : holder.name)).join(", ")}</span>
+                      <span className="block text-xs text-muted">
+                        {holders.map((holder) => (holder.me ? "You" : holder.name)).join(", ")}
+                      </span>
                     </span>
                   </label>
                 </li>
@@ -133,17 +191,31 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
         <div className="flex flex-col gap-1 text-xs text-muted">
           <p>
             {addresses.length
-              ? `${addresses.length} ${addresses.length === 1 ? "address" : "addresses"}${chosen.some((recipient) => recipient.me) ? " (not including you)" : ""}.`
+              ? `${addresses.length} ${addresses.length === 1 ? "address" : "addresses"}${
+                  chosen.some((recipient) => recipient.me) ? " (not including you)" : ""
+                }.`
               : scope === "roles" && !chosenRoles.length
                 ? "Choose at least one role."
                 : "Nobody chosen has an email address on file."}
           </p>
-          {missing.length ? <p>No email on file for {missing.map((recipient) => recipient.name).join(", ")} — reach them another way.</p> : null}
+          {missing.length ? (
+            <p>
+              No email on file for {missing.map((recipient) => recipient.name).join(", ")} — reach
+              them another way.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button asChild className={cn("gap-1.5", !addresses.length && "pointer-events-none opacity-50")} aria-disabled={!addresses.length}>
-            <a href={addresses.length ? mailto : undefined} onClick={() => addresses.length && onClose()}>
+          <Button
+            asChild
+            className={cn("gap-1.5", !addresses.length && "pointer-events-none opacity-50")}
+            aria-disabled={!addresses.length}
+          >
+            <a
+              href={addresses.length ? mailto : undefined}
+              onClick={() => addresses.length && onClose()}
+            >
               <Mail className="h-4 w-4" /> Open email
             </a>
           </Button>
@@ -157,7 +229,15 @@ function EmailCircleDialog({ circle, people, onClose }: { circle: Circle; people
 }
 
 /** An envelope button that opens the circle email dialog. */
-export function EmailCircleButton({ circle, people, className }: { circle: Circle; people: Map<string, Person>; className?: string }) {
+export function EmailCircleButton({
+  circle,
+  people,
+  className,
+}: {
+  circle: Circle;
+  people: Map<string, Person>;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   const members = circle.seats.filter((seat) => seat.personId || seat.name).length;
   if (!members) return null;
@@ -173,7 +253,12 @@ export function EmailCircleButton({ circle, people, className }: { circle: Circl
       >
         <Mail className="h-5 w-5" />
       </Button>
-      {open ? createPortal(<EmailCircleDialog circle={circle} people={people} onClose={() => setOpen(false)} />, document.body) : null}
+      {open
+        ? createPortal(
+            <EmailCircleDialog circle={circle} people={people} onClose={() => setOpen(false)} />,
+            document.body
+          )
+        : null}
     </>
   );
 }

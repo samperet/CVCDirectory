@@ -16,9 +16,23 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from "lexical";
-import { addComposerChild$, addExportVisitor$, addImportVisitor$, addLexicalNode$, realmPlugin, type LexicalExportVisitor, type MdastImportVisitor } from "@mdxeditor/editor";
+import {
+  addComposerChild$,
+  addExportVisitor$,
+  addImportVisitor$,
+  addLexicalNode$,
+  realmPlugin,
+  type LexicalExportVisitor,
+  type MdastImportVisitor,
+} from "@mdxeditor/editor";
 import { WIKI_LINK, normalizeWikiLinks, parseWikiLink } from "@/lib/wiki/links";
-import { docFileUrl, findDoc, pageTitled, useDocTitles, wikiPagesQuery } from "@/components/wiki/link-data";
+import {
+  docFileUrl,
+  findDoc,
+  pageTitled,
+  useDocTitles,
+  wikiPagesQuery,
+} from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
 import { useCircles } from "@/components/directory/use-directory";
@@ -30,15 +44,33 @@ import { useCircles } from "@/components/directory/use-directory";
  * saved, so the Markdown is unchanged.
  */
 
-type SerializedWikiLinkNode = Spread<{ target: string; label?: string; format?: number }, SerializedLexicalNode>;
+type SerializedWikiLinkNode = Spread<
+  { target: string; label?: string; format?: number },
+  SerializedLexicalNode
+>;
 
 // Lexical's text format bits, as the editor uses them.
 const BOLD = 1;
 const ITALIC = 2;
 
 /** What a tag shows, worked out like the page does: the page (and its colour), the document, or nothing yet. */
-function EditorWikiTag({ target, label, format = 0 }: { target: string; label?: string; format?: number }) {
-  const styled = (tag: JSX.Element) => (format & (BOLD | ITALIC) ? <span className={(format & BOLD ? "font-bold " : "") + (format & ITALIC ? "italic" : "")}>{tag}</span> : tag);
+function EditorWikiTag({
+  target,
+  label,
+  format = 0,
+}: {
+  target: string;
+  label?: string;
+  format?: number;
+}) {
+  const styled = (tag: JSX.Element) =>
+    format & (BOLD | ITALIC) ? (
+      <span className={(format & BOLD ? "font-bold " : "") + (format & ITALIC ? "italic" : "")}>
+        {tag}
+      </span>
+    ) : (
+      tag
+    );
   const wiki = useContext(WikiCircleContext);
   const circleId = wiki?.circleId ?? "";
   const circles = useCircles();
@@ -50,16 +82,35 @@ function EditorWikiTag({ target, label, format = 0 }: { target: string; label?: 
   if (link.kind === "doc") {
     if (!docs) return styled(<WikiTag kind="pending" label={text} />);
     const doc = findDoc(docs, link.title, link.circleId, circleId);
-    return styled(doc ? <WikiTag kind="doc" label={text} href={docFileUrl(doc.id)} circleName={doc.circleName} newTab /> : <WikiTag kind="doc-missing" label={text} />);
+    return styled(
+      doc ? (
+        <WikiTag
+          kind="doc"
+          label={text}
+          href={docFileUrl(doc.id)}
+          circleName={doc.circleName}
+          newTab
+        />
+      ) : (
+        <WikiTag kind="doc-missing" label={text} />
+      )
+    );
   }
   if (pages.isError) return styled(<WikiTag kind="missing" label={text} />);
   if (!pages.data) return styled(<WikiTag kind="pending" label={text} />);
   const page = pageTitled(pages.data.pages, link.title);
-  return styled(page ? (
-    <WikiTag kind="page" label={text} href={`/wiki/${page.slug}`} color={page.color} newTab />
-  ) : (
-    <WikiTag kind="missing" label={text} href={`/wiki?new=${encodeURIComponent(link.title)}`} newTab />
-  ));
+  return styled(
+    page ? (
+      <WikiTag kind="page" label={text} href={`/wiki/${page.slug}`} color={page.color} newTab />
+    ) : (
+      <WikiTag
+        kind="missing"
+        label={text}
+        href={`/wiki?new=${encodeURIComponent(link.title)}`}
+        newTab
+      />
+    )
+  );
 }
 
 export class WikiLinkNode extends DecoratorNode<JSX.Element> {
@@ -88,7 +139,13 @@ export class WikiLinkNode extends DecoratorNode<JSX.Element> {
   }
 
   exportJSON(): SerializedWikiLinkNode {
-    return { type: "wiki-link", version: 1, target: this.__target, ...(this.__label ? { label: this.__label } : {}), ...(this.__format ? { format: this.__format } : {}) };
+    return {
+      type: "wiki-link",
+      version: 1,
+      target: this.__target,
+      ...(this.__label ? { label: this.__label } : {}),
+      ...(this.__format ? { format: this.__format } : {}),
+    };
   }
 
   createDOM() {
@@ -130,7 +187,8 @@ export function $isWikiLinkNode(node: LexicalNode | null | undefined): node is W
 
 /** `[[Page]]` text from the page's Markdown becomes tags (keeping the bold or italic around it). */
 const importVisitor: MdastImportVisitor<Text> = {
-  testNode: (node) => node.type === "text" && /\[\[[^\]\n]+\]\]/.test(normalizeWikiLinks((node as Text).value)),
+  testNode: (node) =>
+    node.type === "text" && /\[\[[^\]\n]+\]\]/.test(normalizeWikiLinks((node as Text).value)),
   priority: 10,
   visitNode({ mdastNode, lexicalParent, actions }) {
     const value = normalizeWikiLinks(mdastNode.value);

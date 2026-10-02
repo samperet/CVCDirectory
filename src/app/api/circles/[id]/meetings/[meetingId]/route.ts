@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteMeeting, meetingUpdateSchema, readCircleMeetings, updateMeeting } from "@/lib/meetings/store";
-import { announceConsents, editProblem, meetingsContext, meetingsProblem } from "@/lib/meetings/http";
+import {
+  deleteMeeting,
+  meetingUpdateSchema,
+  readCircleMeetings,
+  updateMeeting,
+} from "@/lib/meetings/store";
+import {
+  announceConsents,
+  editProblem,
+  meetingsContext,
+  meetingsProblem,
+} from "@/lib/meetings/http";
 import { summarizeProposal } from "@/lib/meetings/shared";
 import { readBody, throttled } from "@/lib/http";
 
@@ -19,7 +29,9 @@ export async function GET(_request: Request, { params }: Params) {
   return NextResponse.json(
     {
       meeting,
-      proposals: proposals.filter((proposal) => proposal.meetingId === meeting.id).map(summarizeProposal),
+      proposals: proposals
+        .filter((proposal) => proposal.meetingId === meeting.id)
+        .map(summarizeProposal),
       canEdit: ctx.canEdit,
       canReview: ctx.canReview,
     },
@@ -36,7 +48,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!ctx.canEdit) return editProblem();
   const parsed = await readBody(request, meetingUpdateSchema);
   if ("error" in parsed) return parsed.error;
-  const result = await updateMeeting(params.id, params.meetingId, { userId: ctx.user.id, name: ctx.user.name }, parsed.data);
+  const result = await updateMeeting(
+    params.id,
+    params.meetingId,
+    { userId: ctx.user.id, name: ctx.user.name },
+    parsed.data
+  );
   return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
 }
 

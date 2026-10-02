@@ -4,7 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { LexicalTypeaheadMenuPlugin, MenuOption, type MenuTextMatch } from "@lexical/react/LexicalTypeaheadMenuPlugin";
+import {
+  LexicalTypeaheadMenuPlugin,
+  MenuOption,
+  type MenuTextMatch,
+} from "@lexical/react/LexicalTypeaheadMenuPlugin";
 import { $createTextNode } from "lexical";
 import { $createWikiLinkNode } from "@/components/wiki/wiki-link-node";
 import { addComposerChild$, realmPlugin } from "@mdxeditor/editor";
@@ -22,7 +26,13 @@ import { cn } from "@/lib/utils";
 
 type SearchResult = {
   pages: { circleId: string; circleName: string; title: string; slug: string; color: string }[];
-  documents: { id: string; title: string; circleId: string; circleName: string; ambiguous: boolean }[];
+  documents: {
+    id: string;
+    title: string;
+    circleId: string;
+    circleName: string;
+    ambiguous: boolean;
+  }[];
   exists: boolean;
 };
 
@@ -44,7 +54,11 @@ class LinkOption extends MenuOption {
 function triggerMatch(text: string): MenuTextMatch | null {
   const match = /(^|[\s(])(@((?:[^\s@[\]][^@[\]\n]{0,59})?))$/.exec(text);
   if (!match || / {2}$/.test(match[3])) return null;
-  return { leadOffset: match.index + match[1].length, matchingString: match[3], replaceableString: match[2] };
+  return {
+    leadOffset: match.index + match[1].length,
+    matchingString: match[3],
+    replaceableString: match[2],
+  };
 }
 
 interface MentionParams {
@@ -65,7 +79,14 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
   }, [query]);
   const { data } = useQuery({
     queryKey: ["wiki-link-search", circleId, pageId, debounced],
-    queryFn: () => apiFetch<SearchResult>(`/api/wiki/link-search?${new URLSearchParams({ q: debounced, circle: circleId, page: pageId })}`),
+    queryFn: () =>
+      apiFetch<SearchResult>(
+        `/api/wiki/link-search?${new URLSearchParams({
+          q: debounced,
+          circle: circleId,
+          page: pageId,
+        })}`
+      ),
     enabled: query !== null,
     placeholderData: keepPreviousData,
     staleTime: 10_000,
@@ -77,12 +98,36 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
     // Results can lag what's typed: keep only those that still match.
     const fits = (title: string) => title.toLowerCase().includes(typed.toLowerCase());
     const list: LinkOption[] = [
-      ...(data?.pages ?? []).filter((page) => fits(page.title)).map(
-        (page) => new LinkOption(`page:${page.slug}`, "page", page.title, page.circleId === circleId ? null : page.circleName, pageLinkText(page.title), page.color)
-      ),
-      ...(data?.documents ?? []).filter((doc) => fits(doc.title)).map(
-        (doc) => new LinkOption(`doc:${doc.id}`, "document", doc.title, doc.circleName, docLinkText(doc.title, { id: doc.circleId, name: doc.circleName }, circleId, doc.ambiguous))
-      ),
+      ...(data?.pages ?? [])
+        .filter((page) => fits(page.title))
+        .map(
+          (page) =>
+            new LinkOption(
+              `page:${page.slug}`,
+              "page",
+              page.title,
+              page.circleId === circleId ? null : page.circleName,
+              pageLinkText(page.title),
+              page.color
+            )
+        ),
+      ...(data?.documents ?? [])
+        .filter((doc) => fits(doc.title))
+        .map(
+          (doc) =>
+            new LinkOption(
+              `doc:${doc.id}`,
+              "document",
+              doc.title,
+              doc.circleName,
+              docLinkText(
+                doc.title,
+                { id: doc.circleId, name: doc.circleName },
+                circleId,
+                doc.ambiguous
+              )
+            )
+        ),
     ];
     const exact = data?.pages.some((page) => page.title.toLowerCase() === typed.toLowerCase());
     if (typed && !exact && !(data?.exists && debounced.toLowerCase() === typed.toLowerCase())) {
@@ -99,7 +144,8 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
       onSelectOption={(option, node, closeMenu) => {
         editor.update(() => {
           // The link goes in as a tag, with a space after it to carry on typing.
-          const [, target = option.text, label] = /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(option.text) ?? [];
+          const [, target = option.text, label] =
+            /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(option.text) ?? [];
           const link = $createWikiLinkNode(target, label, node?.getFormat() ?? 0);
           if (node) node.replace(link);
           const space = $createTextNode(" ");
@@ -118,7 +164,12 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
                 aria-label="Link a page or document"
               >
                 {options.map((option, index) => {
-                  const Icon = option.kind === "document" ? FileText : option.kind === "create" ? Plus : BookOpen;
+                  const Icon =
+                    option.kind === "document"
+                      ? FileText
+                      : option.kind === "create"
+                        ? Plus
+                        : BookOpen;
                   return (
                     <li
                       key={option.key}
@@ -129,15 +180,26 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
                       onMouseEnter={() => setHighlightedIndex(index)}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => selectOptionAndCleanUp(option)}
-                      className={cn("flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5", selectedIndex === index ? "bg-accent text-foreground" : "text-foreground")}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5",
+                        selectedIndex === index ? "bg-accent text-foreground" : "text-foreground"
+                      )}
                     >
                       {option.kind === "page" ? (
-                        <span className="h-3 w-3 shrink-0 rounded-sm border border-black/15" style={{ backgroundColor: pageStyle(option.color).swatch }} aria-hidden />
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-sm border border-black/15"
+                          style={{ backgroundColor: pageStyle(option.color).swatch }}
+                          aria-hidden
+                        />
                       ) : (
                         <Icon className="h-4 w-4 shrink-0 text-muted" aria-hidden />
                       )}
-                      <span className="min-w-0 flex-1 truncate">{option.kind === "create" ? <>New page “{option.label}”</> : option.label}</span>
-                      {option.meta ? <span className="shrink-0 text-xs text-muted">{option.meta}</span> : null}
+                      <span className="min-w-0 flex-1 truncate">
+                        {option.kind === "create" ? <>New page “{option.label}”</> : option.label}
+                      </span>
+                      {option.meta ? (
+                        <span className="shrink-0 text-xs text-muted">{option.meta}</span>
+                      ) : null}
                     </li>
                   );
                 })}

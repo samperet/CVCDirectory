@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteProposalComment, editProposalComment, proposalCommentUpdateSchema, setTensionAddressed, withdrawObjection } from "@/lib/meetings/store";
-import { meetingsContext, meetingsProblem, memberUserIds, reviewProblem } from "@/lib/meetings/http";
+import {
+  deleteProposalComment,
+  editProposalComment,
+  proposalCommentUpdateSchema,
+  setTensionAddressed,
+  withdrawObjection,
+} from "@/lib/meetings/store";
+import {
+  meetingsContext,
+  meetingsProblem,
+  memberUserIds,
+  reviewProblem,
+} from "@/lib/meetings/http";
 import { formatDuration, proposalHref, proposalState, reviewTimeLeft } from "@/lib/meetings/shared";
 import { notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
@@ -23,15 +34,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in parsed) return parsed.error;
   const input = parsed.data;
   if ("withdrawn" in input) {
-    const result = await withdrawObjection(params.id, params.proposalId, params.commentId, { ...ctx.actor, admin: ctx.admin }, input.note);
+    const result = await withdrawObjection(
+      params.id,
+      params.proposalId,
+      params.commentId,
+      { ...ctx.actor, admin: ctx.admin },
+      input.note
+    );
     if (!result.ok) return meetingsProblem(result.reason);
     const { proposal } = result.value;
     const resumed = proposalState(proposal) === "review";
     await notify({
       topic: "proposals",
-      title: resumed ? `Review resumed: ${proposal.title}` : `Objection withdrawn: ${proposal.title}`,
+      title: resumed
+        ? `Review resumed: ${proposal.title}`
+        : `Objection withdrawn: ${proposal.title}`,
       body: resumed
-        ? `${ctx.user.name} withdrew their objection; ${formatDuration(reviewTimeLeft(proposal) ?? 0)} of the review left.`
+        ? `${ctx.user.name} withdrew their objection; ${formatDuration(
+            reviewTimeLeft(proposal) ?? 0
+          )} of the review left.`
         : `${ctx.user.name} withdrew an objection; the review stays paused for the others.`,
       url: proposalHref(params.id, proposal.id),
       tag: `proposal-${proposal.id}`,
@@ -42,10 +63,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
   if ("addressed" in input) {
     if (!ctx.canReview && !ctx.admin) return reviewProblem();
-    const result = await setTensionAddressed(params.id, params.proposalId, params.commentId, ctx.actor, input.addressed);
+    const result = await setTensionAddressed(
+      params.id,
+      params.proposalId,
+      params.commentId,
+      ctx.actor,
+      input.addressed
+    );
     return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
   }
-  const result = await editProposalComment(params.id, params.proposalId, params.commentId, ctx.actor, input.body);
+  const result = await editProposalComment(
+    params.id,
+    params.proposalId,
+    params.commentId,
+    ctx.actor,
+    input.body
+  );
   return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
 }
 
@@ -53,6 +86,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await meetingsContext(params.id);
   if ("error" in ctx) return ctx.error;
-  const result = await deleteProposalComment(params.id, params.proposalId, params.commentId, { userId: ctx.user.id, admin: ctx.admin });
+  const result = await deleteProposalComment(params.id, params.proposalId, params.commentId, {
+    userId: ctx.user.id,
+    admin: ctx.admin,
+  });
   return result.ok ? NextResponse.json(result.value) : meetingsProblem(result.reason);
 }

@@ -3,7 +3,10 @@ import { POLL_DIRECTIVE } from "@/lib/polls/wiki";
 import { EMBED_DIRECTIVE } from "./sections";
 import { DEFAULT_PAGE_COLOR, PAGE_COLORS, type PageColor } from "./colors";
 
-export const pageColor = (page: Pick<WikiPage, "color">): PageColor => ((PAGE_COLORS as readonly string[]).includes(page.color ?? "") ? (page.color as PageColor) : DEFAULT_PAGE_COLOR);
+export const pageColor = (page: Pick<WikiPage, "color">): PageColor =>
+  (PAGE_COLORS as readonly string[]).includes(page.color ?? "")
+    ? (page.color as PageColor)
+    : DEFAULT_PAGE_COLOR;
 
 /**
  * A page's opening, as plain text: links by their words, polls by their
@@ -23,10 +26,16 @@ export function excerptOf(markdown: string, length = 400, polls: Map<string, str
       const question = polls.get((id ?? short ?? "").toLowerCase());
       return question ? `Poll: ${question}` : "";
     })
-    .replace(/^[ \t]*:::\s*details(?:\[([^\]\n]*)\])?(?:\{[^}\n]*?title="([^"\n]*)"[^}\n]*\})?.*$/gm, (_m, label?: string, title?: string) => title ?? label ?? "")
+    .replace(
+      /^[ \t]*:::\s*details(?:\[([^\]\n]*)\])?(?:\{[^}\n]*?title="([^"\n]*)"[^}\n]*\})?.*$/gm,
+      (_m, label?: string, title?: string) => title ?? label ?? ""
+    )
     .replace(/^[ \t]*:{2,}[ \t]*$/gm, "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[\[(?:doc:)?(?:[^\]|]*:)?([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target)
+    .replace(
+      /\[\[(?:doc:)?(?:[^\]|]*:)?([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+      (_m, target: string, label?: string) => label ?? target
+    )
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/<[^>]+>/g, " ")
     .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")

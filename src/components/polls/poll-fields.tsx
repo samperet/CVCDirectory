@@ -14,10 +14,16 @@ export interface PollDraft {
   closesOn: string;
 }
 
-export const emptyPollDraft = (): PollDraft => ({ options: ["", ""], multiple: false, allowOther: false, closesOn: "" });
+export const emptyPollDraft = (): PollDraft => ({
+  options: ["", ""],
+  multiple: false,
+  allowOther: false,
+  closesOn: "",
+});
 
 /** The filled-in options of a draft. */
-export const draftOptions = (draft: PollDraft) => draft.options.map((option) => option.trim()).filter(Boolean);
+export const draftOptions = (draft: PollDraft) =>
+  draft.options.map((option) => option.trim()).filter(Boolean);
 
 /** What the server takes for a new poll: it closes at the end of the chosen day, where its author is. */
 export const pollPayload = (draft: PollDraft) => ({
@@ -28,9 +34,16 @@ export const pollPayload = (draft: PollDraft) => ({
 });
 
 /** A poll's options (2–10), whether several can be chosen, whether voters can add their own, and an optional closing date. */
-export function PollFields({ draft, onChange }: { draft: PollDraft; onChange: (draft: PollDraft) => void }) {
+export function PollFields({
+  draft,
+  onChange,
+}: {
+  draft: PollDraft;
+  onChange: (draft: PollDraft) => void;
+}) {
   const { options, multiple, allowOther, closesOn } = draft;
-  const setOptions = (update: (current: string[]) => string[]) => onChange({ ...draft, options: update(options) });
+  const setOptions = (update: (current: string[]) => string[]) =>
+    onChange({ ...draft, options: update(options) });
   const setMultiple = (value: boolean) => onChange({ ...draft, multiple: value });
   const setClosesOn = (value: string) => onChange({ ...draft, closesOn: value });
   return (
@@ -42,7 +55,11 @@ export function PollFields({ draft, onChange }: { draft: PollDraft; onChange: (d
             value={option}
             maxLength={120}
             placeholder={`Option ${index + 1}`}
-            onChange={(e) => setOptions((current) => current.map((entry, i) => (i === index ? e.target.value : entry)))}
+            onChange={(e) =>
+              setOptions((current) =>
+                current.map((entry, i) => (i === index ? e.target.value : entry))
+              )
+            }
             className="bg-white"
             aria-label={`Option ${index + 1}`}
           />
@@ -61,17 +78,33 @@ export function PollFields({ draft, onChange }: { draft: PollDraft; onChange: (d
         </div>
       ))}
       {options.length < MAX_POLL_OPTIONS ? (
-        <Button type="button" variant="outline" size="sm" className="w-fit gap-1" onClick={() => setOptions((current) => [...current, ""])}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit gap-1"
+          onClick={() => setOptions((current) => [...current, ""])}
+        >
           <Plus className="h-4 w-4" /> Add option
         </Button>
       ) : null}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-sm text-foreground">
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} className="h-4 w-4 accent-primary" />
+          <input
+            type="checkbox"
+            checked={multiple}
+            onChange={(e) => setMultiple(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
           Allow more than one choice
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={allowOther} onChange={(e) => onChange({ ...draft, allowOther: e.target.checked })} className="h-4 w-4 accent-primary" />
+          <input
+            type="checkbox"
+            checked={allowOther}
+            onChange={(e) => onChange({ ...draft, allowOther: e.target.checked })}
+            className="h-4 w-4 accent-primary"
+          />
           Let people add their own options
         </label>
         <label className="flex items-center gap-2">

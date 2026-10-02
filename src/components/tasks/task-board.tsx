@@ -9,7 +9,16 @@ import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle } from "@/lib/directory/types";
 import { featureEnabled } from "@/lib/circles/features";
-import { PRIORITY_LABELS, STATUS_LABELS, TASK_PRIORITIES, TASK_STATUSES, type Task, type TaskPriority, type TaskStatus, type TaskSummary } from "@/lib/tasks/shared";
+import {
+  PRIORITY_LABELS,
+  STATUS_LABELS,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  type Task,
+  type TaskPriority,
+  type TaskStatus,
+  type TaskSummary,
+} from "@/lib/tasks/shared";
 import {
   DueLabel,
   OwnerChip,
@@ -43,18 +52,38 @@ function useMoveTask(circleId: string) {
   const { toast } = useToast();
   return useMutation({
     mutationFn: ({ number, status }: { number: number; status: TaskStatus }) =>
-      apiFetch<{ task: Task }>(`/api/circles/${circleId}/tasks/${number}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+      apiFetch<{ task: Task }>(`/api/circles/${circleId}/tasks/${number}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
     onMutate: async ({ number, status }) => {
       await queryClient.cancelQueries({ queryKey: ["tasks", circleId] });
       const previous = queryClient.getQueryData<TasksResponse>(["tasks", circleId]);
       queryClient.setQueryData<TasksResponse>(["tasks", circleId], (old) =>
-        old ? { ...old, tasks: old.tasks.map((task) => (task.number === number ? { ...task, status, completedAt: status === "done" ? new Date().toISOString() : null } : task)) } : old
+        old
+          ? {
+              ...old,
+              tasks: old.tasks.map((task) =>
+                task.number === number
+                  ? {
+                      ...task,
+                      status,
+                      completedAt: status === "done" ? new Date().toISOString() : null,
+                    }
+                  : task
+              ),
+            }
+          : old
       );
       return { previous };
     },
     onError: (error: Error, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(["tasks", circleId], context.previous);
-      toast({ title: "Could not move the task", description: error.message, variant: "destructive" });
+      toast({
+        title: "Could not move the task",
+        description: error.message,
+        variant: "destructive",
+      });
     },
     onSettled: (_data, _error, { number }) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", circleId] });
@@ -65,7 +94,15 @@ function useMoveTask(circleId: string) {
 }
 
 /** Add a task: a title, and optionally who it's for, when it's due, and how urgent it is. */
-export function NewTaskForm({ circle, onDone, onCancel }: { circle: Circle | undefined; onDone?: (task: Task) => void; onCancel?: () => void }) {
+export function NewTaskForm({
+  circle,
+  onDone,
+  onCancel,
+}: {
+  circle: Circle | undefined;
+  onDone?: (task: Task) => void;
+  onCancel?: () => void;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
@@ -89,7 +126,12 @@ export function NewTaskForm({ circle, onDone, onCancel }: { circle: Circle | und
       toast({ title: `Task #${task.number} added` });
       onDone?.(task);
     },
-    onError: (error: Error) => toast({ title: "Could not add the task", description: error.message, variant: "destructive" }),
+    onError: (error: Error) =>
+      toast({
+        title: "Could not add the task",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
   return (
     <form
@@ -100,9 +142,26 @@ export function NewTaskForm({ circle, onDone, onCancel }: { circle: Circle | und
       }}
     >
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input autoFocus placeholder="What needs doing? e.g. Clean the pellet stove" value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} className="bg-white" aria-label="Task title" />
+        <Input
+          autoFocus
+          placeholder="What needs doing? e.g. Clean the pellet stove"
+          value={title}
+          maxLength={160}
+          onChange={(e) => setTitle(e.target.value)}
+          className="bg-white"
+          aria-label="Task title"
+        />
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => setMore(!more)} aria-label="More details" aria-expanded={more} title="Owner, due date, priority">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            onClick={() => setMore(!more)}
+            aria-label="More details"
+            aria-expanded={more}
+            title="Owner, due date, priority"
+          >
             <SlidersHorizontal className="h-4 w-4" />
           </Button>
           <Button type="submit" className="shrink-0" disabled={!title.trim() || create.isPending}>
@@ -123,11 +182,20 @@ export function NewTaskForm({ circle, onDone, onCancel }: { circle: Circle | und
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted">
             Due
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="bg-white" />
+            <Input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="bg-white"
+            />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted">
             Priority
-            <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground">
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority)}
+              className="h-10 rounded-lg border border-border bg-white px-3 text-sm text-foreground"
+            >
               {TASK_PRIORITIES.map((value) => (
                 <option key={value} value={value}>
                   {PRIORITY_LABELS[value]}
@@ -170,9 +238,14 @@ export function TaskCard({
         task.status === "done" && "opacity-75"
       )}
     >
-      <Link href={`/circles/${circleId}/tasks/${task.number}`} className="text-sm font-semibold leading-snug text-foreground hover:underline">
+      <Link
+        href={`/circles/${circleId}/tasks/${task.number}`}
+        className="text-sm font-semibold leading-snug text-foreground hover:underline"
+      >
         <span className="mr-1 font-normal text-muted">#{task.number}</span>
-        <span className={cn(task.status === "done" && "line-through decoration-muted")}>{task.title}</span>
+        <span className={cn(task.status === "done" && "line-through decoration-muted")}>
+          {task.title}
+        </span>
       </Link>
       {task.priority === "high" || task.dueDate || task.checklist.length || task.commentCount ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -180,7 +253,10 @@ export function TaskCard({
           <DueLabel task={task} />
           <ProgressBar task={task} />
           {task.commentCount ? (
-            <span className="inline-flex items-center gap-1 text-xs text-muted" title={`${task.commentCount} comments`}>
+            <span
+              className="inline-flex items-center gap-1 text-xs text-muted"
+              title={`${task.commentCount} comments`}
+            >
               <MessageSquare className="h-3.5 w-3.5" aria-hidden /> {task.commentCount}
             </span>
           ) : null}
@@ -188,7 +264,9 @@ export function TaskCard({
       ) : null}
       <div className="flex items-center justify-between gap-2">
         <OwnerChip name={task.ownerName} />
-        {movable ? <StatusSelect value={task.status} onChange={(status) => onMove!(status)} /> : null}
+        {movable ? (
+          <StatusSelect value={task.status} onChange={(status) => onMove!(status)} />
+        ) : null}
       </div>
     </div>
   );
@@ -214,8 +292,17 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
   const visible = useMemo(() => {
     const wanted = query.trim().toLowerCase();
     return (data?.tasks ?? [])
-      .filter((task) => who === "everyone" || (who === "mine" ? !!user?.personId && task.ownerId === user.personId : !task.ownerId))
-      .filter((task) => !wanted || task.title.toLowerCase().includes(wanted) || String(task.number) === wanted.replace(/^#/, ""))
+      .filter(
+        (task) =>
+          who === "everyone" ||
+          (who === "mine" ? !!user?.personId && task.ownerId === user.personId : !task.ownerId)
+      )
+      .filter(
+        (task) =>
+          !wanted ||
+          task.title.toLowerCase().includes(wanted) ||
+          String(task.number) === wanted.replace(/^#/, "")
+      )
       .sort(byUrgency);
   }, [data, who, query, user]);
 
@@ -241,9 +328,14 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
     <div className="flex flex-col gap-5">
       <BackLink href={`/circles/${circleId}`} label={circle?.name ?? "Circle"} />
       <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-        <ListChecks className="h-6 w-6 text-primary" aria-hidden /> {circle ? `${circle.name} tasks` : "Tasks"}
+        <ListChecks className="h-6 w-6 text-primary" aria-hidden />{" "}
+        {circle ? `${circle.name} tasks` : "Tasks"}
       </h1>
-      {circle && !enabled ? <p className="text-sm text-muted">{circle.name} has turned its tasks off; these are kept as they were.</p> : null}
+      {circle && !enabled ? (
+        <p className="text-sm text-muted">
+          {circle.name} has turned its tasks off; these are kept as they were.
+        </p>
+      ) : null}
       {canAdd ? (
         <Card>
           <NewTaskForm circle={circle} />
@@ -251,7 +343,11 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="tablist" aria-label="Whose tasks">
+        <div
+          className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm"
+          role="tablist"
+          aria-label="Whose tasks"
+        >
           {(
             [
               ["everyone", "Everyone"],
@@ -265,7 +361,12 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
               role="tab"
               aria-selected={who === value}
               onClick={() => setWho(value)}
-              className={cn("rounded-full px-3 py-1 font-medium transition", who === value ? "bg-primary text-primary-foreground shadow-soft" : "text-muted hover:text-foreground")}
+              className={cn(
+                "rounded-full px-3 py-1 font-medium transition",
+                who === value
+                  ? "bg-primary text-primary-foreground shadow-soft"
+                  : "text-muted hover:text-foreground"
+              )}
             >
               {label}
             </button>
@@ -273,7 +374,14 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <Input type="search" placeholder="Find a task" value={query} onChange={(e) => setQuery(e.target.value)} className="bg-white pl-9" aria-label="Find a task" />
+          <Input
+            type="search"
+            placeholder="Find a task"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="bg-white pl-9"
+            aria-label="Find a task"
+          />
         </div>
       </div>
 
@@ -293,17 +401,41 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
               }}
               onDragLeave={() => setOver((current) => (current === status ? null : current))}
               onDrop={(event) => dropOn(status, event)}
-              className={cn("flex flex-col gap-2 rounded-card border border-t-4 border-border bg-surface/70 p-3 transition", STATUS_STYLES[status].column, over === status && "bg-accent ring-2 ring-primary")}
+              className={cn(
+                "flex flex-col gap-2 rounded-card border border-t-4 border-border bg-surface/70 p-3 transition",
+                STATUS_STYLES[status].column,
+                over === status && "bg-accent ring-2 ring-primary"
+              )}
             >
               <h2 className="flex items-center justify-between px-1 text-sm font-semibold text-foreground">
-                {STATUS_LABELS[status]} <span className="rounded-full bg-accent px-2 text-xs font-medium text-muted">{total}</span>
+                {STATUS_LABELS[status]}{" "}
+                <span className="rounded-full bg-accent px-2 text-xs font-medium text-muted">
+                  {total}
+                </span>
               </h2>
               {tasks.map((task) => (
-                <TaskCard key={task.id} circleId={circleId} task={task} canEdit={canEdit} draggable onMove={enabled ? (next) => move.mutate({ number: task.number, status: next }) : undefined} />
+                <TaskCard
+                  key={task.id}
+                  circleId={circleId}
+                  task={task}
+                  canEdit={canEdit}
+                  draggable
+                  onMove={
+                    enabled
+                      ? (next) => move.mutate({ number: task.number, status: next })
+                      : undefined
+                  }
+                />
               ))}
-              {!total ? <p className="px-1 py-3 text-center text-xs text-muted">Nothing here</p> : null}
+              {!total ? (
+                <p className="px-1 py-3 text-center text-xs text-muted">Nothing here</p>
+              ) : null}
               {status === "done" && total > tasks.length ? (
-                <button type="button" onClick={() => setShowAllDone(true)} className="text-xs font-medium text-secondary-foreground hover:underline">
+                <button
+                  type="button"
+                  onClick={() => setShowAllDone(true)}
+                  className="text-xs font-medium text-secondary-foreground hover:underline"
+                >
                   Show all {total} done
                 </button>
               ) : null}
@@ -322,7 +454,9 @@ export function TasksModule({ circle }: { circle: Circle }) {
   const canAdd = !!data?.canAdd;
   const tasks = data?.tasks ?? [];
   const open = tasks.filter((task) => task.status !== "done").sort(byUrgency);
-  const counts = (["todo", "doing", "blocked"] as const).map((status) => ({ status, count: open.filter((task) => task.status === status).length })).filter((entry) => entry.count);
+  const counts = (["todo", "doing", "blocked"] as const)
+    .map((status) => ({ status, count: open.filter((task) => task.status === status).length }))
+    .filter((entry) => entry.count);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -339,17 +473,37 @@ export function TasksModule({ circle }: { circle: Circle }) {
           </Button>
         ) : null}
       </div>
-      {adding ? <NewTaskForm circle={circle} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} /> : null}
+      {adding ? (
+        <NewTaskForm
+          circle={circle}
+          onDone={() => setAdding(false)}
+          onCancel={() => setAdding(false)}
+        />
+      ) : null}
       {isLoading ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : open.length ? (
         <>
-          <p className="text-sm text-muted">{counts.map(({ status, count }) => `${count} ${STATUS_LABELS[status].toLowerCase()}`).join(" · ")}</p>
+          <p className="text-sm text-muted">
+            {counts
+              .map(({ status, count }) => `${count} ${STATUS_LABELS[status].toLowerCase()}`)
+              .join(" · ")}
+          </p>
           <ul className="flex flex-col divide-y divide-border">
             {open.slice(0, 6).map((task) => (
-              <li key={task.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0">
-                <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_STYLES[task.status].dot)} title={STATUS_LABELS[task.status]} aria-hidden />
-                <Link href={`/circles/${circle.id}/tasks/${task.number}`} className="min-w-0 flex-1 font-medium text-foreground hover:underline">
+              <li
+                key={task.id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span
+                  className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_STYLES[task.status].dot)}
+                  title={STATUS_LABELS[task.status]}
+                  aria-hidden
+                />
+                <Link
+                  href={`/circles/${circle.id}/tasks/${task.number}`}
+                  className="min-w-0 flex-1 font-medium text-foreground hover:underline"
+                >
                   {task.title}
                 </Link>
                 <PriorityFlag task={task} />
@@ -358,7 +512,10 @@ export function TasksModule({ circle }: { circle: Circle }) {
               </li>
             ))}
           </ul>
-          <Link href={`/circles/${circle.id}/tasks`} className="w-fit text-sm font-medium text-secondary-foreground hover:underline">
+          <Link
+            href={`/circles/${circle.id}/tasks`}
+            className="w-fit text-sm font-medium text-secondary-foreground hover:underline"
+          >
             {open.length > 6 ? `All ${open.length} open tasks` : "Open the task board"}
           </Link>
         </>
@@ -366,7 +523,10 @@ export function TasksModule({ circle }: { circle: Circle }) {
         <p className="text-sm text-muted">
           {tasks.length ? "Everything's done." : "No tasks yet."}{" "}
           {tasks.length ? (
-            <Link href={`/circles/${circle.id}/tasks`} className="font-medium text-secondary-foreground hover:underline">
+            <Link
+              href={`/circles/${circle.id}/tasks`}
+              className="font-medium text-secondary-foreground hover:underline"
+            >
               See the board
             </Link>
           ) : null}

@@ -30,7 +30,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ("error" in parsed) return parsed.error;
 
   if (parsed.data.kind !== undefined) {
-    if (params.id === BOARD_ID || params.id === "community") return problem("The Board and Community circles can't become social clubs");
+    if (params.id === BOARD_ID || params.id === "community")
+      return problem("The Board and Community circles can't become social clubs");
     if (!isAdmin(ctx.user) && !canManageCircle(ctx.directory, BOARD_ID, ctx.personId)) {
       return problem("Only the Board can change whether this is a circle or a social club", 403);
     }

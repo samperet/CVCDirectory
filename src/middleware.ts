@@ -44,7 +44,9 @@ async function hmacHex(payload: string): Promise<string> {
     ["sign"]
   );
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
 }
 
 function constantTimeEqual(a: string, b: string) {
@@ -75,15 +77,21 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   // Photos of homes for sale are on the public homepage.
-  if (request.method === "GET" && /^\/api\/homes\/[0-9a-f-]{36}\/photo$/.test(pathname)) return NextResponse.next();
+  if (request.method === "GET" && /^\/api\/homes\/[0-9a-f-]{36}\/photo$/.test(pathname))
+    return NextResponse.next();
   if (await hasValidSession(request.cookies.get(SESSION_COOKIE)?.value)) {
-    if (request.cookies.has(VIEW_AS_COOKIE) && !READ_METHODS.has(request.method) && !VIEW_AS_WRITABLE.has(pathname)) {
+    if (
+      request.cookies.has(VIEW_AS_COOKIE) &&
+      !READ_METHODS.has(request.method) &&
+      !VIEW_AS_WRITABLE.has(pathname)
+    ) {
       return NextResponse.json(
         {
           type: "about:blank",
           title: "Forbidden",
           status: 403,
-          detail: "You're viewing the app as someone else, which is read-only. Exit the view to make changes.",
+          detail:
+            "You're viewing the app as someone else, which is read-only. Exit the view to make changes.",
         },
         { status: 403 }
       );
@@ -109,5 +117,7 @@ export const config = {
   // Everything except build assets and public files.
   // The manifest, service worker, and app icons are fetched without cookies, so they must stay public.
   // The front page's images (home/) are public too; the image optimizer fetches them without cookies.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|home/|sections/|robots.txt).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|CVC.png|manifest.json|sw.js|icons/|home/|sections/|robots.txt).*)",
+  ],
 };

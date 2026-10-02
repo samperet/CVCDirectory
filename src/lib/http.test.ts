@@ -3,13 +3,19 @@ import { z } from "zod";
 import type { NextRequest } from "next/server";
 import { problem, readBody, throttled } from "./http";
 
-const json = (body: unknown) => new Request("http://x/api", { method: "POST", body: JSON.stringify(body) });
+const json = (body: unknown) =>
+  new Request("http://x/api", { method: "POST", body: JSON.stringify(body) });
 
 describe("problem", () => {
   it("fills in the title from the status", async () => {
     const response = problem("Nope", 404);
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ type: "about:blank", title: "Not Found", status: 404, detail: "Nope" });
+    expect(await response.json()).toEqual({
+      type: "about:blank",
+      title: "Not Found",
+      status: 404,
+      detail: "Nope",
+    });
   });
   it("is a 400 Bad Request by default, and takes a title of its own", async () => {
     expect((await problem("x").json()).title).toBe("Bad Request");
@@ -20,7 +26,9 @@ describe("problem", () => {
 describe("readBody", () => {
   const schema = z.object({ name: z.string().min(2, "Name it"), count: z.number().optional() });
   it("gives the parsed data", async () => {
-    expect(await readBody(json({ name: "Ada", count: 2 }), schema)).toEqual({ data: { name: "Ada", count: 2 } });
+    expect(await readBody(json({ name: "Ada", count: 2 }), schema)).toEqual({
+      data: { name: "Ada", count: 2 },
+    });
   });
   it("gives a 400 naming every problem", async () => {
     const result = await readBody(json({ name: "A", count: "no" }), schema);
@@ -30,7 +38,9 @@ describe("readBody", () => {
   });
   it("treats a missing body as the fallback", async () => {
     const empty = new Request("http://x/api", { method: "POST" });
-    expect(await readBody(empty, z.object({ note: z.string().optional() }), {})).toEqual({ data: {} });
+    expect(await readBody(empty, z.object({ note: z.string().optional() }), {})).toEqual({
+      data: {},
+    });
     expect("error" in (await readBody(empty, schema))).toBe(true);
   });
 });

@@ -21,14 +21,24 @@ export function canUploadTo(user: Viewer, directory: DirectoryDocument, circleId
 }
 
 export function canManageDocument(user: Viewer, directory: DirectoryDocument, doc: DocumentRecord) {
-  return canUploadTo(user, directory, doc.circleId) || (!!user.personId && doc.versions[0]?.uploadedBy.personId === user.personId);
+  return (
+    canUploadTo(user, directory, doc.circleId) ||
+    (!!user.personId && doc.versions[0]?.uploadedBy.personId === user.personId)
+  );
 }
 
 /** Record or withdraw consent to a document: its circle's Secretary, the Board Secretary, or an admin. */
-export function canConsentDocument(user: Viewer, directory: DirectoryDocument, doc: Pick<DocumentRecord, "circleId">) {
+export function canConsentDocument(
+  user: Viewer,
+  directory: DirectoryDocument,
+  doc: Pick<DocumentRecord, "circleId">
+) {
   if (isAdmin(user)) return true;
   if (!user.personId) return false;
-  return holdsSeat(directory, doc.circleId, user.personId, /secretary/i) || holdsSeat(directory, BOARD_ID, user.personId, /secretary/i);
+  return (
+    holdsSeat(directory, doc.circleId, user.personId, /secretary/i) ||
+    holdsSeat(directory, BOARD_ID, user.personId, /secretary/i)
+  );
 }
 
 export function toListing(
@@ -38,7 +48,8 @@ export function toListing(
   types: Record<string, DocumentTypeOption[]>,
   snippet?: string | null
 ): DocumentListing {
-  const circleName = directory.circles.find((circle) => circle.id === doc.circleId)?.name ?? "Board";
+  const circleName =
+    directory.circles.find((circle) => circle.id === doc.circleId)?.name ?? "Board";
   return {
     ...doc,
     circleName,

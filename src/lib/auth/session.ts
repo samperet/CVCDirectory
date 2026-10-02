@@ -85,7 +85,9 @@ export function createViewAsValue(adminUserId: string, personId: string): string
   return `${payload}.${signViewAs(payload)}`;
 }
 
-function parseViewAsValue(value: string | undefined): { adminUserId: string; personId: string } | null {
+function parseViewAsValue(
+  value: string | undefined
+): { adminUserId: string; personId: string } | null {
   if (!value) return null;
   const lastDot = value.lastIndexOf(".");
   if (lastDot === -1) return null;
@@ -105,7 +107,11 @@ function parseViewAsValue(value: string | undefined): { adminUserId: string; per
 }
 
 export function viewAsCookieOptions() {
-  return { ...sessionCookieOptions(), name: VIEW_AS_COOKIE, maxAge: Math.floor(VIEW_AS_TTL_MS / 1000) };
+  return {
+    ...sessionCookieOptions(),
+    name: VIEW_AS_COOKIE,
+    maxAge: Math.floor(VIEW_AS_TTL_MS / 1000),
+  };
 }
 
 /** If an admin is viewing as a resident: the admin, and the resident's account as they'd see the app. */
@@ -119,7 +125,15 @@ export async function getViewAs(): Promise<{ admin: CommunityUser; user: Communi
   // They haven't signed in yet, so they have no account: stand in for one.
   const person = (await readDirectory())?.people.find((entry) => entry.id === view.personId);
   if (!person) return null;
-  return { admin, user: { id: `view-as-${person.id}`, personId: person.id, name: person.displayName, createdAt: new Date(0).toISOString() } };
+  return {
+    admin,
+    user: {
+      id: `view-as-${person.id}`,
+      personId: person.id,
+      name: person.displayName,
+      createdAt: new Date(0).toISOString(),
+    },
+  };
 }
 
 /** The signed-in resident — or, while an admin is viewing as someone, that resident. */

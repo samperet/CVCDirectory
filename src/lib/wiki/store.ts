@@ -36,7 +36,10 @@ export interface WikiVersion {
 }
 
 /** Who can see a page: everyone, the keeper circle, or the keeper and chosen circles (the Board and admins always can). */
-export type PageView = { kind: "everyone" } | { kind: "keeper" } | { kind: "circles"; circles: string[] };
+export type PageView =
+  | { kind: "everyone" }
+  | { kind: "keeper" }
+  | { kind: "circles"; circles: string[] };
 /** Who can edit a page: the keeper circle, or any resident (the Board and admins always can). */
 export type PageEdit = { kind: "keeper" } | { kind: "anyone" };
 
@@ -63,7 +66,10 @@ export interface WikiPage {
   aliases?: { circleId: string; slug: string }[];
 }
 
-export type WikiPageSummary = Pick<WikiPage, "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "keeper" | "view" | "edit"> & {
+export type WikiPageSummary = Pick<
+  WikiPage,
+  "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "color" | "keeper" | "view" | "edit"
+> & {
   /** Its opening lines, as plain text (in the page list, for cards). */
   excerpt?: string;
 };
@@ -74,16 +80,26 @@ const VERSION = 1;
 const KEY = "wiki/pages.json";
 const historyKey = (pageId: string) => `wiki/history/${pageId}.json`;
 
-const title = z.string().trim().min(1, "Give the page a title").max(120, "Titles must be 120 characters or fewer");
+const title = z
+  .string()
+  .trim()
+  .min(1, "Give the page a title")
+  .max(120, "Titles must be 120 characters or fewer");
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
 const color = z.enum(PAGE_COLORS);
 const circleIdSchema = z.string().min(1).max(80);
 export const viewSchema = z.union([
   z.object({ kind: z.literal("everyone") }),
   z.object({ kind: z.literal("keeper") }),
-  z.object({ kind: z.literal("circles"), circles: z.array(circleIdSchema).min(1, "Choose at least one circle").max(40) }),
+  z.object({
+    kind: z.literal("circles"),
+    circles: z.array(circleIdSchema).min(1, "Choose at least one circle").max(40),
+  }),
 ]);
-export const editSchema = z.union([z.object({ kind: z.literal("keeper") }), z.object({ kind: z.literal("anyone") })]);
+export const editSchema = z.union([
+  z.object({ kind: z.literal("keeper") }),
+  z.object({ kind: z.literal("anyone") }),
+]);
 export const pageInputSchema = z.object({
   title,
   body: body.default(""),
@@ -106,7 +122,10 @@ export const pageUpdateSchema = z
     view: viewSchema.optional(),
     edit: editSchema.optional(),
   })
-  .refine((value) => Object.values(value).some((entry) => entry !== undefined), "Nothing to update");
+  .refine(
+    (value) => Object.values(value).some((entry) => entry !== undefined),
+    "Nothing to update"
+  );
 export const restoreSchema = z.object({ index: z.number().int().min(0) });
 
 export const isSlug = (slug: string) => /^[a-z0-9-]{1,60}$/.test(slug);
@@ -131,7 +150,14 @@ function normalize(raw: unknown): Stored | null {
   const value = raw as Partial<Stored> | null;
   if (!value || value.version !== VERSION || !Array.isArray(value.pages)) return null;
   // Pages once nested under others (`parentId`); now they only link, so that's dropped as they're read.
-  return { version: VERSION, pages: value.pages.map((page) => ("parentId" in page ? (({ parentId: _gone, ...rest }) => rest)(page as WikiPage & { parentId?: string }) : page)) };
+  return {
+    version: VERSION,
+    pages: value.pages.map((page) =>
+      "parentId" in page
+        ? (({ parentId: _gone, ...rest }) => rest)(page as WikiPage & { parentId?: string })
+        : page
+    ),
+  };
 }
 
 /** Every page in full (the first read brings the circles' old wikis together). */
@@ -143,7 +169,9 @@ export async function readPages(): Promise<WikiPage[]> {
 
 /** Every page, most recently edited first. */
 export async function listPages(): Promise<WikiPageSummary[]> {
-  return (await readPages()).map(pageSummary).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return (await readPages())
+    .map(pageSummary)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function getPage(slug: string): Promise<WikiPage | null> {
@@ -156,12 +184,17 @@ export async function getPageById(id: string): Promise<WikiPage | null> {
 
 /** The page that was at a circle's old wiki address. */
 export async function pageAtOldAddress(circleId: string, slug: string): Promise<WikiPage | null> {
-  return (await readPages()).find((page) => page.aliases?.some((alias) => alias.circleId === circleId && alias.slug === slug)) ?? null;
+  return (
+    (await readPages()).find(
+      (page) => page.aliases?.some((alias) => alias.circleId === circleId && alias.slug === slug)
+    ) ?? null
+  );
 }
 
 /** A page's earlier versions, oldest first. */
 export async function getHistory(pageId: string): Promise<WikiVersion[]> {
-  const versions = (await readJson(historyKey(pageId)) as { versions?: unknown } | null)?.versions;
+  const versions = ((await readJson(historyKey(pageId))) as { versions?: unknown } | null)
+    ?.versions;
   return Array.isArray(versions) ? (versions as WikiVersion[]) : [];
 }
 
@@ -169,7 +202,17 @@ type Failure = "not_found" | "exists" | "full" | "no_version" | "conflict";
 export type WikiResult = { ok: true; page: WikiPage | null } | { ok: false; reason: Failure };
 
 /** Change the pages; `archive` is a version to keep in a page's history once the change is saved. */
-async function mutate(change: (pages: WikiPage[]) => { pages: WikiPage[]; page: WikiPage | null; archive?: { pageId: string; version: WikiVersion } } | Failure): Promise<WikiResult> {
+async function mutate(
+  change: (
+    pages: WikiPage[]
+  ) =>
+    | {
+        pages: WikiPage[];
+        page: WikiPage | null;
+        archive?: { pageId: string; version: WikiVersion };
+      }
+    | Failure
+): Promise<WikiResult> {
   await readPages(); // brings the old wikis over first, if that hasn't happened yet
   let archive: { pageId: string; version: WikiVersion } | undefined;
   // Several people can be saving at once (on different servers): a conditional write, retried, keeps everyone's.
@@ -179,12 +222,17 @@ async function mutate(change: (pages: WikiPage[]) => { pages: WikiPage[]; page: 
     const next = change(stored.pages);
     if (typeof next === "string") return { write: false, result: { ok: false, reason: next } };
     archive = next.archive;
-    return { value: { version: VERSION, pages: next.pages }, result: { ok: true, page: next.page } };
+    return {
+      value: { version: VERSION, pages: next.pages },
+      result: { ok: true, page: next.page },
+    };
   });
   if (result.ok && archive) {
     const { pageId, version } = archive;
     await mutateJson(historyKey(pageId), (raw) => {
-      const versions = Array.isArray((raw as { versions?: unknown } | null)?.versions) ? ((raw as { versions: WikiVersion[] }).versions) : [];
+      const versions = Array.isArray((raw as { versions?: unknown } | null)?.versions)
+        ? (raw as { versions: WikiVersion[] }).versions
+        : [];
       return { value: { versions: [...versions, version].slice(-MAX_HISTORY) }, result: null };
     });
   }
@@ -192,7 +240,13 @@ async function mutate(change: (pages: WikiPage[]) => { pages: WikiPage[]; page: 
 }
 
 export const slugFor = (text: string, taken: Set<string>) => {
-  const base = text.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "page";
+  const base =
+    text
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 50) || "page";
   let slug = base;
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
   return slug;
@@ -200,15 +254,31 @@ export const slugFor = (text: string, taken: Set<string>) => {
 
 export function createPage(
   author: WikiAuthor,
-  input: { title: string; body: string; color?: PageColor; keeper: string; view?: PageView; edit?: PageEdit }
+  input: {
+    title: string;
+    body: string;
+    color?: PageColor;
+    keeper: string;
+    view?: PageView;
+    edit?: PageEdit;
+  }
 ) {
   return mutate((pages) => {
-    if (pages.some((page) => page.title.toLowerCase() === input.title.toLowerCase())) return "exists";
+    if (pages.some((page) => page.title.toLowerCase() === input.title.toLowerCase()))
+      return "exists";
     if (pages.length >= MAX_PAGES) return "full";
     const now = new Date().toISOString();
     const page: WikiPage = {
       id: randomUUID(),
-      slug: slugFor(input.title, new Set(pages.flatMap((entry) => [entry.slug, ...(entry.aliases ?? []).map((alias) => alias.slug)]))),
+      slug: slugFor(
+        input.title,
+        new Set(
+          pages.flatMap((entry) => [
+            entry.slug,
+            ...(entry.aliases ?? []).map((alias) => alias.slug),
+          ])
+        )
+      ),
       title: input.title,
       body: input.body,
       createdAt: now,
@@ -234,16 +304,46 @@ const AUTOSAVE_WINDOW_MS = 10 * 60 * 1000;
  * or another autosave — replaces it instead, so a session of typing (alone
  * or together) is one version, not dozens.
  */
-function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; body: string }, autosave = false): { page: WikiPage; archive?: WikiVersion } {
+function withVersion(
+  page: WikiPage,
+  editor: WikiAuthor,
+  next: { title: string; body: string },
+  autosave = false
+): { page: WikiPage; archive?: WikiVersion } {
   const recent = Date.now() - Date.parse(page.updatedAt) < AUTOSAVE_WINDOW_MS;
   // Co-editing: everyone's autosaves in one session make one version.
-  if (autosave && recent && (page.updatedBy.userId === editor.userId || page.autosaved) && page.historyCount) {
-    return { page: { ...page, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, autosaved: true } };
+  if (
+    autosave &&
+    recent &&
+    (page.updatedBy.userId === editor.userId || page.autosaved) &&
+    page.historyCount
+  ) {
+    return {
+      page: {
+        ...page,
+        ...next,
+        updatedAt: new Date().toISOString(),
+        updatedBy: editor,
+        autosaved: true,
+      },
+    };
   }
   const { autosaved: _autosaved, ...rest } = page;
-  const archive: WikiVersion = { title: page.title, body: page.body, editedAt: page.updatedAt, editedBy: page.updatedBy };
+  const archive: WikiVersion = {
+    title: page.title,
+    body: page.body,
+    editedAt: page.updatedAt,
+    editedBy: page.updatedBy,
+  };
   return {
-    page: { ...rest, ...next, updatedAt: new Date().toISOString(), updatedBy: editor, historyCount: Math.min(MAX_HISTORY, page.historyCount + 1), ...(autosave ? { autosaved: true } : {}) },
+    page: {
+      ...rest,
+      ...next,
+      updatedAt: new Date().toISOString(),
+      updatedBy: editor,
+      historyCount: Math.min(MAX_HISTORY, page.historyCount + 1),
+      ...(autosave ? { autosaved: true } : {}),
+    },
     archive,
   };
 }
@@ -251,19 +351,38 @@ function withVersion(page: WikiPage, editor: WikiAuthor, next: { title: string; 
 /** Links (`[[Old]]`, `[[Circle:Old|shown]]`) and embeds (`page="Old"`) of a renamed page, pointed at its new title. */
 export function renameLinks(markdown: string, from: string, to: string) {
   const wanted = from.trim().toLowerCase();
-  const strip = (target: string) => target.slice(target.indexOf(":") + 1).trim().toLowerCase();
+  const strip = (target: string) =>
+    target
+      .slice(target.indexOf(":") + 1)
+      .trim()
+      .toLowerCase();
   return normalizeWikiLinks(markdown)
     .replace(WIKI_LINK, (match, target: string, label?: string) => {
       if (/^\s*doc\s*:/i.test(target)) return match;
       const plain = target.trim().toLowerCase();
-      return plain === wanted || strip(target) === wanted ? `[[${to}${label ? `|${label}` : ""}]]` : match;
+      return plain === wanted || strip(target) === wanted
+        ? `[[${to}${label ? `|${label}` : ""}]]`
+        : match;
     })
-    .replace(/^([ \t]*::embed\{[^}\n]*?page=")([^"\n]*)("[^}\n]*\}[ \t]*)$/gm, (match, before: string, page: string, after: string) =>
-      page.trim().toLowerCase() === wanted || strip(page) === wanted ? `${before}${to}${after}` : match
+    .replace(
+      /^([ \t]*::embed\{[^}\n]*?page=")([^"\n]*)("[^}\n]*\}[ \t]*)$/gm,
+      (match, before: string, page: string, after: string) =>
+        page.trim().toLowerCase() === wanted || strip(page) === wanted
+          ? `${before}${to}${after}`
+          : match
     );
 }
 
-type PageUpdate = { title?: string; body?: string; color?: PageColor; baseUpdatedAt?: string; autosave?: boolean; keeper?: string; view?: PageView; edit?: PageEdit };
+type PageUpdate = {
+  title?: string;
+  body?: string;
+  color?: PageColor;
+  baseUpdatedAt?: string;
+  autosave?: boolean;
+  keeper?: string;
+  view?: PageView;
+  edit?: PageEdit;
+};
 
 export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate) {
   return mutate((found) => {
@@ -286,15 +405,30 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     pages = pages.map((entry) => (entry.id === current.id ? current : entry));
     const next = { title: update.title ?? page.title, body: update.body ?? page.body };
     const renamed = next.title !== page.title;
-    if (renamed && next.title.toLowerCase() !== page.title.toLowerCase() && pages.some((entry) => entry.id !== current.id && entry.title.toLowerCase() === next.title.toLowerCase())) {
+    if (
+      renamed &&
+      next.title.toLowerCase() !== page.title.toLowerCase() &&
+      pages.some(
+        (entry) => entry.id !== current.id && entry.title.toLowerCase() === next.title.toLowerCase()
+      )
+    ) {
       return "exists";
     }
     if (!renamed && next.body === page.body) return { pages, page };
     const { page: updated, archive } = withVersion(page, editor, next, update.autosave);
     pages = pages.map((entry) => (entry.id === updated.id ? updated : entry));
     // A new title: the links to it follow.
-    if (renamed) pages = pages.map((entry) => (entry.id === updated.id ? entry : { ...entry, body: renameLinks(entry.body, current.title, next.title) }));
-    return { pages, page: updated, ...(archive ? { archive: { pageId: updated.id, version: archive } } : {}) };
+    if (renamed)
+      pages = pages.map((entry) =>
+        entry.id === updated.id
+          ? entry
+          : { ...entry, body: renameLinks(entry.body, current.title, next.title) }
+      );
+    return {
+      pages,
+      page: updated,
+      ...(archive ? { archive: { pageId: updated.id, version: archive } } : {}),
+    };
   });
 }
 
@@ -354,7 +488,10 @@ interface OldPage {
 const RENAMES: Record<string, Record<string, string>> = { om: { yurt: "Yurt maintenance" } };
 
 /** Write a document only if it isn't there yet (so a second server doing the same never overwrites newer data). */
-const createOnce = (key: string, value: unknown) => mutateJson(key, (current) => (current ? { write: false, result: null } : { value, result: null }));
+const createOnce = (key: string, value: unknown) =>
+  mutateJson(key, (current) =>
+    current ? { write: false, result: null } : { value, result: null }
+  );
 
 /**
  * Bring every circle's old wiki into the one wiki: each page kept by its old
@@ -366,7 +503,12 @@ const createOnce = (key: string, value: unknown) => mutateJson(key, (current) =>
  * document (`wiki/polls.json`). Earlier versions go to the history documents.
  */
 async function migrate(): Promise<WikiPage[]> {
-  const circles: CircleRef[] = (await readDirectory())?.circles.map((circle) => ({ id: circle.id, name: circle.name, code: circle.code ?? undefined })) ?? [];
+  const circles: CircleRef[] =
+    (await readDirectory())?.circles.map((circle) => ({
+      id: circle.id,
+      name: circle.name,
+      code: circle.code ?? undefined,
+    })) ?? [];
   const old = await Promise.all(
     circles.map(async (circle) => {
       const raw = (await readJson(`wiki/${circle.id}.json`)) as { pages?: OldPage[] } | null;
@@ -383,10 +525,14 @@ async function migrate(): Promise<WikiPage[]> {
     for (const page of [...pages].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
       let newTitle = RENAMES[circle.id]?.[page.title.toLowerCase()] ?? page.title;
       if (titles.has(newTitle.toLowerCase())) newTitle = `${newTitle} (${circle.name})`;
-      for (let n = 2; titles.has(newTitle.toLowerCase()); n++) newTitle = `${page.title} (${circle.name} ${n})`;
+      for (let n = 2; titles.has(newTitle.toLowerCase()); n++)
+        newTitle = `${page.title} (${circle.name} ${n})`;
       titles.add(newTitle.toLowerCase());
       titleFor.set(`${circle.id}|${page.title.toLowerCase()}`, newTitle);
-      let slug = newTitle !== page.title && RENAMES[circle.id]?.[page.title.toLowerCase()] ? slugFor(newTitle, slugs) : page.slug;
+      let slug =
+        newTitle !== page.title && RENAMES[circle.id]?.[page.title.toLowerCase()]
+          ? slugFor(newTitle, slugs)
+          : page.slug;
       if (slugs.has(slug)) slug = slugFor(`${page.slug}-${circle.id}`, slugs);
       slugs.add(slug);
       placed.push({ circle, page, title: newTitle, slug });
@@ -413,10 +559,13 @@ async function migrate(): Promise<WikiPage[]> {
         const next = retitle(target, circleId);
         return next ? `[[${next}${label ? `|${label}` : ""}]]` : match;
       })
-      .replace(/^([ \t]*::embed\{[^}\n]*?page=")([^"\n]*)("[^}\n]*\}[ \t]*)$/gm, (match, before: string, page: string, after: string) => {
-        const next = retitle(page, circleId);
-        return next ? `${before}${next.replace(/"/g, "")}${after}` : match;
-      });
+      .replace(
+        /^([ \t]*::embed\{[^}\n]*?page=")([^"\n]*)("[^}\n]*\}[ \t]*)$/gm,
+        (match, before: string, page: string, after: string) => {
+          const next = retitle(page, circleId);
+          return next ? `${before}${next.replace(/"/g, "")}${after}` : match;
+        }
+      );
 
   const pages: WikiPage[] = placed.map(({ circle, page, title: newTitle, slug }) => ({
     id: page.id,
@@ -437,20 +586,34 @@ async function migrate(): Promise<WikiPage[]> {
   }));
 
   // Earlier versions, comments, and polls go first; the pages document last, as the sign it's done.
-  for (const { page } of placed) if (page.history?.length) await createOnce(historyKey(page.id), { versions: page.history.slice(-MAX_HISTORY) });
+  for (const { page } of placed)
+    if (page.history?.length)
+      await createOnce(historyKey(page.id), { versions: page.history.slice(-MAX_HISTORY) });
   const ids = new Set(pages.map((page) => page.id));
   const comments = new Map<string, unknown[]>();
   const polls: unknown[] = [];
   for (const { circle } of old) {
-    const circleComments = ((await readJson(`wiki-comments/${circle.id}.json`)) as { comments?: { pageId: string }[] } | null)?.comments ?? [];
-    for (const comment of circleComments) if (ids.has(comment.pageId)) comments.set(comment.pageId, [...(comments.get(comment.pageId) ?? []), comment]);
-    const circlePolls = ((await readJson(`wiki-polls/${circle.id}.json`)) as { polls?: object[] } | null)?.polls ?? [];
+    const circleComments =
+      (
+        (await readJson(`wiki-comments/${circle.id}.json`)) as {
+          comments?: { pageId: string }[];
+        } | null
+      )?.comments ?? [];
+    for (const comment of circleComments)
+      if (ids.has(comment.pageId))
+        comments.set(comment.pageId, [...(comments.get(comment.pageId) ?? []), comment]);
+    const circlePolls =
+      ((await readJson(`wiki-polls/${circle.id}.json`)) as { polls?: object[] } | null)?.polls ??
+      [];
     polls.push(...circlePolls.map((poll) => ({ ...poll, circleId: circle.id })));
   }
-  for (const [pageId, list] of Array.from(comments.entries())) await createOnce(`wiki/comments/${pageId}.json`, { comments: list });
+  for (const [pageId, list] of Array.from(comments.entries()))
+    await createOnce(`wiki/comments/${pageId}.json`, { comments: list });
   await createOnce("wiki/polls.json", { polls });
   return mutateJson<WikiPage[]>(KEY, (current) => {
     const stored = normalize(current);
-    return stored ? { write: false, result: stored.pages } : { value: { version: VERSION, pages }, result: pages };
+    return stored
+      ? { write: false, result: stored.pages }
+      : { value: { version: VERSION, pages }, result: pages };
   });
 }

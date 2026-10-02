@@ -34,12 +34,20 @@ export async function POST(request: NextRequest) {
   if ("error" in parsed) return parsed.error;
   const { from, keeper: asked, ...input } = parsed.data;
   const source = from && !asked ? await getPageById(from) : null;
-  const keeper = asked ?? (source && canEditPage(ctx.user, ctx.directory, source) ? source.keeper : COMMUNITY_ID);
-  if (!ctx.directory.circles.some((circle) => circle.id === keeper)) return problem("Choose the circle that keeps it", 404);
+  const keeper =
+    asked ??
+    (source && canEditPage(ctx.user, ctx.directory, source) ? source.keeper : COMMUNITY_ID);
+  if (!ctx.directory.circles.some((circle) => circle.id === keeper))
+    return problem("Choose the circle that keeps it", 404);
   // Your own circles' — or, started from a page you can edit, that page's circle.
   if (!canUploadTo(ctx.user, ctx.directory, keeper) && !(source && source.keeper === keeper)) {
     return problem("You can only start pages kept by your own circles", 403);
   }
-  const result = await createPage({ userId: ctx.user.id, name: ctx.user.name }, { ...input, keeper });
-  return result.ok ? NextResponse.json({ page: result.page }, { status: 201 }) : wikiProblem(result.reason);
+  const result = await createPage(
+    { userId: ctx.user.id, name: ctx.user.name },
+    { ...input, keeper }
+  );
+  return result.ok
+    ? NextResponse.json({ page: result.page }, { status: 201 })
+    : wikiProblem(result.reason);
 }

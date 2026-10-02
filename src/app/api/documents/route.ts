@@ -4,7 +4,14 @@ import { circleContext } from "@/lib/circles/access";
 import { deleteBinary, readBinary } from "@/lib/storage";
 import { canManageDocument, canUploadTo, toListing } from "@/lib/documents/access";
 import { extractText, identifyDocument } from "@/lib/documents/files";
-import { addVersion, createDocument, documentDetailsSchema, getDocument, listDocuments, searchDocuments } from "@/lib/documents/store";
+import {
+  addVersion,
+  createDocument,
+  documentDetailsSchema,
+  getDocument,
+  listDocuments,
+  searchDocuments,
+} from "@/lib/documents/store";
 import { DocumentRecord, consentState, documentDate } from "@/lib/documents/types";
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
@@ -17,9 +24,12 @@ export const maxDuration = 60;
 
 /** How a list of documents can be ordered (search results are best match first unless one is chosen). */
 const SORTS = {
-  newest: (a: DocumentRecord, b: DocumentRecord) => documentDate(b).localeCompare(documentDate(a)) || b.createdAt.localeCompare(a.createdAt),
-  oldest: (a: DocumentRecord, b: DocumentRecord) => documentDate(a).localeCompare(documentDate(b)) || a.createdAt.localeCompare(b.createdAt),
-  title: (a: DocumentRecord, b: DocumentRecord) => a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true }),
+  newest: (a: DocumentRecord, b: DocumentRecord) =>
+    documentDate(b).localeCompare(documentDate(a)) || b.createdAt.localeCompare(a.createdAt),
+  oldest: (a: DocumentRecord, b: DocumentRecord) =>
+    documentDate(a).localeCompare(documentDate(b)) || a.createdAt.localeCompare(b.createdAt),
+  title: (a: DocumentRecord, b: DocumentRecord) =>
+    a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true }),
   updated: (a: DocumentRecord, b: DocumentRecord) => b.updatedAt.localeCompare(a.updatedAt),
 } as const;
 type Sort = keyof typeof SORTS;
@@ -49,25 +59,43 @@ export async function GET(request: NextRequest) {
 
   const inCircle = (await listDocuments()).filter((doc) => !circle || doc.circleId === circle);
   const typeOptions = Array.from(new Set(inCircle.map(label))).sort((a, b) => a.localeCompare(b));
-  const yearOptions = Array.from(new Set(inCircle.map((doc) => documentDate(doc).slice(0, 4)))).sort((a, b) => b.localeCompare(a));
+  const yearOptions = Array.from(
+    new Set(inCircle.map((doc) => documentDate(doc).slice(0, 4)))
+  ).sort((a, b) => b.localeCompare(a));
   const documents = inCircle
     .filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase())
     .filter((doc) => !year || documentDate(doc).startsWith(`${year}-`))
     .filter((doc) => !consentedOnly || consentState(doc) === "consented");
-  const circleName = (doc: DocumentRecord) => directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "";
+  const circleName = (doc: DocumentRecord) =>
+    directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "";
   const options = { typeOptions, yearOptions };
 
   if (q) {
-    const found = await searchDocuments(documents, q, (doc) => `${circleName(doc)} ${label(doc)}${consentState(doc) === "consented" ? " consented" : ""}`);
+    const found = await searchDocuments(
+      documents,
+      q,
+      (doc) =>
+        `${circleName(doc)} ${label(doc)}${consentState(doc) === "consented" ? " consented" : ""}`
+    );
     const hits = sort ? [...found].sort((a, b) => SORTS[sort](a.doc, b.doc)) : found;
     return NextResponse.json(
-      { documents: hits.slice(0, 100).map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)), total: hits.length, ...options },
+      {
+        documents: hits
+          .slice(0, 100)
+          .map((hit) => toListing(hit.doc, user, directory, types, hit.snippet)),
+        total: hits.length,
+        ...options,
+      },
       { headers: { "Cache-Control": "private, no-store" } }
     );
   }
   const sorted = [...documents].sort(SORTS[sort ?? "newest"]);
   return NextResponse.json(
-    { documents: sorted.map((doc) => toListing(doc, user, directory, types)), total: sorted.length, ...options },
+    {
+      documents: sorted.map((doc) => toListing(doc, user, directory, types)),
+      total: sorted.length,
+      ...options,
+    },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }
@@ -91,7 +119,8 @@ export async function POST(request: NextRequest) {
   const keys = Array.from({ length: count }, (_, index) => chunkKey(grant.uploadId, index));
   const cleanUp = () => Promise.all(keys.map((key) => deleteBinary(key).catch(() => undefined)));
   const pieces = await Promise.all(keys.map((key) => readBinary(key)));
-  if (pieces.some((piece) => !piece)) return problem("Part of the file didn't arrive — please upload it again");
+  if (pieces.some((piece) => !piece))
+    return problem("Part of the file didn't arrive — please upload it again");
   const bytes = new Uint8Array(grant.size);
   let offset = 0;
   for (const piece of pieces) {
@@ -106,10 +135,19 @@ export async function POST(request: NextRequest) {
   const identified = identifyDocument(bytes, grant.fileName);
   if (!identified) {
     await cleanUp();
-    return problem("That file isn't a PDF, Word, Excel, PowerPoint, text, or image file we can accept", 415);
+    return problem(
+      "That file isn't a PDF, Word, Excel, PowerPoint, text, or image file we can accept",
+      415
+    );
   }
   const text = await extractText(bytes, identified.kind);
-  const file = { bytes, fileName: grant.fileName, contentType: identified.contentType, viewable: identified.viewable, text };
+  const file = {
+    bytes,
+    fileName: grant.fileName,
+    contentType: identified.contentType,
+    viewable: identified.viewable,
+    text,
+  };
   const uploader = { userId: user.id, personId: user.personId ?? null, name: user.name };
 
   let result;
@@ -124,27 +162,48 @@ export async function POST(request: NextRequest) {
     if (!parsed.data.details) return problem("Give the document a title and type");
     if (!canUploadTo(user, directory, grant.circleId)) {
       await cleanUp();
-      return problem("Only this circle's members, the Board, and admins can add its documents", 403);
+      return problem(
+        "Only this circle's members, the Board, and admins can add its documents",
+        403
+      );
     }
-    const option = typesFor(grant.circleId, await readTypeMap()).find((entry) => entry.id === parsed.data.details!.type);
+    const option = typesFor(grant.circleId, await readTypeMap()).find(
+      (entry) => entry.id === parsed.data.details!.type
+    );
     if (!option) return problem("Choose one of this circle's document types");
-    result = await createDocument(grant.circleId, { ...parsed.data.details, typeLabel: option.label }, file, uploader);
+    result = await createDocument(
+      grant.circleId,
+      { ...parsed.data.details, typeLabel: option.label },
+      file,
+      uploader
+    );
   }
   await cleanUp();
-  if (!result.ok) return problem(result.reason === "full" ? "The document library is full" : "That document no longer exists", 409);
+  if (!result.ok)
+    return problem(
+      result.reason === "full" ? "The document library is full" : "That document no longer exists",
+      409
+    );
 
   const doc = result.value;
-  const circleName = directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "the Board";
+  const circleName =
+    directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "the Board";
   const typeName = typeLabelFor(doc, await readTypeMap());
   const kind = doc.type === "other" ? "document" : typeName.toLowerCase();
   await notify({
     topic: "documents",
-    title: grant.replaces ? `Updated in ${circleName}: ${doc.title}` : `New ${kind} in ${circleName}: ${doc.title}`,
-    body: `${user.name} ${grant.replaces ? "uploaded a new version" : "added it"}${doc.meetingDate ? ` · meeting ${doc.meetingDate}` : ""}`,
+    title: grant.replaces
+      ? `Updated in ${circleName}: ${doc.title}`
+      : `New ${kind} in ${circleName}: ${doc.title}`,
+    body: `${user.name} ${grant.replaces ? "uploaded a new version" : "added it"}${
+      doc.meetingDate ? ` · meeting ${doc.meetingDate}` : ""
+    }`,
     url: `/circles/${doc.circleId}#documents`,
     tag: `document-${doc.id}`,
     exceptUserId: user.id,
   });
-  return NextResponse.json({ document: toListing(doc, user, directory, await readTypeMap()) }, { status: grant.replaces ? 200 : 201 });
+  return NextResponse.json(
+    { document: toListing(doc, user, directory, await readTypeMap()) },
+    { status: grant.replaces ? 200 : 201 }
+  );
 }
-

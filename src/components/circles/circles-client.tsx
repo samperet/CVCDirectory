@@ -19,7 +19,13 @@ import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 /** Start a social club — or, for the Board and admins, an official circle. */
-function NewCircleForm({ onCancel, canFormCircles }: { onCancel: () => void; canFormCircles: boolean }) {
+function NewCircleForm({
+  onCancel,
+  canFormCircles,
+}: {
+  onCancel: () => void;
+  canFormCircles: boolean;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -36,12 +42,15 @@ function NewCircleForm({ onCancel, canFormCircles }: { onCancel: () => void; can
       queryClient.invalidateQueries({ queryKey: ["directory"] });
       router.push(`/circles/${circle.id}`);
     },
-    onError: (err: Error) => toast({ title: "Could not create circle", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not create circle", description: err.message, variant: "destructive" }),
   });
 
   return (
     <Card className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold text-foreground">{canFormCircles ? "Start a circle or club" : "Start a social club"}</h2>
+      <h2 className="text-lg font-semibold text-foreground">
+        {canFormCircles ? "Start a circle or club" : "Start a social club"}
+      </h2>
       {canFormCircles ? (
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Kind">
           {(
@@ -52,9 +61,17 @@ function NewCircleForm({ onCancel, canFormCircles }: { onCancel: () => void; can
           ).map(([value, label]) => (
             <label
               key={value}
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm ${kind === value ? "border-primary ring-1 ring-primary" : "border-border"}`}
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm ${
+                kind === value ? "border-primary ring-1 ring-primary" : "border-border"
+              }`}
             >
-              <input type="radio" name="kind" checked={kind === value} onChange={() => setKind(value)} className="h-4 w-4 accent-primary" />
+              <input
+                type="radio"
+                name="kind"
+                checked={kind === value}
+                onChange={() => setKind(value)}
+                className="h-4 w-4 accent-primary"
+              />
               {label}
             </label>
           ))}
@@ -76,9 +93,14 @@ function NewCircleForm({ onCancel, canFormCircles }: { onCancel: () => void; can
         onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
         className="bg-white"
       />
-      <p className="text-xs text-muted">You&apos;ll be its first member, and can add others from its page.</p>
+      <p className="text-xs text-muted">
+        You&apos;ll be its first member, and can add others from its page.
+      </p>
       <div className="flex gap-2">
-        <Button onClick={() => create.mutate()} disabled={create.isPending || form.name.trim().length < 2}>
+        <Button
+          onClick={() => create.mutate()}
+          disabled={create.isPending || form.name.trim().length < 2}
+        >
           {create.isPending ? "Creating…" : "Create circle"}
         </Button>
         <Button variant="outline" onClick={onCancel}>
@@ -96,13 +118,18 @@ function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Pe
     <Card className="relative flex h-full items-start gap-4 p-5 transition focus-within:ring-2 focus-within:ring-primary hover:ring-2 hover:ring-primary">
       <CircleIcon circle={circle} size={56} />
       <div className="min-w-0 flex-1 pr-8">
-        <Link href={`/circles/${circle.id}`} className="after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none">
+        <Link
+          href={`/circles/${circle.id}`}
+          className="after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none"
+        >
           <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
         </Link>
         <p className="text-xs text-muted">
           {members} {members === 1 ? "member" : "members"}
         </p>
-        {circle.description ? <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p> : null}
+        {circle.description ? (
+          <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p>
+        ) : null}
       </div>
       <EmailCircleButton circle={circle} people={people} className="absolute right-3 top-3 z-10" />
     </Card>
@@ -112,13 +139,18 @@ function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Pe
 /** The Community circle — everyone at CVC — across the top of the page at double width. */
 function CommunityCard({ circle }: { circle: Circle }) {
   return (
-    <Link href={`/circles/${circle.id}`} className="block rounded-2xl transition hover:ring-2 hover:ring-primary md:col-span-2">
+    <Link
+      href={`/circles/${circle.id}`}
+      className="block rounded-2xl transition hover:ring-2 hover:ring-primary md:col-span-2"
+    >
       <Card className="flex h-full items-center gap-5 border-primary/40 bg-accent/60 p-6">
         <CircleIcon circle={circle} size={88} />
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold text-foreground">{circle.name}</h2>
           <p className="text-xs font-medium text-muted">Everyone at CVC</p>
-          {circle.description ? <p className="mt-1 text-sm text-foreground-light">{circle.description}</p> : null}
+          {circle.description ? (
+            <p className="mt-1 text-sm text-foreground-light">{circle.description}</p>
+          ) : null}
         </div>
       </Card>
     </Link>
@@ -160,7 +192,9 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
       <>
         {top()}
         <Card>
-          <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "Circles are unavailable."}</p>
+          <p className="text-sm text-foreground">
+            {(error as Error | null)?.message ?? "Circles are unavailable."}
+          </p>
         </Card>
       </>
     );
@@ -179,12 +213,15 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
       {top(
         creating ? null : (
           <Button className="gap-1" onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> {canFormCircles ? "Start a circle or club" : "Start a social club"}
+            <Plus className="h-4 w-4" />{" "}
+            {canFormCircles ? "Start a circle or club" : "Start a social club"}
           </Button>
         )
       )}
       <div className="flex flex-col gap-4">
-        {creating ? <NewCircleForm canFormCircles={canFormCircles} onCancel={() => setCreating(false)} /> : null}
+        {creating ? (
+          <NewCircleForm canFormCircles={canFormCircles} onCancel={() => setCreating(false)} />
+        ) : null}
         {community ? (
           <div className="grid gap-4 md:grid-cols-2">
             <CommunityCard circle={community} />

@@ -42,14 +42,19 @@ export function setUpPwa() {
 
 export const isStandalone = () =>
   typeof window !== "undefined" &&
-  (window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+  (window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true);
 
 export const isIos = () =>
   typeof navigator !== "undefined" &&
-  (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
 export const pushSupported = () =>
-  typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  typeof window !== "undefined" &&
+  "serviceWorker" in navigator &&
+  "PushManager" in window &&
+  "Notification" in window;
 
 /** Whether the app can be installed right now (and how). */
 export function useInstall() {
@@ -81,7 +86,9 @@ export function useInstall() {
 }
 
 function keyBytes(base64: string) {
-  const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4))
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
   const raw = atob(padded);
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 }
@@ -90,7 +97,11 @@ type PushInfo = { publicKey: string; preferences: Preferences; topics: Record<To
 
 /** Notifications on this device: whether they're on, and turning them on or off. */
 export function usePush() {
-  const info = useQuery({ queryKey: ["push"], queryFn: () => apiFetch<PushInfo>("/api/push"), staleTime: 5 * 60_000 });
+  const info = useQuery({
+    queryKey: ["push"],
+    queryFn: () => apiFetch<PushInfo>("/api/push"),
+    staleTime: 5 * 60_000,
+  });
   const [state, setState] = useState<{
     supported: boolean;
     permission: NotificationPermission | "unsupported";
@@ -106,7 +117,12 @@ export function usePush() {
     }
     const registration = await navigator.serviceWorker.getRegistration();
     const subscription = await registration?.pushManager.getSubscription();
-    setState({ supported: true, permission: Notification.permission, subscribed: !!subscription, ready: true });
+    setState({
+      supported: true,
+      permission: Notification.permission,
+      subscribed: !!subscription,
+      ready: true,
+    });
   }, []);
 
   useEffect(() => {
@@ -119,7 +135,10 @@ export function usePush() {
     try {
       if (!pushSupported()) throw new Error("This browser can't receive notifications.");
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") throw new Error("Notifications are blocked — allow them for this site in your browser's settings.");
+      if (permission !== "granted")
+        throw new Error(
+          "Notifications are blocked — allow them for this site in your browser's settings."
+        );
       const publicKey = info.data?.publicKey ?? (await apiFetch<PushInfo>("/api/push")).publicKey;
       const registration = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
@@ -127,13 +146,21 @@ export function usePush() {
       let subscription = existing;
       if (!subscription) {
         try {
-          subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: keyBytes(publicKey),
+          });
         } catch {
           // e.g. a private window, or a browser with its push service turned off.
-          throw new Error("Your browser couldn't sign up for notifications. If this is a private window, try a regular one.");
+          throw new Error(
+            "Your browser couldn't sign up for notifications. If this is a private window, try a regular one."
+          );
         }
       }
-      await apiFetch("/api/push/subscriptions", { method: "POST", body: JSON.stringify(subscription.toJSON()) });
+      await apiFetch("/api/push/subscriptions", {
+        method: "POST",
+        body: JSON.stringify(subscription.toJSON()),
+      });
     } finally {
       setBusy(false);
       await refresh();
@@ -146,7 +173,10 @@ export function usePush() {
       const registration = await navigator.serviceWorker.getRegistration();
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
-        await apiFetch("/api/push/subscriptions", { method: "DELETE", body: JSON.stringify({ endpoint: subscription.endpoint }) }).catch(() => undefined);
+        await apiFetch("/api/push/subscriptions", {
+          method: "DELETE",
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        }).catch(() => undefined);
         await subscription.unsubscribe();
       }
     } finally {

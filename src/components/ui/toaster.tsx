@@ -12,7 +12,8 @@ export function Toaster() {
           key={toast.id}
           className={cn(
             "pointer-events-auto w-full max-w-sm rounded-xl border border-border bg-background p-4 shadow-soft",
-            toast.variant === "destructive" && "border-destructive bg-destructive text-destructive-foreground"
+            toast.variant === "destructive" &&
+              "border-destructive bg-destructive text-destructive-foreground"
           )}
         >
           <div className="flex items-start justify-between gap-3">

@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const ctx = await homesManager();
   if ("error" in ctx) return ctx.error;
-  return NextResponse.json({ homes: await listHomes() }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { homes: await listHomes() },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /** List a home for sale (admins and the Board). */
@@ -19,5 +22,7 @@ export async function POST(request: NextRequest) {
   const parsed = await readBody(request, homeInputSchema);
   if ("error" in parsed) return parsed.error;
   const result = await createHome(parsed.data, ctx.user.name);
-  return result.ok ? NextResponse.json({ home: result.home }, { status: 201 }) : problem("There are too many listings — remove sold ones first", 409);
+  return result.ok
+    ? NextResponse.json({ home: result.home }, { status: 201 })
+    : problem("There are too many listings — remove sold ones first", 409);
 }

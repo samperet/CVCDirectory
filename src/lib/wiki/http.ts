@@ -23,15 +23,23 @@ export async function wikiSession(): Promise<{ error: NextResponse } | Session> 
   return { user: ctx.user, directory: ctx.directory, imported: ctx.imported };
 }
 
-export async function pageContext(slug: string, need: "view" | "edit" | "manage" = "view"): Promise<{ error: NextResponse } | PageSession> {
+export async function pageContext(
+  slug: string,
+  need: "view" | "edit" | "manage" = "view"
+): Promise<{ error: NextResponse } | PageSession> {
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx;
   const page: WikiPage | null = isSlug(slug) ? await getPage(slug) : null;
-  if (!page || !canViewPage(ctx.user, ctx.directory, page)) return { error: wikiProblem("not_found") };
+  if (!page || !canViewPage(ctx.user, ctx.directory, page))
+    return { error: wikiProblem("not_found") };
   const canEdit = canEditPage(ctx.user, ctx.directory, page);
   const canManage = canManagePage(ctx.user, ctx.directory, page);
-  if (need === "edit" && !canEdit) return { error: problem("Only those this page is open to can edit it", 403) };
-  if (need === "manage" && !canManage) return { error: problem("Only the circle that keeps this page (or the Board) can change that", 403) };
+  if (need === "edit" && !canEdit)
+    return { error: problem("Only those this page is open to can edit it", 403) };
+  if (need === "manage" && !canManage)
+    return {
+      error: problem("Only the circle that keeps this page (or the Board) can change that", 403),
+    };
   return { ...ctx, page, canEdit, canManage };
 }
 
@@ -51,11 +59,19 @@ export function wikiProblem(reason: "not_found" | "exists" | "full" | "no_versio
 }
 
 /** Who should hear about a page: everyone (null), or — for a page not everyone can see — those who can. */
-export async function pageAudience(directory: DirectoryDocument, page: Pick<WikiPage, "keeper" | "view">): Promise<string[] | null> {
+export async function pageAudience(
+  directory: DirectoryDocument,
+  page: Pick<WikiPage, "keeper" | "view">
+): Promise<string[] | null> {
   if (page.view.kind === "everyone" || isCommunity(page.keeper)) return null;
-  const circles = new Set([page.keeper, BOARD_ID, ...(page.view.kind === "circles" ? page.view.circles : [])]);
+  const circles = new Set([
+    page.keeper,
+    BOARD_ID,
+    ...(page.view.kind === "circles" ? page.view.circles : []),
+  ]);
   if (circles.has(COMMUNITY_ID)) return null;
-  const people = directory.circles.filter((circle) => circles.has(circle.id)).flatMap((circle) => circle.seats.map((seat) => seat.personId));
+  const people = directory.circles
+    .filter((circle) => circles.has(circle.id))
+    .flatMap((circle) => circle.seats.map((seat) => seat.personId));
   return userIdsForPeople(people);
 }
-

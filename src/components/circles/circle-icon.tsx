@@ -16,17 +16,41 @@ export function circleInitials(name: string) {
 }
 
 /** A circle's uploaded icon, or its initials when it has none. */
-export function CircleIcon({ circle, size = 40, className }: { circle: Pick<Circle, "name" | "iconUrl">; size?: number; className?: string }) {
+export function CircleIcon({
+  circle,
+  size = 40,
+  className,
+}: {
+  circle: Pick<Circle, "name" | "iconUrl">;
+  size?: number;
+  className?: string;
+}) {
   if (circle.iconUrl) {
     // eslint-disable-next-line @next/next/no-img-element -- private, session-gated image
-    return <img src={circle.iconUrl} alt="" width={size} height={size} style={{ width: size, height: size }} className={cn("shrink-0 rounded-lg object-cover", className)} />;
+    return (
+      <img
+        src={circle.iconUrl}
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className={cn("shrink-0 rounded-lg object-cover", className)}
+      />
+    );
   }
   const initials = circleInitials(circle.name);
   return (
     <span
       aria-hidden
-      style={{ width: size, height: size, fontSize: Math.max(8, Math.round(size / (initials.length > 2 ? 3.4 : 2.6))) }}
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg bg-primary/25 font-bold text-secondary-foreground", className)}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(8, Math.round(size / (initials.length > 2 ? 3.4 : 2.6))),
+      }}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-lg bg-primary/25 font-bold text-secondary-foreground",
+        className
+      )}
     >
       {initials}
     </span>

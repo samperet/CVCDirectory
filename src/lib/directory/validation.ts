@@ -36,7 +36,11 @@ const carshedSchema = z.object({
   row: z.enum(["northern", "western"]),
   slot: z.string().trim().min(1).max(40),
   unit: z.number().int().min(1).max(999),
-  occupants: z.array(z.object({ personId: z.string().max(64).nullable(), name: z.string().trim().min(1).max(200) })).max(10),
+  occupants: z
+    .array(
+      z.object({ personId: z.string().max(64).nullable(), name: z.string().trim().min(1).max(200) })
+    )
+    .max(10),
 });
 
 export const directoryDocumentSchema = z
@@ -64,6 +68,9 @@ export const directoryDocumentSchema = z
     ].filter((id): id is string => id !== null);
     const dangling = refs.filter((id) => !ids.has(id));
     if (dangling.length) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${dangling.length} reference(s) to unknown people` });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${dangling.length} reference(s) to unknown people`,
+      });
     }
   });

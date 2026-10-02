@@ -9,7 +9,11 @@ import { ToastProvider } from "@/components/ui/use-toast";
 import { sessionPayload } from "@/lib/auth/me";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display", axes: ["SOFT", "opsz"] });
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  axes: ["SOFT", "opsz"],
+});
 
 export const metadata: Metadata = {
   title: "CVC Directory",

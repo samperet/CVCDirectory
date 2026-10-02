@@ -3,7 +3,12 @@ import { isDurable, isPersistent, readJson } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
-const R2_VARIABLES = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"] as const;
+const R2_VARIABLES = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
 
 /**
  * Storage health. Performs a real read first — durability only reflects a
@@ -17,7 +22,9 @@ export async function GET() {
   if (!configured) {
     // Private runtime logs only: which expected variable names are present and
     // non-empty. Presence booleans for fixed names — nothing derived from values.
-    const present = R2_VARIABLES.map((name) => `${name}=${process.env[name]?.trim() ? "set" : "MISSING"}`);
+    const present = R2_VARIABLES.map(
+      (name) => `${name}=${process.env[name]?.trim() ? "set" : "MISSING"}`
+    );
     console.warn(`[health] R2 not configured: ${present.join(" ")}`);
   }
   return NextResponse.json({ storage: { configured, durable } }, { status: durable ? 200 : 503 });

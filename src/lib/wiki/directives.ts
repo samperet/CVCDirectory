@@ -22,7 +22,8 @@ interface Node {
   data?: Record<string, unknown>;
 }
 
-const textOf = (node: Node): string => (node.value ?? "") + (node.children ?? []).map(textOf).join("");
+const textOf = (node: Node): string =>
+  (node.value ?? "") + (node.children ?? []).map(textOf).join("");
 
 /** A details block's title: its `title` attribute, or its [label]. */
 export function detailsTitle(node: Node) {
@@ -39,7 +40,14 @@ function transform(node: Node): Node[] {
       {
         type: "details",
         data: { hName: "details" },
-        children: [{ type: "detailsSummary", data: { hName: "summary" }, children: [{ type: "text", value: title }] }, ...body],
+        children: [
+          {
+            type: "detailsSummary",
+            data: { hName: "summary" },
+            children: [{ type: "text", value: title }],
+          },
+          ...body,
+        ],
       },
     ];
   }
@@ -48,11 +56,24 @@ function transform(node: Node): Node[] {
     return [{ type: "text", value: `:${node.name}${label}` }];
   }
   if (node.type === "leafDirective" && node.name === "poll" && node.attributes?.id) {
-    return [{ type: "wikiPoll", data: { hName: "div", hProperties: { dataPoll: node.attributes.id } } }];
+    return [
+      { type: "wikiPoll", data: { hName: "div", hProperties: { dataPoll: node.attributes.id } } },
+    ];
   }
   if (node.type === "leafDirective" && node.name === "embed" && node.attributes?.page) {
     const section = node.attributes.section?.trim();
-    return [{ type: "wikiEmbed", data: { hName: "div", hProperties: { dataEmbed: node.attributes.page, ...(section ? { dataSection: section } : {}) } } }];
+    return [
+      {
+        type: "wikiEmbed",
+        data: {
+          hName: "div",
+          hProperties: {
+            dataEmbed: node.attributes.page,
+            ...(section ? { dataSection: section } : {}),
+          },
+        },
+      },
+    ];
   }
   if (node.type === "leafDirective") {
     const label = node.children?.length ? `[${node.children.map(textOf).join("")}]` : "";

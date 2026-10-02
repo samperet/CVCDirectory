@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteTask, getTask, taskUpdateSchema, updateTask, type TaskUpdate } from "@/lib/tasks/store";
+import {
+  deleteTask,
+  getTask,
+  taskUpdateSchema,
+  updateTask,
+  type TaskUpdate,
+} from "@/lib/tasks/store";
 import { deleteCommentsForTask } from "@/lib/tasks/comments";
 import { parseNumber, personName, taskProblem, tasksContext } from "@/lib/tasks/http";
 import type { Task } from "@/lib/tasks/shared";
@@ -18,7 +24,10 @@ export async function GET(_request: Request, { params }: Params) {
   const number = parseNumber(params.number);
   const task = number ? await getTask(params.id, number) : null;
   if (!task) return taskProblem("not_found");
-  return NextResponse.json({ task, canEdit: ctx.ownTask(task), canAdd: ctx.canAdd, enabled: ctx.enabled }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { task, canEdit: ctx.ownTask(task), canAdd: ctx.canAdd, enabled: ctx.enabled },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /**
@@ -43,10 +52,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const fields = Object.keys(update);
     const isOwner = !!me && task.ownerId === me;
     const claiming = fields.length === 1 && update.ownerId === me && !!me && !task.ownerId;
-    const movingAlong = isOwner && fields.every((field) => field === "status" || field === "toggle" || (field === "ownerId" && update.ownerId === null));
+    const movingAlong =
+      isOwner &&
+      fields.every(
+        (field) =>
+          field === "status" ||
+          field === "toggle" ||
+          (field === "ownerId" && update.ownerId === null)
+      );
     return claiming || movingAlong;
   };
-  const result = await updateTask(params.id, number, { name: ctx.user.name }, parsed.data, ownerName, allowed);
+  const result = await updateTask(
+    params.id,
+    number,
+    { name: ctx.user.name },
+    parsed.data,
+    ownerName,
+    allowed
+  );
   if (!result.ok) return taskProblem(result.reason);
   const task = result.task!;
   const before = result.before!;

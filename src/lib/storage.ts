@@ -11,7 +11,12 @@ import path from "path";
  * credentials — with the caveat that fallback data is ephemeral.
  */
 
-const R2_ENV_KEYS = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"] as const;
+const R2_ENV_KEYS = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
 
 export interface R2Config {
   accountId: string;
@@ -23,7 +28,13 @@ export interface R2Config {
 /** Field aliases accepted inside a combined R2 variable. */
 const FIELD_ALIASES: Record<keyof R2Config, string[]> = {
   accountId: ["r2_account_id", "accountid", "account_id", "account", "cf_account_id"],
-  accessKeyId: ["r2_access_key_id", "accesskeyid", "access_key_id", "access_key", "aws_access_key_id"],
+  accessKeyId: [
+    "r2_access_key_id",
+    "accesskeyid",
+    "access_key_id",
+    "access_key",
+    "aws_access_key_id",
+  ],
   secretAccessKey: [
     "r2_secret_access_key",
     "secretaccesskey",
@@ -99,7 +110,10 @@ function parseCombined(raw: string): Record<string, string> {
     const eq = line.indexOf("=");
     if (eq === -1) continue;
     const key = line.slice(0, eq).trim().toLowerCase();
-    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    const value = line
+      .slice(eq + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
     if (key && value) pairs[key] = value;
   }
   return pairs;
@@ -115,7 +129,8 @@ function fromCombined(raw: string): R2Config | null {
   };
 
   const endpoint = pairs["endpoint"] ?? pairs["r2_endpoint"] ?? pairs["url"];
-  const accountId = pick("accountId") ?? (endpoint ? accountIdFromEndpoint(endpoint) ?? undefined : undefined);
+  const accountId =
+    pick("accountId") ?? (endpoint ? accountIdFromEndpoint(endpoint) ?? undefined : undefined);
   const bucket = pick("bucket");
 
   const first = (aliases: string[]) => aliases.map((alias) => pairs[alias]).find(Boolean);
@@ -343,7 +358,14 @@ async function writeBinaryToR2(key: string, object: BinaryObject): Promise<void>
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const config = r2Config()!;
   const client = await getS3Client();
-  await client.send(new PutObjectCommand({ Bucket: config.bucket, Key: key, Body: object.bytes, ContentType: object.contentType }));
+  await client.send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+      Body: object.bytes,
+      ContentType: object.contentType,
+    })
+  );
 }
 
 // Local fallback keeps the content type in a sidecar file.
@@ -427,7 +449,10 @@ export function enqueue<T>(key: string, task: () => Promise<T>): Promise<T> {
  * otherwise. `change` returns the new value and a result, or just a result
  * (`write: false`) to leave the document as it is.
  */
-export function mutateJson<T>(key: string, change: (current: unknown | null) => { value: unknown; result: T } | { write: false; result: T }): Promise<T> {
+export function mutateJson<T>(
+  key: string,
+  change: (current: unknown | null) => { value: unknown; result: T } | { write: false; result: T }
+): Promise<T> {
   return enqueue(key, async () => {
     if (isPersistent() && !conditionalUnsupported) {
       try {
@@ -436,13 +461,19 @@ export function mutateJson<T>(key: string, change: (current: unknown | null) => 
           const next = change(current);
           if (!("value" in next)) return next.result;
           if (await writeJsonIfUnchanged(key, next.value, etag)) return next.result;
-          await new Promise((resolve) => setTimeout(resolve, 40 + Math.random() * 120 * (attempt + 1)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 40 + Math.random() * 120 * (attempt + 1))
+          );
         }
         throw new Error("This was being changed by several people at once; try again");
       } catch (error) {
         if ((error as Error).message?.startsWith("This was being changed")) throw error;
         // Anything else: carry on below with a plain read and write (which falls back only if R2 itself is down).
-        console.warn(`[r2] conditional update of ${key} failed (${(error as { name?: string }).name ?? "Error"}); writing plainly`);
+        console.warn(
+          `[r2] conditional update of ${key} failed (${
+            (error as { name?: string }).name ?? "Error"
+          }); writing plainly`
+        );
       }
     }
     const next = change(await readJson(key));
@@ -453,7 +484,9 @@ export function mutateJson<T>(key: string, change: (current: unknown | null) => 
 
 let conditionalUnsupported = false;
 
-async function readJsonWithEtag(key: string): Promise<{ value: unknown | null; etag: string | null }> {
+async function readJsonWithEtag(
+  key: string
+): Promise<{ value: unknown | null; etag: string | null }> {
   const { GetObjectCommand } = await import("@aws-sdk/client-s3");
   const config = r2Config()!;
   const client = await getS3Client();
@@ -469,7 +502,11 @@ async function readJsonWithEtag(key: string): Promise<{ value: unknown | null; e
 }
 
 /** Write only if the document is still the version read (or still absent); false if someone else got there first. */
-async function writeJsonIfUnchanged(key: string, value: unknown, etag: string | null): Promise<boolean> {
+async function writeJsonIfUnchanged(
+  key: string,
+  value: unknown,
+  etag: string | null
+): Promise<boolean> {
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const config = r2Config()!;
   const client = await getS3Client();
@@ -487,7 +524,13 @@ async function writeJsonIfUnchanged(key: string, value: unknown, etag: string | 
   } catch (error) {
     const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
     const status = err.$metadata?.httpStatusCode;
-    if (status === 412 || err.name === "PreconditionFailed" || status === 409 || err.name === "ConditionalRequestConflict") return false;
+    if (
+      status === 412 ||
+      err.name === "PreconditionFailed" ||
+      status === 409 ||
+      err.name === "ConditionalRequestConflict"
+    )
+      return false;
     if (status === 501 || status === 400 || err.name === "NotImplemented") {
       // A store without conditional writes: fall back to plain writes (one instance's queue still applies).
       conditionalUnsupported = true;
@@ -528,5 +571,7 @@ export async function presignedDownloadUrl(
 /** `attachment; filename="minutes.pdf"; filename*=UTF-8''minutes.pdf`, safe for any file name. */
 export function contentDisposition(fileName: string, inline: boolean) {
   const ascii = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
-  return `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+  return `${
+    inline ? "inline" : "attachment"
+  }; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }

@@ -7,16 +7,25 @@ import { useQuery } from "@tanstack/react-query";
 import { Box, Map as MapIcon, Network, SlidersHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/wiki/graph";
-import { EDGE_INFO, KIND_INFO, NodePanel, circleColors, nodeFill } from "@/components/wiki/map-shared";
+import {
+  EDGE_INFO,
+  KIND_INFO,
+  NodePanel,
+  circleColors,
+  nodeFill,
+} from "@/components/wiki/map-shared";
 import { IslandsView, type IslandsHandle } from "@/components/wiki/map-islands";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 // The 3D view (three.js) loads only when it's chosen.
-const Globe3DView = dynamic(() => import("@/components/wiki/map-3d").then((module) => module.Globe3DView), {
-  ssr: false,
-  loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
-});
+const Globe3DView = dynamic(
+  () => import("@/components/wiki/map-3d").then((module) => module.Globe3DView),
+  {
+    ssr: false,
+    loading: () => <div className="h-[60vh] animate-pulse rounded-2xl bg-[#0f1d18]" />,
+  }
+);
 
 const KINDS = new Set<GraphNodeKind>(["page"]);
 
@@ -30,10 +39,15 @@ export function WikiMapClient() {
   const router = useRouter();
   const params = useSearchParams();
   const islands = useRef<IslandsHandle>(null);
-  const { data, error, isLoading } = useQuery({ queryKey: ["wiki-graph"], queryFn: () => apiFetch<WikiGraph>("/api/wiki/graph") });
+  const { data, error, isLoading } = useQuery({
+    queryKey: ["wiki-graph"],
+    queryFn: () => apiFetch<WikiGraph>("/api/wiki/graph"),
+  });
   const [view, setView] = useState<"islands" | "3d">("islands");
   const kinds = KINDS;
-  const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(() => new Set<GraphEdgeKind>(["link"]));
+  const [edgeKinds, setEdgeKinds] = useState<Set<GraphEdgeKind>>(
+    () => new Set<GraphEdgeKind>(["link"])
+  );
   // The item whose panel is open, and whether its connections are lit.
   const [selected, setSelected] = useState<string | null>(params.get("focus"));
   const [connections, setConnections] = useState(false);
@@ -42,7 +56,8 @@ export function WikiMapClient() {
   const colors = useMemo(() => (data ? circleColors(data) : new Map<string, string>()), [data]);
 
   // Arriving with ?circle= or ?focus=: zoom there once the map is drawn.
-  const start = params.get("focus") ?? (params.get("circle") ? `circle:${params.get("circle")}` : null);
+  const start =
+    params.get("focus") ?? (params.get("circle") ? `circle:${params.get("circle")}` : null);
   useEffect(() => {
     if (!data || !start) return;
     const timer = setTimeout(() => islands.current?.zoomTo(start), 300);
@@ -62,7 +77,9 @@ export function WikiMapClient() {
   });
   const matches = useMemo(() => {
     const wanted = find.trim().toLowerCase();
-    return wanted && data ? data.nodes.filter((node) => node.label.toLowerCase().includes(wanted)).slice(0, 8) : [];
+    return wanted && data
+      ? data.nodes.filter((node) => node.label.toLowerCase().includes(wanted)).slice(0, 8)
+      : [];
   }, [find, data]);
   const chosen = data?.nodes.find((node) => node.id === selected);
   const toggle = <T,>(set: Set<T>, value: T) => {
@@ -73,7 +90,9 @@ export function WikiMapClient() {
   };
   const counts = useMemo(() => {
     const byCircle = new Map<string, number>();
-    for (const node of data?.nodes ?? []) if (node.kind === "page" && node.circleId) byCircle.set(node.circleId, (byCircle.get(node.circleId) ?? 0) + 1);
+    for (const node of data?.nodes ?? [])
+      if (node.kind === "page" && node.circleId)
+        byCircle.set(node.circleId, (byCircle.get(node.circleId) ?? 0) + 1);
     return byCircle;
   }, [data]);
 
@@ -85,10 +104,17 @@ export function WikiMapClient() {
           <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
             <Network className="h-5 w-5 text-primary" aria-hidden /> Map
           </h2>
-          <p className="text-sm text-muted">The wiki&apos;s pages (those you can see) by parent circle, and how they link to each other.</p>
+          <p className="text-sm text-muted">
+            The wiki&apos;s pages (those you can see) by parent circle, and how they link to each
+            other.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm" role="radiogroup" aria-label="View">
+          <div
+            className="inline-flex rounded-full border border-border bg-surface p-0.5 text-sm"
+            role="radiogroup"
+            aria-label="View"
+          >
             {(
               [
                 ["islands", "Islands", MapIcon],
@@ -101,7 +127,12 @@ export function WikiMapClient() {
                 role="radio"
                 aria-checked={view === value}
                 onClick={() => setView(value)}
-                className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition", view === value ? "bg-primary text-primary-foreground shadow-soft" : "text-muted hover:text-foreground")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition",
+                  view === value
+                    ? "bg-primary text-primary-foreground shadow-soft"
+                    : "text-muted hover:text-foreground"
+                )}
               >
                 <Icon className="h-4 w-4" /> {label}
               </button>
@@ -131,9 +162,15 @@ export function WikiMapClient() {
                     className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm text-foreground hover:bg-accent"
                     title={`Show ${circle.name}`}
                   >
-                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors.get(circle.id) }} aria-hidden />
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: colors.get(circle.id) }}
+                      aria-hidden
+                    />
                     <span className="min-w-0 flex-1 truncate">{circle.name}</span>
-                    <span className="text-xs tabular-nums text-muted">{counts.get(circle.id) ?? 0}</span>
+                    <span className="text-xs tabular-nums text-muted">
+                      {counts.get(circle.id) ?? 0}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -144,7 +181,15 @@ export function WikiMapClient() {
             <label htmlFor="map-find" className="text-sm font-semibold text-foreground">
               Find
             </label>
-            <input id="map-find" type="text" inputMode="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder="A page or circle…" className="h-10 rounded-lg border border-border bg-white px-3 text-sm" />
+            <input
+              id="map-find"
+              type="text"
+              inputMode="search"
+              value={find}
+              onChange={(event) => setFind(event.target.value)}
+              placeholder="A page or circle…"
+              className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+            />
             {matches.length ? (
               <ul className="absolute inset-x-0 top-full z-20 mt-1 flex flex-col rounded-lg border border-border bg-surface p-1 shadow-elev">
                 {matches.map((node) => (
@@ -157,7 +202,16 @@ export function WikiMapClient() {
                       }}
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                     >
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: node.kind === "circle" ? colors.get(node.circleId ?? "") : nodeFill(node) }} aria-hidden />
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor:
+                            node.kind === "circle"
+                              ? colors.get(node.circleId ?? "")
+                              : nodeFill(node),
+                        }}
+                        aria-hidden
+                      />
                       <span className="truncate">{node.label}</span>
                     </button>
                   </li>
@@ -170,9 +224,22 @@ export function WikiMapClient() {
             <legend className="mb-1 text-sm font-semibold text-foreground">Connections</legend>
             {(["link"] as const).map((kind) => (
               <label key={kind} className={check}>
-                <input type="checkbox" checked={edgeKinds.has(kind)} onChange={() => setEdgeKinds(toggle(edgeKinds, kind))} className="h-4 w-4 accent-[#3f7d5c]" />
+                <input
+                  type="checkbox"
+                  checked={edgeKinds.has(kind)}
+                  onChange={() => setEdgeKinds(toggle(edgeKinds, kind))}
+                  className="h-4 w-4 accent-[#3f7d5c]"
+                />
                 <svg width="22" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="22" y2="3" stroke={EDGE_INFO[kind].color} strokeWidth={2} strokeDasharray={EDGE_INFO[kind].dash} />
+                  <line
+                    x1="0"
+                    y1="3"
+                    x2="22"
+                    y2="3"
+                    stroke={EDGE_INFO[kind].color}
+                    strokeWidth={2}
+                    strokeDasharray={EDGE_INFO[kind].dash}
+                  />
                 </svg>
                 {EDGE_INFO[kind].label}
               </label>
@@ -190,9 +257,24 @@ export function WikiMapClient() {
           ) : data && data.nodes.length ? (
             <div className="relative">
               {view === "islands" ? (
-                <IslandsView ref={islands} graph={data} colors={colors} kinds={kinds} edgeKinds={edgeKinds} selected={selected} connections={connections} onSelect={(id) => select(id)} />
+                <IslandsView
+                  ref={islands}
+                  graph={data}
+                  colors={colors}
+                  kinds={kinds}
+                  edgeKinds={edgeKinds}
+                  selected={selected}
+                  connections={connections}
+                  onSelect={(id) => select(id)}
+                />
               ) : (
-                <Globe3DView graph={data} colors={colors} kinds={kinds} edgeKinds={edgeKinds} onSelect={(id) => select(id)} />
+                <Globe3DView
+                  graph={data}
+                  colors={colors}
+                  kinds={kinds}
+                  edgeKinds={edgeKinds}
+                  onSelect={(id) => select(id)}
+                />
               )}
               {chosen ? (
                 // Docked on the right on wider screens; a sheet along the bottom on phones.
@@ -204,7 +286,9 @@ export function WikiMapClient() {
                     connections={connections}
                     onSelect={(id) => select(id, true)}
                     onOpen={open}
-                    onZoom={view === "islands" ? () => islands.current?.zoomTo(chosen.id) : undefined}
+                    onZoom={
+                      view === "islands" ? () => islands.current?.zoomTo(chosen.id) : undefined
+                    }
                     onToggleConnections={() => setConnections(!connections)}
                     onClose={() => select(null)}
                   />
@@ -217,7 +301,9 @@ export function WikiMapClient() {
             </Card>
           )}
           <p className="mt-2 text-xs text-muted">
-            {view === "islands" ? "Scroll or pinch to zoom, drag to pan. Hover for a name; click anything for details and to open it." : "Drag to turn, scroll to zoom. Hover for a name; click for details."}
+            {view === "islands"
+              ? "Scroll or pinch to zoom, drag to pan. Hover for a name; click anything for details and to open it."
+              : "Drag to turn, scroll to zoom. Hover for a name; click for details."}
           </p>
         </div>
       </div>

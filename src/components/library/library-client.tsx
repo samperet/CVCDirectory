@@ -22,12 +22,24 @@ interface LibraryListing extends LoanItem {
 
 type Availability = "all" | "available" | "lent";
 
-const SUGGESTED_CATEGORIES = ["Tools", "Garden", "Kitchen", "Books", "Games", "Outdoor", "Kids", "Electronics", "General"];
+const SUGGESTED_CATEGORIES = [
+  "Tools",
+  "Garden",
+  "Kitchen",
+  "Books",
+  "Games",
+  "Outdoor",
+  "Kids",
+  "Electronics",
+  "General",
+];
 
 function AskToBorrow({ item }: { item: LibraryListing }) {
   if (item.ownerEmail) {
     const subject = encodeURIComponent(`Borrowing your ${item.title}`);
-    const body = encodeURIComponent(`Hi ${item.ownerName.split(" ")[0]},\n\nCould I borrow your ${item.title}?\n\nThanks!`);
+    const body = encodeURIComponent(
+      `Hi ${item.ownerName.split(" ")[0]},\n\nCould I borrow your ${item.title}?\n\nThanks!`
+    );
     return (
       <Button asChild size="sm" className="gap-1.5">
         <a href={`mailto:${item.ownerEmail}?subject=${subject}&body=${body}`}>
@@ -54,7 +66,8 @@ function OwnerControls({ item }: { item: LibraryListing }) {
   const [lending, setLending] = useState(false);
   const [lentTo, setLentTo] = useState("");
 
-  const onError = (err: Error) => toast({ title: "Could not update item", description: err.message, variant: "destructive" });
+  const onError = (err: Error) =>
+    toast({ title: "Could not update item", description: err.message, variant: "destructive" });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["library"] });
 
   const update = useMutation({
@@ -109,7 +122,13 @@ function OwnerControls({ item }: { item: LibraryListing }) {
           <UserRoundCheck className="h-4 w-4" /> Lent out…
         </Button>
       ) : (
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => update.mutate({ available: true })} disabled={update.isPending}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={() => update.mutate({ available: true })}
+          disabled={update.isPending}
+        >
           <Undo2 className="h-4 w-4" /> Returned
         </Button>
       )}
@@ -147,17 +166,25 @@ export function LibraryClient() {
   const items = useMemo(() => data?.items ?? [], [data]);
 
   const categories = useMemo(
-    () => Array.from(new Set([...SUGGESTED_CATEGORIES, ...items.map((item) => item.category)])).sort(),
+    () =>
+      Array.from(new Set([...SUGGESTED_CATEGORIES, ...items.map((item) => item.category)])).sort(),
     [items]
   );
-  const usedCategories = useMemo(() => Array.from(new Set(items.map((item) => item.category))).sort(), [items]);
+  const usedCategories = useMemo(
+    () => Array.from(new Set(items.map((item) => item.category))).sort(),
+    [items]
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items
       .filter((item) => !mineOnly || item.mine)
       .filter((item) => !categoryFilter || item.category === categoryFilter)
-      .filter((item) => availability === "all" || (availability === "available" ? item.available : !item.available))
+      .filter(
+        (item) =>
+          availability === "all" ||
+          (availability === "available" ? item.available : !item.available)
+      )
       .filter(
         (item) =>
           !q ||
@@ -184,16 +211,23 @@ export function LibraryClient() {
       queryClient.invalidateQueries({ queryKey: ["library"] });
       toast({ title: "Item listed", description: "Neighbors can now ask to borrow it." });
     },
-    onError: (err: Error) => toast({ title: "Could not list item", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not list item", description: err.message, variant: "destructive" }),
   });
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Button className="gap-1" variant={adding ? "outline" : "default"} onClick={() => setAdding((v) => !v)}>
+        <Button
+          className="gap-1"
+          variant={adding ? "outline" : "default"}
+          onClick={() => setAdding((v) => !v)}
+        >
           <Plus className="h-4 w-4" /> {adding ? "Cancel" : "Lend something"}
         </Button>
-        <span className="text-sm text-muted">Items you list are shown under your name, with a way to reach you.</span>
+        <span className="text-sm text-muted">
+          Items you list are shown under your name, with a way to reach you.
+        </span>
       </div>
 
       {adding ? (
@@ -229,7 +263,10 @@ export function LibraryClient() {
             className="bg-white"
           />
           <div>
-            <Button onClick={() => add.mutate()} disabled={add.isPending || form.title.trim().length < 2}>
+            <Button
+              onClick={() => add.mutate()}
+              disabled={add.isPending || form.title.trim().length < 2}
+            >
               {add.isPending ? "Listing…" : "List item"}
             </Button>
           </div>
@@ -260,7 +297,11 @@ export function LibraryClient() {
             </option>
           ))}
         </select>
-        <div role="group" aria-label="Filter by availability" className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1">
+        <div
+          role="group"
+          aria-label="Filter by availability"
+          className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1"
+        >
           {(
             [
               ["all", "All"],
@@ -275,7 +316,9 @@ export function LibraryClient() {
               onClick={() => setAvailability(value)}
               className={cn(
                 "rounded-full px-3 py-1 text-sm transition",
-                availability === value ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-accent"
+                availability === value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground/70 hover:bg-accent"
               )}
             >
               {label}
@@ -283,7 +326,11 @@ export function LibraryClient() {
           ))}
         </div>
         <label className="flex items-center gap-2 text-sm text-foreground-light">
-          <input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={mineOnly}
+            onChange={(event) => setMineOnly(event.target.checked)}
+          />
           My items
         </label>
       </div>
@@ -297,7 +344,10 @@ export function LibraryClient() {
       ) : visible.length ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {visible.map((item) => (
-            <Card key={item.id} className={cn("flex flex-col gap-3 p-5", !item.available && "opacity-80")}>
+            <Card
+              key={item.id}
+              className={cn("flex flex-col gap-3 p-5", !item.available && "opacity-80")}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="font-semibold text-foreground">{item.title}</h2>
@@ -306,17 +356,27 @@ export function LibraryClient() {
                 <span
                   className={cn(
                     "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                    item.available ? "bg-secondary text-secondary-foreground" : "border border-border text-muted"
+                    item.available
+                      ? "bg-secondary text-secondary-foreground"
+                      : "border border-border text-muted"
                   )}
                 >
                   {item.available ? "Available" : "Lent out"}
                 </span>
               </div>
-              {item.description ? <p className="whitespace-pre-wrap text-sm text-foreground-light">{item.description}</p> : null}
-              {!item.available && item.lentTo ? <p className="text-xs text-muted">With {item.lentTo}</p> : null}
+              {item.description ? (
+                <p className="whitespace-pre-wrap text-sm text-foreground-light">
+                  {item.description}
+                </p>
+              ) : null}
+              {!item.available && item.lentTo ? (
+                <p className="text-xs text-muted">With {item.lentTo}</p>
+              ) : null}
               <p className="text-sm text-foreground">
                 {item.mine ? "You" : item.ownerName}
-                {item.ownerUnit !== null ? <span className="ml-1.5 text-xs text-muted">Unit {item.ownerUnit}</span> : null}
+                {item.ownerUnit !== null ? (
+                  <span className="ml-1.5 text-xs text-muted">Unit {item.ownerUnit}</span>
+                ) : null}
               </p>
               <div className="mt-auto">
                 {item.mine ? (
@@ -334,7 +394,9 @@ export function LibraryClient() {
       ) : (
         <Card>
           <p className="text-sm text-muted">
-            {items.length ? "No items match these filters." : "Nothing listed yet — lend something to get the library started."}
+            {items.length
+              ? "No items match these filters."
+              : "Nothing listed yet — lend something to get the library started."}
           </p>
         </Card>
       )}

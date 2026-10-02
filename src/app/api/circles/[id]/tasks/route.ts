@@ -17,9 +17,17 @@ export async function GET(_request: Request, { params }: Params) {
   if ("error" in ctx) return ctx.error;
   const [tasks, comments] = await Promise.all([listTasks(params.id), listTaskComments(params.id)]);
   const counts = new Map<string, number>();
-  for (const comment of comments) if (!comment.deleted) counts.set(comment.taskId, (counts.get(comment.taskId) ?? 0) + 1);
-  const summaries: TaskSummary[] = tasks.map(({ activity: _activity, description, ...task }) => ({ ...task, hasDescription: !!description.trim(), commentCount: counts.get(task.id) ?? 0 }));
-  return NextResponse.json({ tasks: summaries, canEdit: ctx.canEdit, canAdd: ctx.canAdd, enabled: ctx.enabled }, { headers: { "Cache-Control": "private, no-store" } });
+  for (const comment of comments)
+    if (!comment.deleted) counts.set(comment.taskId, (counts.get(comment.taskId) ?? 0) + 1);
+  const summaries: TaskSummary[] = tasks.map(({ activity: _activity, description, ...task }) => ({
+    ...task,
+    hasDescription: !!description.trim(),
+    commentCount: counts.get(task.id) ?? 0,
+  }));
+  return NextResponse.json(
+    { tasks: summaries, canEdit: ctx.canEdit, canAdd: ctx.canAdd, enabled: ctx.enabled },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 /** Add a task: the circle's members, the Board, and admins — or any resident, if the circle's Tasks module allows. */

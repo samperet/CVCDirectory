@@ -8,12 +8,30 @@ import { Check, History, Pencil, Plus, Trash2, UserCheck, UserMinus, X } from "l
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import { featureEnabled } from "@/lib/circles/features";
-import { PRIORITY_LABELS, STATUS_LABELS, TASK_PRIORITIES, TASK_STATUSES, checklistProgress, type Task, type TaskPriority } from "@/lib/tasks/shared";
+import {
+  PRIORITY_LABELS,
+  STATUS_LABELS,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  checklistProgress,
+  type Task,
+  type TaskPriority,
+} from "@/lib/tasks/shared";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { TaskComments } from "@/components/tasks/task-comments";
-import { DueLabel, OwnerChip, OwnerSelect, PriorityFlag, STATUS_STYLES, StatusPill, canMoveTask, useTaskUpdate, type TaskResponse } from "@/components/tasks/task-bits";
+import {
+  DueLabel,
+  OwnerChip,
+  OwnerSelect,
+  PriorityFlag,
+  STATUS_STYLES,
+  StatusPill,
+  canMoveTask,
+  useTaskUpdate,
+  type TaskResponse,
+} from "@/components/tasks/task-bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,7 +40,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useDirectory } from "@/components/directory/use-directory";
 
-function TitleEditor({ task, onSave, onCancel, busy }: { task: Task; onSave: (title: string) => void; onCancel: () => void; busy: boolean }) {
+function TitleEditor({
+  task,
+  onSave,
+  onCancel,
+  busy,
+}: {
+  task: Task;
+  onSave: (title: string) => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
   const [title, setTitle] = useState(task.title);
   return (
     <form
@@ -32,7 +60,15 @@ function TitleEditor({ task, onSave, onCancel, busy }: { task: Task; onSave: (ti
         if (title.trim()) onSave(title.trim());
       }}
     >
-      <Input autoFocus value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Escape" && onCancel()} className="bg-white text-lg font-semibold" aria-label="Title" />
+      <Input
+        autoFocus
+        value={title}
+        maxLength={160}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && onCancel()}
+        className="bg-white text-lg font-semibold"
+        aria-label="Title"
+      />
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={!title.trim() || busy}>
           Save
@@ -45,7 +81,17 @@ function TitleEditor({ task, onSave, onCancel, busy }: { task: Task; onSave: (ti
   );
 }
 
-function DescriptionEditor({ task, onSave, onCancel, busy }: { task: Task; onSave: (description: string) => void; onCancel: () => void; busy: boolean }) {
+function DescriptionEditor({
+  task,
+  onSave,
+  onCancel,
+  busy,
+}: {
+  task: Task;
+  onSave: (description: string) => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
   const [text, setText] = useState(task.description);
   return (
     <div className="flex flex-col gap-2">
@@ -56,7 +102,9 @@ function DescriptionEditor({ task, onSave, onCancel, busy }: { task: Task; onSav
         maxLength={10_000}
         onChange={(e) => setText(e.target.value)}
         className="bg-white font-mono text-sm"
-        placeholder={"What needs doing, and anything that helps: where the tools are, who to call.\n\nMarkdown works — **bold**, lists, and [[Wiki page]] or [[doc:Document title]] links."}
+        placeholder={
+          "What needs doing, and anything that helps: where the tools are, who to call.\n\nMarkdown works — **bold**, lists, and [[Wiki page]] or [[doc:Document title]] links."
+        }
         aria-label="Description"
       />
       <div className="flex gap-2">
@@ -72,7 +120,19 @@ function DescriptionEditor({ task, onSave, onCancel, busy }: { task: Task; onSav
 }
 
 /** The checklist: tick items off (the circle's editors and the task's owner), add and remove them (editors). */
-function Checklist({ task, canTick, canEdit, update, busy }: { task: Task; canTick: boolean; canEdit: boolean; update: (change: Record<string, unknown>) => void; busy: boolean }) {
+function Checklist({
+  task,
+  canTick,
+  canEdit,
+  update,
+  busy,
+}: {
+  task: Task;
+  canTick: boolean;
+  canEdit: boolean;
+  update: (change: Record<string, unknown>) => void;
+  busy: boolean;
+}) {
   const [text, setText] = useState("");
   const progress = checklistProgress(task);
   if (!progress && !canEdit) return null;
@@ -92,13 +152,29 @@ function Checklist({ task, canTick, canEdit, update, busy }: { task: Task; canTi
         ) : null}
       </div>
       {progress ? (
-        <div className="h-2 overflow-hidden rounded-full bg-accent" role="progressbar" aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100} aria-label="Checklist progress">
-          <div className={cn("h-full rounded-full transition-all", progress.percent === 100 ? "bg-pine" : "bg-primary")} style={{ width: `${progress.percent}%` }} />
+        <div
+          className="h-2 overflow-hidden rounded-full bg-accent"
+          role="progressbar"
+          aria-valuenow={progress.percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Checklist progress"
+        >
+          <div
+            className={cn(
+              "h-full rounded-full transition-all",
+              progress.percent === 100 ? "bg-pine" : "bg-primary"
+            )}
+            style={{ width: `${progress.percent}%` }}
+          />
         </div>
       ) : null}
       <ul className="flex flex-col">
         {task.checklist.map((item) => (
-          <li key={item.id} className="group flex items-center gap-2.5 rounded-md px-1 py-1 hover:bg-accent/50">
+          <li
+            key={item.id}
+            className="group flex items-center gap-2.5 rounded-md px-1 py-1 hover:bg-accent/50"
+          >
             <input
               type="checkbox"
               checked={item.done}
@@ -107,12 +183,21 @@ function Checklist({ task, canTick, canEdit, update, busy }: { task: Task; canTi
               className="h-4 w-4 shrink-0 accent-primary"
               aria-label={item.text}
             />
-            <span className={cn("flex-1 text-sm text-foreground", item.done && "text-muted line-through")}>{item.text}</span>
+            <span
+              className={cn(
+                "flex-1 text-sm text-foreground",
+                item.done && "text-muted line-through"
+              )}
+            >
+              {item.text}
+            </span>
             {canEdit ? (
               <button
                 type="button"
                 className="text-muted opacity-60 hover:text-destructive group-hover:opacity-100"
-                onClick={() => update({ checklist: task.checklist.filter((entry) => entry.id !== item.id) })}
+                onClick={() =>
+                  update({ checklist: task.checklist.filter((entry) => entry.id !== item.id) })
+                }
                 aria-label={`Remove “${item.text}”`}
               >
                 <X className="h-4 w-4" />
@@ -129,8 +214,21 @@ function Checklist({ task, canTick, canEdit, update, busy }: { task: Task; canTi
             add();
           }}
         >
-          <Input value={text} maxLength={200} onChange={(e) => setText(e.target.value)} placeholder="Add a step" className="h-9 bg-white" aria-label="New checklist item" />
-          <Button type="submit" size="sm" variant="outline" className="gap-1" disabled={!text.trim() || busy}>
+          <Input
+            value={text}
+            maxLength={200}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Add a step"
+            className="h-9 bg-white"
+            aria-label="New checklist item"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            disabled={!text.trim() || busy}
+          >
             <Plus className="h-4 w-4" /> Add
           </Button>
         </form>
@@ -166,10 +264,20 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
       toast({ title: "Task deleted" });
       router.replace(`/circles/${circleId}/tasks`);
     },
-    onError: (err: Error) => toast({ title: "Could not delete the task", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({
+        title: "Could not delete the task",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
-  const back = <BackLink href={`/circles/${circleId}/tasks`} label={circle ? `${circle.name} tasks` : "Tasks"} />;
+  const back = (
+    <BackLink
+      href={`/circles/${circleId}/tasks`}
+      label={circle ? `${circle.name} tasks` : "Tasks"}
+    />
+  );
   const task = data?.task;
   if (isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (error || !task) {
@@ -177,7 +285,9 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         {back}
         <Card>
-          <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "That task wasn't found."}</p>
+          <p className="text-sm text-foreground">
+            {(error as Error | null)?.message ?? "That task wasn't found."}
+          </p>
         </Card>
       </div>
     );
@@ -195,62 +305,90 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
       {back}
       {/* On phones the status and owner sit between the task and its comments, where they're easy to reach. */}
       <div className="grid items-start gap-6 [grid-template-areas:'task'_'side'_'comments'] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'task_side'_'comments_side']">
-          <Card className="flex min-w-0 flex-col gap-5 [grid-area:task]">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-                <span>#{task.number}</span>
-                <StatusPill status={task.status} />
-                <PriorityFlag task={task} />
-                <DueLabel task={task} />
-              </div>
-              {editingTitle ? (
-                <TitleEditor
-                  task={task}
-                  busy={update.isPending}
-                  onCancel={() => setEditingTitle(false)}
-                  onSave={(title) => update.mutate({ title }, { onSuccess: () => setEditingTitle(false) })}
-                />
-              ) : (
-                <div className="flex items-start gap-2">
-                  <h1 className={cn("flex-1 text-2xl font-semibold text-foreground", task.status === "done" && "text-muted")}>{task.title}</h1>
-                  {canEdit ? (
-                    <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setEditingTitle(true)} aria-label="Rename the task">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                </div>
-              )}
+        <Card className="flex min-w-0 flex-col gap-5 [grid-area:task]">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+              <span>#{task.number}</span>
+              <StatusPill status={task.status} />
+              <PriorityFlag task={task} />
+              <DueLabel task={task} />
             </div>
-
-            <section className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold text-foreground">Details</h2>
-                {canEdit && !editingDescription ? (
-                  <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline" onClick={() => setEditingDescription(true)}>
-                    <Pencil className="h-3.5 w-3.5" /> {task.description.trim() ? "Edit" : "Add details"}
-                  </button>
+            {editingTitle ? (
+              <TitleEditor
+                task={task}
+                busy={update.isPending}
+                onCancel={() => setEditingTitle(false)}
+                onSave={(title) =>
+                  update.mutate({ title }, { onSuccess: () => setEditingTitle(false) })
+                }
+              />
+            ) : (
+              <div className="flex items-start gap-2">
+                <h1
+                  className={cn(
+                    "flex-1 text-2xl font-semibold text-foreground",
+                    task.status === "done" && "text-muted"
+                  )}
+                >
+                  {task.title}
+                </h1>
+                {canEdit ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setEditingTitle(true)}
+                    aria-label="Rename the task"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                 ) : null}
               </div>
-              {editingDescription ? (
-                <DescriptionEditor
-                  task={task}
-                  busy={update.isPending}
-                  onCancel={() => setEditingDescription(false)}
-                  onSave={(description) => update.mutate({ description }, { onSuccess: () => setEditingDescription(false) })}
-                />
-              ) : task.description.trim() ? (
-                <WikiMarkdown source={task.description} circleId={circleId} pages={wikiPages} />
-              ) : (
-                <p className="text-sm text-muted">No details yet.</p>
-              )}
-            </section>
+            )}
+          </div>
 
-            <Checklist task={task} canTick={canMove} canEdit={canEdit} update={save} busy={update.isPending} />
-          </Card>
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">Details</h2>
+              {canEdit && !editingDescription ? (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline"
+                  onClick={() => setEditingDescription(true)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />{" "}
+                  {task.description.trim() ? "Edit" : "Add details"}
+                </button>
+              ) : null}
+            </div>
+            {editingDescription ? (
+              <DescriptionEditor
+                task={task}
+                busy={update.isPending}
+                onCancel={() => setEditingDescription(false)}
+                onSave={(description) =>
+                  update.mutate({ description }, { onSuccess: () => setEditingDescription(false) })
+                }
+              />
+            ) : task.description.trim() ? (
+              <WikiMarkdown source={task.description} circleId={circleId} pages={wikiPages} />
+            ) : (
+              <p className="text-sm text-muted">No details yet.</p>
+            )}
+          </section>
 
-          <Card className="min-w-0 [grid-area:comments]">
-            <TaskComments circleId={circleId} number={number} canComment={!!user && enabled} />
-          </Card>
+          <Checklist
+            task={task}
+            canTick={canMove}
+            canEdit={canEdit}
+            update={save}
+            busy={update.isPending}
+          />
+        </Card>
+
+        <Card className="min-w-0 [grid-area:comments]">
+          <TaskComments circleId={circleId} number={number} canComment={!!user && enabled} />
+        </Card>
 
         <aside className="flex flex-col gap-4 [grid-area:side] lg:sticky lg:top-20 lg:row-span-2">
           <Card className="flex flex-col gap-4">
@@ -267,10 +405,23 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                     onClick={() => task.status !== status && save({ status })}
                     className={cn(
                       "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-sm font-medium transition disabled:cursor-default",
-                      task.status === status ? cn("border-transparent", STATUS_STYLES[status].pill, "font-semibold shadow-soft") : "border-border bg-white text-muted enabled:hover:text-foreground"
+                      task.status === status
+                        ? cn(
+                            "border-transparent",
+                            STATUS_STYLES[status].pill,
+                            "font-semibold shadow-soft"
+                          )
+                        : "border-border bg-white text-muted enabled:hover:text-foreground"
                     )}
                   >
-                    {task.status === status ? <Check className="h-4 w-4" aria-hidden /> : <span className={cn("h-2 w-2 rounded-full", STATUS_STYLES[status].dot)} aria-hidden />}
+                    {task.status === status ? (
+                      <Check className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <span
+                        className={cn("h-2 w-2 rounded-full", STATUS_STYLES[status].dot)}
+                        aria-hidden
+                      />
+                    )}
                     {STATUS_LABELS[status]}
                   </button>
                 ))}
@@ -280,17 +431,34 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Owner</p>
               {canEdit ? (
-                <OwnerSelect circle={circle} value={task.ownerId} onChange={(ownerId) => save({ ownerId })} disabled={update.isPending} />
+                <OwnerSelect
+                  circle={circle}
+                  value={task.ownerId}
+                  onChange={(ownerId) => save({ ownerId })}
+                  disabled={update.isPending}
+                />
               ) : (
                 <OwnerChip name={task.ownerName} className="text-sm" />
               )}
               {enabled && me && !task.ownerId ? (
-                <Button size="sm" variant="outline" className="gap-1.5" disabled={update.isPending} onClick={() => save({ ownerId: me })}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={update.isPending}
+                  onClick={() => save({ ownerId: me })}
+                >
                   <UserCheck className="h-4 w-4" /> I&apos;ll take it
                 </Button>
               ) : null}
               {enabled && isOwner && !canEdit ? (
-                <Button size="sm" variant="ghost" className="gap-1.5 text-muted" disabled={update.isPending} onClick={() => save({ ownerId: null })}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 text-muted"
+                  disabled={update.isPending}
+                  onClick={() => save({ ownerId: null })}
+                >
                   <UserMinus className="h-4 w-4" /> Hand it back
                 </Button>
               ) : null}
@@ -300,9 +468,16 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
               <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 Due
                 {canEdit ? (
-                  <Input type="date" value={task.dueDate ?? ""} onChange={(e) => save({ dueDate: e.target.value || null })} className="h-9 bg-white px-2 text-sm normal-case tracking-normal" />
+                  <Input
+                    type="date"
+                    value={task.dueDate ?? ""}
+                    onChange={(e) => save({ dueDate: e.target.value || null })}
+                    className="h-9 bg-white px-2 text-sm normal-case tracking-normal"
+                  />
                 ) : (
-                  <span className="text-sm font-normal normal-case tracking-normal text-foreground">{task.dueDate ? <DueLabel task={task} className="text-sm" /> : "—"}</span>
+                  <span className="text-sm font-normal normal-case tracking-normal text-foreground">
+                    {task.dueDate ? <DueLabel task={task} className="text-sm" /> : "—"}
+                  </span>
                 )}
               </label>
               <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -320,7 +495,9 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                     ))}
                   </select>
                 ) : (
-                  <span className="text-sm font-normal normal-case tracking-normal text-foreground">{PRIORITY_LABELS[task.priority]}</span>
+                  <span className="text-sm font-normal normal-case tracking-normal text-foreground">
+                    {PRIORITY_LABELS[task.priority]}
+                  </span>
                 )}
               </label>
             </div>
@@ -335,7 +512,10 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                 className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted hover:text-destructive"
                 disabled={remove.isPending}
                 onClick={() => {
-                  if (window.confirm(`Delete “${task.title}” and its comments? This can't be undone.`)) remove.mutate();
+                  if (
+                    window.confirm(`Delete “${task.title}” and its comments? This can't be undone.`)
+                  )
+                    remove.mutate();
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete task
@@ -349,11 +529,15 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                 <History className="h-3.5 w-3.5" /> Activity
               </p>
               <ol className="flex flex-col gap-1.5 text-sm">
-                {[...task.activity].reverse().slice(0, 12).map((event, index) => (
-                  <li key={`${event.at}-${index}`} className="leading-snug text-foreground-light">
-                    <span className="font-medium text-foreground">{event.by}</span> {event.text} <span className="text-xs text-muted">· {timeAgo(event.at)}</span>
-                  </li>
-                ))}
+                {[...task.activity]
+                  .reverse()
+                  .slice(0, 12)
+                  .map((event, index) => (
+                    <li key={`${event.at}-${index}`} className="leading-snug text-foreground-light">
+                      <span className="font-medium text-foreground">{event.by}</span> {event.text}{" "}
+                      <span className="text-xs text-muted">· {timeAgo(event.at)}</span>
+                    </li>
+                  ))}
               </ol>
             </Card>
           ) : null}

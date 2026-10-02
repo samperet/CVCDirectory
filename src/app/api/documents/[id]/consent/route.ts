@@ -25,7 +25,12 @@ async function load(id: string) {
   const doc = isDocumentId(id) ? await getDocument(id) : null;
   if (!doc) return { error: problem("Document not found", 404) } as const;
   if (!canConsentDocument(context.user, context.directory, doc)) {
-    return { error: problem("Only the circle's Secretary, the Board Secretary, and admins can record consent", 403) } as const;
+    return {
+      error: problem(
+        "Only the circle's Secretary, the Board Secretary, and admins can record consent",
+        403
+      ),
+    } as const;
   }
   return { ...context, doc } as const;
 }
@@ -45,7 +50,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
     recordedAt: new Date().toISOString(),
   });
   if (!result.ok) return problem("Document not found", 404);
-  return NextResponse.json({ document: toListing(result.value, found.user, found.directory, await readTypeMap()) });
+  return NextResponse.json({
+    document: toListing(result.value, found.user, found.directory, await readTypeMap()),
+  });
 }
 
 /** Withdraw the record of consent. */
@@ -54,5 +61,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   if ("error" in found) return found.error;
   const result = await setConsent(found.doc.id, null);
   if (!result.ok) return problem("Document not found", 404);
-  return NextResponse.json({ document: toListing(result.value, found.user, found.directory, await readTypeMap()) });
+  return NextResponse.json({
+    document: toListing(result.value, found.user, found.directory, await readTypeMap()),
+  });
 }

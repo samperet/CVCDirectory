@@ -40,19 +40,34 @@ export async function setCircleIcon(circleId: string, meta: IconMeta | null): Pr
 }
 
 export function applyCircleIcon(circle: Circle, meta: IconMeta | undefined): Circle {
-  return { ...circle, iconUrl: meta ? `/api/circles/${circle.id}/icon?v=${encodeURIComponent(meta.updatedAt)}` : null };
+  return {
+    ...circle,
+    iconUrl: meta ? `/api/circles/${circle.id}/icon?v=${encodeURIComponent(meta.updatedAt)}` : null,
+  };
 }
 
 /** Whether a person holds a seat on a circle whose position matches (e.g. /secretary/i). */
-export function holdsSeat(directory: DirectoryDocument, circleId: string, personId: string, position: RegExp): boolean {
+export function holdsSeat(
+  directory: DirectoryDocument,
+  circleId: string,
+  personId: string,
+  position: RegExp
+): boolean {
   const circle = directory.circles.find((entry) => entry.id === circleId);
-  return !!circle?.seats.some((seat) => seat.personId === personId && position.test(seat.position ?? ""));
+  return !!circle?.seats.some(
+    (seat) => seat.personId === personId && position.test(seat.position ?? "")
+  );
 }
 
 /** Whether a resident may manage a circle (details, members, icon): they're in it, or on the Board. */
-export function canManageCircle(directory: DirectoryDocument, circleId: string, personId: string): boolean {
+export function canManageCircle(
+  directory: DirectoryDocument,
+  circleId: string,
+  personId: string
+): boolean {
   return directory.circles.some(
     (circle) =>
-      (circle.id === circleId || circle.id === BOARD_ID) && circle.seats.some((seat) => seat.personId === personId)
+      (circle.id === circleId || circle.id === BOARD_ID) &&
+      circle.seats.some((seat) => seat.personId === personId)
   );
 }

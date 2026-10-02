@@ -27,7 +27,12 @@ function UploadPanel({ files, onDone }: { files: File[]; onDone: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<Pending[]>(() =>
-    files.map((file, index) => ({ key: `${index}-${file.name}`, file, preview: URL.createObjectURL(file), caption: "" }))
+    files.map((file, index) => ({
+      key: `${index}-${file.name}`,
+      file,
+      preview: URL.createObjectURL(file),
+      caption: "",
+    }))
   );
   const [progress, setProgress] = useState<number | null>(null);
 
@@ -45,7 +50,8 @@ function UploadPanel({ files, onDone }: { files: File[]; onDone: () => void }) {
       toast({ title: pending.length === 1 ? "Photo added" : `${pending.length} photos added` });
       onDone();
     },
-    onError: (err: Error) => toast({ title: "Could not add photo", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not add photo", description: err.message, variant: "destructive" }),
     onSettled: () => {
       setProgress(null);
       queryClient.invalidateQueries({ queryKey: ["photos"] });
@@ -68,7 +74,11 @@ function UploadPanel({ files, onDone }: { files: File[]; onDone: () => void }) {
               maxLength={300}
               disabled={upload.isPending}
               onChange={(event) =>
-                setPending((items) => items.map((entry) => (entry.key === item.key ? { ...entry, caption: event.target.value } : entry)))
+                setPending((items) =>
+                  items.map((entry) =>
+                    entry.key === item.key ? { ...entry, caption: event.target.value } : entry
+                  )
+                )
               }
               className="bg-white"
               aria-label={`Caption for ${item.file.name}`}
@@ -79,7 +89,9 @@ function UploadPanel({ files, onDone }: { files: File[]; onDone: () => void }) {
                 size="icon"
                 className="shrink-0"
                 disabled={upload.isPending}
-                onClick={() => setPending((items) => items.filter((entry) => entry.key !== item.key))}
+                onClick={() =>
+                  setPending((items) => items.filter((entry) => entry.key !== item.key))
+                }
                 aria-label={`Don't add ${item.file.name}`}
               >
                 <X className="h-4 w-4" />
@@ -124,7 +136,8 @@ function Viewer({
   const { user } = useSession();
   const photo = photos[index];
   // Anyone can remove a photo; captions are for whoever added it, or an admin.
-  const canEditCaption = !!user && (user.isAdmin || (photo.uploaderId !== null && photo.uploaderId === user.id));
+  const canEditCaption =
+    !!user && (user.isAdmin || (photo.uploaderId !== null && photo.uploaderId === user.id));
   const [editing, setEditing] = useState(false);
   const [caption, setCaption] = useState(photo.caption);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -134,7 +147,10 @@ function Viewer({
     setCaption(photo.caption);
   }, [photo.id, photo.caption]);
 
-  const step = useCallback((delta: number) => onIndex((index + delta + photos.length) % photos.length), [index, photos.length, onIndex]);
+  const step = useCallback(
+    (delta: number) => onIndex((index + delta + photos.length) % photos.length),
+    [index, photos.length, onIndex]
+  );
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -158,12 +174,14 @@ function Viewer({
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["photos"] });
   const save = useMutation({
-    mutationFn: () => apiFetch(`/api/photos/${photo.id}`, { method: "PATCH", body: JSON.stringify({ caption }) }),
+    mutationFn: () =>
+      apiFetch(`/api/photos/${photo.id}`, { method: "PATCH", body: JSON.stringify({ caption }) }),
     onSuccess: () => {
       setEditing(false);
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Could not save caption", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not save caption", description: err.message, variant: "destructive" }),
   });
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/photos/${photo.id}`, { method: "DELETE" }),
@@ -173,10 +191,15 @@ function Viewer({
       else if (index === photos.length - 1) onIndex(index - 1);
       refresh();
     },
-    onError: (err: Error) => toast({ title: "Could not remove photo", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not remove photo", description: err.message, variant: "destructive" }),
   });
 
-  const added = new Date(photo.createdAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  const added = new Date(photo.createdAt).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <div
@@ -192,7 +215,12 @@ function Viewer({
         <span className="text-sm tabular-nums text-white/70">
           {index + 1} / {photos.length}
         </span>
-        <button ref={closeRef} onClick={onClose} className="rounded-full p-2 hover:bg-white/10" aria-label="Close">
+        <button
+          ref={closeRef}
+          onClick={onClose}
+          className="rounded-full p-2 hover:bg-white/10"
+          aria-label="Close"
+        >
           <X className="h-6 w-6" />
         </button>
       </div>
@@ -204,7 +232,12 @@ function Viewer({
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- served privately by the API, not through the image optimizer */}
-        <img key={photo.id} src={photoUrl(photo)} alt={photo.caption || "Community photo"} className="max-h-full max-w-full rounded-lg object-contain" />
+        <img
+          key={photo.id}
+          src={photoUrl(photo)}
+          alt={photo.caption || "Community photo"}
+          className="max-h-full max-w-full rounded-lg object-contain"
+        />
         {photos.length > 1 ? (
           <>
             <button
@@ -263,13 +296,18 @@ function Viewer({
                 {added}
               </span>
               {canEditCaption ? (
-                <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 hover:text-white">
-                  <Pencil className="h-3.5 w-3.5" /> {photo.caption ? "Edit caption" : "Add caption"}
+                <button
+                  onClick={() => setEditing(true)}
+                  className="inline-flex items-center gap-1 hover:text-white"
+                >
+                  <Pencil className="h-3.5 w-3.5" />{" "}
+                  {photo.caption ? "Edit caption" : "Add caption"}
                 </button>
               ) : null}
               <button
                 onClick={() => {
-                  if (window.confirm("Remove this photo for everyone? This can't be undone.")) remove.mutate();
+                  if (window.confirm("Remove this photo for everyone? This can't be undone."))
+                    remove.mutate();
                 }}
                 disabled={remove.isPending}
                 className="inline-flex items-center gap-1 hover:text-red-300"
@@ -323,12 +361,22 @@ export function PhotosClient() {
             event.target.value = "";
           }}
         />
-        <Button className="gap-1.5" onClick={() => fileInput.current?.click()} disabled={chosen !== null}>
+        <Button
+          className="gap-1.5"
+          onClick={() => fileInput.current?.click()}
+          disabled={chosen !== null}
+        >
           <ImagePlus className="h-4 w-4" /> Add photos
         </Button>
       </div>
 
-      {chosen ? <UploadPanel key={chosen.map((file) => file.name).join("|")} files={chosen} onDone={() => setChosen(null)} /> : null}
+      {chosen ? (
+        <UploadPanel
+          key={chosen.map((file) => file.name).join("|")}
+          files={chosen}
+          onDone={() => setChosen(null)}
+        />
+      ) : null}
 
       {isLoading ? (
         <p className="text-sm text-muted">Loading photos…</p>
@@ -367,7 +415,9 @@ export function PhotosClient() {
         </Card>
       )}
 
-      {open !== null && photos[open] ? <Viewer photos={photos} index={open} onIndex={setOpen} onClose={close} /> : null}
+      {open !== null && photos[open] ? (
+        <Viewer photos={photos} index={open} onIndex={setOpen} onClose={close} />
+      ) : null}
     </div>
   );
 }

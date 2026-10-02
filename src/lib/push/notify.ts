@@ -1,5 +1,11 @@
 import webpush from "web-push";
-import { allPreferences, DEFAULT_PREFERENCES, listSubscriptions, removeSubscriptions, Topic } from "./store";
+import {
+  allPreferences,
+  DEFAULT_PREFERENCES,
+  listSubscriptions,
+  removeSubscriptions,
+  Topic,
+} from "./store";
 import { vapidKeys, vapidSubject } from "./vapid";
 
 /**
@@ -28,7 +34,8 @@ export async function notify(message: {
       (entry) =>
         entry.userId !== message.exceptUserId &&
         (!only || only.has(entry.userId)) &&
-        (message.ignorePreferences || (preferences[entry.userId] ?? DEFAULT_PREFERENCES)[message.topic])
+        (message.ignorePreferences ||
+          (preferences[entry.userId] ?? DEFAULT_PREFERENCES)[message.topic])
     );
     if (!recipients.length) return;
 
@@ -50,7 +57,8 @@ export async function notify(message: {
           })
           .catch((error: { statusCode?: number }) => {
             // Gone or not found: the device unsubscribed or the browser dropped it.
-            if (error?.statusCode === 404 || error?.statusCode === 410) expired.push(entry.endpoint);
+            if (error?.statusCode === 404 || error?.statusCode === 410)
+              expired.push(entry.endpoint);
             throw error;
           })
       )

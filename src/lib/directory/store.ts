@@ -26,11 +26,18 @@ export async function readImportedDirectory(): Promise<DirectoryDocument | null>
  * app (with icons) in place of the imported ones.
  */
 export async function readDirectory(): Promise<DirectoryDocument | null> {
-  const [doc, profiles, icons, changes] = await Promise.all([readImportedDirectory(), readProfiles(), readCircleIcons(), readPeopleChanges()]);
+  const [doc, profiles, icons, changes] = await Promise.all([
+    readImportedDirectory(),
+    readProfiles(),
+    readCircleIcons(),
+    readPeopleChanges(),
+  ]);
   if (!doc) return null;
   const circles = await readCircles(doc.circles);
   const { people, aliases } = combineDuplicates(
-    applyPeopleChanges(doc.people, changes).map((person) => applyProfile(person, profiles[person.id])),
+    applyPeopleChanges(doc.people, changes).map((person) =>
+      applyProfile(person, profiles[person.id])
+    ),
     changes
   );
   const alias = (personId: string | null) => (personId && aliases[personId]) || personId;
@@ -43,12 +50,21 @@ export async function readDirectory(): Promise<DirectoryDocument | null> {
         {
           ...circle,
           seats: circle.seats.map((seat) => ({ ...seat, personId: alias(seat.personId) })),
-          applications: circle.applications?.map((application) => ({ ...application, personId: alias(application.personId)! })),
+          applications: circle.applications?.map((application) => ({
+            ...application,
+            personId: alias(application.personId)!,
+          })),
         },
         icons[circle.id]
       )
     ),
-    carsheds: doc.carsheds.map((slot) => ({ ...slot, occupants: slot.occupants.map((occupant) => ({ ...occupant, personId: alias(occupant.personId) })) })),
+    carsheds: doc.carsheds.map((slot) => ({
+      ...slot,
+      occupants: slot.occupants.map((occupant) => ({
+        ...occupant,
+        personId: alias(occupant.personId),
+      })),
+    })),
   };
 }
 

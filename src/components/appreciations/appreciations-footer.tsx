@@ -121,7 +121,11 @@ export function AppreciationsFooter() {
       toast({ title: "Appreciation shared", description: "It's now rotating in the footer." });
     },
     onError: (error: Error) =>
-      toast({ title: "Could not share appreciation", description: error.message, variant: "destructive" }),
+      toast({
+        title: "Could not share appreciation",
+        description: error.message,
+        variant: "destructive",
+      }),
   });
 
   const current = items[shown] ?? items[0];
@@ -141,11 +145,21 @@ export function AppreciationsFooter() {
           onBlur={() => setHovering(false)}
         >
           {items.length > 1 ? (
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted" onClick={() => step(-1)} aria-label="Previous appreciation">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-muted"
+              onClick={() => step(-1)}
+              aria-label="Previous appreciation"
+            >
               <ChevronLeft className="h-5 w-5" />
             </Button>
           ) : null}
-          <div className="flex min-h-[3.5rem] min-w-0 flex-1 items-center justify-center overflow-hidden" aria-roledescription="carousel" aria-label="Community appreciations">
+          <div
+            className="flex min-h-[3.5rem] min-w-0 flex-1 items-center justify-center overflow-hidden"
+            aria-roledescription="carousel"
+            aria-label="Community appreciations"
+          >
             {current ? (
               <Link
                 href="/appreciations"
@@ -165,11 +179,19 @@ export function AppreciationsFooter() {
                 </p>
               </Link>
             ) : (
-              <p className="text-center text-sm text-muted">No appreciations yet — be the first to thank a neighbor.</p>
+              <p className="text-center text-sm text-muted">
+                No appreciations yet — be the first to thank a neighbor.
+              </p>
             )}
           </div>
           {items.length > 1 ? (
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted" onClick={() => step(1)} aria-label="Next appreciation">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-muted"
+              onClick={() => step(1)}
+              aria-label="Next appreciation"
+            >
               <ChevronRight className="h-5 w-5" />
             </Button>
           ) : null}
@@ -186,7 +208,10 @@ export function AppreciationsFooter() {
         )}
 
         {composing && user ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setComposing(false)}>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setComposing(false)}
+          >
             <form
               role="dialog"
               aria-modal="true"
@@ -199,10 +224,20 @@ export function AppreciationsFooter() {
               }}
             >
               <div className="flex items-center justify-between gap-3">
-                <h2 id="share-appreciation-title" className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                <h2
+                  id="share-appreciation-title"
+                  className="flex items-center gap-2 text-lg font-semibold text-foreground"
+                >
                   <Heart className="h-5 w-5 text-sun" aria-hidden /> Share an Appreciation
                 </h2>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setComposing(false)} aria-label="Close">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setComposing(false)}
+                  aria-label="Close"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -223,12 +258,23 @@ export function AppreciationsFooter() {
                 className="bg-white"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-muted">Shared with all residents as {user.name}.</span>
+                <span className="text-xs text-muted">
+                  Shared with all residents as {user.name}.
+                </span>
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setComposing(false)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setComposing(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" size="sm" disabled={submit.isPending || message.trim().length < 3}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={submit.isPending || message.trim().length < 3}
+                  >
                     {submit.isPending ? "Sharing…" : "Share"}
                   </Button>
                 </div>

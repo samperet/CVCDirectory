@@ -18,7 +18,8 @@ export const TOPICS = {
   polls: "New polls",
   wiki: "Comments on wiki pages you've written or commented on",
   tasks: "Tasks given to you, and comments on tasks you're part of",
-  proposals: "Proposals in review in your circles: started, paused by an objection, resumed, consented, and comments",
+  proposals:
+    "Proposals in review in your circles: started, paused by an objection, resumed, consented, and comments",
 } as const;
 
 export type Topic = keyof typeof TOPICS;
@@ -52,7 +53,11 @@ export const subscriptionSchema = z.object({
 });
 
 export const preferencesSchema = z
-  .object(Object.fromEntries(Object.keys(TOPICS).map((topic) => [topic, z.boolean().optional()])) as Record<Topic, z.ZodOptional<z.ZodBoolean>>)
+  .object(
+    Object.fromEntries(
+      Object.keys(TOPICS).map((topic) => [topic, z.boolean().optional()])
+    ) as Record<Topic, z.ZodOptional<z.ZodBoolean>>
+  )
   .strict();
 
 const SUBSCRIPTIONS = "push/subscriptions.json";
@@ -69,11 +74,22 @@ export async function listSubscriptions(): Promise<PushSubscriptionRecord[]> {
 }
 
 /** Save a device's subscription for this resident (a device that changes hands moves to its new owner). */
-export async function saveSubscription(userId: string, subscription: z.infer<typeof subscriptionSchema>) {
+export async function saveSubscription(
+  userId: string,
+  subscription: z.infer<typeof subscriptionSchema>
+) {
   await enqueue(SUBSCRIPTIONS, async () => {
-    const others = normalizeSubscriptions(await readJson(SUBSCRIPTIONS)).filter((entry) => entry.endpoint !== subscription.endpoint);
-    const record: PushSubscriptionRecord = { ...subscription, userId, createdAt: new Date().toISOString() };
-    await writeJson(SUBSCRIPTIONS, { subscriptions: [...others, record].slice(-MAX_SUBSCRIPTIONS) });
+    const others = normalizeSubscriptions(await readJson(SUBSCRIPTIONS)).filter(
+      (entry) => entry.endpoint !== subscription.endpoint
+    );
+    const record: PushSubscriptionRecord = {
+      ...subscription,
+      userId,
+      createdAt: new Date().toISOString(),
+    };
+    await writeJson(SUBSCRIPTIONS, {
+      subscriptions: [...others, record].slice(-MAX_SUBSCRIPTIONS),
+    });
   });
 }
 
@@ -83,7 +99,9 @@ export async function removeSubscriptions(endpoints: string[], userId?: string) 
   const drop = new Set(endpoints);
   await enqueue(SUBSCRIPTIONS, async () => {
     const list = normalizeSubscriptions(await readJson(SUBSCRIPTIONS));
-    const kept = list.filter((entry) => !(drop.has(entry.endpoint) && (!userId || entry.userId === userId)));
+    const kept = list.filter(
+      (entry) => !(drop.has(entry.endpoint) && (!userId || entry.userId === userId))
+    );
     if (kept.length !== list.length) await writeJson(SUBSCRIPTIONS, { subscriptions: kept });
   });
 }
@@ -100,25 +118,33 @@ export async function removeUserPush(userIds: string[]) {
   await enqueue(PREFERENCES, async () => {
     const map = await readPreferenceMap();
     const kept = Object.fromEntries(Object.entries(map).filter(([userId]) => !ids.has(userId)));
-    if (Object.keys(kept).length !== Object.keys(map).length) await writeJson(PREFERENCES, { byUser: kept });
+    if (Object.keys(kept).length !== Object.keys(map).length)
+      await writeJson(PREFERENCES, { byUser: kept });
   });
 }
 
 async function readPreferenceMap(): Promise<Record<string, Partial<Preferences>>> {
-  const raw = (await readJson(PREFERENCES)) as { byUser?: Record<string, Partial<Preferences>> } | null;
+  const raw = (await readJson(PREFERENCES)) as {
+    byUser?: Record<string, Partial<Preferences>>;
+  } | null;
   return raw?.byUser && typeof raw.byUser === "object" ? raw.byUser : {};
 }
 
 export async function allPreferences(): Promise<Record<string, Preferences>> {
   const map = await readPreferenceMap();
-  return Object.fromEntries(Object.entries(map).map(([userId, prefs]) => [userId, { ...DEFAULT_PREFERENCES, ...prefs }]));
+  return Object.fromEntries(
+    Object.entries(map).map(([userId, prefs]) => [userId, { ...DEFAULT_PREFERENCES, ...prefs }])
+  );
 }
 
 export async function preferencesFor(userId: string): Promise<Preferences> {
   return { ...DEFAULT_PREFERENCES, ...(await readPreferenceMap())[userId] };
 }
 
-export async function updatePreferences(userId: string, update: Partial<Preferences>): Promise<Preferences> {
+export async function updatePreferences(
+  userId: string,
+  update: Partial<Preferences>
+): Promise<Preferences> {
   return enqueue(PREFERENCES, async () => {
     const map = await readPreferenceMap();
     const next = { ...DEFAULT_PREFERENCES, ...map[userId], ...update };

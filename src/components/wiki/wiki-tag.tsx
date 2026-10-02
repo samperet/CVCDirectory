@@ -32,18 +32,22 @@ export function WikiTag({
   className?: string;
 }) {
   const paper = pageStyle(color);
-  const Icon = kind === "doc" || kind === "doc-missing" ? FileText : kind === "missing" ? Plus : BookOpen;
+  const Icon =
+    kind === "doc" || kind === "doc-missing" ? FileText : kind === "missing" ? Plus : BookOpen;
   const base = cn(
     "mx-px inline-flex max-w-full items-baseline gap-1 whitespace-normal rounded-full border px-2 py-px align-baseline text-[0.92em] font-medium leading-snug !no-underline transition [&_*]:!no-underline",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     kind === "page" && "text-foreground hover:brightness-95",
     kind === "doc" && "border-[#b9cbe0] bg-[#eaf1f8] text-foreground hover:bg-[#dde8f3]",
-    kind === "missing" && "border-dashed border-destructive/60 bg-white/70 text-destructive hover:bg-destructive/5",
-    kind === "doc-missing" && "cursor-help border-dashed border-destructive/60 bg-white/70 text-destructive",
+    kind === "missing" &&
+      "border-dashed border-destructive/60 bg-white/70 text-destructive hover:bg-destructive/5",
+    kind === "doc-missing" &&
+      "cursor-help border-dashed border-destructive/60 bg-white/70 text-destructive",
     kind === "pending" && "border-border bg-white/70 text-foreground-light",
     className
   );
-  const style = kind === "page" ? { backgroundColor: paper.paper, borderColor: paper.edge } : undefined;
+  const style =
+    kind === "page" ? { backgroundColor: paper.paper, borderColor: paper.edge } : undefined;
   const title =
     kind === "missing"
       ? "No page yet — create it"
@@ -58,7 +62,9 @@ export function WikiTag({
     <>
       <Icon className="h-[0.85em] w-[0.85em] shrink-0 self-center opacity-70" aria-hidden />
       <span className="min-w-0 break-words">{label}</span>
-      {kind === "page" && circleName ? <span className="shrink-0 text-[0.85em] font-normal text-muted">· {circleName}</span> : null}
+      {kind === "page" && circleName ? (
+        <span className="shrink-0 text-[0.85em] font-normal text-muted">· {circleName}</span>
+      ) : null}
     </>
   );
   if (!href || kind === "doc-missing" || kind === "pending") {
@@ -70,7 +76,15 @@ export function WikiTag({
   }
   if (newTab || kind === "doc") {
     return (
-      <a href={href} target="_blank" rel="noopener" className={base} style={style} title={title} data-wiki-tag={kind}>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener"
+        className={base}
+        style={style}
+        title={title}
+        data-wiki-tag={kind}
+      >
         {content}
       </a>
     );

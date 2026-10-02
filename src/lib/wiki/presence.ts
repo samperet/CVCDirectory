@@ -37,17 +37,24 @@ export async function editorsOf(pageId: string): Promise<PageEditor[]> {
 }
 
 /** Check in as editing a page (or say you've stopped); returns who's editing it now. */
-export function checkIn(pageId: string, editor: PageEditor, editing: boolean): Promise<PageEditor[]> {
+export function checkIn(
+  pageId: string,
+  editor: PageEditor,
+  editing: boolean
+): Promise<PageEditor[]> {
   return mutateJson(KEY, (raw) => {
     const now = Date.now();
     const presence = normalize(raw);
     const seen = presence.pages[pageId]?.[editor.userId];
     const fresh = !!seen && now - seen.at < REFRESH_MS;
-    if (editing ? fresh : !seen) return { write: false, result: active(presence.pages[pageId], now) };
+    if (editing ? fresh : !seen)
+      return { write: false, result: active(presence.pages[pageId], now) };
     // Tidy away everyone who's gone, on every page.
     const pages: Presence["pages"] = {};
     for (const [page, entries] of Object.entries(presence.pages)) {
-      const kept = Object.fromEntries(Object.entries(entries).filter(([, entry]) => now - entry.at < ACTIVE_MS));
+      const kept = Object.fromEntries(
+        Object.entries(entries).filter(([, entry]) => now - entry.at < ACTIVE_MS)
+      );
       if (Object.keys(kept).length) pages[page] = kept;
     }
     const mine = { ...(pages[pageId] ?? {}) };

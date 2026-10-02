@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMeeting, meetingCreateSchema, readCircleMeetings } from "@/lib/meetings/store";
-import { announceConsents, editProblem, meetingsContext, meetingsProblem } from "@/lib/meetings/http";
+import {
+  announceConsents,
+  editProblem,
+  meetingsContext,
+  meetingsProblem,
+} from "@/lib/meetings/http";
 import { summarizeMeeting, summarizeProposal } from "@/lib/meetings/shared";
 import { readBody, throttled } from "@/lib/http";
 
@@ -15,7 +20,12 @@ export async function GET(_request: Request, { params }: Params) {
   await announceConsents(ctx.circle);
   const { meetings, proposals } = await readCircleMeetings(params.id);
   return NextResponse.json(
-    { meetings: meetings.map(summarizeMeeting), proposals: proposals.map(summarizeProposal), canEdit: ctx.canEdit, canReview: ctx.canReview },
+    {
+      meetings: meetings.map(summarizeMeeting),
+      proposals: proposals.map(summarizeProposal),
+      canEdit: ctx.canEdit,
+      canReview: ctx.canReview,
+    },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }
@@ -29,6 +39,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!ctx.canEdit) return editProblem();
   const parsed = await readBody(request, meetingCreateSchema, {});
   if ("error" in parsed) return parsed.error;
-  const result = await createMeeting(params.id, ctx.circle.name, { userId: ctx.user.id, name: ctx.user.name }, parsed.data);
-  return result.ok ? NextResponse.json({ meeting: result.value }, { status: 201 }) : meetingsProblem(result.reason);
+  const result = await createMeeting(
+    params.id,
+    ctx.circle.name,
+    { userId: ctx.user.id, name: ctx.user.name },
+    parsed.data
+  );
+  return result.ok
+    ? NextResponse.json({ meeting: result.value }, { status: 201 })
+    : meetingsProblem(result.reason);
 }

@@ -19,7 +19,9 @@ export interface ForumSearchHit {
 async function readThreads(ids: string[]) {
   const docs: ForumThreadDocument[] = [];
   for (let at = 0; at < ids.length; at += 25) {
-    const batch = await Promise.all(ids.slice(at, at + 25).map((id) => getThread(id).catch(() => null)));
+    const batch = await Promise.all(
+      ids.slice(at, at + 25).map((id) => getThread(id).catch(() => null))
+    );
     for (const doc of batch) if (doc) docs.push(doc);
   }
   return docs;
@@ -46,7 +48,10 @@ export async function searchForum(query: string): Promise<ForumSearchHit[]> {
     ];
     const title = thread.title.toLowerCase();
     const bodies = posts.map((post) => post.body.toLowerCase());
-    const names = posts.map((post) => post.by).join(" ").toLowerCase();
+    const names = posts
+      .map((post) => post.by)
+      .join(" ")
+      .toLowerCase();
     let score = 0;
     let all = true;
     for (const term of terms) {

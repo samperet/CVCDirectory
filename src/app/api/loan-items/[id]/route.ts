@@ -19,7 +19,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const parsed = await readBody(request, loanItemUpdateSchema);
   if ("error" in parsed) return parsed.error;
 
-  const result = await updateLoanItem({ personId: user.personId, admin: isAdmin(user) }, params.id, parsed.data);
+  const result = await updateLoanItem(
+    { personId: user.personId, admin: isAdmin(user) },
+    params.id,
+    parsed.data
+  );
   return result.ok ? NextResponse.json({ item: result.value }) : denied(result.reason);
 }
 

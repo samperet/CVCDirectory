@@ -24,7 +24,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const parsed = await readBody(request, threadUpdateSchema);
   if ("error" in parsed) return parsed.error;
 
-  if (parsed.data.topicId && !(await getTopic(parsed.data.topicId))) return problem("That topic no longer exists", 404);
+  if (parsed.data.topicId && !(await getTopic(parsed.data.topicId)))
+    return problem("That topic no longer exists", 404);
   const result = await editThread(params.id, { id: user.id, admin: isAdmin(user) }, parsed.data);
   return result.ok ? NextResponse.json(result.doc) : forumProblem(result.reason);
 }

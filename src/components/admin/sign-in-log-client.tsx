@@ -27,9 +27,12 @@ function dayLabel(date: Date) {
   });
 }
 
-const time = (date: Date) => date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const time = (date: Date) =>
+  date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 const shortDate = (date: Date) =>
-  date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) + ", " + time(date);
+  date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
+  ", " +
+  time(date);
 
 export function SignInLogClient() {
   const [view, setView] = useState<View>("all");
@@ -80,13 +83,17 @@ export function SignInLogClient() {
         <h1 className="text-2xl font-semibold text-foreground">Sign-in log</h1>
         {total ? (
           <p className="text-sm text-muted">
-            {total} sign-in{total === 1 ? "" : "s"} by {residents} resident{residents === 1 ? "" : "s"}
+            {total} sign-in{total === 1 ? "" : "s"} by {residents} resident
+            {residents === 1 ? "" : "s"}
           </p>
         ) : null}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex w-fit rounded-full border border-border bg-surface p-1" role="tablist">
+        <div
+          className="inline-flex w-fit rounded-full border border-border bg-surface p-1"
+          role="tablist"
+        >
           {(
             [
               ["all", "All sign-ins"],
@@ -100,7 +107,9 @@ export function SignInLogClient() {
               onClick={() => setView(value)}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-medium transition",
-                view === value ? "bg-primary text-primary-foreground shadow-soft" : "text-foreground/70 hover:text-foreground"
+                view === value
+                  ? "bg-primary text-primary-foreground shadow-soft"
+                  : "text-foreground/70 hover:text-foreground"
               )}
             >
               {label}
@@ -127,16 +136,23 @@ export function SignInLogClient() {
         </Card>
       ) : !entries.length ? (
         <Card>
-          <p className="text-sm text-muted">{query ? `No sign-ins match “${query}”.` : "No sign-ins recorded yet."}</p>
+          <p className="text-sm text-muted">
+            {query ? `No sign-ins match “${query}”.` : "No sign-ins recorded yet."}
+          </p>
         </Card>
       ) : view === "all" ? (
         byDay.map((group) => (
           <section key={group.key} className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">{group.label}</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              {group.label}
+            </h2>
             <Card className="p-0">
               <ul className="divide-y divide-border">
                 {group.entries.map((entry, index) => (
-                  <li key={`${entry.at}-${index}`} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <li
+                    key={`${entry.at}-${index}`}
+                    className="flex items-center justify-between gap-3 px-5 py-3 text-sm"
+                  >
                     <span className="font-medium text-foreground">{entry.name}</span>
                     <time dateTime={entry.at} className="shrink-0 tabular-nums text-muted">
                       {time(new Date(entry.at))}
@@ -161,7 +177,9 @@ export function SignInLogClient() {
               {byPerson.map((person) => (
                 <tr key={person.name + person.first}>
                   <td className="px-5 py-3 font-medium text-foreground">{person.name}</td>
-                  <td className="px-3 py-3 text-right tabular-nums text-foreground-light">{person.count}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-foreground-light">
+                    {person.count}
+                  </td>
                   <td className="whitespace-nowrap px-5 py-3 tabular-nums text-muted">
                     <time dateTime={person.last}>{shortDate(new Date(person.last))}</time>
                   </td>

@@ -6,11 +6,20 @@ import { todayInVermont } from "@/lib/time";
 
 export const TASK_STATUSES = ["todo", "doing", "blocked", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
-export const STATUS_LABELS: Record<TaskStatus, string> = { todo: "To do", doing: "In progress", blocked: "Blocked", done: "Done" };
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  todo: "To do",
+  doing: "In progress",
+  blocked: "Blocked",
+  done: "Done",
+};
 
 export const TASK_PRIORITIES = ["low", "normal", "high"] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
-export const PRIORITY_LABELS: Record<TaskPriority, string> = { low: "Low", normal: "Normal", high: "High" };
+export const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  low: "Low",
+  normal: "Normal",
+  high: "High",
+};
 
 export interface TaskPerson {
   userId: string;
@@ -55,7 +64,10 @@ export interface Task {
 }
 
 /** A task as listed: with how many comments it has. */
-export type TaskSummary = Omit<Task, "activity" | "description"> & { commentCount: number; hasDescription: boolean };
+export type TaskSummary = Omit<Task, "activity" | "description"> & {
+  commentCount: number;
+  hasDescription: boolean;
+};
 
 export interface TaskComment {
   id: string;
@@ -75,7 +87,12 @@ export interface TaskComment {
 export function checklistProgress(task: Pick<Task, "checklist">) {
   if (!task.checklist.length) return null;
   const done = task.checklist.filter((item) => item.done).length;
-  return { done, total: task.checklist.length, percent: Math.round((done / task.checklist.length) * 100) };
+  return {
+    done,
+    total: task.checklist.length,
+    percent: Math.round((done / task.checklist.length) * 100),
+  };
 }
 
-export const isOverdue = (task: Pick<Task, "dueDate" | "status">, today = todayInVermont()) => !!task.dueDate && task.status !== "done" && task.dueDate < today;
+export const isOverdue = (task: Pick<Task, "dueDate" | "status">, today = todayInVermont()) =>
+  !!task.dueDate && task.status !== "done" && task.dueDate < today;

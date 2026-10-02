@@ -18,7 +18,9 @@ const schema = z.object({
   role: z.enum(["owner", "renter", "household"]),
   phone: z.string().trim().max(40).default(""),
   landline: z.string().trim().max(40).default(""),
-  email: z.union([z.literal(""), z.string().trim().email("Enter a valid email address").max(254)]).default(""),
+  email: z
+    .union([z.literal(""), z.string().trim().email("Enter a valid email address").max(254)])
+    .default(""),
   birthday: z.string().trim().max(20).default(""),
   bio: z.string().trim().max(500).default(""),
 });
@@ -29,14 +31,20 @@ export async function POST(request: NextRequest) {
   if (!user) return problem("Sign in to continue", 401);
   const directory = await readDirectory();
   if (!directory) return problem("The directory hasn't been imported yet", 503);
-  if (!canManageDirectory(user, directory)) return problem("Only the Board Secretary and admins can add people", 403);
+  if (!canManageDirectory(user, directory))
+    return problem("Only the Board Secretary and admins can add people", 403);
 
   const parsed = await readBody(request, schema);
   if ("error" in parsed) return parsed.error;
   const input = parsed.data;
 
   const displayName = `${input.firstName} ${input.lastName}`.trim();
-  if (directory.people.some((person) => person.displayName.localeCompare(displayName, undefined, { sensitivity: "base" }) === 0)) {
+  if (
+    directory.people.some(
+      (person) =>
+        person.displayName.localeCompare(displayName, undefined, { sensitivity: "base" }) === 0
+    )
+  ) {
     return problem("Someone in the directory already has that name", 409);
   }
   const phone = input.phone ? formatPhone(input.phone) : null;

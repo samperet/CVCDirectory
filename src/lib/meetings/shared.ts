@@ -62,7 +62,13 @@ export interface ProposalComment {
   withdrawnNote?: string | null;
 }
 
-export type ProposalEventKind = "review" | "paused" | "resumed" | "consented" | "withdrawn" | "edited";
+export type ProposalEventKind =
+  | "review"
+  | "paused"
+  | "resumed"
+  | "consented"
+  | "withdrawn"
+  | "edited";
 
 export interface ProposalEvent {
   at: string;
@@ -103,10 +109,15 @@ export const STATE_LABELS: Record<ProposalState, string> = {
 
 /** Objections not yet withdrawn. */
 export const openObjections = (proposal: Pick<Proposal, "comments">) =>
-  proposal.comments.filter((comment) => comment.kind === "objection" && comment.parentId === null && !comment.withdrawnAt);
+  proposal.comments.filter(
+    (comment) => comment.kind === "objection" && comment.parentId === null && !comment.withdrawnAt
+  );
 
 /** Where a proposal stands at `now` (consent comes as the review's time runs out, without anyone doing anything). */
-export function proposalState(proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">, now = Date.now()): ProposalState {
+export function proposalState(
+  proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">,
+  now = Date.now()
+): ProposalState {
   if (proposal.withdrawnAt) return "withdrawn";
   if (proposal.consentedAt) return "consented";
   if (!proposal.review) return "draft";
@@ -115,11 +126,19 @@ export function proposalState(proposal: Pick<Proposal, "review" | "consentedAt" 
 }
 
 /** When it was consented (the end of its review), if it has been. */
-export const consentedOn = (proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">, now = Date.now()) =>
-  proposalState(proposal, now) === "consented" ? proposal.consentedAt ?? proposal.review?.deadline ?? null : null;
+export const consentedOn = (
+  proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">,
+  now = Date.now()
+) =>
+  proposalState(proposal, now) === "consented"
+    ? proposal.consentedAt ?? proposal.review?.deadline ?? null
+    : null;
 
 /** The review's time left: counting down while it runs, held while it's paused. */
-export function reviewTimeLeft(proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">, now = Date.now()): number | null {
+export function reviewTimeLeft(
+  proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">,
+  now = Date.now()
+): number | null {
   const state = proposalState(proposal, now);
   if (state === "review") return Date.parse(proposal.review!.deadline!) - now;
   if (state === "paused") return proposal.review!.remainingMs ?? 0;
@@ -139,22 +158,34 @@ export function formatDuration(ms: number) {
 }
 
 /** A short status: "3 days 4 hours left", "Paused: 1 objection", "Consented". */
-export function statusLine(proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">, objections: number, now = Date.now()) {
+export function statusLine(
+  proposal: Pick<Proposal, "review" | "consentedAt" | "withdrawnAt">,
+  objections: number,
+  now = Date.now()
+) {
   const state = proposalState(proposal, now);
   const left = reviewTimeLeft(proposal, now);
   if (state === "review") return `${formatDuration(left!)} left`;
-  if (state === "paused") return `Paused: ${objections === 1 ? "1 objection" : `${objections} objections`}`;
+  if (state === "paused")
+    return `Paused: ${objections === 1 ? "1 objection" : `${objections} objections`}`;
   return STATE_LABELS[state];
 }
 
-export const meetingHref = (circleId: string, meetingId: string) => `/circles/${circleId}/meetings/${meetingId}`;
-export const proposalHref = (circleId: string, proposalId: string) => `/circles/${circleId}/proposals/${proposalId}`;
+export const meetingHref = (circleId: string, meetingId: string) =>
+  `/circles/${circleId}/meetings/${meetingId}`;
+export const proposalHref = (circleId: string, proposalId: string) =>
+  `/circles/${circleId}/proposals/${proposalId}`;
 
 /** A meeting with just what lists need. */
-export type MeetingSummary = Pick<Meeting, "id" | "circleId" | "title" | "date" | "updatedAt"> & { present: number };
+export type MeetingSummary = Pick<Meeting, "id" | "circleId" | "title" | "date" | "updatedAt"> & {
+  present: number;
+};
 
 /** A proposal with just what lists need. */
-export type ProposalSummary = Pick<Proposal, "id" | "circleId" | "meetingId" | "title" | "review" | "consentedAt" | "withdrawnAt" | "createdAt"> & {
+export type ProposalSummary = Pick<
+  Proposal,
+  "id" | "circleId" | "meetingId" | "title" | "review" | "consentedAt" | "withdrawnAt" | "createdAt"
+> & {
   proposerName: string;
   openObjections: number;
   openTensions: number;
@@ -180,5 +211,7 @@ export const summarizeProposal = (proposal: Proposal): ProposalSummary => ({
   createdAt: proposal.createdAt,
   proposerName: proposal.proposer.name,
   openObjections: openObjections(proposal).length,
-  openTensions: proposal.comments.filter((comment) => comment.kind === "tension" && comment.parentId === null && !comment.addressedAt).length,
+  openTensions: proposal.comments.filter(
+    (comment) => comment.kind === "tension" && comment.parentId === null && !comment.addressedAt
+  ).length,
 });

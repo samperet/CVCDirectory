@@ -15,7 +15,8 @@ export const wikiPagesQuery = () => ({
 });
 
 /** The page a link's title names (titles are unique across the wiki). */
-export const pageTitled = (pages: WikiPageSummary[] | undefined, title: string) => pages?.find((page) => page.title.toLowerCase() === title.trim().toLowerCase());
+export const pageTitled = (pages: WikiPageSummary[] | undefined, title: string) =>
+  pages?.find((page) => page.title.toLowerCase() === title.trim().toLowerCase());
 
 /** A document, as much as a link to it needs. */
 export interface DocRef {
@@ -32,12 +33,22 @@ export function useDocTitles(enabled = true) {
     enabled,
     staleTime: 60_000,
     queryFn: async (): Promise<DocRef[]> =>
-      (await apiFetch<{ documents: DocumentListing[] }>("/api/documents")).documents.map((doc) => ({ id: doc.id, title: doc.title, circleId: doc.circleId, circleName: doc.circleName })),
+      (await apiFetch<{ documents: DocumentListing[] }>("/api/documents")).documents.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        circleId: doc.circleId,
+        circleName: doc.circleName,
+      })),
   });
 }
 
 /** The document a `[[doc:…]]` link means: in the named circle, else this circle's, else any circle's. */
-export function findDoc(docs: DocRef[], title: string, circleId: string | null, fromCircleId: string) {
+export function findDoc(
+  docs: DocRef[],
+  title: string,
+  circleId: string | null,
+  fromCircleId: string
+) {
   const matches = docs.filter((doc) => doc.title.toLowerCase() === title.toLowerCase());
   if (circleId) return matches.find((doc) => doc.circleId === circleId);
   return matches.find((doc) => doc.circleId === fromCircleId) ?? matches[0];
@@ -45,7 +56,12 @@ export function findDoc(docs: DocRef[], title: string, circleId: string | null, 
 
 export const docFileUrl = (id: string) => `/api/documents/${id}/file`;
 
-export type PageResponse = { page: WikiPage; history: WikiVersion[]; canEdit: boolean; canManage: boolean };
+export type PageResponse = {
+  page: WikiPage;
+  history: WikiVersion[];
+  canEdit: boolean;
+  canManage: boolean;
+};
 
 /** One page in full, with its history and what you can do with it (shared by the page, embeds, and the editor). */
 export const wikiPageQuery = (slug: string) => ({

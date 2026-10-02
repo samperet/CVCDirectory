@@ -25,7 +25,11 @@ export const EmbedChain = createContext<string[]>([]);
 const MAX_DEPTH = 3;
 
 function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="my-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted">{children}</p>;
+  return (
+    <p className="my-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted">
+      {children}
+    </p>
+  );
 }
 
 export function EmbedBlock({ target, section }: { target: string; section?: string }) {
@@ -37,7 +41,10 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
   const summary = link?.kind === "page" ? pageTitled(list.data?.pages, link.title) : undefined;
   const repeated = !!summary && chain.includes(summary.id);
   const tooDeep = chain.length > MAX_DEPTH;
-  const full = useQuery({ ...wikiPageQuery(summary?.slug ?? ""), enabled: !!summary && !repeated && !tooDeep });
+  const full = useQuery({
+    ...wikiPageQuery(summary?.slug ?? ""),
+    enabled: !!summary && !repeated && !tooDeep,
+  });
 
   if (!circles || list.isLoading || (summary && !repeated && !tooDeep && full.isLoading)) {
     return <div className="my-2 h-20 animate-pulse rounded-lg bg-accent/40" aria-hidden />;
@@ -76,23 +83,39 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
   const keeper = circles.find((circle) => circle.id === page.keeper);
   const own = page.keeper === here?.circleId;
   return (
-    <section className="my-3 border-l-4 pl-4" style={{ borderColor: page.color === "white" ? style.edge : style.swatch }} aria-label={`${page.title}${own || !keeper ? "" : `, from ${keeper.name}`}`} data-embedded={page.title}>
+    <section
+      className="my-3 border-l-4 pl-4"
+      style={{ borderColor: page.color === "white" ? style.edge : style.swatch }}
+      aria-label={`${page.title}${own || !keeper ? "" : `, from ${keeper.name}`}`}
+      data-embedded={page.title}
+    >
       <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
         <span className="font-semibold text-foreground-light">
           {page.title}
           {section ? ` › ${section}` : ""}
         </span>
         {own || !keeper ? null : <span>from {keeper.name}</span>}
-        <Link href={section ? `${pageHref}#${headingSlug(section)}` : pageHref} className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline">
+        <Link
+          href={section ? `${pageHref}#${headingSlug(section)}` : pageHref}
+          className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline"
+        >
           Open <ArrowUpRight className="h-3 w-3" aria-hidden />
         </Link>
         {full.data?.canEdit ? (
-          <Link href={`${pageHref}?edit=1`} className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline">
+          <Link
+            href={`${pageHref}?edit=1`}
+            className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline"
+          >
             <Pencil className="h-3 w-3" aria-hidden /> Edit
           </Link>
         ) : null}
       </p>
-      <WikiMarkdown source={body} circleId={page.keeper} pages={list.data?.pages} pageId={page.id} />
+      <WikiMarkdown
+        source={body}
+        circleId={page.keeper}
+        pages={list.data?.pages}
+        pageId={page.id}
+      />
     </section>
   );
 }

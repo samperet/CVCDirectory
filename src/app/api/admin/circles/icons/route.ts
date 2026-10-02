@@ -22,12 +22,17 @@ export async function GET(request: NextRequest) {
   if (circle) {
     const icon = isCircleId(circle) ? await readBinary(iconKey(circle)) : null;
     if (!icon) return problem("Icon not found", 404);
-    return new NextResponse(icon.bytes as unknown as BodyInit, { headers: { "Content-Type": icon.contentType, "Cache-Control": "private, no-store" } });
+    return new NextResponse(icon.bytes as unknown as BodyInit, {
+      headers: { "Content-Type": icon.contentType, "Cache-Control": "private, no-store" },
+    });
   }
   return NextResponse.json({ icons: await readCircleIcons() });
 }
 
-const copySchema = z.object({ from: z.string().refine(isCircleId), to: z.string().refine(isCircleId) });
+const copySchema = z.object({
+  from: z.string().refine(isCircleId),
+  to: z.string().refine(isCircleId),
+});
 
 export async function POST(request: NextRequest) {
   const denied = authorize(request);
@@ -37,7 +42,10 @@ export async function POST(request: NextRequest) {
   const icon = await readBinary(iconKey(parsed.data.from));
   if (!icon) return problem(`${parsed.data.from} has no icon`, 404);
   await writeBinary(iconKey(parsed.data.to), icon);
-  await setCircleIcon(parsed.data.to, { contentType: icon.contentType, updatedAt: new Date().toISOString() });
+  await setCircleIcon(parsed.data.to, {
+    contentType: icon.contentType,
+    updatedAt: new Date().toISOString(),
+  });
   return NextResponse.json({ ok: true, copied: parsed.data, bytes: icon.bytes.length });
 }
 

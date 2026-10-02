@@ -1,7 +1,14 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, readJson, writeJson } from "@/lib/storage";
-import { PRIORITY_LABELS, STATUS_LABELS, TASK_PRIORITIES, TASK_STATUSES, type Task, type TaskPerson } from "./shared";
+import {
+  PRIORITY_LABELS,
+  STATUS_LABELS,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  type Task,
+  type TaskPerson,
+} from "./shared";
 
 /**
  * Circle tasks: each circle's in one document (`tasks/<circleId>.json`),
@@ -14,9 +21,17 @@ const MAX_ACTIVITY = 50;
 const MAX_CHECKLIST = 50;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-15");
-const title = z.string().trim().min(1, "Give the task a title").max(160, "Keep the title to 160 characters");
+const title = z
+  .string()
+  .trim()
+  .min(1, "Give the task a title")
+  .max(160, "Keep the title to 160 characters");
 const description = z.string().max(10_000, "Keep the description to 10,000 characters");
-const checklistItem = z.object({ id: z.string().max(40).optional(), text: z.string().trim().min(1).max(200), done: z.boolean().default(false) });
+const checklistItem = z.object({
+  id: z.string().max(40).optional(),
+  text: z.string().trim().min(1).max(200),
+  done: z.boolean().default(false),
+});
 
 export const taskInputSchema = z.object({
   title,
@@ -51,7 +66,10 @@ type Stored = { nextNumber: number; tasks: Task[] };
 function normalize(raw: unknown): Stored {
   const value = raw as Partial<Stored> | null;
   const tasks = Array.isArray(value?.tasks) ? (value!.tasks as Task[]) : [];
-  return { tasks, nextNumber: value?.nextNumber ?? tasks.reduce((max, task) => Math.max(max, task.number), 0) + 1 };
+  return {
+    tasks,
+    nextNumber: value?.nextNumber ?? tasks.reduce((max, task) => Math.max(max, task.number), 0) + 1,
+  };
 }
 
 export async function listTasks(circleId: string): Promise<Task[]> {
@@ -63,9 +81,14 @@ export async function getTask(circleId: string, number: number): Promise<Task | 
 }
 
 type Failure = "not_found" | "full" | "forbidden";
-export type TaskResult = { ok: true; task: Task | null; before: Task | null } | { ok: false; reason: Failure };
+export type TaskResult =
+  | { ok: true; task: Task | null; before: Task | null }
+  | { ok: false; reason: Failure };
 
-async function mutate(circleId: string, change: (stored: Stored) => { stored: Stored; task: Task | null; before: Task | null } | Failure): Promise<TaskResult> {
+async function mutate(
+  circleId: string,
+  change: (stored: Stored) => { stored: Stored; task: Task | null; before: Task | null } | Failure
+): Promise<TaskResult> {
   return enqueue<TaskResult>(key(circleId), async () => {
     const result = change(normalize(await readJson(key(circleId))));
     if (typeof result === "string") return { ok: false, reason: result };
@@ -74,10 +97,23 @@ async function mutate(circleId: string, change: (stored: Stored) => { stored: St
   });
 }
 
-const log = (task: Task, by: string, text: string): Task => ({ ...task, activity: [...task.activity, { at: new Date().toISOString(), by, text }].slice(-MAX_ACTIVITY) });
-const withIds = (items: { id?: string; text: string; done: boolean }[]) => items.map((item) => ({ id: item.id || randomUUID().slice(0, 8), text: item.text, done: item.done }));
+const log = (task: Task, by: string, text: string): Task => ({
+  ...task,
+  activity: [...task.activity, { at: new Date().toISOString(), by, text }].slice(-MAX_ACTIVITY),
+});
+const withIds = (items: { id?: string; text: string; done: boolean }[]) =>
+  items.map((item) => ({
+    id: item.id || randomUUID().slice(0, 8),
+    text: item.text,
+    done: item.done,
+  }));
 
-export function createTask(circleId: string, author: TaskPerson, input: TaskInput, ownerName: string | null) {
+export function createTask(
+  circleId: string,
+  author: TaskPerson,
+  input: TaskInput,
+  ownerName: string | null
+) {
   return mutate(circleId, (stored) => {
     if (stored.tasks.length >= MAX_TASKS) return "full";
     const now = new Date().toISOString();
@@ -98,8 +134,16 @@ export function createTask(circleId: string, author: TaskPerson, input: TaskInpu
       completedAt: input.status === "done" ? now : null,
       activity: [],
     };
-    task = log(task, author.name, ownerName && input.ownerId ? `added this task, for ${ownerName}` : "added this task");
-    return { stored: { nextNumber: stored.nextNumber + 1, tasks: [...stored.tasks, task] }, task, before: null };
+    task = log(
+      task,
+      author.name,
+      ownerName && input.ownerId ? `added this task, for ${ownerName}` : "added this task"
+    );
+    return {
+      stored: { nextNumber: stored.nextNumber + 1, tasks: [...stored.tasks, task] },
+      task,
+      before: null,
+    };
   });
 }
 
@@ -142,7 +186,13 @@ export function updateTask(
     if (update.ownerId !== undefined && update.ownerId !== task.ownerId) {
       task.ownerId = update.ownerId;
       task.ownerName = update.ownerId ? ownerName : null;
-      say(update.ownerId ? (ownerName === actor.name ? "took this on" : `gave this to ${ownerName}`) : "left this unassigned");
+      say(
+        update.ownerId
+          ? ownerName === actor.name
+            ? "took this on"
+            : `gave this to ${ownerName}`
+          : "left this unassigned"
+      );
     }
     if (update.dueDate !== undefined && update.dueDate !== task.dueDate) {
       task.dueDate = update.dueDate;
@@ -156,20 +206,30 @@ export function updateTask(
       const removed = task.checklist.filter((item) => !has.has(item.id));
       task.checklist = next;
       if (added.length === 1 && !removed.length) say(`added “${added[0].text}” to the checklist`);
-      else if (removed.length === 1 && !added.length) say(`removed “${removed[0].text}” from the checklist`);
+      else if (removed.length === 1 && !added.length)
+        say(`removed “${removed[0].text}” from the checklist`);
       else say("updated the checklist");
     }
     if (update.toggle) {
       const item = task.checklist.find((entry) => entry.id === update.toggle!.id);
       if (!item) return "not_found";
       if (item.done !== update.toggle.done) {
-        task.checklist = task.checklist.map((entry) => (entry.id === item.id ? { ...entry, done: update.toggle!.done } : entry));
+        task.checklist = task.checklist.map((entry) =>
+          entry.id === item.id ? { ...entry, done: update.toggle!.done } : entry
+        );
         say(`${update.toggle.done ? "checked off" : "unchecked"} “${item.text}”`);
       }
     }
     if (task.activity === before.activity) return { stored, task: before, before };
     task.updatedAt = new Date().toISOString();
-    return { stored: { ...stored, tasks: stored.tasks.map((entry) => (entry.id === task.id ? task : entry)) }, task, before };
+    return {
+      stored: {
+        ...stored,
+        tasks: stored.tasks.map((entry) => (entry.id === task.id ? task : entry)),
+      },
+      task,
+      before,
+    };
   });
 }
 
@@ -177,7 +237,11 @@ export function deleteTask(circleId: string, number: number) {
   return mutate(circleId, (stored) => {
     const task = stored.tasks.find((entry) => entry.number === number);
     if (!task) return "not_found";
-    return { stored: { ...stored, tasks: stored.tasks.filter((entry) => entry.id !== task.id) }, task: null, before: task };
+    return {
+      stored: { ...stored, tasks: stored.tasks.filter((entry) => entry.id !== task.id) },
+      task: null,
+      before: task,
+    };
   });
 }
 

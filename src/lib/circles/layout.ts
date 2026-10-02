@@ -7,7 +7,14 @@ import { isCommunity } from "./ids";
  * up to each reader, on their own device.
  */
 
-export const MODULE_TYPES = ["information", "members", "meetings", "schedule", "tasks", "documents"] as const;
+export const MODULE_TYPES = [
+  "information",
+  "members",
+  "meetings",
+  "schedule",
+  "tasks",
+  "documents",
+] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
 export const MODULE_SIZES = ["small", "medium", "large", "full"] as const;
@@ -19,13 +26,27 @@ export interface SectionLayout {
   size: ModuleSize;
 }
 
-export const SIZE_LABELS: Record<ModuleSize, string> = { small: "⅓", medium: "½", large: "⅔", full: "Full" };
-export const SIZE_NAMES: Record<ModuleSize, string> = { small: "A third", medium: "Half", large: "Two thirds", full: "Full width" };
+export const SIZE_LABELS: Record<ModuleSize, string> = {
+  small: "⅓",
+  medium: "½",
+  large: "⅔",
+  full: "Full",
+};
+export const SIZE_NAMES: Record<ModuleSize, string> = {
+  small: "A third",
+  medium: "Half",
+  large: "Two thirds",
+  full: "Full width",
+};
 
 /** How the Information section shows its pages: in full, as cards with their opening lines, or as a list of titles. */
 export const INFO_VIEWS = ["full", "summary", "titles"] as const;
 export type InfoView = (typeof INFO_VIEWS)[number];
-export const INFO_VIEW_LABELS: Record<InfoView, string> = { full: "Full", summary: "Summary", titles: "Titles only" };
+export const INFO_VIEW_LABELS: Record<InfoView, string> = {
+  full: "Full",
+  summary: "Summary",
+  titles: "Titles only",
+};
 export const DEFAULT_INFO_VIEW: InfoView = "summary";
 
 const DEFAULT_LAYOUT: SectionLayout[] = [
@@ -70,14 +91,20 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
 };
 
 /** Which pages an Information module shows: chosen ones (in order), all of a circle's, or the most recently edited (of a circle, or the whole wiki). */
-export type InfoFilter = { kind: "pages"; pageIds: string[] } | { kind: "circle"; circleId: string } | { kind: "recent"; limit: number; circleId?: string };
+export type InfoFilter =
+  | { kind: "pages"; pageIds: string[] }
+  | { kind: "circle"; circleId: string }
+  | { kind: "recent"; limit: number; circleId?: string };
 export const MAX_CHOSEN_PAGES = 12;
 export const RECENT_LIMITS = { min: 3, max: 12, default: 6 } as const;
 
 /** Who can add tasks to a circle: its members (and the Board and admins), or any resident. */
 export const TASK_ADDERS = ["members", "anyone"] as const;
 export type TaskAdders = (typeof TASK_ADDERS)[number];
-export const TASK_ADDER_LABELS: Record<TaskAdders, string> = { members: "The circle's members (and the Board)", anyone: "Any resident" };
+export const TASK_ADDER_LABELS: Record<TaskAdders, string> = {
+  members: "The circle's members (and the Board)",
+  anyone: "Any resident",
+};
 
 export interface CircleModule {
   id: string;
@@ -95,7 +122,8 @@ export const MAX_MODULES = 20;
 
 /** A module's heading. */
 export const moduleTitle = (module: Pick<CircleModule, "type" | "title">, scheduleTitle?: string) =>
-  module.title?.trim() || (module.type === "schedule" && scheduleTitle ? scheduleTitle : MODULE_NAMES[module.type]);
+  module.title?.trim() ||
+  (module.type === "schedule" && scheduleTitle ? scheduleTitle : MODULE_NAMES[module.type]);
 
 /**
  * The page's modules: those the circle saved — or, until it saves any, its
@@ -105,7 +133,13 @@ export const moduleTitle = (module: Pick<CircleModule, "type" | "title">, schedu
  * and Documents unless it turned them off.
  */
 export function modulesFor(
-  circle: { id: string; modules?: CircleModule[]; layout?: SectionLayout[]; features?: { documents?: boolean; wiki?: boolean; tasks?: boolean }; infoView?: InfoView },
+  circle: {
+    id: string;
+    modules?: CircleModule[];
+    layout?: SectionLayout[];
+    features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
+    infoView?: InfoView;
+  },
   { hasSchedule }: { hasSchedule: boolean }
 ): CircleModule[] {
   if (circle.modules) return circle.modules;
@@ -118,6 +152,16 @@ export function modulesFor(
     ...(on("documents") ? (["documents"] as const) : []),
   ];
   return layoutFor(circle.layout, available).map(({ id, size }) =>
-    id === "information" ? { id, type: id, size, info: { filter: { kind: "circle", circleId: circle.id }, view: circle.infoView ?? DEFAULT_INFO_VIEW } } : { id, type: id, size }
+    id === "information"
+      ? {
+          id,
+          type: id,
+          size,
+          info: {
+            filter: { kind: "circle", circleId: circle.id },
+            view: circle.infoView ?? DEFAULT_INFO_VIEW,
+          },
+        }
+      : { id, type: id, size }
   );
 }

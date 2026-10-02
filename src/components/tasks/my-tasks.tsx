@@ -12,7 +12,10 @@ type MyTask = Omit<Task, "activity" | "description"> & { circleId: string; circl
 
 /** On the dashboard: the unfinished tasks you own, in any circle — shown only when there are some. */
 export function MyTasks() {
-  const { data } = useQuery({ queryKey: ["my-tasks"], queryFn: () => apiFetch<{ tasks: MyTask[] }>("/api/tasks/mine") });
+  const { data } = useQuery({
+    queryKey: ["my-tasks"],
+    queryFn: () => apiFetch<{ tasks: MyTask[] }>("/api/tasks/mine"),
+  });
   const tasks = data?.tasks ?? [];
   if (!tasks.length) return null;
   return (
@@ -22,9 +25,19 @@ export function MyTasks() {
       </h2>
       <ul className="flex flex-col divide-y divide-border">
         {tasks.slice(0, 6).map((task) => (
-          <li key={task.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0">
-            <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_STYLES[task.status].dot)} title={STATUS_LABELS[task.status]} aria-hidden />
-            <Link href={`/circles/${task.circleId}/tasks/${task.number}`} className="min-w-0 flex-1 font-medium text-foreground hover:underline">
+          <li
+            key={task.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0"
+          >
+            <span
+              className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_STYLES[task.status].dot)}
+              title={STATUS_LABELS[task.status]}
+              aria-hidden
+            />
+            <Link
+              href={`/circles/${task.circleId}/tasks/${task.number}`}
+              className="min-w-0 flex-1 font-medium text-foreground hover:underline"
+            >
               {task.title}
             </Link>
             <PriorityFlag task={task} />

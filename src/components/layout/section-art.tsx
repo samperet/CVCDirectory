@@ -20,8 +20,25 @@ const ART: Record<string, string> = {
 export const hasSectionArt = (href: string) => href in ART;
 
 /** A section's illustration, or nothing if it doesn't have one. Decorative: the section's name is always beside it. */
-export function SectionArt({ href, size, className }: { href: string; size: number; className?: string }) {
+export function SectionArt({
+  href,
+  size,
+  className,
+}: {
+  href: string;
+  size: number;
+  className?: string;
+}) {
   const src = ART[href];
   if (!src) return null;
-  return <Image src={src} alt="" width={size} height={size} className={cn("shrink-0 object-contain", className)} style={{ width: size, height: size }} />;
+  return (
+    <Image
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      className={cn("shrink-0 object-contain", className)}
+      style={{ width: size, height: size }}
+    />
+  );
 }

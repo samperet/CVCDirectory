@@ -37,17 +37,32 @@ export function Globe3DView({
     const element = box.current;
     if (!element) return;
     let disposed = false;
-    let graph3d: { _destructor: () => void; width: (w: number) => unknown; height: (h: number) => unknown } | null = null;
+    let graph3d: {
+      _destructor: () => void;
+      width: (w: number) => unknown;
+      height: (h: number) => unknown;
+    } | null = null;
     let observer: ResizeObserver | null = null;
     (async () => {
-      const [{ default: ForceGraph3D }, { default: SpriteText }] = await Promise.all([import("3d-force-graph"), import("three-spritetext")]);
+      const [{ default: ForceGraph3D }, { default: SpriteText }] = await Promise.all([
+        import("3d-force-graph"),
+        import("three-spritetext"),
+      ]);
       if (disposed) return;
-      const nodes: Node3D[] = graph.nodes.filter((node) => node.kind === "circle" || kinds.has(node.kind)).map((node) => ({ ...node }));
+      const nodes: Node3D[] = graph.nodes
+        .filter((node) => node.kind === "circle" || kinds.has(node.kind))
+        .map((node) => ({ ...node }));
       const ids = new Set(nodes.map((node) => node.id));
       const links: Link3D[] = graph.edges
-        .filter((edge) => ids.has(edge.source) && ids.has(edge.target) && (edge.kind === "belongs" || edgeKinds.has(edge.kind)))
+        .filter(
+          (edge) =>
+            ids.has(edge.source) &&
+            ids.has(edge.target) &&
+            (edge.kind === "belongs" || edgeKinds.has(edge.kind))
+        )
         .map((edge) => ({ ...edge }));
-      const hue = (node: GraphNode) => (node.circleId ? colors.get(node.circleId) : undefined) ?? "#8c8f86";
+      const hue = (node: GraphNode) =>
+        (node.circleId ? colors.get(node.circleId) : undefined) ?? "#8c8f86";
       const height = Math.max(420, Math.min(window.innerHeight * 0.72, element.clientWidth * 1.1));
       // The library's own types don't know our node and link fields; it's driven loosely here.
       const Graph = ForceGraph3D as unknown as new (element: HTMLElement, options?: object) => any;
@@ -73,7 +88,9 @@ export function Globe3DView({
           label.backgroundColor = "rgba(15,29,24,0.55)";
           label.padding = 2;
           label.borderRadius = 3;
-          (label as unknown as { position: { set: (x: number, y: number, z: number) => void } }).position.set(0, 16, 0);
+          (
+            label as unknown as { position: { set: (x: number, y: number, z: number) => void } }
+          ).position.set(0, 16, 0);
           return label;
         })
         .linkColor((link: Link3D) => (link.kind === "link" ? "#cfe3d4" : "#5d7a6b"))
@@ -89,12 +106,20 @@ export function Globe3DView({
         .onNodeClick((node: Node3D) => {
           // Ease the camera toward it, then show its panel.
           const distance = 110;
-          const ratio = 1 + distance / Math.max(1, Math.hypot(node.x ?? 0, node.y ?? 0, node.z ?? 0));
-          instance.cameraPosition({ x: (node.x ?? 0) * ratio, y: (node.y ?? 0) * ratio, z: (node.z ?? 0) * ratio }, node, 900);
+          const ratio =
+            1 + distance / Math.max(1, Math.hypot(node.x ?? 0, node.y ?? 0, node.z ?? 0));
+          instance.cameraPosition(
+            { x: (node.x ?? 0) * ratio, y: (node.y ?? 0) * ratio, z: (node.z ?? 0) * ratio },
+            node,
+            900
+          );
           selectRef.current(node.id);
         })
         .onBackgroundClick(() => selectRef.current(null));
-      instance.d3Force("link")?.distance((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 38 : 110)).strength((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 0.9 : 0.05));
+      instance
+        .d3Force("link")
+        ?.distance((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 38 : 110))
+        .strength((link: { kind: GraphEdgeKind }) => (link.kind === "belongs" ? 0.9 : 0.05));
       instance.d3Force("charge")?.strength(-70);
       instance.cameraPosition({ z: 420 });
       graph3d = instance;
@@ -117,9 +142,27 @@ export function Globe3DView({
         setMouse({ x: event.clientX - rect.left, y: event.clientY - rect.top });
       }}
     >
-      <div ref={box} className="min-h-[420px] w-full" aria-label="3D map of wiki pages by circle" role="img" />
-      {hovered ? <NameTip node={hovered} graph={graph} x={mouse.x} y={mouse.y} bounds={{ width: box.current?.clientWidth ?? 600, height: box.current?.clientHeight ?? 500 }} /> : null}
-      <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[#cfe3d4]/70">Drag to turn · scroll to zoom · click for details</p>
+      <div
+        ref={box}
+        className="min-h-[420px] w-full"
+        aria-label="3D map of wiki pages by circle"
+        role="img"
+      />
+      {hovered ? (
+        <NameTip
+          node={hovered}
+          graph={graph}
+          x={mouse.x}
+          y={mouse.y}
+          bounds={{
+            width: box.current?.clientWidth ?? 600,
+            height: box.current?.clientHeight ?? 500,
+          }}
+        />
+      ) : null}
+      <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[#cfe3d4]/70">
+        Drag to turn · scroll to zoom · click for details
+      </p>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server";
-import { recommendationUpdateSchema, removeRecommendation, updateRecommendation } from "@/lib/resources/store";
+import {
+  recommendationUpdateSchema,
+  removeRecommendation,
+  updateRecommendation,
+} from "@/lib/resources/store";
 import { resourceActor, resourceResponse } from "@/lib/resources/http";
 import { readBody } from "@/lib/http";
 

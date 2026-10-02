@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addProposalComment, proposalCommentSchema } from "@/lib/meetings/store";
-import { meetingsContext, meetingsProblem, memberUserIds, reviewProblem } from "@/lib/meetings/http";
+import {
+  meetingsContext,
+  meetingsProblem,
+  memberUserIds,
+  reviewProblem,
+} from "@/lib/meetings/http";
 import { formatDuration, proposalHref, reviewTimeLeft } from "@/lib/meetings/shared";
 import { excerpt, notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
@@ -28,7 +33,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     await notify({
       topic: "proposals",
       title: `Objection: ${proposal.title}`,
-      body: `${ctx.user.name} objected, pausing the review${left ? ` (${formatDuration(left)} left)` : ""}: ${excerpt(comment!.body)}`,
+      body: `${ctx.user.name} objected, pausing the review${
+        left ? ` (${formatDuration(left)} left)` : ""
+      }: ${excerpt(comment!.body)}`,
       url,
       tag: `proposal-${proposal.id}`,
       exceptUserId: ctx.user.id,
@@ -36,8 +43,14 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
   } else {
     // Whoever brought it, and those in the conversation.
-    const root = comment!.parentId ? proposal.comments.find((entry) => entry.id === comment!.parentId) : null;
-    const thread = root ? proposal.comments.filter((entry) => entry.id === root.id || entry.parentId === root.id).map((entry) => entry.authorId) : [];
+    const root = comment!.parentId
+      ? proposal.comments.find((entry) => entry.id === comment!.parentId)
+      : null;
+    const thread = root
+      ? proposal.comments
+          .filter((entry) => entry.id === root.id || entry.parentId === root.id)
+          .map((entry) => entry.authorId)
+      : [];
     await notify({
       topic: "proposals",
       title: `${ctx.user.name} on ${proposal.title}`,

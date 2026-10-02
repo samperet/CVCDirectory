@@ -47,7 +47,9 @@ export function separatePeople(ids: string[]) {
   const set = new Set(ids);
   return change((changes) => ({
     ...changes,
-    merges: Object.fromEntries(Object.entries(changes.merges).filter(([from, to]) => !(set.has(from) && set.has(to)))),
+    merges: Object.fromEntries(
+      Object.entries(changes.merges).filter(([from, to]) => !(set.has(from) && set.has(to)))
+    ),
     separate: Array.from(new Set([...changes.separate, ...ids])),
   }));
 }
@@ -55,7 +57,10 @@ export function separatePeople(ids: string[]) {
 /** The imported people, less those removed, plus those added. */
 export function applyPeopleChanges(imported: Person[], changes: PeopleChanges): Person[] {
   const removed = new Set(changes.removed);
-  return [...imported.filter((person) => !removed.has(person.id)), ...changes.added.filter((person) => !removed.has(person.id))];
+  return [
+    ...imported.filter((person) => !removed.has(person.id)),
+    ...changes.added.filter((person) => !removed.has(person.id)),
+  ];
 }
 
 /** A new directory id, in the same 12-hex-character form as imported ones. */

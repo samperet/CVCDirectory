@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
   await notify({
     topic: "library",
     title: `${user.name} is lending: ${item.title}`,
-    body: item.description ? excerpt(item.description) : `New in the loan library (${item.category}).`,
+    body: item.description
+      ? excerpt(item.description)
+      : `New in the loan library (${item.category}).`,
     url: "/library",
     tag: `library-${item.id}`,
     exceptUserId: user.id,

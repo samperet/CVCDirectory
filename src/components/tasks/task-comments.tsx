@@ -86,13 +86,24 @@ function CommentForm({
  * can be folded away. Authors edit and delete their own; the circle's
  * editors and admins can delete any.
  */
-export function TaskComments({ circleId, number, canComment }: { circleId: string; number: number; canComment: boolean }) {
+export function TaskComments({
+  circleId,
+  number,
+  canComment,
+}: {
+  circleId: string;
+  number: number;
+  canComment: boolean;
+}) {
   const { user } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const key = ["task-comments", circleId, number];
   const base = `/api/circles/${circleId}/tasks/${number}/comments`;
-  const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => apiFetch<CommentsResponse>(base) });
+  const { data, isLoading } = useQuery({
+    queryKey: key,
+    queryFn: () => apiFetch<CommentsResponse>(base),
+  });
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [folded, setFolded] = useState<Set<string>>(new Set());
@@ -100,11 +111,13 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
 
   const children = useMemo(() => {
     const map = new Map<string | null, TaskComment[]>();
-    for (const comment of data?.comments ?? []) map.set(comment.parentId, [...(map.get(comment.parentId) ?? []), comment]);
+    for (const comment of data?.comments ?? [])
+      map.set(comment.parentId, [...(map.get(comment.parentId) ?? []), comment]);
     return map;
   }, [data]);
   const count = (data?.comments ?? []).filter((comment) => !comment.deleted).length;
-  const descendants = (id: string): number => (children.get(id) ?? []).reduce((sum, child) => sum + 1 + descendants(child.id), 0);
+  const descendants = (id: string): number =>
+    (children.get(id) ?? []).reduce((sum, child) => sum + 1 + descendants(child.id), 0);
 
   // A link to one comment (#comment-<id>) scrolls to it and marks it.
   useEffect(() => {
@@ -112,7 +125,12 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
     const id = window.location.hash.match(/^#comment-(.+)$/)?.[1];
     if (!id) return;
     setFlash(id);
-    requestAnimationFrame(() => document.getElementById(`comment-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    requestAnimationFrame(
+      () =>
+        document
+          .getElementById(`comment-${id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" })
+    );
   }, [data]);
 
   useEffect(() => {
@@ -125,9 +143,11 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
     queryClient.invalidateQueries({ queryKey: key });
     queryClient.invalidateQueries({ queryKey: ["tasks", circleId] });
   };
-  const fail = (title: string) => (error: Error) => toast({ title, description: error.message, variant: "destructive" });
+  const fail = (title: string) => (error: Error) =>
+    toast({ title, description: error.message, variant: "destructive" });
   const add = useMutation({
-    mutationFn: (input: { body: string; parentId: string | null }) => apiFetch<{ comment: TaskComment }>(base, { method: "POST", body: JSON.stringify(input) }),
+    mutationFn: (input: { body: string; parentId: string | null }) =>
+      apiFetch<{ comment: TaskComment }>(base, { method: "POST", body: JSON.stringify(input) }),
     onSuccess: ({ comment }) => {
       setReplyTo(null);
       setFlash(comment.id);
@@ -136,7 +156,8 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
     onError: fail("Could not post the comment"),
   });
   const edit = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) => apiFetch(`${base}/${id}`, { method: "PATCH", body: JSON.stringify({ body }) }),
+    mutationFn: ({ id, body }: { id: string; body: string }) =>
+      apiFetch(`${base}/${id}`, { method: "PATCH", body: JSON.stringify({ body }) }),
     onSuccess: () => {
       setEditing(null);
       refresh();
@@ -164,7 +185,10 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
       <li key={comment.id} className="flex flex-col">
         <div
           id={`comment-${comment.id}`}
-          className={cn("scroll-mt-28 rounded-lg px-3 py-2 transition-colors duration-1000", flash === comment.id ? "bg-sun/15" : "bg-transparent")}
+          className={cn(
+            "scroll-mt-28 rounded-lg px-3 py-2 transition-colors duration-1000",
+            flash === comment.id ? "bg-sun/15" : "bg-transparent"
+          )}
         >
           <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
             {comment.deleted ? (
@@ -192,22 +216,45 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
               />
             </div>
           ) : comment.deleted ? null : (
-            <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">{comment.body}</p>
+            <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+              {comment.body}
+            </p>
           )}
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-muted">
             {replies.length ? (
-              <button type="button" onClick={toggleFold} className="inline-flex items-center gap-0.5 hover:text-foreground" aria-expanded={!isFolded}>
-                {isFolded ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                {isFolded ? `Show ${descendants(comment.id)} ${descendants(comment.id) === 1 ? "reply" : "replies"}` : "Hide replies"}
+              <button
+                type="button"
+                onClick={toggleFold}
+                className="inline-flex items-center gap-0.5 hover:text-foreground"
+                aria-expanded={!isFolded}
+              >
+                {isFolded ? (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+                {isFolded
+                  ? `Show ${descendants(comment.id)} ${
+                      descendants(comment.id) === 1 ? "reply" : "replies"
+                    }`
+                  : "Hide replies"}
               </button>
             ) : null}
             {canComment && !comment.deleted ? (
-              <button type="button" onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)} className="inline-flex items-center gap-1 hover:text-foreground">
+              <button
+                type="button"
+                onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+                className="inline-flex items-center gap-1 hover:text-foreground"
+              >
                 <Reply className="h-3.5 w-3.5" /> Reply
               </button>
             ) : null}
             {mine && !comment.deleted && editing !== comment.id ? (
-              <button type="button" onClick={() => setEditing(comment.id)} className="inline-flex items-center gap-1 hover:text-foreground">
+              <button
+                type="button"
+                onClick={() => setEditing(comment.id)}
+                className="inline-flex items-center gap-1 hover:text-foreground"
+              >
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </button>
             ) : null}
@@ -237,7 +284,12 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
           ) : null}
         </div>
         {replies.length && !isFolded ? (
-          <ul className={cn("flex flex-col gap-1", depth < MAX_INDENT && "ml-3 border-l-2 border-border pl-2 sm:ml-4 sm:pl-3")}>
+          <ul
+            className={cn(
+              "flex flex-col gap-1",
+              depth < MAX_INDENT && "ml-3 border-l-2 border-border pl-2 sm:ml-4 sm:pl-3"
+            )}
+          >
             {replies.map((reply) => renderComment(reply, depth + 1))}
           </ul>
         ) : null}
@@ -248,15 +300,23 @@ export function TaskComments({ circleId, number, canComment }: { circleId: strin
   return (
     <section id="comments" className="flex scroll-mt-24 flex-col gap-3">
       <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-        <MessageSquare className="h-5 w-5 text-primary" aria-hidden /> Comments {count ? <span className="text-sm font-normal text-muted">({count})</span> : null}
+        <MessageSquare className="h-5 w-5 text-primary" aria-hidden /> Comments{" "}
+        {count ? <span className="text-sm font-normal text-muted">({count})</span> : null}
       </h2>
       {canComment ? (
-        <CommentForm placeholder="Add a comment — questions, updates, what you found" submitLabel="Comment" busy={add.isPending && !replyTo} onSubmit={(body) => add.mutateAsync({ body, parentId: null })} />
+        <CommentForm
+          placeholder="Add a comment — questions, updates, what you found"
+          submitLabel="Comment"
+          busy={add.isPending && !replyTo}
+          onSubmit={(body) => add.mutateAsync({ body, parentId: null })}
+        />
       ) : null}
       {isLoading ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : (children.get(null) ?? []).length ? (
-        <ul className="flex flex-col gap-1">{(children.get(null) ?? []).map((comment) => renderComment(comment, 0))}</ul>
+        <ul className="flex flex-col gap-1">
+          {(children.get(null) ?? []).map((comment) => renderComment(comment, 0))}
+        </ul>
       ) : (
         <p className="text-sm text-muted">No comments yet.</p>
       )}

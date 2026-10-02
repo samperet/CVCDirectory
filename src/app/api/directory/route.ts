@@ -21,5 +21,8 @@ export async function GET() {
   }
   // Applications to join a circle are for that circle's members (GET /api/circles/<id>/applications).
   const circles = directory.circles.map(({ applications: _applications, ...circle }) => circle);
-  return NextResponse.json({ ...directory, circles }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { ...directory, circles },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }

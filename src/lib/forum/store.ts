@@ -53,7 +53,6 @@ export interface ForumThread {
   topicId?: string;
 }
 
-
 export interface ForumThreadDocument {
   thread: ForumThread;
   replies: ForumReply[];
@@ -80,9 +79,17 @@ export const topicOf = (thread: { topicId?: string }, known?: Set<string>) => {
   return known && !known.has(id) ? GENERAL_TOPIC_ID : id;
 };
 
-const title = z.string().trim().min(3, "Title must be at least 3 characters").max(160, "Title must be 160 characters or fewer");
+const title = z
+  .string()
+  .trim()
+  .min(3, "Title must be at least 3 characters")
+  .max(160, "Title must be 160 characters or fewer");
 const postBody = z.string().trim().max(5000, "Post must be 5000 characters or fewer");
-const replyBody = z.string().trim().min(1, "Reply cannot be empty").max(3000, "Reply must be 3000 characters or fewer");
+const replyBody = z
+  .string()
+  .trim()
+  .min(1, "Reply cannot be empty")
+  .max(3000, "Reply must be 3000 characters or fewer");
 
 const topicId = z.string().regex(/^[a-z0-9-]{1,40}$/, "Choose a topic");
 
@@ -94,11 +101,18 @@ export const threadInputSchema = z.object({
 
 export const threadUpdateSchema = z
   .object({ title: title.optional(), body: postBody.optional(), topicId: topicId.optional() })
-  .refine((value) => value.title !== undefined || value.body !== undefined || value.topicId !== undefined, "Nothing to update");
-
+  .refine(
+    (value) => value.title !== undefined || value.body !== undefined || value.topicId !== undefined,
+    "Nothing to update"
+  );
 
 export const replyInputSchema = z.object({
-  parentId: z.string().uuid().nullable().optional().transform((value) => value ?? null),
+  parentId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
   body: replyBody,
 });
 
@@ -134,7 +148,9 @@ export async function listThreads(): Promise<ForumThreadSummary[]> {
 export async function getThread(id: string): Promise<ForumThreadDocument | null> {
   if (!isThreadId(id)) return null;
   const doc = (await readJson(threadKey(id))) as ForumThreadDocument | null;
-  return doc?.thread ? { thread: doc.thread, replies: Array.isArray(doc.replies) ? doc.replies : [] } : null;
+  return doc?.thread
+    ? { thread: doc.thread, replies: Array.isArray(doc.replies) ? doc.replies : [] }
+    : null;
 }
 
 async function updateIndex(update: (threads: ForumThreadSummary[]) => ForumThreadSummary[]) {
@@ -147,11 +163,19 @@ async function updateIndex(update: (threads: ForumThreadSummary[]) => ForumThrea
 /** Refresh a thread's list entry (title, reply count, last activity) from its document. */
 async function syncSummary(doc: ForumThreadDocument) {
   const replies = live(doc.replies);
-  const lastActivityAt = replies.length ? replies[replies.length - 1].createdAt : doc.thread.createdAt;
+  const lastActivityAt = replies.length
+    ? replies[replies.length - 1].createdAt
+    : doc.thread.createdAt;
   await updateIndex((threads) =>
     threads.map((summary) =>
       summary.id === doc.thread.id
-        ? { ...summary, title: doc.thread.title, replyCount: replies.length, lastActivityAt, topicId: topicOf(doc.thread) }
+        ? {
+            ...summary,
+            title: doc.thread.title,
+            replyCount: replies.length,
+            lastActivityAt,
+            topicId: topicOf(doc.thread),
+          }
         : summary
     )
   );
@@ -214,9 +238,14 @@ async function mutateThread(
   return result;
 }
 
-export function addReply(threadId: string, author: { id: string; name: string }, input: { parentId: string | null; body: string }) {
+export function addReply(
+  threadId: string,
+  author: { id: string; name: string },
+  input: { parentId: string | null; body: string }
+) {
   return mutateThread(threadId, (doc) => {
-    if (input.parentId && !live(doc.replies).some((reply) => reply.id === input.parentId)) return "unknown_parent";
+    if (input.parentId && !live(doc.replies).some((reply) => reply.id === input.parentId))
+      return "unknown_parent";
     if (doc.replies.length >= MAX_REPLIES) return "full";
     const reply: ForumReply = {
       id: randomUUID(),
@@ -256,7 +285,9 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
     if (!mayChange(reply.authorId, actor)) return "forbidden";
 
     let replies = doc.replies.map((entry) =>
-      entry.id === replyId ? { ...entry, body: "", likes: [], deletedAt: new Date().toISOString() } : entry
+      entry.id === replyId
+        ? { ...entry, body: "", likes: [], deletedAt: new Date().toISOString() }
+        : entry
     );
     // Prune placeholders with nothing beneath them, walking up the chain.
     for (;;) {
@@ -269,13 +300,24 @@ export function deleteReply(threadId: string, actor: ForumActor, replyId: string
   });
 }
 
-export function editThread(threadId: string, actor: ForumActor, update: { title?: string; body?: string; topicId?: string }) {
+export function editThread(
+  threadId: string,
+  actor: ForumActor,
+  update: { title?: string; body?: string; topicId?: string }
+) {
   return mutateThread(threadId, (doc) => {
     if (!mayChange(doc.thread.authorId, actor)) return "forbidden";
     if (update.body !== undefined && !update.body) return "empty_post";
     // Moving a discussion to another topic isn't an edit of what was said.
     const edited = update.title !== undefined || update.body !== undefined;
-    return { ...doc, thread: { ...doc.thread, ...update, ...(edited ? { editedAt: new Date().toISOString() } : {}) } };
+    return {
+      ...doc,
+      thread: {
+        ...doc.thread,
+        ...update,
+        ...(edited ? { editedAt: new Date().toISOString() } : {}),
+      },
+    };
   });
 }
 
@@ -283,23 +325,34 @@ export function editThread(threadId: string, actor: ForumActor, update: { title?
  * Delete your own discussion — only while nobody else has replied, so their
  * comments are never lost. Admins can delete any discussion, replies and all.
  */
-export async function deleteThread(threadId: string, actor: ForumActor): Promise<{ ok: true } | { ok: false; reason: Failure }> {
+export async function deleteThread(
+  threadId: string,
+  actor: ForumActor
+): Promise<{ ok: true } | { ok: false; reason: Failure }> {
   if (!isThreadId(threadId)) return { ok: false, reason: "not_found" };
-  const result = await enqueue<{ ok: true } | { ok: false; reason: Failure }>(threadKey(threadId), async () => {
-    const doc = await getThread(threadId);
-    if (!doc) return { ok: false, reason: "not_found" };
-    if (!mayChange(doc.thread.authorId, actor)) return { ok: false, reason: "forbidden" };
-    if (!actor.admin && live(doc.replies).some((reply) => reply.authorId !== actor.id)) {
-      return { ok: false, reason: "has_replies" };
+  const result = await enqueue<{ ok: true } | { ok: false; reason: Failure }>(
+    threadKey(threadId),
+    async () => {
+      const doc = await getThread(threadId);
+      if (!doc) return { ok: false, reason: "not_found" };
+      if (!mayChange(doc.thread.authorId, actor)) return { ok: false, reason: "forbidden" };
+      if (!actor.admin && live(doc.replies).some((reply) => reply.authorId !== actor.id)) {
+        return { ok: false, reason: "has_replies" };
+      }
+      await deleteJson(threadKey(threadId));
+      return { ok: true };
     }
-    await deleteJson(threadKey(threadId));
-    return { ok: true };
-  });
-  if (result.ok) await updateIndex((threads) => threads.filter((summary) => summary.id !== threadId));
+  );
+  if (result.ok)
+    await updateIndex((threads) => threads.filter((summary) => summary.id !== threadId));
   return result;
 }
 
-function withLike(likes: ForumLike[] | undefined, user: { id: string; name: string }, liked: boolean): ForumLike[] {
+function withLike(
+  likes: ForumLike[] | undefined,
+  user: { id: string; name: string },
+  liked: boolean
+): ForumLike[] {
   const others = (likes ?? []).filter((like) => like.userId !== user.id);
   return liked ? [...others, { userId: user.id, name: user.name }] : others;
 }
@@ -309,16 +362,27 @@ function withLike(likes: ForumLike[] | undefined, user: { id: string; name: stri
  * reply. Setting the same state twice is harmless. Likes don't change the
  * thread's place in the list, so the index is left alone.
  */
-export function setLike(threadId: string, replyId: string | null, user: { id: string; name: string }, liked: boolean) {
+export function setLike(
+  threadId: string,
+  replyId: string | null,
+  user: { id: string; name: string },
+  liked: boolean
+) {
   return mutateThread(
     threadId,
     (doc) => {
-      if (replyId === null) return { ...doc, thread: { ...doc.thread, likes: withLike(doc.thread.likes, user, liked) } };
+      if (replyId === null)
+        return {
+          ...doc,
+          thread: { ...doc.thread, likes: withLike(doc.thread.likes, user, liked) },
+        };
       const reply = doc.replies.find((entry) => entry.id === replyId && !entry.deletedAt);
       if (!reply) return "not_found";
       return {
         ...doc,
-        replies: doc.replies.map((entry) => (entry.id === replyId ? { ...entry, likes: withLike(entry.likes, user, liked) } : entry)),
+        replies: doc.replies.map((entry) =>
+          entry.id === replyId ? { ...entry, likes: withLike(entry.likes, user, liked) } : entry
+        ),
       };
     },
     { sync: false }
@@ -329,7 +393,10 @@ export function setLike(threadId: string, replyId: string | null, user: { id: st
 export async function moveTopicThreads(fromTopicId: string, toTopicId: string) {
   const threads = (await listThreads()).filter((summary) => topicOf(summary) === fromTopicId);
   for (const summary of threads) {
-    await mutateThread(summary.id, (doc) => ({ ...doc, thread: { ...doc.thread, topicId: toTopicId } }));
+    await mutateThread(summary.id, (doc) => ({
+      ...doc,
+      thread: { ...doc.thread, topicId: toTopicId },
+    }));
   }
   return threads.length;
 }

@@ -16,7 +16,11 @@ const householdSchema = z.object({
     .array(
       z.object({
         name: z.string().trim().min(1).max(60),
-        personId: z.string().regex(/^[a-f0-9]{12}$/).nullable().optional(),
+        personId: z
+          .string()
+          .regex(/^[a-f0-9]{12}$/)
+          .nullable()
+          .optional(),
       })
     )
     .max(8),
@@ -44,9 +48,11 @@ export const scheduleSetupSchema = z
   })
   .superRefine((value, ctx) => {
     const ids = new Set(value.households.map((household) => household.id));
-    if (ids.size !== value.households.length) ctx.addIssue({ code: "custom", message: "Household ids must be unique" });
+    if (ids.size !== value.households.length)
+      ctx.addIssue({ code: "custom", message: "Household ids must be unique" });
     for (const turn of value.weekdays) {
-      if (turn.some((id) => !ids.has(id))) ctx.addIssue({ code: "custom", message: "A weekday names an unknown household" });
+      if (turn.some((id) => !ids.has(id)))
+        ctx.addIssue({ code: "custom", message: "A weekday names an unknown household" });
     }
   });
 
@@ -56,7 +62,8 @@ export const scheduleDocumentSchema = z
   .superRefine((value, ctx) => {
     const ids = new Set(value.setup.households.map((household) => household.id));
     for (const override of Object.values(value.overrides ?? {})) {
-      if (override.householdId && !ids.has(override.householdId)) ctx.addIssue({ code: "custom", message: "A change names an unknown household" });
+      if (override.householdId && !ids.has(override.householdId))
+        ctx.addIssue({ code: "custom", message: "A change names an unknown household" });
     }
   });
 
@@ -72,7 +79,9 @@ function key(circleId: string) {
 export async function readSchedule(circleId: string): Promise<DutySchedule | null> {
   if (!isCircleId(circleId)) return null;
   const doc = (await readJson(key(circleId))) as DutySchedule | null;
-  return doc?.households ? { ...doc, overrides: doc.overrides ?? {}, instructions: doc.instructions ?? [] } : null;
+  return doc?.households
+    ? { ...doc, overrides: doc.overrides ?? {}, instructions: doc.instructions ?? [] }
+    : null;
 }
 
 /** Keep only changes that still name a household in the rotation, newest dates first when trimming. */
@@ -113,11 +122,20 @@ export async function setDayChange(
   return enqueue(key(circleId), async () => {
     const schedule = await readSchedule(circleId);
     if (!schedule) return "not_found" as const;
-    if (change?.householdId && !schedule.households.some((household) => household.id === change.householdId)) {
+    if (
+      change?.householdId &&
+      !schedule.households.some((household) => household.id === change.householdId)
+    ) {
       return "unknown_household" as const;
     }
     const overrides = { ...schedule.overrides };
-    if (change) overrides[date] = { householdId: change.householdId, note: change.note || null, updatedBy: by, updatedAt: new Date().toISOString() };
+    if (change)
+      overrides[date] = {
+        householdId: change.householdId,
+        note: change.note || null,
+        updatedBy: by,
+        updatedAt: new Date().toISOString(),
+      };
     else delete overrides[date];
     const next = { ...schedule, overrides: pruneOverrides(overrides, schedule.households) };
     await writeJson(key(circleId), next);

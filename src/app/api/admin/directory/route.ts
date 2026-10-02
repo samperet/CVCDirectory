@@ -32,14 +32,18 @@ export async function PUT(request: NextRequest) {
 
   const parsed = directoryDocumentSchema.safeParse(body);
   if (!parsed.success) {
-    return problem(parsed.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; "));
+    return problem(
+      parsed.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("; ")
+    );
   }
 
   try {
     await writeDirectory(parsed.data as DirectoryDocument);
   } catch (error) {
     const err = error as { name?: string; code?: string; message?: string };
-    console.error(`[directory] import failed: ${err.name ?? "Error"}${err.code ? ` (${err.code})` : ""}`);
+    console.error(
+      `[directory] import failed: ${err.name ?? "Error"}${err.code ? ` (${err.code})` : ""}`
+    );
     return problem(
       "Could not write to R2 — nothing was stored. Check the R2 credentials and bucket.",
       503,
@@ -47,5 +51,8 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ imported: true, summary: summarize(parsed.data as DirectoryDocument) });
+  return NextResponse.json({
+    imported: true,
+    summary: summarize(parsed.data as DirectoryDocument),
+  });
 }

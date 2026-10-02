@@ -20,13 +20,23 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (!doc) return problem("Document not found", 404);
 
   const wanted = Number(request.nextUrl.searchParams.get("v"));
-  const version = wanted ? doc.versions.find((entry) => entry.number === wanted) : currentVersion(doc);
+  const version = wanted
+    ? doc.versions.find((entry) => entry.number === wanted)
+    : currentVersion(doc);
   if (!version) return problem("That version doesn't exist", 404);
   const inline = version.viewable && request.nextUrl.searchParams.get("download") !== "1";
   const key = fileKey(doc.id, version.number);
 
-  const url = await presignedDownloadUrl(key, { fileName: version.fileName, contentType: version.contentType, inline });
-  if (url) return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "private, no-store" } });
+  const url = await presignedDownloadUrl(key, {
+    fileName: version.fileName,
+    contentType: version.contentType,
+    inline,
+  });
+  if (url)
+    return NextResponse.redirect(url, {
+      status: 302,
+      headers: { "Cache-Control": "private, no-store" },
+    });
 
   // Without R2 (local development), serve the file directly.
   const file = await readBinary(key);

@@ -12,10 +12,28 @@ import { TIME_ZONE, todayInVermont } from "@/lib/time";
  */
 
 export const SCHEDULE_TIME_ZONE = TIME_ZONE;
-export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+export const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 export const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 export interface HouseholdMember {
@@ -95,7 +113,10 @@ export function weekdayOf(date: string) {
 export const todayIso = () => todayInVermont();
 
 /** Who the weekly rotation puts on duty, ignoring one-off changes. */
-export function regularDuty(schedule: Pick<DutySchedule, "anchor" | "weekdays">, date: string): string | null {
+export function regularDuty(
+  schedule: Pick<DutySchedule, "anchor" | "weekdays">,
+  date: string
+): string | null {
   const turn = schedule.weekdays[weekdayOf(date)] ?? [];
   if (!turn.length) return null;
   const anchorWeek = dayNumber(schedule.anchor) - weekdayOf(schedule.anchor); // the Sunday starting the anchor week
@@ -106,21 +127,29 @@ export function regularDuty(schedule: Pick<DutySchedule, "anchor" | "weekdays">,
 export function dutyFor(schedule: DutySchedule, date: string): Duty {
   const regularId = regularDuty(schedule, date);
   const override = schedule.overrides[date];
-  return override ? { date, householdId: override.householdId, regularId, override } : { date, householdId: regularId, regularId };
+  return override
+    ? { date, householdId: override.householdId, regularId, override }
+    : { date, householdId: regularId, regularId };
 }
 
 /** The dates of a month's calendar grid: whole weeks, Sunday first. */
 export function monthGrid(year: number, month: number) {
   const first = `${year}-${String(month).padStart(2, "0")}-01`;
   const start = addDays(first, -weekdayOf(first));
-  const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const nextMonth =
+    month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const days = dayNumber(nextMonth) - dayNumber(start);
   const weeks = Math.ceil(days / 7);
   return Array.from({ length: weeks * 7 }, (_, index) => addDays(start, index));
 }
 
 /** A household's next turns on duty from a date onward (within a year). */
-export function upcomingTurns(schedule: DutySchedule, householdId: string, from: string, count: number) {
+export function upcomingTurns(
+  schedule: DutySchedule,
+  householdId: string,
+  from: string,
+  count: number
+) {
   const turns: Duty[] = [];
   for (let offset = 0; offset < 366 && turns.length < count; offset++) {
     const duty = dutyFor(schedule, addDays(from, offset));

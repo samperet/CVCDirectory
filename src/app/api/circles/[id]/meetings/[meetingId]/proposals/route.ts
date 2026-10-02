@@ -17,5 +17,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const parsed = await readBody(request, proposalInputSchema);
   if ("error" in parsed) return parsed.error;
   const result = await addProposal(params.id, params.meetingId, ctx.actor, parsed.data);
-  return result.ok ? NextResponse.json({ proposal: result.value }, { status: 201 }) : meetingsProblem(result.reason);
+  return result.ok
+    ? NextResponse.json({ proposal: result.value }, { status: 201 })
+    : meetingsProblem(result.reason);
 }

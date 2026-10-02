@@ -43,7 +43,13 @@ export function CircleBadges({ memberships }: { memberships: Membership[] }) {
       {memberships.map(({ circle, position }) => {
         const label = `${circle.name} — ${sentence(position ?? "Member")}`;
         return (
-          <Link key={circle.id} href={`/circles/${circle.id}`} title={label} aria-label={label} className="rounded-lg ring-offset-1 hover:ring-2 hover:ring-primary">
+          <Link
+            key={circle.id}
+            href={`/circles/${circle.id}`}
+            title={label}
+            aria-label={label}
+            className="rounded-lg ring-offset-1 hover:ring-2 hover:ring-primary"
+          >
             <CircleIcon circle={circle} size={22} />
           </Link>
         );
@@ -65,7 +71,8 @@ function matches(person: Person, query: string) {
     `${person.lastName} ${person.firstName}`.toLowerCase().includes(q) ||
     (person.email ?? "").includes(q) ||
     unitsOf(person).some((unit) => `unit ${unit}` === q || String(unit) === q) ||
-    (qDigits.length >= 3 && (digits(person.phone).includes(qDigits) || digits(person.landline).includes(qDigits)))
+    (qDigits.length >= 3 &&
+      (digits(person.phone).includes(qDigits) || digits(person.landline).includes(qDigits)))
   );
 }
 
@@ -78,7 +85,9 @@ export function RoleTag({ person }: { person: Person }) {
         </span>
       ) : null}
       {person.resident === false ? (
-        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">Not living on site</span>
+        <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+          Not living on site
+        </span>
       ) : null}
     </span>
   );
@@ -90,7 +99,10 @@ export function membershipsByPerson(circles: Circle[]) {
   for (const circle of circles) {
     for (const seat of circle.seats) {
       if (!seat.personId) continue;
-      map.set(seat.personId, [...(map.get(seat.personId) ?? []), { circle, position: seat.position }]);
+      map.set(seat.personId, [
+        ...(map.get(seat.personId) ?? []),
+        { circle, position: seat.position },
+      ]);
     }
   }
   return map;
@@ -101,9 +113,22 @@ function AddPerson({ onDone }: { onDone: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [form, setForm] = useState({ firstName: "", lastName: "", unit: "", role: "household", phone: "", landline: "", email: "", month: "", day: "", bio: "" });
-  const set = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm((current) => ({ ...current, [key]: event.target.value }));
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    unit: "",
+    role: "household",
+    phone: "",
+    landline: "",
+    email: "",
+    month: "",
+    day: "",
+    bio: "",
+  });
+  const set =
+    (key: keyof typeof form) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((current) => ({ ...current, [key]: event.target.value }));
   const add = useMutation({
     mutationFn: () =>
       apiFetch<{ person: Person }>("/api/directory/people", {
@@ -117,11 +142,18 @@ function AddPerson({ onDone }: { onDone: () => void }) {
       }),
     onSuccess: ({ person }) => {
       queryClient.invalidateQueries({ queryKey: ["directory"] });
-      toast({ title: `${person.displayName} added`, description: person.phone || person.landline ? "They can sign in with their phone number." : "Add a phone number so they can sign in." });
+      toast({
+        title: `${person.displayName} added`,
+        description:
+          person.phone || person.landline
+            ? "They can sign in with their phone number."
+            : "Add a phone number so they can sign in.",
+      });
       onDone();
       router.push(`/directory/${person.id}`);
     },
-    onError: (err: Error) => toast({ title: "Could not add", description: err.message, variant: "destructive" }),
+    onError: (err: Error) =>
+      toast({ title: "Could not add", description: err.message, variant: "destructive" }),
   });
   const field = "flex flex-col gap-1 text-sm font-medium text-foreground";
   return (
@@ -137,19 +169,42 @@ function AddPerson({ onDone }: { onDone: () => void }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={field}>
             First name
-            <Input value={form.firstName} maxLength={50} onChange={set("firstName")} className="bg-white" required />
+            <Input
+              value={form.firstName}
+              maxLength={50}
+              onChange={set("firstName")}
+              className="bg-white"
+              required
+            />
           </label>
           <label className={field}>
             Last name
-            <Input value={form.lastName} maxLength={50} onChange={set("lastName")} className="bg-white" />
+            <Input
+              value={form.lastName}
+              maxLength={50}
+              onChange={set("lastName")}
+              className="bg-white"
+            />
           </label>
           <label className={field}>
             Unit
-            <Input type="number" min={1} max={999} value={form.unit} onChange={set("unit")} className="bg-white" required />
+            <Input
+              type="number"
+              min={1}
+              max={999}
+              value={form.unit}
+              onChange={set("unit")}
+              className="bg-white"
+              required
+            />
           </label>
           <label className={field}>
             Role
-            <select value={form.role} onChange={set("role")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm">
+            <select
+              value={form.role}
+              onChange={set("role")}
+              className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+            >
               <option value="owner">Owner</option>
               <option value="renter">Renter</option>
               <option value="household">Household member</option>
@@ -157,20 +212,43 @@ function AddPerson({ onDone }: { onDone: () => void }) {
           </label>
           <label className={field}>
             Mobile phone <span className="text-xs font-normal text-muted">(how they sign in)</span>
-            <Input type="tel" value={form.phone} maxLength={40} onChange={set("phone")} className="bg-white" />
+            <Input
+              type="tel"
+              value={form.phone}
+              maxLength={40}
+              onChange={set("phone")}
+              className="bg-white"
+            />
           </label>
           <label className={field}>
             Landline
-            <Input type="tel" value={form.landline} maxLength={40} onChange={set("landline")} className="bg-white" />
+            <Input
+              type="tel"
+              value={form.landline}
+              maxLength={40}
+              onChange={set("landline")}
+              className="bg-white"
+            />
           </label>
           <label className={field}>
             Email
-            <Input type="email" value={form.email} maxLength={254} onChange={set("email")} className="bg-white" />
+            <Input
+              type="email"
+              value={form.email}
+              maxLength={254}
+              onChange={set("email")}
+              className="bg-white"
+            />
           </label>
           <fieldset className={field}>
             <legend className="mb-1">Birthday</legend>
             <div className="flex gap-2">
-              <select value={form.month} onChange={set("month")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Birthday month">
+              <select
+                value={form.month}
+                onChange={set("month")}
+                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+                aria-label="Birthday month"
+              >
                 <option value="">Month</option>
                 {MONTHS.map((month) => (
                   <option key={month} value={month}>
@@ -178,7 +256,12 @@ function AddPerson({ onDone }: { onDone: () => void }) {
                   </option>
                 ))}
               </select>
-              <select value={form.day} onChange={set("day")} className="h-10 rounded-lg border border-border bg-white px-3 text-sm" aria-label="Birthday day">
+              <select
+                value={form.day}
+                onChange={set("day")}
+                className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
+                aria-label="Birthday day"
+              >
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((day) => (
                   <option key={day} value={day}>
@@ -191,7 +274,13 @@ function AddPerson({ onDone }: { onDone: () => void }) {
         </div>
         <label className={field}>
           About <span className="text-xs font-normal text-muted">(optional)</span>
-          <Textarea rows={2} value={form.bio} maxLength={500} onChange={set("bio")} className="bg-white" />
+          <Textarea
+            rows={2}
+            value={form.bio}
+            maxLength={500}
+            onChange={set("bio")}
+            className="bg-white"
+          />
         </label>
         <div className="flex gap-2">
           <Button type="submit" disabled={add.isPending || !form.firstName.trim() || !form.unit}>
@@ -215,7 +304,10 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
   const [showNonResidents, setShowNonResidents] = useState(false);
   const membershipsOf = useMemo(() => membershipsByPerson(circles), [circles]);
   const nonResidents = people.filter((person) => person.resident === false).length;
-  const listed = useMemo(() => people.filter((person) => showNonResidents || person.resident !== false), [people, showNonResidents]);
+  const listed = useMemo(
+    () => people.filter((person) => showNonResidents || person.resident !== false),
+    [people, showNonResidents]
+  );
   const units = useMemo(() => {
     const byUnit = new Map<number, Person[]>();
     // Someone in two households (e.g. a child) is listed under both, with one profile.
@@ -224,7 +316,10 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
     }
     return Array.from(byUnit.entries())
       .sort(([a], [b]) => a - b)
-      .map(([unit, members]) => [unit, members.sort((a, b) => a.displayName.localeCompare(b.displayName))] as const);
+      .map(
+        ([unit, members]) =>
+          [unit, members.sort((a, b) => a.displayName.localeCompare(b.displayName))] as const
+      );
   }, [listed, query]);
   const shown = new Set(units.flatMap(([, members]) => members.map((person) => person.id))).size;
 
@@ -252,11 +347,18 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
         <p className="text-sm text-muted">
           {query
             ? `${shown} of ${listed.length} ${showNonResidents ? "people" : "residents"}`
-            : `${listed.length} ${showNonResidents ? "people" : "residents"} across ${units.length} units`}
+            : `${listed.length} ${showNonResidents ? "people" : "residents"} across ${
+                units.length
+              } units`}
         </p>
         {nonResidents ? (
           <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
-            <input type="checkbox" className="peer sr-only" checked={showNonResidents} onChange={(event) => setShowNonResidents(event.target.checked)} />
+            <input
+              type="checkbox"
+              className="peer sr-only"
+              checked={showNonResidents}
+              onChange={(event) => setShowNonResidents(event.target.checked)}
+            />
             <span
               aria-hidden
               className={cn(
@@ -264,7 +366,12 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
                 showNonResidents ? "bg-primary" : "bg-border"
               )}
             >
-              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", showNonResidents ? "left-[1.125rem]" : "left-0.5")} />
+              <span
+                className={cn(
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all",
+                  showNonResidents ? "left-[1.125rem]" : "left-0.5"
+                )}
+              />
             </span>
             Show non-residents <span className="text-muted">({nonResidents})</span>
           </label>
@@ -274,16 +381,30 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
         <Card className="p-0">
           <ul className="divide-y divide-border">
             {units.map(([unit, members]) => (
-              <li key={unit} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5">
-                <span className="w-20 shrink-0 text-sm font-semibold text-muted sm:pt-1">Unit {unit}</span>
+              <li
+                key={unit}
+                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5"
+              >
+                <span className="w-20 shrink-0 text-sm font-semibold text-muted sm:pt-1">
+                  Unit {unit}
+                </span>
                 <ul className="flex flex-col gap-2">
                   {members.map((person) => (
                     <li key={person.id} className="flex items-center gap-1.5">
-                      <Link href={`/directory/${person.id}`} className="group flex items-center gap-2 rounded-full pr-1 hover:text-foreground">
+                      <Link
+                        href={`/directory/${person.id}`}
+                        className="group flex items-center gap-2 rounded-full pr-1 hover:text-foreground"
+                      >
                         <Avatar name={person.displayName} photoUrl={person.photoUrl} size={28} />
-                        <span className="font-medium text-foreground underline-offset-4 group-hover:underline">{person.displayName}</span>
-                        {person.id === user?.personId ? <span className="text-xs text-muted">(you)</span> : null}
-                        {person.resident === false ? <span className="text-xs text-muted">· not living on site</span> : null}
+                        <span className="font-medium text-foreground underline-offset-4 group-hover:underline">
+                          {person.displayName}
+                        </span>
+                        {person.id === user?.personId ? (
+                          <span className="text-xs text-muted">(you)</span>
+                        ) : null}
+                        {person.resident === false ? (
+                          <span className="text-xs text-muted">· not living on site</span>
+                        ) : null}
                       </Link>
                       <CircleBadges memberships={membershipsOf.get(person.id) ?? []} />
                     </li>
@@ -328,11 +449,18 @@ function Carsheds({ doc }: { doc: DirectoryDocument }) {
             <p className="text-xs text-muted">Listed left to right.</p>
             <ul className="divide-y divide-border">
               {slots.map((slot) => (
-                <li key={slot.slot} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                <li
+                  key={slot.slot}
+                  className="flex items-baseline justify-between gap-3 py-2 text-sm"
+                >
                   <span className="text-muted">Shed {slot.slot}</span>
                   <span className="text-right text-foreground">
                     {slot.occupants
-                      .map((occupant) => (occupant.personId && byId.get(occupant.personId)?.displayName) || occupant.name)
+                      .map(
+                        (occupant) =>
+                          (occupant.personId && byId.get(occupant.personId)?.displayName) ||
+                          occupant.name
+                      )
                       .join(" & ")}
                     <span className="ml-1.5 text-xs text-muted">Unit {slot.unit}</span>
                   </span>
@@ -359,7 +487,11 @@ export function DirectoryClient() {
         </div>
       </div>
 
-      <div role="tablist" aria-label="Directory sections" className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1">
+      <div
+        role="tablist"
+        aria-label="Directory sections"
+        className="flex w-fit gap-1 rounded-full border border-border bg-surface p-1"
+      >
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -368,7 +500,9 @@ export function DirectoryClient() {
             onClick={() => setTab(item.id)}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm font-medium transition",
-              tab === item.id ? "bg-primary text-primary-foreground shadow-soft" : "text-foreground/70 hover:bg-accent"
+              tab === item.id
+                ? "bg-primary text-primary-foreground shadow-soft"
+                : "text-foreground/70 hover:bg-accent"
             )}
           >
             {item.label}
@@ -380,7 +514,9 @@ export function DirectoryClient() {
         <p className="text-sm text-muted">Loading the directory…</p>
       ) : error || !data ? (
         <Card>
-          <p className="text-sm text-foreground">{(error as Error | null)?.message ?? "The directory is unavailable."}</p>
+          <p className="text-sm text-foreground">
+            {(error as Error | null)?.message ?? "The directory is unavailable."}
+          </p>
         </Card>
       ) : tab === "residents" ? (
         <Residents people={data.people} circles={data.circles} />

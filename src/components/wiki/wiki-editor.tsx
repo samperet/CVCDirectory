@@ -21,10 +21,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
 // The visual editor is large, and needs the browser; load it only when someone edits.
-const RichEditor = dynamic(() => import("@/components/wiki/rich-editor").then((module) => module.RichEditor), {
-  ssr: false,
-  loading: () => <div className="min-h-[24rem] animate-pulse rounded-lg border border-border bg-white" />,
-});
+const RichEditor = dynamic(
+  () => import("@/components/wiki/rich-editor").then((module) => module.RichEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[24rem] animate-pulse rounded-lg border border-border bg-white" />
+    ),
+  }
+);
 
 type Mode = "visual" | "markdown";
 interface Draft {
@@ -68,7 +73,12 @@ const initials = (name: string) =>
     .map((part) => part[0]?.toUpperCase())
     .join("");
 const names = (people: PageEditor[]) =>
-  people.length <= 2 ? people.map((person) => person.name).join(" and ") : `${people.slice(0, -1).map((person) => person.name).join(", ")}, and ${people[people.length - 1].name}`;
+  people.length <= 2
+    ? people.map((person) => person.name).join(" and ")
+    : `${people
+        .slice(0, -1)
+        .map((person) => person.name)
+        .join(", ")}, and ${people[people.length - 1].name}`;
 
 /**
  * Editing a wiki page — together. Changes save on their own a moment after
@@ -112,7 +122,11 @@ export function WikiEditor({
   const [body, setBodyState] = useState(initial.body);
   const titleRef = useRef(initial.title);
   const bodyRef = useRef(initial.body);
-  const [synced, setSyncedState] = useState<Synced>({ title: initial.title, body: initial.body, updatedAt: initial.updatedAt });
+  const [synced, setSyncedState] = useState<Synced>({
+    title: initial.title,
+    body: initial.body,
+    updatedAt: initial.updatedAt,
+  });
   const syncedRef = useRef(synced);
   const setSynced = (next: Synced) => {
     syncedRef.current = next;
@@ -140,7 +154,8 @@ export function WikiEditor({
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   const dirty = title !== synced.title || body !== synced.body;
-  const isDirty = () => titleRef.current !== syncedRef.current.title || bodyRef.current !== syncedRef.current.body;
+  const isDirty = () =>
+    titleRef.current !== syncedRef.current.title || bodyRef.current !== syncedRef.current.body;
   const touch = () => {
     activity.current = Date.now();
   };
@@ -160,7 +175,8 @@ export function WikiEditor({
   // A draft left from last time (a save that never made it): offer it back.
   useEffect(() => {
     const draft = readDraft(initial.id);
-    if (draft && (draft.title !== initial.title || draft.body !== initial.body)) setOfferDraft(draft);
+    if (draft && (draft.title !== initial.title || draft.body !== initial.body))
+      setOfferDraft(draft);
     else clearDraft(initial.id);
     // Only as the editor opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,7 +187,15 @@ export function WikiEditor({
     if (!dirty || offerDraft) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(initial.id), JSON.stringify({ title, body, base: synced.updatedAt, savedAt: new Date().toISOString() } satisfies Draft));
+        localStorage.setItem(
+          draftKey(initial.id),
+          JSON.stringify({
+            title,
+            body,
+            base: synced.updatedAt,
+            savedAt: new Date().toISOString(),
+          } satisfies Draft)
+        );
       } catch {
         // Storage full or blocked: the page still saves normally.
       }
@@ -206,7 +230,10 @@ export function WikiEditor({
       if (block.start <= caret) index = at;
     });
     const target = fresh[Math.min(fresh.length - 1, mineAt?.[index] ?? index)];
-    const position = target && old[index] ? target.start + Math.min(caret - old[index].start, target.length) : Math.min(caret, next.length);
+    const position =
+      target && old[index]
+        ? target.start + Math.min(caret - old[index].start, target.length)
+        : Math.min(caret, next.length);
     requestAnimationFrame(() => area.setSelectionRange(position, position));
   };
 
@@ -224,14 +251,25 @@ export function WikiEditor({
     remoteNewer.current = false;
     if (merged.text !== mine) apply(merged.text, merged.mineAt);
     if (merged.conflicts.length) {
-      setClashes((current) => [...current, ...merged.conflicts.map((conflict) => ({ ...conflict, id: ++clashCount.current, by: theirs.updatedBy.name }))]);
+      setClashes((current) => [
+        ...current,
+        ...merged.conflicts.map((conflict) => ({
+          ...conflict,
+          id: ++clashCount.current,
+          by: theirs.updatedBy.name,
+        })),
+      ]);
     }
   };
 
   /** Start the new pages this one now links to (as pages started from it). */
   const startNewPages = async (saved: WikiPage) => {
     if (!newPages.current.size) return;
-    const linked = new Set(wikiLinksIn(saved.body, []).flatMap((link) => (link.kind === "page" ? [link.title.toLowerCase()] : [])));
+    const linked = new Set(
+      wikiLinksIn(saved.body, []).flatMap((link) =>
+        link.kind === "page" ? [link.title.toLowerCase()] : []
+      )
+    );
     const existing = new Set(pagesRef.current.map((entry) => entry.title.toLowerCase()));
     let made = 0;
     for (const wanted of Array.from(newPages.current)) {
@@ -239,12 +277,18 @@ export function WikiEditor({
       newPages.current.delete(wanted);
       if (existing.has(wanted.toLowerCase())) continue;
       // Kept by the same circle as this page.
-      const created = await apiFetch("/api/wiki/pages", { method: "POST", body: JSON.stringify({ title: wanted, body: "", from: saved.id }) }).catch(() => null);
+      const created = await apiFetch("/api/wiki/pages", {
+        method: "POST",
+        body: JSON.stringify({ title: wanted, body: "", from: saved.id }),
+      }).catch(() => null);
       if (created) made++;
     }
     if (made) {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
-      toast({ title: made === 1 ? "Started 1 new page" : `Started ${made} new pages`, description: "Open the links to write them." });
+      toast({
+        title: made === 1 ? "Started 1 new page" : `Started ${made} new pages`,
+        description: "Open the links to write them.",
+      });
     }
   };
 
@@ -258,9 +302,16 @@ export function WikiEditor({
       const response = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...sent, baseUpdatedAt: syncedRef.current.updatedAt, autosave: true }),
+        body: JSON.stringify({
+          ...sent,
+          baseUpdatedAt: syncedRef.current.updatedAt,
+          autosave: true,
+        }),
       });
-      const json = (await response.json().catch(() => null)) as { page?: WikiPage; detail?: string } | null;
+      const json = (await response.json().catch(() => null)) as {
+        page?: WikiPage;
+        detail?: string;
+      } | null;
       if (response.ok && json?.page) {
         setSynced({ ...sent, updatedAt: json.page.updatedAt });
         latest.current = json.page;
@@ -274,7 +325,9 @@ export function WikiEditor({
         retryAt.current = Date.now() + 5000;
       }
     } catch {
-      setFailure("Can't reach the server — your changes are kept on this device and will save when it's back");
+      setFailure(
+        "Can't reach the server — your changes are kept on this device and will save when it's back"
+      );
       retryAt.current = Date.now() + 5000;
     } finally {
       busy.current = false;
@@ -316,7 +369,10 @@ export function WikiEditor({
     let stopped = false;
     const checkIn = async () => {
       try {
-        const live = await apiFetch<LiveState>(`${url}/live`, { method: "POST", body: JSON.stringify({ editing: true }) });
+        const live = await apiFetch<LiveState>(`${url}/live`, {
+          method: "POST",
+          body: JSON.stringify({ editing: true }),
+        });
         if (stopped) return;
         setEditors(live.editors.filter((editor) => editor.userId !== myId.current));
         if (live.updatedAt !== syncedRef.current.updatedAt) remoteNewer.current = true;
@@ -325,7 +381,10 @@ export function WikiEditor({
       }
     };
     void checkIn();
-    const timer = setInterval(() => document.visibilityState === "visible" && void checkIn(), LIVE_MS);
+    const timer = setInterval(
+      () => document.visibilityState === "visible" && void checkIn(),
+      LIVE_MS
+    );
     const leave = () => navigator.sendBeacon?.(`${url}/live`, JSON.stringify({ editing: false }));
     window.addEventListener("pagehide", leave);
     return () => {
@@ -346,7 +405,11 @@ export function WikiEditor({
     }
     setFinishing(false);
     if (isDirty()) {
-      toast({ title: "Couldn't save your last changes", description: "They're still here; try again in a moment.", variant: "destructive" });
+      toast({
+        title: "Couldn't save your last changes",
+        description: "They're still here; try again in a moment.",
+        variant: "destructive",
+      });
       return;
     }
     clearDraft(initial.id);
@@ -370,7 +433,10 @@ export function WikiEditor({
     const current = bodyRef.current;
     setClashes((list) => list.filter((entry) => entry.id !== clash.id));
     if (!current.includes(clash.mine)) {
-      toast({ title: "That paragraph has changed since", description: "Copy what you need from theirs by hand." });
+      toast({
+        title: "That paragraph has changed since",
+        description: "Copy what you need from theirs by hand.",
+      });
       return;
     }
     apply(current.replace(clash.mine, clash.theirs), null);
@@ -389,7 +455,11 @@ export function WikiEditor({
       try {
         insertLink(`![](${await uploadWikiImage(initial.slug, file)})`);
       } catch (error) {
-        toast({ title: `Could not add “${file.name}”`, description: (error as Error).message, variant: "destructive" });
+        toast({
+          title: `Could not add “${file.name}”`,
+          description: (error as Error).message,
+          variant: "destructive",
+        });
       } finally {
         setUploading((count) => count - 1);
       }
@@ -441,7 +511,9 @@ export function WikiEditor({
     <div className="flex flex-col gap-3">
       {offerDraft ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sun/60 bg-sun/10 px-3 py-2 text-sm">
-          <span className="flex-1">You have unsaved changes to this page from {timeAgo(offerDraft.savedAt)}.</span>
+          <span className="flex-1">
+            You have unsaved changes to this page from {timeAgo(offerDraft.savedAt)}.
+          </span>
           <Button size="sm" onClick={() => restoreDraft(offerDraft)}>
             Restore them
           </Button>
@@ -462,43 +534,71 @@ export function WikiEditor({
         <div className="flex items-center gap-2 text-xs text-foreground-light" aria-live="polite">
           <span className="flex -space-x-1.5">
             {editors.slice(0, 5).map((editor) => (
-              <span key={editor.userId} title={editor.name} className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground ring-2 ring-white">
+              <span
+                key={editor.userId}
+                title={editor.name}
+                className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground ring-2 ring-white"
+              >
                 {initials(editor.name)}
               </span>
             ))}
           </span>
           <span>
-            {names(editors)} {editors.length === 1 ? "is" : "are"} editing too — their changes appear here as they save.
+            {names(editors)} {editors.length === 1 ? "is" : "are"} editing too — their changes
+            appear here as they save.
           </span>
         </div>
       ) : null}
 
       {clashes.map((clash) => (
-        <div key={clash.id} className="flex flex-col gap-2 rounded-lg border border-sun/70 bg-sun/10 px-3 py-2 text-sm" role="alert">
+        <div
+          key={clash.id}
+          className="flex flex-col gap-2 rounded-lg border border-sun/70 bg-sun/10 px-3 py-2 text-sm"
+          role="alert"
+        >
           <p className="flex items-center gap-2 font-medium text-foreground">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-[#b7791f]" /> {clash.by} changed a paragraph you&apos;re changing too.
+            <AlertTriangle className="h-4 w-4 shrink-0 text-[#b7791f]" /> {clash.by} changed a
+            paragraph you&apos;re changing too.
           </p>
           <p className="text-xs text-foreground-light">Yours is in the page. Theirs:</p>
-          <blockquote className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-white/80 px-3 py-2 text-sm text-foreground">{clash.theirs}</blockquote>
+          <blockquote className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-white/80 px-3 py-2 text-sm text-foreground">
+            {clash.theirs}
+          </blockquote>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => takeTheirs(clash)}>
               Use theirs
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setClashes((list) => list.filter((entry) => entry.id !== clash.id))}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setClashes((list) => list.filter((entry) => entry.id !== clash.id))}
+            >
               Keep mine
             </Button>
           </div>
         </div>
       ))}
 
-      <Input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} className="bg-white text-lg font-semibold" aria-label="Title" />
+      <Input
+        value={title}
+        maxLength={120}
+        onChange={(event) => setTitle(event.target.value)}
+        className="bg-white text-lg font-semibold"
+        aria-label="Title"
+      />
 
       <p className="-mt-1 text-xs text-muted" data-save-status>
         {status}
       </p>
 
       {mode === "visual" ? (
-        <div onKeyDownCapture={touch} onInputCapture={touch} onPasteCapture={touch} onPointerDownCapture={touch} onDropCapture={touch}>
+        <div
+          onKeyDownCapture={touch}
+          onInputCapture={touch}
+          onPasteCapture={touch}
+          onPointerDownCapture={touch}
+          onDropCapture={touch}
+        >
           <RichEditor
             key={editorKey}
             control={rich}
@@ -511,14 +611,20 @@ export function WikiEditor({
             onCreatePage={onCreatePage}
             onError={() => {
               setMode("markdown");
-              toast({ title: "Opened as plain text", description: "Part of this page can't be shown in the visual editor." });
+              toast({
+                title: "Opened as plain text",
+                description: "Part of this page can't be shown in the visual editor.",
+              });
             }}
           />
         </div>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted">This page has something the visual editor can&apos;t show, so it&apos;s open as plain text (Markdown).</p>
+            <p className="text-xs text-muted">
+              This page has something the visual editor can&apos;t show, so it&apos;s open as plain
+              text (Markdown).
+            </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -526,7 +632,8 @@ export function WikiEditor({
                 disabled={uploading > 0}
                 className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-sm font-medium text-foreground transition hover:bg-accent disabled:opacity-60"
               >
-                <ImagePlus className="h-4 w-4" aria-hidden /> {uploading ? "Adding photo…" : "Insert photo"}
+                <ImagePlus className="h-4 w-4" aria-hidden />{" "}
+                {uploading ? "Adding photo…" : "Insert photo"}
               </button>
               <button
                 type="button"
@@ -582,10 +689,15 @@ export function WikiEditor({
               }}
               className="min-h-[28rem] bg-white font-mono text-sm leading-relaxed"
               aria-label="Page text (Markdown)"
-              placeholder={"# Heading\n\nSome **bold** text, a list:\n\n- one\n- two\n\nLink another page: [[Page title]]"}
+              placeholder={
+                "# Heading\n\nSome **bold** text, a list:\n\n- one\n- two\n\nLink another page: [[Page title]]"
+              }
             />
           </div>
-          <div className="min-h-[28rem] overflow-auto rounded-lg border border-border bg-white p-4" aria-label="Preview">
+          <div
+            className="min-h-[28rem] overflow-auto rounded-lg border border-border bg-white p-4"
+            aria-label="Preview"
+          >
             <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted">
               <Eye className="h-3.5 w-3.5" /> Preview
             </p>
@@ -594,7 +706,10 @@ export function WikiEditor({
         </div>
       )}
 
-      <p className="text-xs text-muted">Changes save as you go, and others can edit at the same time. Type @ to link a page or a document — or to start a new page.</p>
+      <p className="text-xs text-muted">
+        Changes save as you go, and others can edit at the same time. Type @ to link a page or a
+        document — or to start a new page.
+      </p>
       <div className="flex gap-2">
         <Button onClick={() => void finish()} disabled={finishing || !title.trim()}>
           {finishing ? "Saving…" : "Done"}

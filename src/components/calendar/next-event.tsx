@@ -15,8 +15,12 @@ export function NextEvent({ event }: { event: CalendarEvent | null }) {
       {event ? (
         <>
           <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/25 text-secondary-foreground">
-            <span className="text-xs font-semibold uppercase">{month.format(new Date(event.start))}</span>
-            <span className="text-2xl font-bold leading-none">{day.format(new Date(event.start))}</span>
+            <span className="text-xs font-semibold uppercase">
+              {month.format(new Date(event.start))}
+            </span>
+            <span className="text-2xl font-bold leading-none">
+              {day.format(new Date(event.start))}
+            </span>
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -26,7 +30,8 @@ export function NextEvent({ event }: { event: CalendarEvent | null }) {
             <p className="text-sm text-foreground-light">{formatWhen(event)}</p>
             {event.location ? (
               <p className="flex items-center gap-1 text-sm text-muted">
-                <MapPin className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{event.location}</span>
+                <MapPin className="h-3.5 w-3.5 shrink-0" />{" "}
+                <span className="truncate">{event.location}</span>
               </p>
             ) : null}
           </div>
