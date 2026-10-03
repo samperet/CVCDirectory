@@ -14,6 +14,7 @@ import { claimAnnouncements, pollIdsIn } from "@/lib/polls/wiki";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
 import { isCommunity } from "@/lib/circles/ids";
+import { pageStage } from "@/lib/wiki/consent";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,9 @@ export async function GET(_request: Request, { params }: Params) {
 /**
  * Save a new version (title and/or body; its editors), its settings —
  * keeper, who sees it, who edits it (the circle that keeps it, or the
- * Board) — or the circle's consent (anyone in that circle, or the Board).
+ * Board) — its stage: proposed to the circle for consent, or the proposal
+ * withdrawn (its editors) — or the circle's consent (anyone in that circle,
+ * or the Board).
  * Polls newly in the page are announced.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -56,6 +59,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     );
   if (update.consent !== undefined && !ctx.canConsent)
     return problem("Only the circle's members and the Board can record its consent", 403);
+  if (update.proposal && pageStage(ctx.page) === "consented")
+    return problem("The circle has already consented to this version", 409);
   const known = new Set(ctx.directory.circles.map((circle) => circle.id));
   if (update.keeper && !known.has(update.keeper)) return problem("That circle doesn't exist", 404);
   if (update.view?.kind === "circles" && update.view.circles.some((id) => !known.has(id)))

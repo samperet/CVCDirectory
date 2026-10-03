@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, BookOpen } from "lucide-react";
+import { ArrowUpRight, BookOpen, Hourglass } from "lucide-react";
 import type { InfoView } from "@/lib/circles/layout";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { wikiPageQuery } from "@/components/wiki/link-data";
 import { cn } from "@/lib/utils";
+import { pageStage } from "@/lib/wiki/consent";
+import { shortDate } from "@/lib/time";
 
 /**
  * Wiki pages shown on a circle's page: as cards with their opening lines,
- * each in full, or just their titles.
+ * each in full, or just their titles. A page waiting for consent says so.
  */
 
 const href = (page: Pick<WikiPageSummary, "slug">) => `/wiki/${page.slug}`;
@@ -27,6 +29,21 @@ const TILTS = [
 ];
 const tiltFor = (id: string) =>
   TILTS[Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % TILTS.length];
+
+/** "Proposed" (and the day it's to be decided) on a page waiting for consent. */
+function ProposedTag({ page }: { page: WikiPageSummary }) {
+  if (pageStage(page) !== "proposed") return null;
+  const decideOn = page.proposal?.decideOn;
+  return (
+    <span
+      className="inline-flex w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-sun/30 px-2 py-0.5 text-xs font-semibold text-foreground"
+      data-stage="proposed"
+    >
+      <Hourglass className="h-3 w-3" aria-hidden /> Proposed
+      {decideOn ? <span className="font-normal">· {shortDate(decideOn, true)}</span> : null}
+    </span>
+  );
+}
 
 /** A page as a card: its title and opening lines; the whole card opens it. */
 export function PageCard({ page, circleName }: { page: WikiPageSummary; circleName?: string }) {
@@ -46,6 +63,7 @@ export function PageCard({ page, circleName }: { page: WikiPageSummary; circleNa
           {page.title}
         </Link>
       </h3>
+      <ProposedTag page={page} />
       {page.excerpt ? (
         <p className="line-clamp-4 whitespace-pre-line text-sm leading-snug text-foreground-light">
           {page.excerpt}
@@ -82,6 +100,7 @@ export function FullPage({
             </Link>
           </h3>
           {circleName ? <p className="text-xs text-foreground-light/80">{circleName}</p> : null}
+          <ProposedTag page={page} />
         </div>
         <Link
           href={href(page)}
@@ -131,6 +150,7 @@ export function PageTitleList({
             >
               {page.title}
             </Link>
+            <ProposedTag page={page} />
             {circle ? (
               <span className="shrink-0 text-xs text-foreground-light/80">{circle}</span>
             ) : null}

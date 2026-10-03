@@ -16,7 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. Any member of a circle — or the Board, for any circle — records when the circle consented to one.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -257,6 +257,16 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   shows **Changed since consent** until the circle consents again, and a file's version history
   marks the consented one. **Consented only** filters the list; search finds consented documents by
   the word "consented". The same people can withdraw a record of consent.
+- **Proposals** – a proposal is a page waiting for consent, not a separate thing. A page is a
+  **Draft**, **Proposed**, or **Consented** (`pageStage` in `lib/wiki/consent.ts`), shown as a
+  pill under its title. Anyone who can edit it can **Propose for consent** (optionally with the day
+  it's to be decided) or **Withdraw proposal**; recording consent ends the proposal. Editing a
+  consented page makes it a draft again ("changed since consent"); proposing that is a **Proposed
+  change**. Concerns are raised as comments on the words they're about. Proposing notifies no one.
+  The Documents list's stage filter shows **Proposed (waiting for consent)** pages, search finds
+  them by "proposed", and an Information module on a circle page can show **Proposals waiting for
+  consent** (the soonest to be decided first). (`PATCH /api/wiki/pages/<slug>` with
+  `proposal: {decideOn}` or `null`; stored on the page as `proposal`.)
   (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent`;
   stored with the document or page as `consent`.)
 - **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
@@ -381,7 +391,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);
   a single file works the same way, and a description can be added afterwards with Edit.
 - **Filtering and sorting** – document lists filter by circle (on `/documents`), type, year (on
-  `/documents`), and Consented only, and sort by newest (the default), oldest, title, or recently
+  `/documents`), and stage (Proposed or Consented), and sort by newest (the default), oldest, title, or recently
   updated (best match while searching); **Clear** resets them (`GET /api/documents?sort=…&year=…`). Each file gets an editable title (from its name), type, and meeting date (filled in
   when the name has one, like `2024-03-12`); they upload one after another, and failures can be retried.
   The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,

@@ -1,9 +1,12 @@
 /**
- * A circle's consent to a wiki page — a policy or an agreement the page
- * sets out — recorded by the page's parent circle (or the Board) with the
- * date it was consented. Consent is to the page as it stood then: once the
- * page is edited again, it shows as changed since consent until the circle
- * consents to the new version. Safe for the browser.
+ * Where a page stands with its parent circle — a policy or an agreement the
+ * page sets out — in three stages: a **draft**, **proposed** (put to the
+ * circle for consent, perhaps by a day), and **consented** (recorded by the
+ * circle's members or the Board, with the date). Consent is to the page as
+ * it stood then: once it's edited again it's a draft (changed since
+ * consent) until it's proposed again or the circle consents to the new
+ * version. A proposal is a page — or a change to a consented one — waiting
+ * for consent; recording consent ends it. Safe for the browser.
  */
 export interface PageConsent {
   /** The day the circle consented (YYYY-MM-DD). */
@@ -23,4 +26,31 @@ export function consentState(page: {
 }): ConsentState {
   if (!page.consent) return null;
   return page.consent.version === page.updatedAt ? "consented" : "changed";
+}
+
+/** A page put to its parent circle for consent. */
+export interface PageProposal {
+  by: { userId: string; name: string };
+  /** When it was proposed. */
+  at: string;
+  /** The day the circle means to decide (YYYY-MM-DD), if there is one. */
+  decideOn?: string | null;
+}
+
+export type PageStage = "draft" | "proposed" | "consented";
+
+export const STAGE_LABELS: Record<PageStage, string> = {
+  draft: "Draft",
+  proposed: "Proposed",
+  consented: "Consented",
+};
+
+/** Consented while the consented version is current; otherwise proposed, if it has been; otherwise a draft. */
+export function pageStage(page: {
+  consent?: PageConsent | null;
+  proposal?: PageProposal | null;
+  updatedAt: string;
+}): PageStage {
+  if (consentState(page) === "consented") return "consented";
+  return page.proposal ? "proposed" : "draft";
 }

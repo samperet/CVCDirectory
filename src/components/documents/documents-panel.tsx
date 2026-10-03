@@ -111,7 +111,8 @@ export function DocumentsPanel({
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState("");
-  const [consentedOnly, setConsentedOnly] = useState(false);
+  // "" any stage; "proposed" pages waiting for consent; "consented".
+  const [stage, setStage] = useState("");
   const [year, setYear] = useState("");
   // "" means the natural order: newest first, or best match while searching.
   const [sort, setSort] = useState("");
@@ -141,7 +142,7 @@ export function DocumentsPanel({
     kind: type === PAGES ? "pages" : type === FILES ? "files" : "",
     year,
     sort,
-    consented: consentedOnly ? "1" : "",
+    stage,
     pages: "1",
   };
   const { data, isLoading, isFetching, error } = useQuery({
@@ -177,7 +178,7 @@ export function DocumentsPanel({
       ).sort(),
     [data, type]
   );
-  const filtered = !!(debounced || type || year || consentedOnly || (!circleId && circle));
+  const filtered = !!(debounced || type || year || stage || (!circleId && circle));
   const yearOptions = Array.from(
     new Set([...(data?.yearOptions ?? []), ...(year ? [year] : [])])
   ).sort((a, b) => b.localeCompare(a));
@@ -186,7 +187,7 @@ export function DocumentsPanel({
     setDebounced("");
     setType("");
     setYear("");
-    setConsentedOnly(false);
+    setStage("");
     setSort("");
     if (!circleId) setCircle("");
   };
@@ -235,27 +236,16 @@ export function DocumentsPanel({
             </optgroup>
           ) : null}
         </Select>
-        <label
-          className={cn(
-            "flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-sm transition",
-            consentedOnly
-              ? "border-primary bg-primary/15 text-foreground"
-              : "border-border bg-white text-foreground/80 hover:bg-accent"
-          )}
-          title="Only documents the circle has consented to"
+        <Select
+          value={stage}
+          onChange={(event) => setStage(event.target.value)}
+          aria-label="Stage"
+          title="Where each document stands with its circle"
         >
-          <input
-            type="checkbox"
-            checked={consentedOnly}
-            onChange={(event) => setConsentedOnly(event.target.checked)}
-            className="sr-only"
-          />
-          <BadgeCheck
-            className={cn("h-4 w-4", consentedOnly ? "text-pine" : "text-muted")}
-            aria-hidden
-          />{" "}
-          Consented only
-        </label>
+          <option value="">Any stage</option>
+          <option value="proposed">Proposed (waiting for consent)</option>
+          <option value="consented">Consented</option>
+        </Select>
         {!circleId && yearOptions.length > 1 ? (
           <Select value={year} onChange={(event) => setYear(event.target.value)} aria-label="Year">
             <option value="">All years</option>

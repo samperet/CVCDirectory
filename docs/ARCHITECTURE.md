@@ -127,7 +127,9 @@ over a `.document-sheet` with `.document-body` margins); the editor (`wiki-edito
 sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
 A page's **consent** (`lib/wiki/consent.ts`, `page.consent`) is the keeper circle's, recorded with
 a date (`PATCH {consent: {date}}`, or `null` to withdraw) against the version current then;
-`consentState()` reads "changed" once the page is edited again. Who may record it is the same for
+`consentState()` reads "changed" once the page is edited again. A page's **stage**
+(`pageStage()`: draft, proposed, consented) adds `page.proposal` (`PATCH {proposal: {decideOn}}`, or
+`null`; its editors), which recording consent clears — a proposal is a page waiting for consent. Who may record it is the same for
 pages and files: `canRecordConsent` (`lib/circles/consent.ts`) — anyone in the circle, the Board for
 any circle, admins.
 
