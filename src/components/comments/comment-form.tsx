@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
  * Writing a comment, a reply, or an edit: a text area with Save and Cancel.
  * ⌘/Ctrl+Enter sends, Escape cancels. What was typed is kept if sending
  * fails (the caller has shown the error) and cleared once it's sent.
+ * `children` go between the text and the buttons: anything else the feature
+ * asks for (the people a log update involved), kept and cleared by the caller.
  */
 export function CommentForm({
   placeholder,
@@ -20,6 +22,7 @@ export function CommentForm({
   rows,
   onSubmit,
   onCancel,
+  children,
 }: {
   placeholder: string;
   initial?: string;
@@ -32,6 +35,7 @@ export function CommentForm({
   rows?: number;
   onSubmit: (body: string) => Promise<unknown>;
   onCancel?: () => void;
+  children?: ReactNode;
 }) {
   const [body, setBody] = useState(initial);
   const ready = body.trim().length >= minLength;
@@ -66,6 +70,7 @@ export function CommentForm({
         className="bg-white"
         aria-label={placeholder}
       />
+      {children}
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={!ready || busy}>
           {busy ? "Saving…" : submitLabel}

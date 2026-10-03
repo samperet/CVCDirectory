@@ -22,7 +22,10 @@ export async function GET(_request: Request, { params }: Params) {
   );
 }
 
-/** Post an update (`parentId` unset) or reply to one. Nobody is notified: that's the point of the log. */
+/**
+ * Post an update (`parentId` unset, with the `people` it involved) or reply to
+ * one. Nobody is notified, not even the people named: that's the point of the log.
+ */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "log");
   if (limited) return limited;

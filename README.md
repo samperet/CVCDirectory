@@ -462,11 +462,14 @@ from then on, so re-importing the directory never overwrites circle changes.
 - **Log** – a circle module for short updates, each with replies: a small forum of the circle's
   own, kept apart from the Forum because it **never notifies or emails anyone**. Its **Settings**
   say who can post updates (the circle's members and the Board, or any resident); anyone signed in
-  can reply. Updates show newest first, ten at a time (**Show older updates**). Authors edit and
+  can reply. Updates show newest first, ten at a time (**Show older updates**). An update can
+  name the people it involved — **Add people** picks residents, or takes anyone else's name — shown
+  under it as **Involved:** (residents link to their entry); its author can **Add people** or
+  **Edit people** later, and nobody named is notified. Authors edit and
   delete their own; the circle's members, the Board, and admins can delete any. Posting needs a
   Log module on the circle's page (`GET`/`POST /api/circles/<id>/log`,
-  `PATCH`/`DELETE …/log/<entryId>`; stored in `logs/<circleId>.json`, using the shared comment
-  rules; deleted with the circle).
+  `PATCH`/`DELETE …/log/<entryId>`, with `people` alongside `body`; stored in
+  `logs/<circleId>.json`, using the shared comment rules; deleted with the circle).
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.

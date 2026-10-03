@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { id: string; entryId: string } };
 
-/** Edit your own update or reply. */
+/** Edit your own update or reply: what it says (`body`), and who an update involved (`people`). */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "log");
   if (limited) return limited;
@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     params.id,
     params.entryId,
     { ...ctx.actor, canModerate: false },
-    parsed.data.body
+    parsed.data
   );
   return result.ok ? NextResponse.json({ entry: result.entry }) : logProblem(result.reason);
 }

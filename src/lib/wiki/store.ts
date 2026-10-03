@@ -5,6 +5,7 @@ import { readDirectory } from "@/lib/directory/store";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 import type { Actor } from "@/lib/auth/actor";
 import type { PageConsent } from "./consent";
+import { namedPeopleSchema, type NamedPerson } from "@/lib/people";
 
 /**
  * The wiki: one for all of CVC. Every page, written in Markdown, has a
@@ -42,11 +43,7 @@ export type PageView =
 /** Who can edit a page: the keeper circle, or any resident (the Board and admins always can). */
 export type PageEdit = { kind: "keeper" } | { kind: "anyone" };
 /** Someone present for what a page records (a meeting's notes): a resident, or a guest by name. */
-export interface PagePerson {
-  /** Unset for a guest who isn't in the directory. */
-  personId?: string;
-  name: string;
-}
+export type PagePerson = NamedPerson;
 
 export interface WikiPage {
   id: string;
@@ -133,18 +130,7 @@ export const pageUpdateSchema = z
       .nullable()
       .optional(),
     /** Who was present (the whole list; empty to clear it). */
-    present: z
-      .array(
-        z.object({
-          personId: z
-            .string()
-            .regex(/^[a-f0-9]{12}$/)
-            .optional(),
-          name: z.string().trim().min(1).max(80),
-        })
-      )
-      .max(200)
-      .optional(),
+    present: namedPeopleSchema(200).optional(),
     /** The whole transcript (empty to clear it). */
     transcript: z.string().max(200_000, "The transcript is too long").optional(),
   })
