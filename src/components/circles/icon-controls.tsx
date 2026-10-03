@@ -2,14 +2,13 @@
 
 import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Trash2 } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { ImagePlus } from "lucide-react";
 import type { Circle } from "@/lib/circles/types";
 import { prepareSquareImage, uploadImage } from "@/lib/image-client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
-/** Upload, change, or remove a circle's icon (square-cropped to 256px PNG in the browser). */
+/** Upload or change a circle's icon (square-cropped to 256px PNG in the browser). */
 export function IconControls({ circle }: { circle: Circle }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -28,11 +27,6 @@ export function IconControls({ circle }: { circle: Circle }) {
       refresh();
       toast({ title: `${circle.name} icon updated` });
     },
-    onError,
-  });
-  const remove = useMutation({
-    mutationFn: () => apiFetch(`/api/circles/${circle.id}/icon`, { method: "DELETE" }),
-    onSuccess: refresh,
     onError,
   });
 
@@ -59,17 +53,6 @@ export function IconControls({ circle }: { circle: Circle }) {
         <ImagePlus className="h-4 w-4" />
         {upload.isPending ? "Uploading…" : circle.iconUrl ? "Change icon" : "Upload icon"}
       </Button>
-      {circle.iconUrl ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5 text-muted"
-          onClick={() => remove.mutate()}
-          disabled={remove.isPending}
-        >
-          <Trash2 className="h-4 w-4" /> Remove icon
-        </Button>
-      ) : null}
     </div>
   );
 }
