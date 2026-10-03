@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { TranscriptSection } from "@/components/wiki/transcript-section";
 import type { Circle } from "@/lib/circles/types";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { clearDraft, readDraft, writeDraft, type Draft } from "@/components/wiki/draft-storage";
 import { ClashCard, DraftBanner, LiveEditors, type Clash } from "@/components/wiki/editor-banners";
@@ -514,14 +513,7 @@ export function WikiEditor({
               <CircleIcon circle={circle} size={72} className="rounded-full" />
             </Link>
           ) : null}
-          <Input
-            value={title}
-            maxLength={120}
-            onChange={(event) => setTitle(event.target.value)}
-            className="h-auto w-full max-w-2xl border-0 bg-transparent px-2 py-1 text-center font-display text-3xl font-semibold leading-tight shadow-none hover:bg-accent/40 focus-visible:bg-white focus-visible:ring-2 sm:text-4xl"
-            aria-label="Title"
-            placeholder="Untitled page"
-          />
+          <TitleField value={title} onChange={setTitle} />
           <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted">
             {circle ? (
               <Link href={`/circles/${circleId}`} className="font-medium hover:underline">
@@ -600,5 +592,43 @@ export function WikiEditor({
         document — or to start a new page.
       </p>
     </div>
+  );
+}
+
+/**
+ * The page's title, edited in place: a heading that wraps like the reading
+ * view's and grows to fit (an input would cut off long titles and the
+ * letters that hang below the line). It stays one line of text — Enter does
+ * nothing and pasted line breaks become spaces.
+ */
+function TitleField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const element = field.current;
+      if (!element) return;
+      element.style.height = "auto";
+      element.style.height = `${element.scrollHeight}px`;
+    };
+    fit();
+    // The display font may arrive after the first measure.
+    void document.fonts?.ready.then(fit);
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [value]);
+  return (
+    <textarea
+      ref={field}
+      rows={1}
+      value={value}
+      maxLength={120}
+      onChange={(event) => onChange(event.target.value.replace(/\s*\n\s*/g, " "))}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.preventDefault();
+      }}
+      className="w-full max-w-2xl resize-none overflow-hidden rounded-lg border-0 bg-transparent px-2 pb-2 pt-1 text-center font-display text-3xl font-semibold leading-tight text-foreground shadow-none transition placeholder:text-foreground/40 hover:bg-accent/40 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-4xl"
+      aria-label="Title"
+      placeholder="Untitled page"
+    />
   );
 }
