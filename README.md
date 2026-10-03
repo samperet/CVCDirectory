@@ -101,6 +101,10 @@ contact details or unit numbers.
   **Homes for sale** section on the public front page (and its navigation). Stored in
   `homes/listings.json`, photos in `homes/photos/<id>`; a listed home's photo is served publicly
   (`GET /api/homes/<id>/photo`), a sold one's isn't.
+- While the app is being proposed to the Board and community, visitors see only an opaque
+  **under construction** notice with a **Sign in as a resident to view** button, at `/` and
+  `/welcome`; residents previewing `/welcome` still see the page. Turn it off with
+  `UNDER_CONSTRUCTION` in `components/home/public-home.tsx`.
 - The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
   the account menu to see what visitors see, with a bar leading back to the app. It opens on a
   forest-green band with a white oak leaf on the right (`public/home/leaf.webp`) and the aerial photo

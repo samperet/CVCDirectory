@@ -11,7 +11,14 @@ import { Pill } from "@/components/ui/pill";
  * text is the community's own, from its original website. Everything here is
  * public: no resident names or contact details. Residents can see it too, at
  * /welcome (`preview`), with a bar leading back to the app.
+ *
+ * While the site is being proposed (`UNDER_CONSTRUCTION`), visitors see only
+ * an opaque notice with the way to sign in; residents previewing it at
+ * /welcome still see the page beneath.
  */
+
+/** Visitors see only the under-construction notice; set to false to open the page to them. */
+const UNDER_CONSTRUCTION = true;
 
 const CONTACT_EMAIL = "champlainvalleycohousinginfo@gmail.com";
 
@@ -170,6 +177,44 @@ function HomesForSale({ homes }: { homes: HomeListing[] }) {
   );
 }
 
+/** What visitors see instead of the page while the site is proposed. */
+function UnderConstruction() {
+  return (
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-forest px-4 py-12 text-white">
+      <Image
+        src="/home/leaf.webp"
+        alt=""
+        aria-hidden
+        width={591}
+        height={1000}
+        priority
+        className="pointer-events-none absolute -right-16 -top-16 h-[120%] w-auto max-w-none select-none opacity-40"
+      />
+      <div className="relative flex max-w-md flex-col items-center gap-5 text-center">
+        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-soft">
+          <Image src="/CVC.png" alt="CVC" width={64} height={64} priority className="h-14 w-14" />
+        </span>
+        <p className="text-sm font-semibold uppercase tracking-widest text-sun">
+          Under construction
+        </p>
+        <h1 className="font-display text-3xl font-semibold leading-tight md:text-4xl">
+          This site is under construction
+        </h1>
+        <p className="text-base leading-relaxed text-white/85">
+          It&apos;s being proposed to the CVC Board and community, and isn&apos;t open to visitors
+          yet.
+        </p>
+        <Link
+          href="/login"
+          className="mt-2 inline-flex items-center justify-center rounded-full bg-sun px-6 py-3 text-sm font-semibold text-forest shadow-soft transition hover:bg-sun/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-forest"
+        >
+          Sign in as a resident to view
+        </Link>
+      </div>
+    </main>
+  );
+}
+
 export function PublicHome({
   preview = false,
   homes = [],
@@ -177,12 +222,17 @@ export function PublicHome({
   preview?: boolean;
   homes?: HomeListing[];
 }) {
+  if (UNDER_CONSTRUCTION && !preview) return <UnderConstruction />;
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {preview ? (
         <div className="bg-foreground text-sm text-background">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 md:px-6">
-            <span>This is the public homepage, as visitors see it.</span>
+            <span>
+              {UNDER_CONSTRUCTION
+                ? "This is the public homepage. For now, visitors see an under-construction notice instead."
+                : "This is the public homepage, as visitors see it."}
+            </span>
             <Link
               href="/"
               className="inline-flex shrink-0 items-center gap-1 font-medium underline underline-offset-4"
