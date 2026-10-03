@@ -53,6 +53,8 @@ Email (optional; see App & Notifications):
 - `EMAIL_FROM` – Sender, default `Common Pastures <notifications@commonpasturesvt.org>` (the
   domain must be verified in Resend).
 - `SITE_URL` – The app's address for links in emails (default: Vercel's production domain).
+- `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
+  (default `gpt-image-1`).
 
 ### Installation
 
@@ -496,6 +498,15 @@ from then on, so re-importing the directory never overwrites circle changes.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
+- **New circles get an icon drawn for them** – right after a circle or club is created, the page
+  asks `POST /api/circles/<id>/icon/generate`, which sends OpenAI's image model (`OPENAI_KEY`,
+  `OPENAI_IMAGE_MODEL`, default `gpt-image-1`) up to six of the other circles' icons as references
+  with a prompt naming the new circle and its description, asking for a matching icon with no
+  text (`lib/circles/icon-generator.ts`). It takes about a minute: the circle's page shows
+  **Drawing…** over its icon, and the icon appears when it's ready (a 1024px WebP). Only a circle
+  without an icon gets one, so an uploaded icon is never replaced; its members can change it as
+  before. Without `OPENAI_KEY` nothing happens. Locally, `ICON_TEST_FAKE=1` skips OpenAI (it
+  reuses a reference and records the prompt in `.data/icon-fake.json`).
 
 ## App & Notifications
 

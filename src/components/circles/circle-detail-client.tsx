@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "@/components/layout/back-link";
-import { LayoutGrid, Pencil, Plus, X } from "lucide-react";
+import { LayoutGrid, Loader2, Pencil, Plus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle, CircleApplication, CircleSeat, JoinPolicy } from "@/lib/circles/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
-import { IconControls } from "@/components/circles/icon-controls";
+import { IconControls, useIconDrawing } from "@/components/circles/icon-controls";
 import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
 import {
   CircleModules,
@@ -51,6 +51,7 @@ export function CircleDetailClient({ id }: { id: string }) {
   const { user } = useSession();
   const [editingDetails, setEditingDetails] = useState(false);
   const { data, isLoading, error } = useDirectoryQuery();
+  const drawingIcon = useIconDrawing(id);
 
   const circle = data?.circles.find((entry) => entry.id === id);
   const people = useMemo(
@@ -211,7 +212,17 @@ export function CircleDetailClient({ id }: { id: string }) {
       <BackLink href="/circles" label="All circles" />
 
       <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <CircleIcon circle={circle} size={96} />
+        <div className="relative w-fit shrink-0">
+          <CircleIcon circle={circle} size={96} />
+          {drawingIcon ? (
+            <span
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-white/80 text-xs font-medium text-foreground"
+              role="status"
+            >
+              <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden /> Drawing…
+            </span>
+          ) : null}
+        </div>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           {editingDetails ? (
             <DetailsEditor

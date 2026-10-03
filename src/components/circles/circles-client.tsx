@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { startIconDrawing } from "@/components/circles/icon-controls";
 import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { Loading, ErrorCard } from "@/components/ui/status";
@@ -42,6 +43,8 @@ function NewCircleForm({
       }),
     onSuccess: ({ circle }) => {
       queryClient.invalidateQueries({ queryKey: ["directory"] });
+      // Its icon is drawn in the style of the others while the new page opens.
+      startIconDrawing(queryClient, toast, circle);
       router.push(`/circles/${circle.id}`);
     },
     onError: (err: Error) =>
