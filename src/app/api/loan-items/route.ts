@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { readDirectory } from "@/lib/directory/store";
 import { excerpt, notify } from "@/lib/push/notify";
-import { addLoanItem, listLoanItems, loanItemInputSchema } from "@/lib/library/store";
+import { addLoanItem, listLoanItems, loanItemInputSchema, loanPhotoUrl } from "@/lib/library/store";
 import { problem, readBody, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 /**
  * Every item with its owner's current name, unit, and contact details from
  * the directory (already visible to signed-in residents), so borrowers can
- * reach the owner directly.
+ * reach the owner directly — and its photo's address, if it has one.
  */
 export async function GET() {
   const user = await getSessionUser();
@@ -29,6 +29,7 @@ export async function GET() {
           ownerEmail: owner?.email ?? null,
           ownerPhone: owner?.phone ?? owner?.landline ?? null,
           mine: item.ownerPersonId === user.personId,
+          photoUrl: loanPhotoUrl(item),
         };
       }),
     },

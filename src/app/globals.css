@@ -22,6 +22,18 @@ h2 {
   @apply border-border;
 }
 
+/*
+ * On phones, form fields are at least 16px: iPhones zoom the page in when
+ * you tap a smaller one, which makes typing (and adding things) fiddly.
+ */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
 button {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
 }

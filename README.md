@@ -6,7 +6,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 
 - 🔐 **Resident sign-in** – Pick your name, enter your phone number; signed-out visitors see only the sign-in page.
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
-- 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
+- 🛠️ **Loan Library** – Items residents lend, each with a photo if they like (taken right from a phone's camera), lent-out tracking, and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth.
 - 🏡 **Homes for sale** – Admins and the Board list homes for sale, shown with contact details on the public front page.
@@ -223,6 +223,13 @@ Authors always come from the signed-in session, never from the request body.
   resident who lists it; only they can mark it lent out (optionally noting who has it), returned,
   or remove it. Others see an "Ask to borrow" button that emails (or calls) the owner using their
   directory contact details. Stored in `library/items.json`.
+  An item can have a **photo**: **Lend something** opens with a photo tile — on a phone, **Take a
+  photo** (straight to the camera) or **Choose from library**; on a computer, **Add a photo** — and
+  owners can **Add photo** / **Change photo** on their items. Photos are shrunk to 1600px and
+  re-encoded as JPEG in the browser before they're sent (quick on a phone connection, and the
+  camera's location data is dropped), stored as binaries (`library/photos/<id>`, removed with the
+  item), and served to signed-in residents (`/api/loan-items/<id>/photo`).
+- **Phones** – form fields are 16px on small screens, so iPhones don't zoom in when one is tapped.
 
 ## Storage
 
