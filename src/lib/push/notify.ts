@@ -7,15 +7,9 @@ import {
   Topic,
 } from "./store";
 import { vapidKeys, vapidSubject } from "./vapid";
+import { emailNotification } from "@/lib/email/send";
 
-/**
- * Send a push notification about something just posted. Everyone who wants
- * this kind of notification gets it on each of their devices — except the
- * person who posted it. `onlyUserIds` narrows it (e.g. to a discussion's
- * participants). Never throws and never takes long: a notification that
- * can't be delivered must not break or stall the post that caused it.
- */
-export async function notify(message: {
+type Message = {
   topic: Topic;
   title: string;
   body: string;
@@ -26,7 +20,22 @@ export async function notify(message: {
   onlyUserIds?: string[];
   /** Deliver regardless of preferences (the "send a test" button). */
   ignorePreferences?: boolean;
-}) {
+};
+
+/**
+ * Send a push notification about something just posted — and an email to
+ * those who chose this topic by email (`lib/email/send.ts`). Everyone who
+ * wants this kind of notification gets it on each of their devices — except
+ * the person who posted it. `onlyUserIds` narrows it (e.g. to a discussion's
+ * participants). Never throws and never takes long: a notification that
+ * can't be delivered must not break or stall the post that caused it. A
+ * test push (`ignorePreferences`) isn't emailed.
+ */
+export async function notify(message: Message) {
+  await Promise.all([push(message), message.ignorePreferences ? null : emailNotification(message)]);
+}
+
+async function push(message: Message) {
   try {
     const [subscriptions, preferences] = await Promise.all([listSubscriptions(), allPreferences()]);
     const only = message.onlyUserIds ? new Set(message.onlyUserIds) : null;

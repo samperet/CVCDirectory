@@ -64,6 +64,7 @@ Main documents (see each store's `KEY`):
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
 | `photos/index.json`, `homes/listings.json`, `resources/recommendations.json`, `library/items.json`, `skills/index.json`, `appreciations/index.json`, `profiles/index.json` | The rest | one store each |
 | `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in log | `lib/push`, `lib/auth` |
+| `email/settings.json`, `email/preferences.json`, `email/log.json` | Test mode and allowed addresses, each person's email choices, recent sends | `lib/email` |
 
 ## Who's who
 

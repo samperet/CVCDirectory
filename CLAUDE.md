@@ -78,8 +78,9 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 - **A circle module type**: `MODULE_TYPES`/`MODULE_NAMES` in `layout.ts`, `MODULE_ICONS`/hints and
   the offered list in `components/circles/module-dialogs.tsx`, a case in `sectionFor` in
   `circle-detail-client.tsx`.
-- **A notification topic**: `TOPICS` and `DEFAULT_PREFERENCES` in `src/lib/push/store.ts`; send with
-  `notify()`.
+- **A notification topic**: `TOPICS` in `src/lib/push/topics.ts`, `DEFAULT_PREFERENCES` in
+  `src/lib/push/store.ts` and `DEFAULT_EMAIL_PREFERENCES` in `src/lib/email/shared.ts`; send with
+  `notify()` (push, and email for those who chose it).
 - **Comments on something new**: extend `CommentRecord` with the feature's fields, call
   `addComment`/`editComment`/`deleteComment` from the store's `mutate()`, map `normalizeComment` over
   what's read, and render with `CommentTree`.

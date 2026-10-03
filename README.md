@@ -47,6 +47,13 @@ Accounts and admin:
 - `ADMIN_TOKEN` – Enables the admin API (directory import, photo seeding); leave unset to disable it.
 - `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins (see Admins).
 
+Email (optional; see App & Notifications):
+
+- `RESEND_KEY` – Resend API key for sending email; without it nothing is emailed.
+- `EMAIL_FROM` – Sender, default `Common Pastures <notifications@commonpasturesvt.org>` (the
+  domain must be verified in Resend).
+- `SITE_URL` – The app's address for links in emails (default: Vercel's production domain).
+
 ### Installation
 
 ```bash
@@ -501,6 +508,22 @@ from then on, so re-importing the directory never overwrites circle changes.
   sets the contact URL/mailto. Subscriptions live in `push/subscriptions.json` (expired ones are
   dropped automatically) and choices in `push/preferences.json`. Sending never blocks or breaks
   a post: it's capped at a few seconds and failures are only logged.
+- **Email** – everything that sends a notification can also be emailed (`notify()` does both;
+  `lib/email/`), through Resend from `EMAIL_FROM`, to the address in each resident's directory
+  entry — including residents who have never signed in. Each resident picks what to be emailed
+  about under **Email me about** on their profile; until they do, they get discussions, replies,
+  circle requests, tasks, polls, and comments on their pages (not photos, appreciations,
+  recommendations, the loan library, or documents). Nobody is emailed about their own posts, and
+  a circle's Log never emails. Every email links to the thing itself and has a **Stop them** link
+  (and a one-click `List-Unsubscribe` header) that turns that topic off without signing in — a
+  token signed with the app's secret. Choices live in `email/preferences.json`, by person id.
+- **Test mode** – admins open **Email** in the account menu (`/admin/email`). Test mode starts
+  **on**: only the addresses on its allowed list are emailed (subjects start "[Test]") and everyone
+  else is counted as skipped. Admins add and remove allowed addresses, send a test email to one,
+  and see recent sends (counts only; addresses only in test mode). Turning test mode off asks
+  first; from then on new emails go to everyone who chose them — nothing earlier is re-sent.
+  Settings in `email/settings.json`, the log (last 200) in `email/log.json`. Locally,
+  `EMAIL_TEST_SINK=1` writes emails to `.data/email-sink.json` instead of sending them.
 
 ## Resources
 
