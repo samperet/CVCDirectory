@@ -25,7 +25,8 @@ const WikiMap = dynamic(
  * files uploaded — searchable by title and contents. `?circle=` starts on
  * one circle's; `?new=Title&from=<pageId>` opens "Write a page" (a link to a
  * page that doesn't exist yet, or the header's New document); `?upload=1`
- * opens the upload form; the Map button (`?map=1`, with `focus` or
+ * opens the upload form; `?stage=proposed` (or `consented`) starts filtered
+ * to that stage; the Map button (`?map=1`, with `focus` or
  * `circle`) shows how the pages link to each other.
  */
 export function DocumentsPage() {
@@ -77,6 +78,7 @@ export function DocumentsPage() {
           canWrite={keepers.length > 0}
           initialCircle={params.get("circle") ?? ""}
           startUpload={params.get("upload") === "1"}
+          initialStage={params.get("stage") ?? ""}
           newPage={
             requested !== null
               ? { title: requested, from: params.get("from") ?? undefined }

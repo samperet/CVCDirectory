@@ -87,6 +87,7 @@ export function DocumentsPanel({
   initialCircle = "",
   newPage,
   startUpload = false,
+  initialStage = "",
 }: {
   circleId?: string;
   /** On a circle's page: its name, for the upload form. */
@@ -107,12 +108,16 @@ export function DocumentsPanel({
   newPage?: { title: string; from?: string };
   /** Open the upload form at once (the header's Upload a file). */
   startUpload?: boolean;
+  /** Start filtered to a stage: "proposed" or "consented" (the dashboard's "And N more"). */
+  initialStage?: string;
 }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState("");
   // "" any stage; "proposed" pages waiting for consent; "consented".
-  const [stage, setStage] = useState("");
+  const [stage, setStage] = useState(
+    initialStage === "proposed" || initialStage === "consented" ? initialStage : ""
+  );
   const [year, setYear] = useState("");
   // "" means the natural order: newest first, or best match while searching.
   const [sort, setSort] = useState("");

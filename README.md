@@ -265,7 +265,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   change**. Concerns are raised as comments on the words they're about. Proposing notifies no one.
   The Documents list's stage filter shows **Proposed (waiting for consent)** pages, search finds
   them by "proposed", and an Information module on a circle page can show **Proposals waiting for
-  consent** (the soonest to be decided first). (`PATCH /api/wiki/pages/<slug>` with
+  consent** (the soonest to be decided first). The dashboard's **Waiting for consent** card lists
+  the proposals of the circles you're in — and Community's, for everyone — when there are any
+  (`components/wiki/your-proposals.tsx`; "And N more" opens `/documents?stage=proposed`). (`PATCH /api/wiki/pages/<slug>` with
   `proposal: {decideOn}` or `null`; stored on the page as `proposal`.)
   (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent`;
   stored with the document or page as `consent`.)

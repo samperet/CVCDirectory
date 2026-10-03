@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { NextEvent } from "@/components/calendar/next-event";
 import { MyTasks } from "@/components/tasks/my-tasks";
+import { YourProposals } from "@/components/wiki/your-proposals";
 import { NotificationsNudge } from "@/components/notifications/notifications-nudge";
 import { getUpcomingEvents } from "@/lib/calendar/events";
 import { getSessionUser } from "@/lib/auth/session";
@@ -115,6 +116,7 @@ export default async function HomePage() {
       </section>
       <NotificationsNudge />
       <NextEvent event={nextEvent ?? null} />
+      <YourProposals />
       <MyTasks />
       <section className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (

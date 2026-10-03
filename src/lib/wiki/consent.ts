@@ -54,3 +54,14 @@ export function pageStage(page: {
   if (consentState(page) === "consented") return "consented";
   return page.proposal ? "proposed" : "draft";
 }
+
+/** Proposals in the order they're coming up: the soonest to be decided first, then the newest proposed. */
+export function byDecision(
+  a: { proposal?: PageProposal | null },
+  b: { proposal?: PageProposal | null }
+): number {
+  return (
+    (a.proposal?.decideOn ?? "9999").localeCompare(b.proposal?.decideOn ?? "9999") ||
+    (b.proposal?.at ?? "").localeCompare(a.proposal?.at ?? "")
+  );
+}

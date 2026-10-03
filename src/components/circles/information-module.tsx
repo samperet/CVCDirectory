@@ -6,7 +6,7 @@ import { BookOpen, Plus } from "lucide-react";
 import { moduleTitle, type CircleModule, type InfoFilter } from "@/lib/circles/layout";
 import type { Circle } from "@/lib/circles/types";
 import type { WikiPageSummary } from "@/lib/wiki/store";
-import { pageStage } from "@/lib/wiki/consent";
+import { byDecision, pageStage } from "@/lib/wiki/consent";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import { AddInformationDialog } from "@/components/circles/add-information-dialog";
 import { PageGrid } from "@/components/wiki/page-cards";
@@ -30,11 +30,7 @@ export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPage
   if (filter.kind === "proposed")
     return pages
       .filter((page) => page.keeper === filter.circleId && pageStage(page) === "proposed")
-      .sort(
-        (a, b) =>
-          (a.proposal?.decideOn ?? "9999").localeCompare(b.proposal?.decideOn ?? "9999") ||
-          (b.proposal?.at ?? "").localeCompare(a.proposal?.at ?? "")
-      );
+      .sort(byDecision);
   if (filter.kind === "circle")
     return pages
       .filter((page) => page.keeper === filter.circleId)
