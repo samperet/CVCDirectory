@@ -7,7 +7,12 @@ import {
   emailPreferencesSchema,
   updateEmailPreferences,
 } from "@/lib/email/preferences";
-import { TOPICS } from "@/lib/push/topics";
+import { TOPICS, type Topic } from "@/lib/push/topics";
+import { PUSH_ONLY_TOPICS } from "@/lib/email/shared";
+
+const EMAIL_TOPICS = Object.fromEntries(
+  Object.entries(TOPICS).filter(([topic]) => !PUSH_ONLY_TOPICS.includes(topic as Topic))
+);
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +27,7 @@ export async function GET() {
   ]);
   const email = directory?.people.find((person) => person.id === user.personId)?.email ?? null;
   return NextResponse.json(
-    { preferences, topics: TOPICS, email },
+    { preferences, topics: EMAIL_TOPICS, email },
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }

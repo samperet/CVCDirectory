@@ -4,6 +4,8 @@ import { handOverPages } from "@/lib/wiki/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { deleteCircleLog } from "@/lib/log/store";
+import { addAlias, deleteCircleGroups } from "@/lib/groups/store";
+import { groupLocal } from "@/lib/groups/shared";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -37,7 +39,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
+  const before = ctx.directory.circles.find((circle) => circle.id === params.id);
   const result = await updateCircle(ctx.imported, params.id, parsed.data);
+  // A renamed circle keeps answering to its old email address.
+  if (result.ok && before && parsed.data.name && parsed.data.name !== before.name)
+    await addAlias(groupLocal(before), params.id);
   return result.ok ? NextResponse.json({ circle: result.value }) : circleProblem(result.reason);
 }
 
@@ -61,5 +67,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   // What's left of its old meetings and proposals (no longer shown) goes with it.
   await deleteJson(`meetings/${params.id}.json`);
   await deleteCircleLog(params.id);
+  await deleteCircleGroups(params.id);
   return NextResponse.json({ ok: true });
 }

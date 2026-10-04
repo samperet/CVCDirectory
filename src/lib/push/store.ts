@@ -22,6 +22,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   polls: true,
   wiki: true,
   tasks: true,
+  groups: true,
 };
 
 export interface PushSubscriptionRecord {

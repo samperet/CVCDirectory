@@ -24,7 +24,12 @@ export const DEFAULT_EMAIL_PREFERENCES: Preferences = {
   polls: true,
   wiki: true,
   tasks: true,
+  // Circle messages are emailed by the circle itself (each member's choice per circle), not as notifications.
+  groups: false,
 };
+
+/** Topics that are never emailed as notifications (and aren't offered under "Email me about"). */
+export const PUSH_ONLY_TOPICS: Topic[] = ["groups"];
 
 export const emailPreferencesFor = (saved: Partial<Preferences> | undefined): Preferences => ({
   ...DEFAULT_EMAIL_PREFERENCES,
@@ -50,11 +55,16 @@ export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
 /** One sending, as the admin page lists it: counts only (and, in test mode, the addresses). */
 export interface EmailLogEntry {
   at: string;
-  topic: Topic | "test";
+  /** A notification topic, a test, a circle's group email, a daily summary, or a "did you send this?" check. */
+  topic: Topic | "test" | "group" | "summary" | "confirm";
+  /** For group email: the circle. */
+  circleId?: string;
   subject: string;
   sent: number;
   skipped: number;
   failed: number;
+  /** Over the free plan's quota: left for the next summary (group email) or skipped (notifications). */
+  overQuota?: number;
   testMode: boolean;
   /** Who it went to — only kept for test sends, which go to the allow-list. */
   to?: string[];
