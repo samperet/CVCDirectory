@@ -19,7 +19,7 @@ import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-to
 import { notify } from "@/lib/push/notify";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { visiblePages } from "@/lib/wiki/access";
-import { consentState as pageConsentState } from "@/lib/wiki/consent";
+import { consentState as pageConsentState, pageStage } from "@/lib/wiki/consent";
 import { pageDate, pageListing, searchPages } from "@/lib/wiki/listing";
 import { searchTerms } from "@/lib/search";
 import { problem, readBody } from "@/lib/http";
@@ -60,8 +60,9 @@ const pageSortable = (page: WikiPage): Sortable => ({
  * List documents, newest first — or, with `q`, search their details and
  * contents, best match first. Filters: `circle`, `type` (a type's name,
  * since each circle names its own types), `year` (of the meeting, or the
- * upload), and `consented=1` (only documents whose current version the circle
- * has consented to). `sort`: newest, oldest, title, or updated. Also returns
+ * upload), and `stage`: `consented` (only documents whose current version
+ * the circle has consented to; also `consented=1`) or `proposed` (only
+ * pages waiting for consent — files aren't proposed). `sort`: newest, oldest, title, or updated. Also returns
  * the type names and years in use, for the filters.
  *
  * With `pages=1` the written pages someone can see come too, as one list
@@ -78,7 +79,9 @@ export async function GET(request: NextRequest) {
   const circle = params.get("circle");
   const type = params.get("type");
   const year = params.get("year");
-  const consentedOnly = params.get("consented") === "1";
+  const stage = params.get("stage");
+  const consentedOnly = stage === "consented" || params.get("consented") === "1";
+  const proposedOnly = stage === "proposed";
   const withPages = params.get("pages") === "1";
   const kind = params.get("kind");
   const sortParam = params.get("sort");
@@ -100,7 +103,7 @@ export async function GET(request: NextRequest) {
       ...pagesInCircle.map((page) => pageDate(page).slice(0, 4)),
     ])
   ).sort((a, b) => b.localeCompare(a));
-  const showFiles = kind !== "pages";
+  const showFiles = kind !== "pages" && !proposedOnly;
   const showPages = withPages && kind !== "files" && !type;
   const documents = (showFiles ? inCircle : [])
     .filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase())
@@ -108,7 +111,8 @@ export async function GET(request: NextRequest) {
     .filter((doc) => !consentedOnly || consentState(doc) === "consented");
   const pages = (showPages ? pagesInCircle : [])
     .filter((page) => !year || pageDate(page).startsWith(`${year}-`))
-    .filter((page) => !consentedOnly || pageConsentState(page) === "consented");
+    .filter((page) => !consentedOnly || pageConsentState(page) === "consented")
+    .filter((page) => !proposedOnly || pageStage(page) === "proposed");
   const options = { typeOptions, yearOptions, hasPages: pagesInCircle.length > 0 };
   const headers = { "Cache-Control": "private, no-store" };
 
@@ -137,9 +141,7 @@ export async function GET(request: NextRequest) {
       pages,
       searchTerms(q),
       (page) =>
-        `${circleName(page.keeper)} page${
-          pageConsentState(page) === "consented" ? " consented" : ""
-        }`
+        `${circleName(page.keeper)} page${pageStage(page) === "draft" ? "" : ` ${pageStage(page)}`}`
     );
     const hits = sort
       ? [...found].sort((a, b) => SORTS[sort](fileSortable(a.doc), fileSortable(b.doc)))

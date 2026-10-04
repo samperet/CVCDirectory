@@ -11,6 +11,7 @@ import {
   History,
   Home,
   LogOut,
+  Mail,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -104,6 +105,13 @@ export function UserMenu() {
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/admin/sign-ins" onClick={() => setOpen(false)}>
                   <History className="h-4 w-4" /> Sign-in log
+                </Link>
+              </Button>
+            ) : null}
+            {user.isAdmin ? (
+              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+                <Link href="/admin/email" onClick={() => setOpen(false)}>
+                  <Mail className="h-4 w-4" /> Email
                 </Link>
               </Button>
             ) : null}

@@ -4,7 +4,7 @@ import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
 import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./links";
 import type { Actor } from "@/lib/auth/actor";
-import type { PageConsent } from "./consent";
+import type { PageConsent, PageProposal } from "./consent";
 import { namedPeopleSchema, type NamedPerson } from "@/lib/people";
 
 /**
@@ -62,6 +62,8 @@ export interface WikiPage {
   historyCount: number;
   /** The parent circle's consent to the page (see `consent.ts`). */
   consent?: PageConsent | null;
+  /** Put to the parent circle for consent (see `consent.ts`). */
+  proposal?: PageProposal | null;
   /** Who was present (for a meeting's notes), shown under the title; set by its editors. */
   present?: PagePerson[];
   /** What was said, transcribed while the notes were taken; shown folded away at the end of the page. */
@@ -74,7 +76,16 @@ export interface WikiPage {
 
 export type WikiPageSummary = Pick<
   WikiPage,
-  "id" | "slug" | "title" | "updatedAt" | "updatedBy" | "keeper" | "view" | "edit" | "consent"
+  | "id"
+  | "slug"
+  | "title"
+  | "updatedAt"
+  | "updatedBy"
+  | "keeper"
+  | "view"
+  | "edit"
+  | "consent"
+  | "proposal"
 > & {
   /** Its opening lines, as plain text (in the page list, for cards). */
   excerpt?: string;
@@ -129,6 +140,17 @@ export const pageUpdateSchema = z
       .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the date it was consented") })
       .nullable()
       .optional(),
+    /** Propose it to the circle for consent (by a day, or not), or withdraw the proposal (null). */
+    proposal: z
+      .object({
+        decideOn: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Give the day it's to be decided")
+          .nullable()
+          .optional(),
+      })
+      .nullable()
+      .optional(),
     /** Who was present (the whole list; empty to clear it). */
     present: namedPeopleSchema(200).optional(),
     /** The whole transcript (empty to clear it). */
@@ -155,6 +177,7 @@ export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   view: page.view,
   edit: page.edit,
   ...(page.consent ? { consent: page.consent } : {}),
+  ...(page.proposal ? { proposal: page.proposal } : {}),
 });
 
 type Stored = { version: number; pages: WikiPage[] };
@@ -394,6 +417,7 @@ type PageUpdate = {
   view?: PageView;
   edit?: PageEdit;
   consent?: { date: string } | null;
+  proposal?: { decideOn?: string | null } | null;
   present?: PagePerson[];
   transcript?: string;
 };
@@ -404,7 +428,7 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its keeper, who can see or edit it, its consent, who was present, and the transcript aren't new versions.
+    // Its keeper, who can see or edit it, its stage, who was present, and the transcript aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.present ? { present: update.present } : {}),
       ...(update.transcript !== undefined ? { transcript: update.transcript } : {}),
@@ -420,6 +444,19 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
                 recordedBy: { userId: editor.userId, name: editor.name },
                 recordedAt: new Date().toISOString(),
                 version: page.updatedAt,
+              },
+              // Consent ends the proposal.
+              proposal: null,
+            }
+          : {}),
+      ...(update.proposal === null
+        ? { proposal: null }
+        : update.proposal
+          ? {
+              proposal: {
+                by: { userId: editor.userId, name: editor.name },
+                at: new Date().toISOString(),
+                decideOn: update.proposal.decideOn ?? null,
               },
             }
           : {}),

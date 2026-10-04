@@ -1,12 +1,15 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { mutateJson, readJson } from "@/lib/storage";
+import { deleteBinary, mutateJson, readJson, writeBinary } from "@/lib/storage";
+import type { ImageFile } from "@/lib/images";
 import type { Actor } from "@/lib/auth/actor";
 
 /**
- * The loan library: things residents are happy to lend. Every item belongs
- * to the resident who listed it (taken from their signed-in account), and
- * only they can edit it, mark it lent out or back, or remove it.
+ * The loan library: things residents are happy to lend, each with a photo
+ * if its owner adds one (kept as a binary, `library/photos/<id>`). Every
+ * item belongs to the resident who listed it (taken from their signed-in
+ * account), and only they (or an admin) can edit it, change its photo, mark
+ * it lent out or back, or remove it.
  */
 
 export interface LoanItem {
@@ -20,6 +23,8 @@ export interface LoanItem {
   available: boolean;
   /** Who has it, when lent out. Free text so it can be a neighbor or anyone. */
   lentTo: string | null;
+  /** Its photo, if it has one (the bytes are stored apart; see `loanPhotoUrl`). */
+  photo?: { contentType: string; updatedAt: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +54,14 @@ export const loanItemUpdateSchema = z
 
 const KEY = "library/items.json";
 const MAX_PER_PERSON = 50;
+export const MAX_LOAN_PHOTO_BYTES = 3 * 1024 * 1024;
+export const loanPhotoKey = (id: string) => `library/photos/${id}`;
+
+/** An item's photo address (versioned, so it can be cached), or null. */
+export const loanPhotoUrl = (item: Pick<LoanItem, "id" | "photo">) =>
+  item.photo
+    ? `/api/loan-items/${item.id}/photo?v=${encodeURIComponent(item.photo.updatedAt)}`
+    : null;
 
 function normalize(raw: unknown): LoanItem[] {
   const items = (raw as { items?: unknown } | null)?.items;
@@ -113,8 +126,35 @@ export async function updateLoanItem(
   });
 }
 
+/** Add, replace, or take off an item's photo (its owner, or an admin). */
+export async function setLoanItemPhoto(
+  actor: LoanActor,
+  id: string,
+  photo: ImageFile | null
+): Promise<OwnerResult<LoanItem>> {
+  const item = (await listLoanItems()).find((entry) => entry.id === id);
+  if (!item) return { ok: false, reason: "not_found" };
+  if (!mayChange(item, actor)) return { ok: false, reason: "forbidden" };
+  if (photo) await writeBinary(loanPhotoKey(id), photo);
+  else await deleteBinary(loanPhotoKey(id)).catch(() => undefined);
+  return mutateJson<OwnerResult<LoanItem>>(KEY, (raw) => {
+    const items = normalize(raw);
+    const index = items.findIndex((entry) => entry.id === id);
+    if (index === -1) return { write: false, result: { ok: false, reason: "not_found" } };
+    const now = new Date().toISOString();
+    const next: LoanItem = {
+      ...items[index],
+      photo: photo ? { contentType: photo.contentType, updatedAt: now } : null,
+      updatedAt: now,
+    };
+    const updated = [...items];
+    updated[index] = next;
+    return { value: { items: updated }, result: { ok: true, value: next } };
+  });
+}
+
 export async function removeLoanItem(actor: LoanActor, id: string): Promise<OwnerResult<null>> {
-  return mutateJson<OwnerResult<null>>(KEY, (raw) => {
+  const result = await mutateJson<OwnerResult<null>>(KEY, (raw) => {
     const items = normalize(raw);
     const item = items.find((entry) => entry.id === id);
     if (!item) return { write: false, result: { ok: false, reason: "not_found" } };
@@ -125,4 +165,6 @@ export async function removeLoanItem(actor: LoanActor, id: string): Promise<Owne
       result: { ok: true, value: null },
     };
   });
+  if (result.ok) await deleteBinary(loanPhotoKey(id)).catch(() => undefined);
+  return result;
 }

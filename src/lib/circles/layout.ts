@@ -89,10 +89,11 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   documents: "Documents",
 };
 
-/** Which pages an Information module shows: chosen ones (in order), all of a circle's, or the most recently edited (of a circle, or the whole wiki). */
+/** Which pages an Information module shows: chosen ones (in order), all of a circle's, a circle's proposals waiting for consent, or the most recently edited (of a circle, or the whole wiki). */
 export type InfoFilter =
   | { kind: "pages"; pageIds: string[] }
   | { kind: "circle"; circleId: string }
+  | { kind: "proposed"; circleId: string }
   | { kind: "recent"; limit: number; circleId?: string };
 export const MAX_CHOSEN_PAGES = 12;
 export const RECENT_LIMITS = { min: 3, max: 12, default: 6 } as const;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BadgeCheck, BookOpen, Lock } from "lucide-react";
+import { BadgeCheck, BookOpen, Hourglass, Lock } from "lucide-react";
 import type { PageListing } from "@/lib/wiki/listing";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Highlighted } from "@/components/documents/document-row";
@@ -9,8 +9,9 @@ import { Highlighted } from "@/components/documents/document-row";
 /**
  * A written page in the Documents list, beside uploaded files: a book
  * instead of a file icon and a "Page" label instead of a file type, its
- * consent, circle, and when it was last edited, then its opening lines —
- * or, in a search, the passage that matched. Its title opens the page.
+ * stage (proposed or consented; drafts aren't labelled), circle, and when
+ * it was last edited, then its opening lines — or, in a search, the passage
+ * that matched. Its title opens the page.
  */
 export function PageListingRow({
   page,
@@ -41,17 +42,34 @@ export function PageListingRow({
       </div>
       <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 pl-8 text-xs text-muted">
         <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-pine">Page</span>
-        {page.consent === "consented" ? (
+        {page.stage === "consented" ? (
           <span
             className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-pine/10 px-2 py-0.5 font-semibold text-pine"
             title={page.consentDate ? `Consented ${shortDate(page.consentDate, true)}` : undefined}
           >
             <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented
           </span>
+        ) : page.stage === "proposed" ? (
+          <span
+            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/30 px-2 py-0.5 font-semibold text-foreground"
+            title={
+              page.decideOn
+                ? `Waiting for consent · to decide ${shortDate(page.decideOn, true)}`
+                : "Waiting for consent"
+            }
+          >
+            <Hourglass className="h-3.5 w-3.5" aria-hidden />{" "}
+            {page.consent === "changed" ? "Proposed change" : "Proposed"}
+            {page.decideOn ? (
+              <span className="hidden font-normal sm:inline">
+                · {shortDate(page.decideOn, true)}
+              </span>
+            ) : null}
+          </span>
         ) : page.consent === "changed" ? (
           <span
             className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/15 px-2 py-0.5 font-medium text-[#7a5200]"
-            title="Edited since the circle consented"
+            title="A draft: edited since the circle consented"
           >
             <span className="sm:hidden">Changed</span>
             <span className="hidden sm:inline">Changed since consent</span>

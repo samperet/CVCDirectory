@@ -6,6 +6,7 @@ import { BookOpen, Plus } from "lucide-react";
 import { moduleTitle, type CircleModule, type InfoFilter } from "@/lib/circles/layout";
 import type { Circle } from "@/lib/circles/types";
 import type { WikiPageSummary } from "@/lib/wiki/store";
+import { byDecision, pageStage } from "@/lib/wiki/consent";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import { AddInformationDialog } from "@/components/circles/add-information-dialog";
 import { PageGrid } from "@/components/wiki/page-cards";
@@ -18,13 +19,18 @@ import { Loading } from "@/components/ui/status";
 
 /**
  * The pages a filter picks, of those you can see: chosen ones in their
- * order, a circle's by title, or the most recently edited first.
+ * order, a circle's by title, a circle's proposals (the soonest to be
+ * decided first, then the newest), or the most recently edited first.
  */
 export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPageSummary[] {
   if (filter.kind === "pages") {
     const byId = new Map(pages.map((page) => [page.id, page]));
     return filter.pageIds.flatMap((id) => byId.get(id) ?? []);
   }
+  if (filter.kind === "proposed")
+    return pages
+      .filter((page) => page.keeper === filter.circleId && pageStage(page) === "proposed")
+      .sort(byDecision);
   if (filter.kind === "circle")
     return pages
       .filter((page) => page.keeper === filter.circleId)
@@ -64,7 +70,8 @@ export function InformationModule({
   const all = data?.pages ?? [];
   const pages = pagesFor(info.filter, all);
   const listed = filterCircle(info.filter);
-  const ownPages = listed === circle.id;
+  // Adding a page here starts a draft, so a list of proposals doesn't offer it.
+  const ownPages = listed === circle.id && info.filter.kind !== "proposed";
   const circleNames = new Map((circles ?? []).map((entry) => [entry.id, entry.name]));
   const listedName = listed ? circleNames.get(listed) : undefined;
   const total = info.filter.kind === "circle" ? pages.length : 0;
@@ -93,9 +100,11 @@ export function InformationModule({
         />
       ) : (
         <p className="text-sm text-muted">
-          {canAdd && ownPages
-            ? "Nothing here yet — add the first piece of information."
-            : "Nothing here yet."}
+          {info.filter.kind === "proposed"
+            ? "Nothing is waiting for consent."
+            : canAdd && ownPages
+              ? "Nothing here yet — add the first piece of information."
+              : "Nothing here yet."}
         </p>
       )}
       {total && listed && listedName ? (

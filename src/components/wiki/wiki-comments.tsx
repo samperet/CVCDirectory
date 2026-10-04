@@ -167,7 +167,7 @@ function ThreadCard({
   return (
     <li
       className={cn(
-        "group/note sticky-note flex scroll-mt-24 flex-col gap-2 p-3 pt-4",
+        "group/note sticky-note flex scroll-mt-24 flex-col gap-2 p-3",
         active && "sticky-note-active",
         resolved && "sticky-note-resolved"
       )}
@@ -325,7 +325,7 @@ export function WikiComments({
       {canComment ? (
         pendingQuote ? (
           <div
-            className="sticky-note sticky-note-active flex flex-col gap-2 p-3 pt-4"
+            className="sticky-note sticky-note-active flex flex-col gap-2 p-3"
             data-comment-draft
           >
             <p className="text-xs italic text-foreground-light">

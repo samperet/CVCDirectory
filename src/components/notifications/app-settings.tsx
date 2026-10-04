@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, Check, Download, Send, Share } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { Preferences, Topic } from "@/lib/push/store";
+import type { Preferences, Topic } from "@/lib/push/topics";
 import { usePush, useInstall } from "@/components/notifications/pwa";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
-/** "App & notifications" on your profile: install the app, turn notifications on for this device, and choose what about. */
+/**
+ * "App & notifications" on your profile: install the app, turn notifications
+ * on for this device, and choose what about — and, separately, what you're
+ * emailed about (at your directory entry's address).
+ */
 export function AppSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -183,6 +187,93 @@ export function AppSettings() {
           </ul>
         </section>
       ) : null}
+
+      <EmailChoices />
     </Card>
+  );
+}
+
+type EmailChoicesData = {
+  preferences: Preferences;
+  topics: Record<Topic, string>;
+  email: string | null;
+};
+
+/** What you're emailed about: a switch per topic, saved at once. */
+function EmailChoices() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const key = ["email-preferences"];
+  const { data } = useQuery({
+    queryKey: key,
+    queryFn: () => apiFetch<EmailChoicesData>("/api/email/preferences"),
+  });
+  const set = useMutation({
+    mutationFn: (update: Partial<Preferences>) =>
+      apiFetch<{ preferences: Preferences }>("/api/email/preferences", {
+        method: "PATCH",
+        body: JSON.stringify(update),
+      }),
+    onMutate: (update) =>
+      queryClient.setQueryData(key, (current: EmailChoicesData | undefined) =>
+        current ? { ...current, preferences: { ...current.preferences, ...update } } : current
+      ),
+    onSuccess: ({ preferences }) =>
+      queryClient.setQueryData(key, (current: EmailChoicesData | undefined) =>
+        current ? { ...current, preferences } : current
+      ),
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: key });
+      toast({ title: "Could not save", description: err.message, variant: "destructive" });
+    },
+  });
+  if (!data) return null;
+  return (
+    <section className="flex flex-col gap-2" data-email-choices>
+      <h3 className="text-sm font-semibold text-foreground">Email me about</h3>
+      <p className="-mt-1 text-xs text-muted">
+        {data.email ? (
+          <>
+            Emails go to <strong className="font-medium">{data.email}</strong>, the address in your
+            directory entry. You&apos;re never emailed about your own posts.
+          </>
+        ) : (
+          "There's no email address in your directory entry, so you won't get emails. Add one to your profile to get them."
+        )}
+      </p>
+      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
+        {(Object.keys(data.topics) as Topic[]).map((topic) => {
+          const on = data.preferences[topic];
+          return (
+            <li key={topic}>
+              <label className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm text-foreground">
+                {data.topics[topic]}
+                <input
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={on}
+                  aria-label={`Email: ${data.topics[topic]}`}
+                  onChange={() => set.mutate({ [topic]: !on })}
+                />
+                <span
+                  aria-hidden
+                  className={cn(
+                    "relative h-6 w-10 shrink-0 rounded-full transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
+                    on ? "bg-primary" : "bg-border"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+                      on ? "left-[1.125rem]" : "left-0.5"
+                    )}
+                  />
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

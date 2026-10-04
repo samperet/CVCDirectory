@@ -6,7 +6,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 
 - 🔐 **Resident sign-in** – Pick your name, enter your phone number; signed-out visitors see only the sign-in page.
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
-- 🛠️ **Loan Library** – Items residents lend, with lent-out tracking and an "Ask to borrow" button.
+- 🛠️ **Loan Library** – Items residents lend, each with a photo if they like (taken right from a phone's camera), lent-out tracking, and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth.
 - 🏡 **Homes for sale** – Admins and the Board list homes for sale, shown with contact details on the public front page.
@@ -16,7 +16,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. Any member of a circle — or the Board, for any circle — records when the circle consented to one.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -46,6 +46,15 @@ Accounts and admin:
 - `AUTH_SECRET` – Signs session cookies. Set it in production (see Signing In below).
 - `ADMIN_TOKEN` – Enables the admin API (directory import, photo seeding); leave unset to disable it.
 - `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins (see Admins).
+
+Email (optional; see App & Notifications):
+
+- `RESEND_KEY` – Resend API key for sending email; without it nothing is emailed.
+- `EMAIL_FROM` – Sender, default `Common Pastures <notifications@commonpasturesvt.org>` (the
+  domain must be verified in Resend).
+- `SITE_URL` – The app's address for links in emails (default: Vercel's production domain).
+- `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
+  (default `gpt-image-1`).
 
 ### Installation
 
@@ -216,6 +225,13 @@ Authors always come from the signed-in session, never from the request body.
   resident who lists it; only they can mark it lent out (optionally noting who has it), returned,
   or remove it. Others see an "Ask to borrow" button that emails (or calls) the owner using their
   directory contact details. Stored in `library/items.json`.
+  An item can have a **photo**: **Lend something** opens with a photo tile — on a phone, **Take a
+  photo** (straight to the camera) or **Choose from library**; on a computer, **Add a photo** — and
+  owners can **Add photo** / **Change photo** on their items. Photos are shrunk to 1600px and
+  re-encoded as JPEG in the browser before they're sent (quick on a phone connection, and the
+  camera's location data is dropped), stored as binaries (`library/photos/<id>`, removed with the
+  item), and served to signed-in residents (`/api/loan-items/<id>/photo`).
+- **Phones** – form fields are 16px on small screens, so iPhones don't zoom in when one is tapped.
 
 ## Storage
 
@@ -257,6 +273,18 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   shows **Changed since consent** until the circle consents again, and a file's version history
   marks the consented one. **Consented only** filters the list; search finds consented documents by
   the word "consented". The same people can withdraw a record of consent.
+- **Proposals** – a proposal is a page waiting for consent, not a separate thing. A page is a
+  **Draft**, **Proposed**, or **Consented** (`pageStage` in `lib/wiki/consent.ts`), shown as a
+  pill under its title. Anyone who can edit it can **Propose for consent** (optionally with the day
+  it's to be decided) or **Withdraw proposal**; recording consent ends the proposal. Editing a
+  consented page makes it a draft again ("changed since consent"); proposing that is a **Proposed
+  change**. Concerns are raised as comments on the words they're about. Proposing notifies no one.
+  The Documents list's stage filter shows **Proposed (waiting for consent)** pages, search finds
+  them by "proposed", and an Information module on a circle page can show **Proposals waiting for
+  consent** (the soonest to be decided first). The dashboard's **Waiting for consent** card lists
+  the proposals of the circles you're in — and Community's, for everyone — when there are any
+  (`components/wiki/your-proposals.tsx`; "And N more" opens `/documents?stage=proposed`). (`PATCH /api/wiki/pages/<slug>` with
+  `proposal: {decideOn}` or `null`; stored on the page as `proposal`.)
   (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent`;
   stored with the document or page as `consent`.)
 - **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
@@ -302,7 +330,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   members-only poll). Stored together in `wiki/polls.json` (`/api/wiki/polls`), each with its
   circle. Circles no longer have a separate Polls section, and the forum no longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
-  on or off (by adding or removing its Tasks module under **Edit page**). The Tasks module's
+  on or off (by adding or removing its Tasks module under **Edit**). The Tasks module's
   **Settings** say **who can add tasks**: the circle's members (and the Board and admins; the
   default) or **any resident** — who can then also change and delete the tasks they added. A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
@@ -357,11 +385,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `wiki/comments/<pageId>.json`; a page's comments go with it.
 - **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Log**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
-  and admins) adds modules (**Add module**), removes them, drags them into order — or moves them
+  there is one, **Tasks**, **Log**, and **Documents** (each of those once). One **Edit** button (the
+  circle's members, the Board, and admins) edits the whole circle at once: its name and description
+  in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
+  icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
+  modules (**Add module**), removes them, drags them into order — or moves them
   with arrows, on phones — and sizes each to a third, half, two thirds, or the full width of wider
-  screens; phones stack them. Everyone sees the circle's page as it was saved (stored on the
-  circle as `modules`). Each reader can fold any module away with the arrow by its title,
+  screens; phones stack them. **Save** sends the details and the page together in one request
+  (only what changed); **Cancel** drops it all. Everyone sees the circle's page as it was saved
+  (stored on the circle as `modules`). Each reader can fold any module away with the arrow by its title,
   remembered on their device.
   - An **Information module** has a title ("Information" unless given one) and **Settings**:
     which pages it shows — **Specific pages** (up to 12, searched by title, shown in the order
@@ -381,7 +413,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);
   a single file works the same way, and a description can be added afterwards with Edit.
 - **Filtering and sorting** – document lists filter by circle (on `/documents`), type, year (on
-  `/documents`), and Consented only, and sort by newest (the default), oldest, title, or recently
+  `/documents`), and stage (Proposed or Consented), and sort by newest (the default), oldest, title, or recently
   updated (best match while searching); **Clear** resets them (`GET /api/documents?sort=…&year=…`). Each file gets an editable title (from its name), type, and meeting date (filled in
   when the name has one, like `2024-03-12`); they upload one after another, and failures can be retried.
   The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,
@@ -473,6 +505,15 @@ from then on, so re-importing the directory never overwrites circle changes.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.
+- **New circles get an icon drawn for them** – right after a circle or club is created, the page
+  asks `POST /api/circles/<id>/icon/generate`, which sends OpenAI's image model (`OPENAI_KEY`,
+  `OPENAI_IMAGE_MODEL`, default `gpt-image-1`) up to six of the other circles' icons as references
+  with a prompt naming the new circle and its description, asking for a matching icon with no
+  text (`lib/circles/icon-generator.ts`). It takes about a minute: the circle's page shows
+  **Drawing…** over its icon, and the icon appears when it's ready (a 1024px WebP). Only a circle
+  without an icon gets one, so an uploaded icon is never replaced; its members can change it as
+  before. Without `OPENAI_KEY` nothing happens. Locally, `ICON_TEST_FAKE=1` skips OpenAI (it
+  reuses a reference and records the prompt in `.data/icon-fake.json`).
 
 ## App & Notifications
 
@@ -492,6 +533,22 @@ from then on, so re-importing the directory never overwrites circle changes.
   sets the contact URL/mailto. Subscriptions live in `push/subscriptions.json` (expired ones are
   dropped automatically) and choices in `push/preferences.json`. Sending never blocks or breaks
   a post: it's capped at a few seconds and failures are only logged.
+- **Email** – everything that sends a notification can also be emailed (`notify()` does both;
+  `lib/email/`), through Resend from `EMAIL_FROM`, to the address in each resident's directory
+  entry — including residents who have never signed in. Each resident picks what to be emailed
+  about under **Email me about** on their profile; until they do, they get discussions, replies,
+  circle requests, tasks, polls, and comments on their pages (not photos, appreciations,
+  recommendations, the loan library, or documents). Nobody is emailed about their own posts, and
+  a circle's Log never emails. Every email links to the thing itself and has a **Stop them** link
+  (and a one-click `List-Unsubscribe` header) that turns that topic off without signing in — a
+  token signed with the app's secret. Choices live in `email/preferences.json`, by person id.
+- **Test mode** – admins open **Email** in the account menu (`/admin/email`). Test mode starts
+  **on**: only the addresses on its allowed list are emailed (subjects start "[Test]") and everyone
+  else is counted as skipped. Admins add and remove allowed addresses, send a test email to one,
+  and see recent sends (counts only; addresses only in test mode). Turning test mode off asks
+  first; from then on new emails go to everyone who chose them — nothing earlier is re-sent.
+  Settings in `email/settings.json`, the log (last 200) in `email/log.json`. Locally,
+  `EMAIL_TEST_SINK=1` writes emails to `.data/email-sink.json` instead of sending them.
 
 ## Resources
 

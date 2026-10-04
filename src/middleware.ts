@@ -24,6 +24,7 @@ const PUBLIC_PATHS = new Set([
   "/api/auth/me",
   "/api/auth/people",
   "/api/health",
+  "/api/email/unsubscribe", // an email's "Stop them" link: its own signed token
   "/api/admin/directory", // protected by its own bearer token
   "/api/admin/directory/people", // protected by its own bearer token
   "/api/admin/circles", // protected by its own bearer token

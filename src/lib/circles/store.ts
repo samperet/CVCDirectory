@@ -51,6 +51,7 @@ const infoFilter = z.discriminatedUnion("kind", [
       .max(MAX_CHOSEN_PAGES, `Choose up to ${MAX_CHOSEN_PAGES} pages`),
   }),
   z.object({ kind: z.literal("circle"), circleId: id }),
+  z.object({ kind: z.literal("proposed"), circleId: id }),
   z.object({
     kind: z.literal("recent"),
     limit: z.number().int().min(RECENT_LIMITS.min).max(RECENT_LIMITS.max),

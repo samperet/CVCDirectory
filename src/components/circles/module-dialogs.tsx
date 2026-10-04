@@ -152,6 +152,8 @@ export function describeFilter(filter: InfoFilter, circleName: (id: string) => s
   if (filter.kind === "pages")
     return filter.pageIds.length === 1 ? "1 chosen page" : `${filter.pageIds.length} chosen pages`;
   if (filter.kind === "circle") return `All ${circleName(filter.circleId) ?? "circle"} pages`;
+  if (filter.kind === "proposed")
+    return `${circleName(filter.circleId) ?? "Circle"} proposals waiting for consent`;
   return `${filter.limit} recently edited${
     filter.circleId ? ` ${circleName(filter.circleId) ?? ""}` : ""
   } pages`;
@@ -278,12 +280,14 @@ export function TasksSettings({
 const FILTER_KINDS: [InfoFilter["kind"], string][] = [
   ["pages", "Specific pages"],
   ["circle", "All pages of a circle"],
+  ["proposed", "Proposals waiting for consent"],
   ["recent", "Recently edited"],
 ];
 
 /**
  * Setting up an Information module: its title, which pages it shows
- * (chosen ones, all of a circle's, or the latest edited), and how.
+ * (chosen ones, all of a circle's, its proposals waiting for consent, or
+ * the latest edited), and how.
  */
 export function InformationSettings({
   circle,
@@ -313,7 +317,9 @@ export function InformationSettings({
     start.filter.kind === "pages" ? start.filter.pageIds : []
   );
   const [circleId, setCircleId] = useState(
-    start.filter.kind === "circle" ? start.filter.circleId : circle.id
+    start.filter.kind === "circle" || start.filter.kind === "proposed"
+      ? start.filter.circleId
+      : circle.id
   );
   const [limit, setLimit] = useState(
     start.filter.kind === "recent" ? start.filter.limit : RECENT_LIMITS.default
@@ -327,7 +333,7 @@ export function InformationSettings({
   const filter: InfoFilter =
     kind === "pages"
       ? { kind, pageIds }
-      : kind === "circle"
+      : kind === "circle" || kind === "proposed"
         ? { kind, circleId }
         : { kind, limit, ...(recentCircle ? { circleId: recentCircle } : {}) };
   const valid = kind !== "pages" || pageIds.length > 0;
@@ -498,7 +504,7 @@ export function InformationSettings({
                 </>
               ) : null}
             </div>
-          ) : kind === "circle" ? (
+          ) : kind === "circle" || kind === "proposed" ? (
             <label className="flex flex-col gap-1 text-xs font-medium text-muted">
               Circle
               <Select

@@ -1,11 +1,11 @@
 import { occurrences, snippetFor } from "@/lib/search";
-import { consentState, type ConsentState } from "./consent";
+import { consentState, pageStage, type ConsentState, type PageStage } from "./consent";
 import { excerptOf } from "./excerpt";
 import type { WikiPage } from "./store";
 
 /**
  * A written page as the Documents list shows it, beside uploaded files:
- * its circle, dates, consent, opening lines (or, in a search, the passage
+ * its circle, dates, stage (draft, proposed, consented), opening lines (or, in a search, the passage
  * that matched), and whether only some people can see it. Safe for the
  * browser.
  */
@@ -22,6 +22,9 @@ export interface PageListing {
   consent: ConsentState;
   /** The day the circle consented, while it stands. */
   consentDate: string | null;
+  stage: PageStage;
+  /** While proposed: the day the circle means to decide, if set. */
+  decideOn: string | null;
   /** Only some people can see it. */
   restricted: boolean;
   excerpt: string;
@@ -45,6 +48,8 @@ export function pageListing(
     updatedBy: page.updatedBy.name,
     consent: consentState(page),
     consentDate: page.consent?.date ?? null,
+    stage: pageStage(page),
+    decideOn: page.proposal?.decideOn ?? null,
     restricted: page.view.kind !== "everyone",
     excerpt: excerptOf(page.body, 220),
     ...(snippet !== undefined ? { snippet } : {}),
@@ -56,7 +61,7 @@ export const pageDate = (page: Pick<WikiPage, "createdAt">) => page.createdAt.sl
 
 /**
  * Pages matching every term, in their title, their circle's name (and
- * "consented", "page"), or their text — scored the way documents are, so the
+ * "consented", "proposed", "page"), or their text — scored the way documents are, so the
  * two can be listed together, best first.
  */
 export function searchPages(

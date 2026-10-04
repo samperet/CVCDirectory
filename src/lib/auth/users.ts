@@ -53,6 +53,11 @@ async function mutateUsers<T>(
   });
 }
 
+/** Every account, for mapping accounts to residents (e.g. who an email goes to). */
+export async function listUsers(): Promise<CommunityUser[]> {
+  return readUsers();
+}
+
 export function toPublicUser(user: CommunityUser): PublicUser {
   return { id: user.id, name: user.name, personId: user.personId ?? null };
 }

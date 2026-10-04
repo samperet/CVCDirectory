@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consentState } from "./consent";
+import { byDecision, consentState, pageStage } from "./consent";
 
 const consent = {
   date: "2026-09-03",
@@ -18,5 +18,39 @@ describe("consentState", () => {
   });
   it("is changed once the page is edited again", () => {
     expect(consentState({ consent, updatedAt: "2026-09-10T10:00:00.000Z" })).toBe("changed");
+  });
+});
+
+describe("pageStage", () => {
+  const proposal = { by: { userId: "u", name: "Cara Cedar" }, at: "2026-09-02T10:00:00.000Z" };
+  it("is a draft until proposed", () => {
+    expect(pageStage({ updatedAt: "x" })).toBe("draft");
+    expect(pageStage({ proposal, updatedAt: "x" })).toBe("proposed");
+  });
+  it("is consented while the consented version is current", () => {
+    expect(pageStage({ consent, updatedAt: consent.version })).toBe("consented");
+  });
+  it("is a draft again once a consented page is edited, until proposed", () => {
+    const edited = { consent, updatedAt: "2026-09-10T10:00:00.000Z" };
+    expect(pageStage(edited)).toBe("draft");
+    expect(pageStage({ ...edited, proposal })).toBe("proposed");
+  });
+});
+
+describe("byDecision", () => {
+  const by = { userId: "u", name: "Cara Cedar" };
+  it("puts the soonest to be decided first, then the newest proposed", () => {
+    const pages = [
+      { id: "undated-old", proposal: { by, at: "2026-09-01T00:00:00.000Z" } },
+      { id: "late", proposal: { by, at: "2026-09-01T00:00:00.000Z", decideOn: "2026-11-01" } },
+      { id: "undated-new", proposal: { by, at: "2026-09-05T00:00:00.000Z" } },
+      { id: "soon", proposal: { by, at: "2026-09-02T00:00:00.000Z", decideOn: "2026-10-10" } },
+    ];
+    expect([...pages].sort(byDecision).map((page) => page.id)).toEqual([
+      "soon",
+      "late",
+      "undated-new",
+      "undated-old",
+    ]);
   });
 });

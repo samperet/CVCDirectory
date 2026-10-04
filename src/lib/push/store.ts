@@ -6,22 +6,9 @@ import { mutateJson, readJson } from "@/lib/storage";
  * what to be notified about (shared by all their devices).
  */
 
-export const TOPICS = {
-  discussions: "New forum discussions",
-  replies: "Replies in discussions you started or joined",
-  appreciations: "New appreciations",
-  photos: "New photos",
-  resources: "New recommendations, and comments on yours",
-  library: "New things to borrow in the loan library",
-  documents: "New and updated documents in circles",
-  circles: "Requests to join your circles, and answers to yours",
-  polls: "New polls",
-  wiki: "Comments on wiki pages you've written or commented on",
-  tasks: "Tasks given to you, and comments on tasks you're part of",
-} as const;
+import { TOPICS, type Preferences, type Topic } from "./topics";
 
-export type Topic = keyof typeof TOPICS;
-export type Preferences = Record<Topic, boolean>;
+export { TOPICS, type Preferences, type Topic };
 
 export const DEFAULT_PREFERENCES: Preferences = {
   discussions: true,

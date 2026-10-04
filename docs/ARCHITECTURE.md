@@ -64,6 +64,7 @@ Main documents (see each store's `KEY`):
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
 | `photos/index.json`, `homes/listings.json`, `resources/recommendations.json`, `library/items.json`, `skills/index.json`, `appreciations/index.json`, `profiles/index.json` | The rest | one store each |
 | `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in log | `lib/push`, `lib/auth` |
+| `email/settings.json`, `email/preferences.json`, `email/log.json` | Test mode and allowed addresses, each person's email choices, recent sends | `lib/email` |
 
 ## Who's who
 
@@ -109,7 +110,7 @@ setting), Documents (the circle's pages and files). `modulesFor(circle, …)` re
 from the older `layout`/`features`/`infoView` fields for circles that never saved one. Saving
 modules also sets `features.tasks`/`features.documents`, which gate those APIs
 (`lib/circles/features.ts`). Rendering: `components/circles/circle-modules.tsx` (`CircleModules`
-for reading, `ModuleEditor` for Edit page), `circle-detail-client.tsx` `sectionFor()` maps a module
+for reading, `ModuleEditor` in the circle's Edit mode, which also edits its details), `circle-detail-client.tsx` `sectionFor()` maps a module
 to its component.
 
 ## The wiki
@@ -127,7 +128,9 @@ over a `.document-sheet` with `.document-body` margins); the editor (`wiki-edito
 sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
 A page's **consent** (`lib/wiki/consent.ts`, `page.consent`) is the keeper circle's, recorded with
 a date (`PATCH {consent: {date}}`, or `null` to withdraw) against the version current then;
-`consentState()` reads "changed" once the page is edited again. Who may record it is the same for
+`consentState()` reads "changed" once the page is edited again. A page's **stage**
+(`pageStage()`: draft, proposed, consented) adds `page.proposal` (`PATCH {proposal: {decideOn}}`, or
+`null`; its editors), which recording consent clears — a proposal is a page waiting for consent. Who may record it is the same for
 pages and files: `canRecordConsent` (`lib/circles/consent.ts`) — anyone in the circle, the Board for
 any circle, admins.
 

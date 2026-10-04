@@ -22,6 +22,18 @@ h2 {
   @apply border-border;
 }
 
+/*
+ * On phones, form fields are at least 16px: iPhones zoom the page in when
+ * you tap a smaller one, which makes typing (and adding things) fiddly.
+ */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
 button {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
 }
@@ -274,16 +286,16 @@ mark.wiki-mark {
 }
 
 /*
- * Wiki comments are square yellow sticky notes with no border: a little
- * tilted (alternately, and staggered left and right), with a strip of tape on
- * top. A long note grows taller rather than spilling. The one you're looking
- * at sits straight and lifts.
+ * Wiki comments are yellow sticky notes with no border: square at least, a
+ * little tilted (alternately, and staggered left and right). A note grows
+ * taller to fit all its comments rather than spilling. The one you're
+ * looking at sits straight and lifts.
  */
 .sticky-note {
   position: relative;
   width: 100%;
   max-width: 15.5rem;
-  aspect-ratio: 1 / 1;
+  min-height: 15.5rem;
   border-radius: 0;
   background: linear-gradient(180deg, #fff7b0 0%, #fdee8c 100%);
   color: theme("colors.foreground");
@@ -298,16 +310,6 @@ mark.wiki-mark {
 .sticky-note:nth-child(even) {
   margin-left: auto;
   transform: rotate(0.7deg);
-}
-.sticky-note::before {
-  content: "";
-  position: absolute;
-  top: -7px;
-  left: 50%;
-  width: 3.25rem;
-  height: 14px;
-  transform: translateX(-50%) rotate(-2deg);
-  background: rgb(255 255 255 / 0.6);
 }
 .sticky-note.sticky-note-active {
   transform: scale(1.02);

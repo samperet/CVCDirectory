@@ -37,7 +37,7 @@ import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
-import { ConsentControls, ConsentPill } from "@/components/wiki/page-consent";
+import { StageControls, StagePill } from "@/components/wiki/page-consent";
 import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
 import { Pill } from "@/components/ui/pill";
@@ -368,13 +368,15 @@ export function WikiPageClient({ slug }: { slug: string }) {
             <>
               <PresentLine present={page.present} />
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <ConsentPill page={page} />
+                <StagePill page={page} />
               </div>
-              {canConsent ? (
-                <ConsentControls
+              {canConsent || canEdit ? (
+                <StageControls
                   page={page}
                   slug={slug}
                   circleName={circle?.name ?? "The circle"}
+                  canEdit={canEdit}
+                  canConsent={canConsent}
                   onSaved={saved}
                 />
               ) : null}
@@ -499,7 +501,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
             </p>
             <PresentLine present={page.present} />
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <ConsentPill page={page} />
+              <StagePill page={page} />
               {othersEditing.length ? (
                 <Pill tone="live" data-live-editors>
                   <Pencil className="h-3 w-3" aria-hidden />{" "}
@@ -508,11 +510,13 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 </Pill>
               ) : null}
             </div>
-            {canConsent ? (
-              <ConsentControls
+            {canConsent || canEdit ? (
+              <StageControls
                 page={page}
                 slug={slug}
                 circleName={circle?.name ?? "The circle"}
+                canEdit={canEdit}
+                canConsent={canConsent}
                 onSaved={saved}
               />
             ) : null}
