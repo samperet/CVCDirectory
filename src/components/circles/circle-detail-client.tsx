@@ -23,12 +23,15 @@ import {
   MODULE_ICONS,
   TasksSettings,
   LogSettings,
+  ForumSettings,
+  describeForum,
   describeLog,
   describeFilter,
   describeTasks,
 } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { InformationModule } from "@/components/circles/information-module";
+import { ForumModule } from "@/components/groups/forum-module";
 import { LogModule } from "@/components/circles/log-module";
 import { TasksModule } from "@/components/tasks/task-board";
 import { type CircleModule, moduleTitle, modulesFor } from "@/lib/circles/layout";
@@ -175,6 +178,17 @@ export function CircleDetailClient({ id }: { id: string }) {
           content: (
             <Card>
               <TasksModule circle={circle} />
+            </Card>
+          ),
+        };
+      case "forum":
+        return {
+          title,
+          icon: icon(module),
+          detail: describeForum(module),
+          content: (
+            <Card>
+              <ForumModule circleId={circle.id} circleName={circle.name} />
             </Card>
           ),
         };
@@ -352,6 +366,16 @@ export function CircleDetailClient({ id }: { id: string }) {
               onAdd={(module) => {
                 setPageDraft([...editing, module]);
                 setDialog(module.type === "information" ? { kind: "settings", module } : null);
+              }}
+            />
+          ) : dialog?.kind === "settings" && dialog.module.type === "forum" ? (
+            <ForumSettings
+              module={dialog.module}
+              circleId={circle.id}
+              onClose={() => setDialog(null)}
+              onSave={(module) => {
+                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setDialog(null);
               }}
             />
           ) : dialog?.kind === "settings" && dialog.module.type === "log" ? (

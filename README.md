@@ -55,6 +55,11 @@ Email (optional; see App & Notifications):
 - `EMAIL_FROM` – Sender, default `Common Pastures <notifications@commonpasturesvt.org>` (the
   domain must be verified in Resend).
 - `SITE_URL` – The app's address for links in emails (default: Vercel's production domain).
+- `RESEND_WEBHOOK_SECRET` – Signing secret of Resend's webhook, for circle email arriving (see
+  Circle email groups); `CRON_SECRET` – for the daily cron (morning summary).
+- `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – the email allowance (default: Resend's free 100 a
+  day, 3,000 a month); `GROUP_EMAIL_DOMAIN` – the circles' address domain (default
+  `commonpasturesvt.org`).
 - `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
   (default `gpt-image-1`).
 
@@ -421,7 +426,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `wiki/comments/<pageId>.json`; a page's comments go with it.
 - **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Log**, and **Documents** (each of those once). One **Edit** button (the
+  there is one, **Tasks**, **Forum** (see Circle email groups), **Log**, and **Documents** (each of those once). One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
   in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
@@ -588,6 +593,60 @@ from then on, so re-importing the directory never overwrites circle changes.
   welcome", without the address.
   Settings in `email/settings.json`, the log (last 200) in `email/log.json`. Locally,
   `EMAIL_TEST_SINK=1` writes emails to `.data/email-sink.json` instead of sending them.
+
+## Circle email groups
+
+Every circle and club has its own email address on the community's domain, made from its name
+(`landcare@commonpasturesvt.org` for "Land Care Circle"; its id, `lcc@`, works too, and so do the
+names it had before a rename). It works like a Google Group, built into the app (`src/lib/groups/`):
+
+- **The Forum module** on a circle's page shows the address (with Copy), lets each member choose
+  **By email** or **Web only**, and lists the circle's conversations; members **Start a
+  conversation** (optionally **with a poll**) and reply on the web (`/circles/<id>/forum/<thread>`).
+  Everyone at CVC can read it; the circle's members, the Board, and admins post, approve held
+  messages, and delete messages (authors edit their own). Its **Settings** can make the circle web
+  only (no email).
+- **Every message** — written in the app or emailed to the address — goes by email to the circle's
+  **current** members (not its author, not those on web only, one copy per address), and as a push
+  notification (topic "groups", push only). Emails come "from" the author via the circle
+  (`"Ada Ash via Land Care" <landcare@…>`) and reply to the circle with the conversation's signed
+  tag (`landcare+t.<thread>.<sig>@…`), so **Reply and Reply All go to everyone**. They carry the
+  circle's icon at the top (a public signed address, `/api/email/icon/…`), the message, a poll's
+  answers as buttons, "See the whole conversation", and list headers (List-Id, List-Post,
+  one-click List-Unsubscribe meaning "this circle on the web only", Precedence, a loop guard).
+- **Email arriving** (Resend's `email.received` webhook, `/api/email/inbound`, signed with
+  `RESEND_WEBHOOK_SECRET`): automatic mail (out-of-office, bounces, other lists, our own) is
+  dropped; the address picks the circle, the tag (or the message ids, or a "Re:" subject from the
+  last 30 days) picks the conversation; only the new words are kept (quoted text, "On … wrote:",
+  signatures cut; HTML made plain). A member or Board member whose email passes the sender check
+  (DMARC) is posted at once; a member whose email can't be verified is held and asked at their
+  directory address **"Did you send this?"** (`/email/confirm/<token>`, no sign-in); other
+  residents and outsiders are held for the circle to approve; unverifiable outsiders are dropped.
+  Nothing ever replies to unverified mail. Each email is handled once (`email/inbound/<id>.json`;
+  message ids derived from the email's). Attachments aren't kept yet (the message says so).
+- **Polls** in a conversation (the subject is the question): members answer on the page or with
+  **one click** in the email (`/vote/<token>`). Opening the link records nothing (mail scanners
+  open links); signed in as that person it records at once, otherwise **Confirm my answer**
+  records it without signing in. Votes are kept by person, so web and email votes are one.
+- **Free plan**: Resend's free plan allows 100 emails a day and 3,000 a month (received mail
+  counts). The app keeps count (`email/quota.json`; `EMAIL_DAILY_LIMIT`/`EMAIL_MONTHLY_LIMIT` change
+  it): circle email comes first; notification emails stop at 70% of the day; circle messages that
+  don't fit wait (`groups/summary.json`) for the **morning summary** (one email per person, sent by
+  the daily cron, `/api/cron/daily` with `CRON_SECRET`). The admin page shows today's and this
+  month's use, what's waiting, and the received-email log. The admin's **test mode** applies to
+  circle email too.
+- **Unsubscribe links** ask first (GET shows a button; POST — the button or a mail app's one-click
+  — acts), so link scanners can't unsubscribe anyone. "Stop all emails" also sets every circle to
+  web only.
+- Stored as `groups/<circleId>/index.json` (conversations), `groups/<circleId>/threads/<id>.json`
+  (messages), `groups/<circleId>/polls/<id>.json`, `groups/<circleId>/held.json` (14 days),
+  `groups/delivery.json` (each person's choice per circle), `groups/aliases.json` (old names).
+  Deleting a circle forgets its index and held messages.
+- **Setting up receiving** (once): in Resend, turn on Receiving for the domain and add the MX record
+  it shows (`@` → `inbound-smtp.us-east-1.amazonaws.com`, priority 10) in Vercel DNS; add a webhook
+  to `https://<site>/api/email/inbound` for `email.received` and put its signing secret in
+  `RESEND_WEBHOOK_SECRET`; set `CRON_SECRET` for the morning summary. Locally,
+  `EMAIL_TEST_SINK=1` also reads received emails from `.data/inbound-fixtures/<id>.json`.
 
 ## Resources
 

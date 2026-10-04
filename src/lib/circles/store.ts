@@ -69,6 +69,7 @@ const moduleSchema = z
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
     log: z.object({ post: z.enum(LOG_POSTERS) }).optional(),
+    forum: z.object({ email: z.boolean() }).optional(),
   })
   .refine(
     (module) => (module.type === "information") === !!module.info,
@@ -82,13 +83,18 @@ const moduleSchema = z
     (module) => module.type === "log" || !module.log,
     "Only a Log module says who can post to it"
   )
+  .refine(
+    (module) => module.type === "forum" || !module.forum,
+    "Only a Forum module says whether it's emailed"
+  )
   .transform(
-    ({ title, info, tasks, log, ...module }): CircleModule => ({
+    ({ title, info, tasks, log, forum, ...module }): CircleModule => ({
       ...module,
       ...(title ? { title } : {}),
       ...(info ? { info } : {}),
       ...(tasks ? { tasks } : {}),
       ...(log ? { log } : {}),
+      ...(forum ? { forum } : {}),
     })
   );
 
@@ -105,7 +111,7 @@ export const modulesSchema = z
       .filter((module) => module.type !== "information")
       .map((module) => module.type);
     return new Set(others).size === others.length;
-  }, "Members, the duty schedule, tasks, the log, and documents can each appear once");
+  }, "Members, the duty schedule, tasks, the forum, the log, and documents can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),

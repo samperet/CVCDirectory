@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, FlaskConical, Mail, Plus, Send, X } from "lucide-react";
+import { AlertTriangle, FlaskConical, Gauge, Inbox, Mail, Plus, Send, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { TOPICS } from "@/lib/push/topics";
 import { isEmailAddress, type EmailLogEntry, type EmailSettings } from "@/lib/email/shared";
@@ -23,9 +23,23 @@ type EmailState = {
   configured: boolean;
   from: string;
   residentsWithEmail: number;
+  quota: { dayCount: number; monthCount: number; limits: { day: number; month: number } };
+  inbound: { at: string; from: string; to: string[]; subject: string; outcome: string }[];
+  waitingForSummary: number;
+  receiving: boolean;
 };
 
 const KEY = ["admin", "email"];
+
+const LOG_KINDS: Record<string, string> = {
+  test: "Test email",
+  welcome: "New member welcome",
+  group: "Circle email",
+  summary: "Daily summary",
+  confirm: "“Did you send this?” check",
+};
+const logKind = (topic: EmailLogEntry["topic"]) =>
+  LOG_KINDS[topic] ?? TOPICS[topic as keyof typeof TOPICS] ?? topic;
 
 /**
  * The admin's email settings: test mode (on: only the allowed addresses
@@ -207,6 +221,50 @@ export function EmailSettingsClient() {
         ) : null}
       </Card>
 
+      <Card className="flex flex-col gap-3" data-quota>
+        <SectionHeading icon={Gauge}>Free plan allowance</SectionHeading>
+        <p className="text-sm text-foreground-light">
+          Today: <strong>{data.quota.dayCount}</strong> of {data.quota.limits.day} · This month:{" "}
+          <strong>{data.quota.monthCount}</strong> of {data.quota.limits.month} (sent and received
+          both count).
+          {data.waitingForSummary
+            ? ` ${data.waitingForSummary} circle message${
+                data.waitingForSummary === 1 ? "" : "s"
+              } waiting for tomorrow's summary.`
+            : ""}
+        </p>
+        <p className="text-xs text-muted">
+          Circle email goes first; notification emails stop at 70% of the day&apos;s allowance.
+          Circle messages that don&apos;t fit go out in the next morning&apos;s summary.
+        </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <SectionHeading icon={Inbox}>Received email</SectionHeading>
+        {!data.receiving ? (
+          <p className="text-sm text-muted">
+            Receiving isn&apos;t set up yet (RESEND_WEBHOOK_SECRET). Circles can send, but replies
+            by email won&apos;t arrive.
+          </p>
+        ) : null}
+        {data.inbound.length ? (
+          <ul className="flex flex-col divide-y divide-border" aria-label="Received email">
+            {data.inbound.map((entry, index) => (
+              <li key={`${entry.at}-${index}`} className="flex flex-col gap-0.5 py-2 text-sm">
+                <span className="font-medium text-foreground">
+                  {entry.subject || "(no subject)"}
+                </span>
+                <span className="text-xs text-muted">
+                  {timeAgo(entry.at)} · from {entry.from} to {entry.to.join(", ")} · {entry.outcome}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">Nothing received yet.</p>
+        )}
+      </Card>
+
       <Card className="flex flex-col gap-3">
         <SectionHeading icon={Mail}>Recent sends</SectionHeading>
         {log.length ? (
@@ -220,14 +278,9 @@ export function EmailSettingsClient() {
                   {entry.testMode ? <Pill tone="sun">test</Pill> : <Pill tone="pine">live</Pill>}
                 </div>
                 <p className="text-xs text-muted">
-                  {timeAgo(entry.at)} ·{" "}
-                  {entry.topic === "test"
-                    ? "Test email"
-                    : entry.topic === "welcome"
-                      ? "New member welcome"
-                      : TOPICS[entry.topic]}{" "}
-                  · sent {entry.sent}
+                  {timeAgo(entry.at)} · {logKind(entry.topic)} · sent {entry.sent}
                   {entry.skipped ? ` · skipped ${entry.skipped}` : ""}
+                  {entry.overQuota ? ` · over today's quota ${entry.overQuota}` : ""}
                   {entry.failed ? (
                     <span className="text-destructive"> · failed {entry.failed}</span>
                   ) : null}

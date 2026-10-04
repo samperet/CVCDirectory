@@ -67,7 +67,8 @@ Main documents (see each store's `KEY`):
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
 | `photos/index.json`, `homes/listings.json`, `resources/recommendations.json`, `library/items.json`, `skills/index.json`, `appreciations/index.json`, `profiles/index.json` | The rest | one store each |
 | `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in log | `lib/push`, `lib/auth` |
-| `email/settings.json`, `email/preferences.json`, `email/log.json` | Test mode and allowed addresses, each person's email choices, recent sends | `lib/email` |
+| `email/settings.json`, `email/preferences.json`, `email/log.json`, `email/quota.json`, `email/inbound-log.json`, `email/inbound/<id>.json` | Test mode and allowed addresses, each person's email choices, recent sends, the free-plan count, received email | `lib/email`, `lib/groups/inbound.ts` |
+| `groups/<circleId>/index.json`, `groups/<circleId>/threads/<id>.json`, `groups/<circleId>/polls/<id>.json`, `groups/<circleId>/held.json`, `groups/delivery.json`, `groups/aliases.json`, `groups/summary.json` | Circle email groups: conversations, polls, held messages, delivery choices, old addresses, the morning summary queue | `lib/groups` |
 
 ## Who's who
 

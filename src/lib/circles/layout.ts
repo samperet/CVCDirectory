@@ -12,6 +12,7 @@ export const MODULE_TYPES = [
   "members",
   "schedule",
   "tasks",
+  "forum",
   "log",
   "documents",
 ] as const;
@@ -85,6 +86,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   members: "Members",
   schedule: "Duty schedule",
   tasks: "Tasks",
+  forum: "Forum",
   log: "Log",
   documents: "Documents",
 };
@@ -126,6 +128,8 @@ export interface CircleModule {
   tasks?: { add: TaskAdders };
   /** A Log module's setting: who can post updates (unset: the circle's members). */
   log?: { post: LogPosters };
+  /** A Forum module's setting: whether the circle's conversations are emailed to its members (unset: yes). */
+  forum?: { email: boolean };
 }
 
 export const MAX_MODULES = 20;

@@ -25,6 +25,10 @@ const PUBLIC_PATHS = new Set([
   "/api/auth/people",
   "/api/health",
   "/api/email/unsubscribe", // an email's "Stop them" link: its own signed token
+  "/api/email/inbound", // Resend's webhook: its own signature
+  "/api/groups/confirm", // "Did you send this?": its own signed token
+  "/api/polls/vote-link", // a poll's one-click answer link: its own signed token
+  "/api/cron/daily", // Vercel's cron: CRON_SECRET
   "/api/admin/directory", // protected by its own bearer token
   "/api/admin/directory/people", // protected by its own bearer token
   "/api/admin/circles", // protected by its own bearer token
@@ -77,6 +81,18 @@ async function hasValidSession(value: string | undefined): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  // Pages opened from an email, which work without signing in: a poll's
+  // one-click answer, and "Did you send this?" (each checks its own signed token).
+  if (/^\/(vote|email\/confirm)\/[A-Za-z0-9._-]{10,700}$/.test(pathname))
+    return NextResponse.next();
+  // Circles' icons in emails (signed addresses; mail apps load images without signing in).
+  if (
+    request.method === "GET" &&
+    /^\/api\/email\/icon\/[a-z0-9-]{1,40}\/[0-9a-z]{1,16}\/[A-Za-z0-9]{10,40}(\.png)?$/.test(
+      pathname
+    )
+  )
+    return NextResponse.next();
   // Photos of homes for sale are on the public homepage.
   if (request.method === "GET" && /^\/api\/homes\/[0-9a-f-]{36}\/photo$/.test(pathname))
     return NextResponse.next();

@@ -20,6 +20,8 @@ type Message = {
   onlyUserIds?: string[];
   /** Deliver regardless of preferences, by push only (the "send a test" button; bug reports, to the admins). */
   ignorePreferences?: boolean;
+  /** Push only: the thing is emailed some other way (a circle's group email). */
+  skipEmail?: boolean;
 };
 
 /**

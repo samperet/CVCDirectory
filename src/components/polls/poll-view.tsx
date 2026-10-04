@@ -30,6 +30,7 @@ export function PollView({
   onVote,
   onSetClosed,
   cantVoteReason,
+  voterKey,
 }: {
   /** Unique on the page, for the radio group. */
   id: string;
@@ -39,10 +40,13 @@ export function PollView({
   onSetClosed: (closed: boolean) => Promise<unknown>;
   /** Set when you can't vote in this poll: why (shown with the results). */
   cantVoteReason?: string | null;
+  /** Whose vote is yours, when votes aren't kept by account (a circle's poll keeps them by person). */
+  voterKey?: string | null;
 }) {
   const { toast } = useToast();
   const { user } = useSession();
-  const mine = poll.votes.find((entry) => entry.userId === user?.id)?.optionIds ?? [];
+  const me = voterKey ?? user?.id;
+  const mine = poll.votes.find((entry) => entry.userId === me)?.optionIds ?? [];
   const open = pollIsOpen(poll);
   const [choosing, setChoosing] = useState(false);
   const [peeking, setPeeking] = useState(false);
