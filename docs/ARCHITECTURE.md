@@ -110,7 +110,7 @@ setting), Documents (the circle's pages and files). `modulesFor(circle, …)` re
 from the older `layout`/`features`/`infoView` fields for circles that never saved one. Saving
 modules also sets `features.tasks`/`features.documents`, which gate those APIs
 (`lib/circles/features.ts`). Rendering: `components/circles/circle-modules.tsx` (`CircleModules`
-for reading, `ModuleEditor` for Edit page), `circle-detail-client.tsx` `sectionFor()` maps a module
+for reading, `ModuleEditor` in the circle's Edit mode, which also edits its details), `circle-detail-client.tsx` `sectionFor()` maps a module
 to its component.
 
 ## The wiki

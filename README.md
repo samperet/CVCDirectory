@@ -330,7 +330,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   members-only poll). Stored together in `wiki/polls.json` (`/api/wiki/polls`), each with its
   circle. Circles no longer have a separate Polls section, and the forum no longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
-  on or off (by adding or removing its Tasks module under **Edit page**). The Tasks module's
+  on or off (by adding or removing its Tasks module under **Edit**). The Tasks module's
   **Settings** say **who can add tasks**: the circle's members (and the Board and admins; the
   default) or **any resident** — who can then also change and delete the tasks they added. A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
@@ -385,11 +385,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `wiki/comments/<pageId>.json`; a page's comments go with it.
 - **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Log**, and **Documents** (each of those once). **Edit page** (the circle's members, the Board,
-  and admins) adds modules (**Add module**), removes them, drags them into order — or moves them
+  there is one, **Tasks**, **Log**, and **Documents** (each of those once). One **Edit** button (the
+  circle's members, the Board, and admins) edits the whole circle at once: its name and description
+  in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
+  icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
+  modules (**Add module**), removes them, drags them into order — or moves them
   with arrows, on phones — and sizes each to a third, half, two thirds, or the full width of wider
-  screens; phones stack them. Everyone sees the circle's page as it was saved (stored on the
-  circle as `modules`). Each reader can fold any module away with the arrow by its title,
+  screens; phones stack them. **Save** sends the details and the page together in one request
+  (only what changed); **Cancel** drops it all. Everyone sees the circle's page as it was saved
+  (stored on the circle as `modules`). Each reader can fold any module away with the arrow by its title,
   remembered on their device.
   - An **Information module** has a title ("Information" unless given one) and **Settings**:
     which pages it shows — **Specific pages** (up to 12, searched by title, shown in the order

@@ -42,14 +42,17 @@ import { Pill } from "@/components/ui/pill";
 import { Loading, NotFoundCard } from "@/components/ui/status";
 import { useConfirm } from "@/components/ui/confirm";
 import { useCircleMutation } from "@/components/circles/use-circle-mutation";
-import { DetailsEditor } from "@/components/circles/details-editor";
+import {
+  DetailsFields,
+  detailsDraftOf,
+  type DetailsDraft,
+} from "@/components/circles/details-editor";
 import { MembersModule, ROLES } from "@/components/circles/members-module";
 
 export function CircleDetailClient({ id }: { id: string }) {
   const confirm = useConfirm();
   const router = useRouter();
   const { user } = useSession();
-  const [editingDetails, setEditingDetails] = useState(false);
   const { data, isLoading, error } = useDirectoryQuery();
   const drawingIcon = useIconDrawing(id);
 
@@ -78,16 +81,22 @@ export function CircleDetailClient({ id }: { id: string }) {
   );
   const scheduleQuery = useCircleSchedule(id);
   const schedule = scheduleQuery.data?.schedule ?? null;
-  // Editing the page: the modules being worked on, until they're saved — and the dialog open on them.
+  // Editing the circle: its details and modules as they're being worked on (null when not
+  // editing), saved together — and the dialog open on a module.
   const [pageDraft, setPageDraft] = useState<CircleModule[] | null>(null);
+  const [detailsDraft, setDetailsDraft] = useState<DetailsDraft | null>(null);
+  const stopEditing = () => {
+    setPageDraft(null);
+    setDetailsDraft(null);
+  };
   const [dialog, setDialog] = useState<
     { kind: "add" } | { kind: "settings"; module: CircleModule } | null
   >(null);
-  const saveModules = useCircleMutation(
-    (modules: CircleModule[]) =>
-      apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify({ modules }) }),
-    "Could not save the page",
-    () => setPageDraft(null)
+  const saveEdit = useCircleMutation(
+    (changes: Record<string, unknown>) =>
+      apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify(changes) }),
+    "Could not save the circle",
+    stopEditing
   );
 
   if (isLoading) return <Loading>Loading circle…</Loading>;
@@ -201,6 +210,23 @@ export function CircleDetailClient({ id }: { id: string }) {
   const sectionsOf = (list: CircleModule[]): ModuleViews =>
     Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
   const editing = pageDraft ?? [];
+  const canSetKind = onBoard && circle.id !== BOARD_ID && !community;
+  // Save what changed — details and the page together, in one request.
+  const save = () => {
+    const changes: Record<string, unknown> = {};
+    if (detailsDraft) {
+      const before = detailsDraftOf(circle);
+      if (detailsDraft.name !== before.name) changes.name = detailsDraft.name;
+      if (detailsDraft.description !== before.description)
+        changes.description = detailsDraft.description;
+      if (canSetKind && detailsDraft.club !== before.club)
+        changes.kind = detailsDraft.club ? "club" : "circle";
+    }
+    if (pageDraft && JSON.stringify(pageDraft) !== JSON.stringify(modules))
+      changes.modules = pageDraft;
+    if (Object.keys(changes).length) saveEdit.mutate(changes);
+    else stopEditing();
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -224,11 +250,11 @@ export function CircleDetailClient({ id }: { id: string }) {
           ) : null}
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {editingDetails ? (
-            <DetailsEditor
-              circle={circle}
-              canSetKind={onBoard && circle.id !== BOARD_ID && !community}
-              onDone={() => setEditingDetails(false)}
+          {detailsDraft ? (
+            <DetailsFields
+              value={detailsDraft}
+              onChange={setDetailsDraft}
+              canSetKind={canSetKind}
             />
           ) : (
             <>
@@ -243,27 +269,23 @@ export function CircleDetailClient({ id }: { id: string }) {
               ) : null}
             </>
           )}
-          {canManage && !editingDetails ? (
+          {canManage && !pageDraft ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-fit gap-1.5"
+              onClick={() => {
+                setPageDraft(modules);
+                setDetailsDraft(detailsDraftOf(circle));
+              }}
+              disabled={scheduleQuery.isLoading}
+            >
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          ) : null}
+          {pageDraft ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => setEditingDetails(true)}
-              >
-                <Pencil className="h-4 w-4" /> Edit details
-              </Button>
               <IconControls circle={circle} />
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => setPageDraft(pageDraft ? null : modules)}
-                aria-pressed={!!pageDraft}
-                disabled={scheduleQuery.isLoading}
-              >
-                <LayoutGrid className="h-4 w-4" /> Edit page
-              </Button>
               {onBoard && circle.id !== BOARD_ID && !community ? (
                 <Button
                   size="sm"
@@ -287,8 +309,8 @@ export function CircleDetailClient({ id }: { id: string }) {
         <>
           <div className="sticky top-16 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-primary/50 bg-accent px-4 py-3 shadow-soft">
             <p className="w-full text-sm text-foreground sm:w-auto sm:min-w-0 sm:flex-1">
-              <strong>Edit this page</strong> — add modules, drag them or use the arrows, and set
-              their sizes (on wider screens). Everyone sees this page.
+              <strong>Editing this circle</strong> — its name, description, icon, and page: add
+              modules, drag them or use the arrows, and set their sizes (on wider screens).
             </p>
             <Button
               size="sm"
@@ -298,15 +320,15 @@ export function CircleDetailClient({ id }: { id: string }) {
             >
               <Plus className="h-4 w-4" /> Add module
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setPageDraft(null)}>
+            <Button size="sm" variant="ghost" onClick={stopEditing}>
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={() => saveModules.mutate(pageDraft)}
-              disabled={saveModules.isPending}
+              onClick={save}
+              disabled={saveEdit.isPending || (detailsDraft?.name.trim().length ?? 2) < 2}
             >
-              {saveModules.isPending ? "Saving…" : "Save page"}
+              {saveEdit.isPending ? "Saving…" : "Save"}
             </Button>
           </div>
           {editing.length ? (
