@@ -80,6 +80,8 @@ export async function middleware(request: NextRequest) {
   // Photos of homes for sale are on the public homepage.
   if (request.method === "GET" && /^\/api\/homes\/[0-9a-f-]{36}\/photo$/.test(pathname))
     return NextResponse.next();
+  // A new member's welcome page, before they can sign in: its signed token is the key.
+  if (/^\/(api\/)?join\/[\w.-]+(\/|$)/.test(pathname)) return NextResponse.next();
   if (await hasValidSession(request.cookies.get(SESSION_COOKIE)?.value)) {
     if (
       request.cookies.has(VIEW_AS_COOKIE) &&

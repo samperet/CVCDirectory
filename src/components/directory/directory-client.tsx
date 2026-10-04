@@ -113,12 +113,37 @@ export function membershipsByPerson(circles: Circle[]) {
   return map;
 }
 
-/** The Board Secretary and admins: add someone to the directory. */
-function AddPerson({ onDone }: { onDone: () => void }) {
+type PersonForm = {
+  firstName: string;
+  lastName: string;
+  unit: string;
+  role: string;
+  phone: string;
+  landline: string;
+  email: string;
+  month: string;
+  day: string;
+  bio: string;
+};
+
+/**
+ * The Board Secretary and admins: add someone to the directory. `initial`
+ * fills it in (a new member's welcome form answers, on the Secretary page);
+ * `onAdded` replaces going to their page once they're added.
+ */
+export function AddPerson({
+  onDone,
+  initial,
+  onAdded,
+}: {
+  onDone: () => void;
+  initial?: Partial<PersonForm>;
+  onAdded?: (person: Person) => void;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<PersonForm>({
     firstName: "",
     lastName: "",
     unit: "",
@@ -129,6 +154,7 @@ function AddPerson({ onDone }: { onDone: () => void }) {
     month: "",
     day: "",
     bio: "",
+    ...initial,
   });
   const set =
     (key: keyof typeof form) =>
@@ -155,7 +181,8 @@ function AddPerson({ onDone }: { onDone: () => void }) {
             : "Add a phone number so they can sign in.",
       });
       onDone();
-      router.push(`/directory/${person.id}`);
+      if (onAdded) onAdded(person);
+      else router.push(`/directory/${person.id}`);
     },
     onError: (err: Error) =>
       toast({ title: "Could not add", description: err.message, variant: "destructive" }),

@@ -6,6 +6,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 
 - 🔐 **Resident sign-in** – Pick your name, enter your phone number; signed-out visitors see only the sign-in page.
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
+- 👋 **New member welcome** – The Board Secretary emails each new member a welcome form (a short bio, including what drew them to cohousing, and how they'll sign in), with sign-in instructions and resources like the Living in Community Guide, then adds them to the directory in a click.
 - 🛠️ **Loan Library** – Items residents lend, each with a photo if they like (taken right from a phone's camera), lent-out tracking, and an "Ask to borrow" button.
 - 🌱 **Skills** – What neighbors can help with, each skill listed by the resident who offers it.
 - 💬 **Forum** – Neighborhood discussions grouped by topic, with replies nested to any depth.
@@ -193,6 +194,29 @@ Authors always come from the signed-in session, never from the request body.
   closes their account (ending any session, so they can't sign in), and deletes their profile,
   photo, and notifications; what they posted stays under their name. Additions and removals live
   in `directory/people.json`, layered over the import, so a re-import doesn't undo them.
+- **The Secretary page** (`/secretary`, **Secretary** in the account menu) – for the Board
+  Secretary and admins, to welcome new members. **Invite a new member** takes their email (and
+  name, if known) and emails them a link to their own **welcome form** (`/join/<token>`, no
+  account needed): a short bio, including what drew them to cohousing, and the name, mobile
+  number, and unit they'll be listed with. The same page explains how to sign in (by name, with
+  their mobile number as the password; adding the app to a phone's home screen) and lists the
+  **welcome resources**. Their answers come back to the Secretary page, where **Add to directory**
+  opens "Add a person" filled in from them (or, if they're already listed, **Already listed as …**
+  marks them added); once they're in, their bio goes on their profile (if it has none), they're
+  emailed that they can sign in, and their welcome page says so. Each invitation shows whether
+  it's waiting, answered, or done, with **Copy link**, **Open**, **Send again**, and **Remove**.
+  Links are the invitation's id signed with the app's secret, and work for 60 days from when they
+  were last sent; answers can be changed until the person is added. An address has one open
+  invitation at a time.
+- **Welcome resources** – what every welcome page lists, chosen on the Secretary page in order:
+  documents, pages every resident may read, and links, each with an optional note. Until the
+  Secretary saves a list, it's any document or page titled "Living in Community Guide". New
+  members open the documents and pages from their welcome link before they can sign in (pages
+  read-only, with links into the app as plain text) — only what's on the list, and only while
+  the link works. Invitations in `onboarding/invitations.json`, the list in
+  `onboarding/resources.json` (`lib/onboarding`; `GET`/`POST /api/secretary/invitations`,
+  `PATCH`/`DELETE …/<id>`, `POST …/<id>/send`, `GET`/`PUT /api/secretary/resources`; the public
+  `GET`/`POST /api/join/<token>` and `GET …/resources/<id>`).
 - **One profile, several households** – someone listed in more than one unit (e.g. a child whose
   parents live apart) has a single profile listed under each unit. Entries with the same name are
   combined automatically; directory managers can split a combined profile back into separate
@@ -547,6 +571,9 @@ from then on, so re-importing the directory never overwrites circle changes.
   else is counted as skipped. Admins add and remove allowed addresses, send a test email to one,
   and see recent sends (counts only; addresses only in test mode). Turning test mode off asks
   first; from then on new emails go to everyone who chose them — nothing earlier is re-sent.
+  New member welcome emails from the Secretary page aren't held back by test mode — each goes to
+  one address the Secretary typed, to someone not yet a resident — and are logged as "New member
+  welcome", without the address.
   Settings in `email/settings.json`, the log (last 200) in `email/log.json`. Locally,
   `EMAIL_TEST_SINK=1` writes emails to `.data/email-sink.json` instead of sending them.
 

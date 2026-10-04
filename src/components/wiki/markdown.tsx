@@ -254,3 +254,55 @@ export function WikiMarkdown({
     </WikiCircleContext.Provider>
   );
 }
+
+const plainComponents: Components = {
+  ...components,
+  // Polls and embedded pages need an account: left out.
+  div: ({ node: _node, ...props }) => {
+    const data = props as Record<string, unknown>;
+    if (typeof data["data-poll"] === "string" || typeof data["data-embed"] === "string")
+      return null;
+    return <div {...props} />;
+  },
+  // Photos are private to residents: their description stands in.
+  img: ({ node: _node, alt }) => <span className="text-muted">[{alt || "photo"}]</span>,
+  // Links into the app need an account: their text stays, unlinked.
+  a: ({ node: _node, href = "", children }) =>
+    href.startsWith("/") || href.startsWith("#") ? (
+      <span className="font-medium">{children}</span>
+    ) : (
+      <a
+        href={href}
+        className="font-medium text-secondary-foreground underline underline-offset-4"
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+      >
+        {children}
+      </a>
+    ),
+};
+
+/**
+ * A page's Markdown for someone who can't sign in yet (a new member, from
+ * their welcome link): formatted as on the wiki, but `[[links]]` to other
+ * pages and documents are their plain text, links into the app aren't
+ * links, and polls, embedded pages, and photos are left out.
+ */
+export function PlainWikiMarkdown({ source }: { source: string }) {
+  const text = normalizeWikiLinks(source).replace(
+    WIKI_LINK,
+    (_match, target: string, label?: string) =>
+      (label ?? target.replace(/^\s*doc\s*:/i, "")).trim().replace(/[[\]]/g, "")
+  );
+  if (!text.trim()) return <p className="text-sm text-muted">This page is empty.</p>;
+  return (
+    <div className="flex flex-col gap-3 break-words text-foreground">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]}
+        components={plainComponents}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}

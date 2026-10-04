@@ -33,7 +33,7 @@ export const emailConfigured = () => !!process.env.RESEND_KEY || sinkPath() !== 
 export const fromAddress = () =>
   process.env.EMAIL_FROM ?? "Common Pastures <notifications@commonpasturesvt.org>";
 
-interface Outgoing {
+export interface Outgoing {
   to: string;
   subject: string;
   text: string;
@@ -41,7 +41,7 @@ interface Outgoing {
   headers?: Record<string, string>;
 }
 
-const escapeHtml = (text: string) =>
+export const escapeHtml = (text: string) =>
   text.replace(
     /[&<>"']/g,
     (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!
@@ -193,6 +193,32 @@ export async function emailNotification(message: {
     });
   } catch (error) {
     console.error("[email] notification failed", error instanceof Error ? error.name : "error");
+  }
+}
+
+/**
+ * One email to one address someone typed in — a new member's welcome from
+ * the Board Secretary — rather than a notification: it isn't held back by
+ * test mode (it's sent on purpose, to one person, who isn't a resident yet),
+ * and it's logged by its kind, without the address. Whether it went; never throws.
+ */
+export async function sendDirectEmail(kind: "welcome", message: Outgoing): Promise<boolean> {
+  try {
+    if (!emailConfigured()) return false;
+    const result = await deliver([message]);
+    await logEmail({
+      at: new Date().toISOString(),
+      topic: kind,
+      subject: message.subject.slice(0, 200),
+      sent: result.sent,
+      skipped: 0,
+      failed: result.failed,
+      testMode: false,
+    });
+    return result.sent > 0;
+  } catch (error) {
+    console.error("[email] direct email failed", error instanceof Error ? error.name : "error");
+    return false;
   }
 }
 

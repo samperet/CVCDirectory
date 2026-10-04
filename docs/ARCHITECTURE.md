@@ -11,7 +11,8 @@ check who's asking, validate the body with zod, and call a **store** that reads 
 documents in Cloudflare R2** (or `./.data/` locally). There is no database, no ORM, and no cron:
 anything time-based (a poll closing) is worked out when the data is
 read. Residents sign in with their name and phone number and get a signed cookie; the middleware
-keeps everything else private.
+keeps everything else private — except a new member's welcome page (`/join/<token>`), whose
+signed token is its key (`lib/onboarding/token.ts`).
 
 ## Request flow
 
@@ -61,6 +62,7 @@ Main documents (see each store's `KEY`):
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
 | `logs/<circleId>.json` | Circle logs: short updates and replies, never notified | `lib/log` |
+| `onboarding/invitations.json`, `onboarding/resources.json` | The Secretary's new member invitations (and their answers), and what welcome pages list | `lib/onboarding` |
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
 | `photos/index.json`, `homes/listings.json`, `resources/recommendations.json`, `library/items.json`, `skills/index.json`, `appreciations/index.json`, `profiles/index.json` | The rest | one store each |
 | `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in log | `lib/push`, `lib/auth` |

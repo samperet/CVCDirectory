@@ -107,6 +107,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // "/welcome" is the same page for anyone, including residents previewing it.
   const onWelcome = pathname === "/welcome";
   const onPublicHome = pathname === "/" || onWelcome;
+  // A new member's welcome form (from their emailed link): the same plain page for anyone.
+  const onJoin = pathname.startsWith("/join/");
 
   // Register the service worker (installable app, notifications) and catch the install prompt.
   useEffect(() => setUpPwa(), []);
@@ -133,15 +135,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // The middleware only checks the cookie's signature; if the account behind
   // it doesn't exist, send the visitor to sign in rather than show an empty app.
   useEffect(() => {
-    if (!isLoading && !user && !onLoginPage && !onPublicHome) {
+    if (!isLoading && !user && !onLoginPage && !onPublicHome && !onJoin) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [isLoading, user, onLoginPage, onPublicHome, pathname, router]);
+  }, [isLoading, user, onLoginPage, onPublicHome, onJoin, pathname, router]);
 
   // Signed-out visitors see only the sign-in page: no navigation or footer.
   if ((!user && onPublicHome) || onWelcome) return <>{children}</>;
 
-  if (!user) {
+  if (!user || onJoin) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <header className="border-b border-border bg-background/90">
@@ -156,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
-          {onLoginPage ? children : <Loading />}
+          {onLoginPage || onJoin ? children : <Loading />}
         </main>
       </div>
     );

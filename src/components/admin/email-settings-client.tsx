@@ -221,7 +221,12 @@ export function EmailSettingsClient() {
                 </div>
                 <p className="text-xs text-muted">
                   {timeAgo(entry.at)} ·{" "}
-                  {entry.topic === "test" ? "Test email" : TOPICS[entry.topic]} · sent {entry.sent}
+                  {entry.topic === "test"
+                    ? "Test email"
+                    : entry.topic === "welcome"
+                      ? "New member welcome"
+                      : TOPICS[entry.topic]}{" "}
+                  · sent {entry.sent}
                   {entry.skipped ? ` · skipped ${entry.skipped}` : ""}
                   {entry.failed ? (
                     <span className="text-destructive"> · failed {entry.failed}</span>

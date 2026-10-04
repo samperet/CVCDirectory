@@ -50,7 +50,8 @@ export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
 /** One sending, as the admin page lists it: counts only (and, in test mode, the addresses). */
 export interface EmailLogEntry {
   at: string;
-  topic: Topic | "test";
+  /** A notification's topic, an admin's test, or a new member's welcome (`sendDirectEmail`). */
+  topic: Topic | "test" | "welcome";
   subject: string;
   sent: number;
   skipped: number;

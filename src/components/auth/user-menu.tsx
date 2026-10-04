@@ -12,6 +12,7 @@ import {
   Home,
   LogOut,
   Mail,
+  NotebookPen,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -94,6 +95,13 @@ export function UserMenu() {
                 <Globe className="h-4 w-4" /> Public homepage
               </Link>
             </Button>
+            {user.canManageDirectory ? (
+              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+                <Link href="/secretary" onClick={() => setOpen(false)}>
+                  <NotebookPen className="h-4 w-4" /> Secretary
+                </Link>
+              </Button>
+            ) : null}
             {user.canManageHomes ? (
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/homes-for-sale" onClick={() => setOpen(false)}>
