@@ -25,6 +25,8 @@ import { ON_HOVER } from "@/components/ui/hover";
 import { useConfirm } from "@/components/ui/confirm";
 import { Select } from "@/components/ui/select";
 import { shortDate } from "@/lib/time";
+import type { NamedPerson } from "@/lib/people";
+import { ConsentDialog, ConsentRecord, consentSummary } from "@/components/circles/consent-record";
 
 /** One document in the list: its details, versions, consent record, and what the reader may change. */
 
@@ -151,12 +153,11 @@ function DetailsFields({
 function ConsentBadge({ doc }: { doc: DocumentListing }) {
   const state = consentState(doc);
   if (!state || !doc.consent) return null;
-  const when = shortDate(doc.consent.date, true);
   if (state === "consented") {
     return (
       <span
         className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-pine/10 px-2 py-0.5 font-semibold text-pine"
-        title={`Consented ${when} · recorded by ${doc.consent.recordedBy.name}`}
+        title={consentSummary(doc.consent)}
       >
         <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented
       </span>
@@ -165,7 +166,10 @@ function ConsentBadge({ doc }: { doc: DocumentListing }) {
   return (
     <span
       className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/15 px-2 py-0.5 font-medium text-[#7a5200]"
-      title={`Version ${doc.consent.version} was consented ${when}; the current version hasn't been`}
+      title={`${consentSummary(
+        doc.consent,
+        `Version ${doc.consent.version} consented`
+      )}; the current version hasn't been`}
     >
       {/* Short on phones, where the row is narrow; the tooltip says the rest. */}
       <span className="sm:hidden">Changed</span>
@@ -204,9 +208,6 @@ export function DocumentRow({
   const consent = consentState(doc);
   const today = new Date().toLocaleDateString("en-CA");
   const [consenting, setConsenting] = useState(false);
-  const [consentDate, setConsentDate] = useState(
-    doc.meetingDate && doc.meetingDate <= today ? doc.meetingDate : today
-  );
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] });
   const circleTypes = useCircleTypes(doc.circleId).data?.types ?? [];
   const editTypes = circleTypes.some((type) => type.id === doc.type)
@@ -252,10 +253,10 @@ export function DocumentRow({
   });
 
   const markConsented = useMutation({
-    mutationFn: () =>
+    mutationFn: (record: { date: string; consentedBy: NamedPerson[] }) =>
       apiFetch(`/api/documents/${doc.id}/consent`, {
         method: "PUT",
-        body: JSON.stringify({ date: consentDate }),
+        body: JSON.stringify(record),
       }),
     onSuccess: () => {
       setConsenting(false);
@@ -525,36 +526,26 @@ export function DocumentRow({
         </div>
       </div>
 
+      {doc.consent ? (
+        <ConsentRecord
+          consent={doc.consent}
+          what={consent === "changed" ? `Version ${doc.consent.version} consented` : "Consented"}
+          className="pl-8"
+        />
+      ) : null}
       {consenting ? (
-        <form
-          className="ml-8 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-accent/50 px-3 py-2 text-sm"
-          onSubmit={(event) => {
-            event.preventDefault();
-            markConsented.mutate();
-          }}
-        >
-          <label className="flex items-center gap-2 text-foreground">
-            {doc.circleName ? `${doc.circleName} consented on` : "Consented on"}
-            <Input
-              type="date"
-              value={consentDate}
-              max={today}
-              onChange={(event) => setConsentDate(event.target.value)}
-              className="h-8 w-auto bg-white"
-              required
-            />
-          </label>
-          <Button type="submit" size="sm" disabled={!consentDate || markConsented.isPending}>
-            {markConsented.isPending
-              ? "Saving…"
-              : consent === "changed"
-                ? `Mark version ${version.number} consented`
-                : "Mark consented"}
-          </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setConsenting(false)}>
-            Cancel
-          </Button>
-        </form>
+        <ConsentDialog
+          circleId={doc.circleId}
+          circleName={doc.circleName || "The circle"}
+          initialDate={doc.meetingDate && doc.meetingDate <= today ? doc.meetingDate : today}
+          note={`Consent is to version ${version.number}, the file as it is now; a new version needs the circle's consent again.`}
+          submitLabel={
+            consent === "changed" ? `Mark version ${version.number} consented` : "Mark consented"
+          }
+          saving={markConsented.isPending}
+          onSave={(record) => markConsented.mutate(record)}
+          onClose={() => setConsenting(false)}
+        />
       ) : null}
       {doc.description ? (
         <p className="truncate pl-8 text-sm text-foreground-light" title={doc.description}>

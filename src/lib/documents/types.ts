@@ -1,4 +1,5 @@
 import type { Actor } from "@/lib/auth/actor";
+import type { NamedPerson } from "@/lib/people";
 /**
  * Circle documents: shared by the server and the browser (no server imports).
  *
@@ -87,6 +88,9 @@ export interface DocumentConsent {
   version: number;
   /** The day the circle consented (YYYY-MM-DD). */
   date: string;
+  /** Who consented: the circle's members (or anyone else) who gave it. Older records don't say. */
+  consentedBy?: NamedPerson[];
+  /** Who recorded it here. */
   recordedBy: { personId: string | null; name: string };
   recordedAt: string;
 }

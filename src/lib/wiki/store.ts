@@ -135,9 +135,12 @@ export const pageUpdateSchema = z
     keeper: circleIdSchema.optional(),
     view: viewSchema.optional(),
     edit: editSchema.optional(),
-    /** Record the parent circle's consent (the date), or withdraw it (null). */
+    /** Record the parent circle's consent (the date, and who consented), or withdraw it (null). */
     consent: z
-      .object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the date it was consented") })
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the date it was consented"),
+        consentedBy: namedPeopleSchema(100, "Choose who consented"),
+      })
       .nullable()
       .optional(),
     /** Propose it to the circle for consent (by a day, or not), or withdraw the proposal (null). */
@@ -416,7 +419,7 @@ type PageUpdate = {
   keeper?: string;
   view?: PageView;
   edit?: PageEdit;
-  consent?: { date: string } | null;
+  consent?: { date: string; consentedBy: PagePerson[] } | null;
   proposal?: { decideOn?: string | null } | null;
   present?: PagePerson[];
   transcript?: string;
@@ -441,6 +444,7 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
           ? {
               consent: {
                 date: update.consent.date,
+                consentedBy: update.consent.consentedBy,
                 recordedBy: { userId: editor.userId, name: editor.name },
                 recordedAt: new Date().toISOString(),
                 version: page.updatedAt,

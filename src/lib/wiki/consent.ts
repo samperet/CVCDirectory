@@ -1,8 +1,10 @@
+import type { NamedPerson } from "@/lib/people";
+
 /**
  * Where a page stands with its parent circle — a policy or an agreement the
  * page sets out — in three stages: a **draft**, **proposed** (put to the
  * circle for consent, perhaps by a day), and **consented** (recorded by the
- * circle's members or the Board, with the date). Consent is to the page as
+ * circle's members or the Board, with the date and who consented). Consent is to the page as
  * it stood then: once it's edited again it's a draft (changed since
  * consent) until it's proposed again or the circle consents to the new
  * version. A proposal is a page — or a change to a consented one — waiting
@@ -11,6 +13,9 @@
 export interface PageConsent {
   /** The day the circle consented (YYYY-MM-DD). */
   date: string;
+  /** Who consented: the circle's members (or anyone else) who gave it. Older records don't say. */
+  consentedBy?: NamedPerson[];
+  /** Who recorded it here. */
   recordedBy: { userId: string; name: string };
   recordedAt: string;
   /** The page's `updatedAt` when consent was recorded: the version consented to. */

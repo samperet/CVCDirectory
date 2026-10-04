@@ -5,6 +5,7 @@ import { BadgeCheck, BookOpen, Hourglass, Lock } from "lucide-react";
 import type { PageListing } from "@/lib/wiki/listing";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Highlighted } from "@/components/documents/document-row";
+import { ConsentRecord, consentSummary } from "@/components/circles/consent-record";
 
 /**
  * A written page in the Documents list, beside uploaded files: a book
@@ -45,7 +46,7 @@ export function PageListingRow({
         {page.stage === "consented" ? (
           <span
             className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-pine/10 px-2 py-0.5 font-semibold text-pine"
-            title={page.consentDate ? `Consented ${shortDate(page.consentDate, true)}` : undefined}
+            title={page.consentRecord ? consentSummary(page.consentRecord) : undefined}
           >
             <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented
           </span>
@@ -87,6 +88,13 @@ export function PageListingRow({
           edited {timeAgo(page.updatedAt)} by {page.updatedBy}
         </span>
       </p>
+      {page.consentRecord && page.consent ? (
+        <ConsentRecord
+          consent={page.consentRecord}
+          what={page.consent === "changed" ? "An earlier version was consented" : "Consented"}
+          className="pl-8"
+        />
+      ) : null}
       {text ? (
         <p
           className={

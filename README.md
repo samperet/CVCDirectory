@@ -17,7 +17,8 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file, and who consented.
+- 🐞 **Bugs & ideas** – A ladybug in the corner of every page sends the admins a bug report or a feature request, with the page it came from.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -149,6 +150,14 @@ Admin status is checked server-side on every request, and the user menu shows an
   never post or edit in someone's name — lasts at most an hour, and shows a banner with a way
   back. The view is a separate signed cookie tied to the admin's own session (useless to anyone
   else). Views don't appear in the sign-in log.
+- **Bugs & requests** – residents send a bug report or a feature request from the ladybug in the
+  bottom-right corner of every page (a short description; the page they were on and their browser
+  come with it). Admins get a push notification for each (whatever their settings) and read them
+  under "Bugs & requests" in the user menu (`/admin/feedback`): open ones first, with who sent
+  each, from which page, and **Mark done** / **Open again** / **Delete**. Stored in
+  `feedback/reports.json` (`POST /api/feedback` for anyone signed in; `GET`, and
+  `PATCH`/`DELETE /api/feedback/<id>`, for admins); when it's full (1,000), the oldest done
+  reports make room.
 - **Sign-in log** – "Sign-in log" in the user menu (`/admin/sign-ins`) lists every successful
   sign-in, newest first, by day or by resident (sign-in count and last sign-in). It records only
   who and when — no phone numbers or devices — keeps the latest 2,000 in `auth/sign-in-log.json`,
@@ -291,9 +300,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   hover (always, on touch screens). A description shows below.
 - **Consent** – one rule for pages and files (`canRecordConsent` in `lib/circles/consent.ts`):
   anyone in the circle, anyone on the Board (for any circle), and admins record when the circle
-  consented, with the date (the meeting date by default, for a file); Community's are recorded by
-  the Board. A consented document carries a **Consented** badge (its tooltip says when, and who
-  recorded it). Consent belongs to the version consented: a newer version (or an edit to a page)
+  consented, with the date (the meeting date by default, for a file), and **who consented** — the
+  circle's members ticked (or **All members**), and anyone else added by name; Community's are
+  recorded by the Board. A consented document carries a **Consented** badge and, beneath it, the
+  record: "Consented Oct 3, 2026 by Ada Ash and Ben Birch · recorded by Cara Cedar" (records from
+  before who consented was asked show the date and who recorded them). Consent belongs to the version consented: a newer version (or an edit to a page)
   shows **Changed since consent** until the circle consents again, and a file's version history
   marks the consented one. **Consented only** filters the list; search finds consented documents by
   the word "consented". The same people can withdraw a record of consent.
@@ -309,8 +320,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   the proposals of the circles you're in — and Community's, for everyone — when there are any
   (`components/wiki/your-proposals.tsx`; "And N more" opens `/documents?stage=proposed`). (`PATCH /api/wiki/pages/<slug>` with
   `proposal: {decideOn}` or `null`; stored on the page as `proposal`.)
-  (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent`;
-  stored with the document or page as `consent`.)
+  (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent` —
+  each with `date` and `consentedBy`; stored with the document or page as `consent`, with
+  `consentedBy` and `recordedBy`.)
 - **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
   settings (nothing is inherited): **who can see it** — everyone (the default), only its parent
   circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the

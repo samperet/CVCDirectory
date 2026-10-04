@@ -30,6 +30,7 @@ import {
 } from "@/components/layout/nav-menu";
 import { UserMenu } from "@/components/auth/user-menu";
 import { AppreciationsFooter } from "@/components/appreciations/appreciations-footer";
+import { LadybugButton } from "@/components/feedback/ladybug-button";
 import { useSession, useViewAs } from "@/lib/auth/client";
 import { setUpPwa } from "@/components/notifications/pwa";
 import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
@@ -289,6 +290,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <AppreciationsFooter />
+      <LadybugButton />
       {searching && user ? <SearchPalette onClose={closeSearch} /> : null}
     </div>
   );

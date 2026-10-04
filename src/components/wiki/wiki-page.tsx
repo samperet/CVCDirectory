@@ -38,6 +38,8 @@ import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { StageControls, StagePill } from "@/components/wiki/page-consent";
+import { ConsentRecord } from "@/components/circles/consent-record";
+import { consentState } from "@/lib/wiki/consent";
 import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
 import { Pill } from "@/components/ui/pill";
@@ -510,6 +512,17 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 </Pill>
               ) : null}
             </div>
+            {page.consent ? (
+              <ConsentRecord
+                consent={page.consent}
+                what={
+                  consentState(page) === "changed"
+                    ? "An earlier version was consented"
+                    : "Consented"
+                }
+                className="justify-center"
+              />
+            ) : null}
             {canConsent || canEdit ? (
               <StageControls
                 page={page}

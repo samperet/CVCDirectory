@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { BadgeCheck, CircleDashed, History, Hourglass, Send } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import type { NamedPerson } from "@/lib/people";
 import type { WikiPage } from "@/lib/wiki/store";
 import { consentState, pageStage } from "@/lib/wiki/consent";
 import { shortDate, todayInVermont } from "@/lib/time";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { ActionLink } from "@/components/ui/action-link";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/use-toast";
+import { ConsentDialog, consentSummary } from "@/components/circles/consent-record";
 
 /**
  * A page's stage with its parent circle, as a pill: a draft (and, if it was
@@ -33,9 +35,7 @@ export function StagePill({
     return (
       <Pill
         tone="pine"
-        title={`Consented ${shortDate(page.consent.date, true)} · recorded by ${
-          page.consent.recordedBy.name
-        }`}
+        title={consentSummary(page.consent)}
         data-stage="consented"
         data-consent="consented"
       >
@@ -87,13 +87,14 @@ export function StagePill({
 }
 
 type StageChange =
-  | { consent: { date: string } | null }
+  | { consent: { date: string; consentedBy: NamedPerson[] } | null }
   | { proposal: { decideOn: string | null } | null };
 
 /**
  * Moving a page between stages. Its editors propose it to the circle (by a
  * day, if they like) or withdraw the proposal; the circle's members and the
- * Board record consent (which ends the proposal) or withdraw it.
+ * Board record consent — the day, and who consented (which ends the
+ * proposal) — or withdraw it.
  */
 export function StageControls({
   page,
@@ -115,7 +116,6 @@ export function StageControls({
   const [dialog, setDialog] = useState<"propose" | "consent" | null>(null);
   const today = todayInVermont();
   const decideOn = page.proposal?.decideOn;
-  const [date, setDate] = useState(decideOn && decideOn <= today ? decideOn : today);
   const [decideBy, setDecideBy] = useState("");
   const stage = pageStage(page);
   const state = consentState(page);
@@ -220,43 +220,15 @@ export function StageControls({
         </Dialog>
       ) : null}
       {dialog === "consent" ? (
-        <Dialog
-          title="Record consent"
-          icon={<BadgeCheck className="h-5 w-5 text-primary" />}
+        <ConsentDialog
+          circleId={page.keeper}
+          circleName={circleName}
+          initialDate={decideOn && decideOn <= today ? decideOn : today}
+          note="Consent is to the page as it stands now; if it's edited again, it becomes a draft until the circle consents to the new version."
+          saving={save.isPending}
+          onSave={(consent) => save.mutate({ consent })}
           onClose={() => setDialog(null)}
-        >
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (date) save.mutate({ consent: { date } });
-            }}
-          >
-            <label className="flex flex-col gap-1 text-sm text-foreground">
-              {circleName} consented to this page on
-              <Input
-                type="date"
-                value={date}
-                max={today}
-                onChange={(event) => setDate(event.target.value)}
-                className="bg-white"
-                required
-              />
-            </label>
-            <p className="text-xs text-muted">
-              Consent is to the page as it stands now; if it&apos;s edited again, it becomes a draft
-              until the circle consents to the new version.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDialog(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={!date || save.isPending}>
-                {save.isPending ? "Saving…" : "Mark consented"}
-              </Button>
-            </div>
-          </form>
-        </Dialog>
+        />
       ) : null}
     </span>
   );

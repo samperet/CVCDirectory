@@ -18,7 +18,7 @@ type Message = {
   tag?: string;
   exceptUserId: string | null;
   onlyUserIds?: string[];
-  /** Deliver regardless of preferences (the "send a test" button). */
+  /** Deliver regardless of preferences, by push only (the "send a test" button; bug reports, to the admins). */
   ignorePreferences?: boolean;
 };
 

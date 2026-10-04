@@ -136,7 +136,8 @@ export function AppreciationsFooter() {
 
   return (
     <footer className="mt-12 border-t border-border bg-surface">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-4 sm:flex-row md:px-6">
+      {/* Room on the right for the ladybug (fixed in the corner), so it never covers the button. */}
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:pr-16 md:px-6 md:pr-16">
         <div
           className="flex w-full min-w-0 flex-1 items-center gap-2"
           onMouseEnter={() => setHovering(true)}

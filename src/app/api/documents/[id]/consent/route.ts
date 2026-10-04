@@ -5,6 +5,7 @@ import { canConsentDocument, toListing } from "@/lib/documents/access";
 import { getDocument, isDocumentId, setConsent } from "@/lib/documents/store";
 import { readTypeMap } from "@/lib/documents/type-store";
 import { problem, readBody } from "@/lib/http";
+import { namedPeopleSchema } from "@/lib/people";
 import { todayInVermont } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ const consentSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-09-03")
     .refine((value) => !Number.isNaN(Date.parse(`${value}T12:00:00Z`)), "That isn't a date")
     .optional(),
+  consentedBy: namedPeopleSchema(100, "Choose who consented"),
 });
 
 async function load(id: string) {
@@ -32,7 +34,10 @@ async function load(id: string) {
   return { ...context, doc } as const;
 }
 
-/** Record that the circle consented to this document (its current version), on `date` (default: today). */
+/**
+ * Record that the circle consented to this document (its current version),
+ * on `date` (default: today), and who consented; who recorded it is you.
+ */
 export async function PUT(request: NextRequest, { params }: Params) {
   const found = await load(params.id);
   if ("error" in found) return found.error;
@@ -43,6 +48,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (date > today) return problem("Consent can't be dated in the future");
   const result = await setConsent(found.doc.id, {
     date,
+    consentedBy: parsed.data.consentedBy,
     recordedBy: { personId: found.user.personId ?? null, name: found.user.name },
     recordedAt: new Date().toISOString(),
   });

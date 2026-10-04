@@ -1,5 +1,11 @@
 import { occurrences, snippetFor } from "@/lib/search";
-import { consentState, pageStage, type ConsentState, type PageStage } from "./consent";
+import {
+  consentState,
+  pageStage,
+  type ConsentState,
+  type PageConsent,
+  type PageStage,
+} from "./consent";
 import { excerptOf } from "./excerpt";
 import type { WikiPage } from "./store";
 
@@ -22,6 +28,10 @@ export interface PageListing {
   consent: ConsentState;
   /** The day the circle consented, while it stands. */
   consentDate: string | null;
+  /** The consent recorded (to this version or an earlier one): when, who consented, who recorded it. */
+  consentRecord:
+    | (Pick<PageConsent, "date" | "consentedBy"> & { recordedBy: { name: string } })
+    | null;
   stage: PageStage;
   /** While proposed: the day the circle means to decide, if set. */
   decideOn: string | null;
@@ -48,6 +58,13 @@ export function pageListing(
     updatedBy: page.updatedBy.name,
     consent: consentState(page),
     consentDate: page.consent?.date ?? null,
+    consentRecord: page.consent
+      ? {
+          date: page.consent.date,
+          ...(page.consent.consentedBy ? { consentedBy: page.consent.consentedBy } : {}),
+          recordedBy: { name: page.consent.recordedBy.name },
+        }
+      : null,
     stage: pageStage(page),
     decideOn: page.proposal?.decideOn ?? null,
     restricted: page.view.kind !== "everyone",

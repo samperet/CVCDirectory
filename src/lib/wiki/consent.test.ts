@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { byDecision, consentState, pageStage } from "./consent";
+import { pageUpdateSchema } from "./store";
 
 const consent = {
   date: "2026-09-03",
@@ -52,5 +53,23 @@ describe("byDecision", () => {
       "undated-new",
       "undated-old",
     ]);
+  });
+});
+
+describe("recording consent to a page", () => {
+  it("says who consented", () => {
+    expect(pageUpdateSchema.safeParse({ consent: { date: "2026-10-03" } }).success).toBe(false);
+    expect(
+      pageUpdateSchema.safeParse({ consent: { date: "2026-10-03", consentedBy: [] } }).success
+    ).toBe(false);
+    expect(
+      pageUpdateSchema.safeParse({
+        consent: {
+          date: "2026-10-03",
+          consentedBy: [{ personId: "000000000003", name: "Cara Cedar" }, { name: "Sam" }],
+        },
+      }).success
+    ).toBe(true);
+    expect(pageUpdateSchema.safeParse({ consent: null }).success).toBe(true);
   });
 });

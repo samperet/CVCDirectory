@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Bell,
+  Bug,
   Eye,
   EyeOff,
   Globe,
@@ -113,6 +114,13 @@ export function UserMenu() {
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/admin/sign-ins" onClick={() => setOpen(false)}>
                   <History className="h-4 w-4" /> Sign-in log
+                </Link>
+              </Button>
+            ) : null}
+            {user.isAdmin ? (
+              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+                <Link href="/admin/feedback" onClick={() => setOpen(false)}>
+                  <Bug className="h-4 w-4" /> Bugs &amp; requests
                 </Link>
               </Button>
             ) : null}
