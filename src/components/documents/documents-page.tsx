@@ -43,7 +43,7 @@ export function DocumentsPage() {
     } else next.set("map", "1");
     router.replace(next.toString() ? `/documents?${next}` : "/documents");
   };
-  const { circles, uploadCircles } = useUploadCircles();
+  const { circles, uploadCircles, typeCircles } = useUploadCircles();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -75,6 +75,7 @@ export function DocumentsPage() {
         <DocumentsPanel
           circles={circles}
           uploadCircles={uploadCircles}
+          typeCircles={typeCircles}
           canWrite={keepers.length > 0}
           initialCircle={params.get("circle") ?? ""}
           startUpload={params.get("upload") === "1"}

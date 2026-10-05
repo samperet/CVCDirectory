@@ -223,12 +223,7 @@ export function CircleDetailClient({ id }: { id: string }) {
           content: (
             <Card className="flex flex-col gap-4">
               <SectionHeading toggle={<ModuleToggle />}>{title}</SectionHeading>
-              <DocumentsPanel
-                circleId={id}
-                circleName={circle.name}
-                canUpload={canUpload}
-                canEditTypes={canManage}
-              />
+              <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} />
             </Card>
           ),
         };

@@ -6,10 +6,12 @@ import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 /**
- * The circles, by name, and those the signed-in resident can upload files
- * to: their own circles and Community — or every circle, for the Board and
- * admins — where the circle has documents turned on. (The server decides;
- * this only shows or hides the way in.)
+ * The circles, by name; those the signed-in resident can upload files to:
+ * their own circles and Community — or every circle, for the Board and
+ * admins — where the circle has documents turned on; and those whose
+ * document types they can edit (their own circles, or every one for the
+ * Board and admins). (The server decides; this only shows or hides the way
+ * in.)
  */
 export function useUploadCircles() {
   const { data } = useDirectoryQuery();
@@ -35,5 +37,10 @@ export function useUploadCircles() {
           (circle) => inCircle(circle.id) || (isCommunity(circle.id) && !!user?.personId)
         )
   ).filter((circle) => documentsOn.has(circle.id));
-  return { circles, uploadCircles };
+  const typeCircles = (
+    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId)
+      ? circles
+      : circles.filter((circle) => inCircle(circle.id))
+  ).filter((circle) => documentsOn.has(circle.id));
+  return { circles, uploadCircles, typeCircles };
 }

@@ -16,7 +16,16 @@ import { DocumentRow, Highlighted } from "@/components/documents/document-row";
 /** Editing a circle's document types (the labels it files documents under). */
 
 /** A circle's own list of document types: rename, reorder, add, or remove. */
-export function TypesEditor({ circleId, onDone }: { circleId: string; onDone: () => void }) {
+export function TypesEditor({
+  circleId,
+  onDone,
+  chooser,
+}: {
+  circleId: string;
+  onDone: () => void;
+  /** Choosing which circle's types to edit (on the Documents page). */
+  chooser?: React.ReactNode;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const loaded = useCircleTypes(circleId).data?.types;
@@ -82,6 +91,7 @@ export function TypesEditor({ circleId, onDone }: { circleId: string; onDone: ()
           <X className="h-4 w-4" />
         </Button>
       </div>
+      {chooser}
       <p className="-mt-1 text-xs text-muted">
         The choices this circle uses when adding documents. Renaming a type renames it on every
         document; removing one leaves existing documents as they are.

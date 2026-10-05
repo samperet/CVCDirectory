@@ -84,7 +84,7 @@ export function DocumentsPanel({
   canWrite = canUpload,
   circles,
   uploadCircles = [],
-  canEditTypes = canUpload,
+  typeCircles = [],
   initialCircle = "",
   newPage,
   startUpload = false,
@@ -97,12 +97,12 @@ export function DocumentsPanel({
   canUpload?: boolean;
   /** Whether the resident can write a page here (on a circle's page, by default whoever can upload). */
   canWrite?: boolean;
-  /** Whether the resident can change the circle's document types (by default, whoever can upload). */
-  canEditTypes?: boolean;
   /** For the all-documents page: the circles to filter by. */
   circles?: { id: string; name: string }[];
   /** For the all-documents page: the circles the resident can add documents to (bulk upload). */
   uploadCircles?: { id: string; name: string }[];
+  /** For the all-documents page: the circles whose document types the resident can edit. */
+  typeCircles?: { id: string; name: string }[];
   /** For the all-documents page: the circle filter to start with. */
   initialCircle?: string;
   /** Open "Write a page" at once — from a link to a page that doesn't exist yet. */
@@ -133,7 +133,8 @@ export function DocumentsPanel({
     if (startUpload && uploadCircles.length) setBulk(true);
   }, [startUpload, uploadCircles.length]);
   const [adding, setAdding] = useState(false);
-  const [editingTypes, setEditingTypes] = useState(false);
+  // Whose document types are being edited (the Documents page only), or null.
+  const [editingTypes, setEditingTypes] = useState<string | null>(null);
   const [bulk, setBulk] = useState(false);
   const [linking, setLinking] = useState(false);
 
@@ -287,8 +288,16 @@ export function DocumentsPanel({
             <X className="h-4 w-4" aria-hidden /> Clear
           </button>
         ) : null}
-        {canEditTypes && circleId && !editingTypes ? (
-          <Button variant="outline" className="gap-1.5" onClick={() => setEditingTypes(true)}>
+        {!circleId && typeCircles.length > 0 && !editingTypes ? (
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() =>
+              setEditingTypes(
+                typeCircles.some((entry) => entry.id === circle) ? circle : typeCircles[0].id
+              )
+            }
+          >
             <Tags className="h-4 w-4" /> Edit types
           </Button>
         ) : null}
@@ -317,8 +326,31 @@ export function DocumentsPanel({
           onClose={() => setLinking(false)}
         />
       ) : null}
-      {editingTypes && circleId ? (
-        <TypesEditor circleId={circleId} onDone={() => setEditingTypes(false)} />
+      {editingTypes && !circleId ? (
+        <TypesEditor
+          key={editingTypes}
+          circleId={editingTypes}
+          onDone={() => setEditingTypes(null)}
+          chooser={
+            typeCircles.length > 1 ? (
+              <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                Circle
+                <Select
+                  value={editingTypes}
+                  onChange={(event) => setEditingTypes(event.target.value)}
+                >
+                  {typeCircles.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            ) : (
+              <p className="text-sm text-muted">{typeCircles[0]?.name}</p>
+            )
+          }
+        />
       ) : null}
       {adding && circleId ? (
         <BulkUpload

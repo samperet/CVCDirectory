@@ -494,8 +494,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   when the name has one, like `2024-03-12`); they upload one after another, and failures can be retried.
   The circle's members, the Board, and admins add documents (PDF, Word, Excel, PowerPoint, text,
   or images, up to 50 MB) with a title, one of the circle's document types, an optional meeting date,
-  and a description. Each circle edits its own list of types ("Edit types": rename, reorder, add,
-  remove), starting from Minutes, Agenda, Policy, Budget, Report, and Other; renaming a type
+  and a description. Each circle edits its own list of types (**Edit types** on the Documents page,
+  for the circle the list is filtered to — or, for the Board and admins, any circle chosen there:
+  rename, reorder, add, remove), starting from Minutes, Agenda, Policy, Budget, Report, and Other; renaming a type
   relabels its documents, and removing one leaves existing documents with their old type. Stored in
   `documents/types.json`. Every signed-in resident can see and download every
   document. Whoever uploaded one, the circle, the Board, and admins can edit its details, upload a
