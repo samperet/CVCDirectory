@@ -31,6 +31,9 @@ import {
   MODULE_NAMES,
   RECENT_LIMITS,
   REPEATABLE_MODULES,
+  TEXT_BACKGROUNDS,
+  TEXT_BACKGROUND_STYLES,
+  type TextBackground,
   TASK_ADDERS,
   TASK_ADDER_LABELS,
   LOG_POSTERS,
@@ -135,6 +138,7 @@ export function TextSettings({
 }) {
   const [title, setTitle] = useState(module.title ?? "");
   const [body, setBody] = useState(module.text?.body ?? "");
+  const [background, setBackground] = useState<TextBackground>(module.text?.background ?? "white");
   const tooLong = body.length > MAX_TEXT_MODULE;
   return (
     <Dialog
@@ -148,7 +152,14 @@ export function TextSettings({
         onSubmit={(event) => {
           event.preventDefault();
           if (tooLong) return;
-          onSave({ ...module, title: title.trim() || undefined, text: { body: body.trim() } });
+          onSave({
+            ...module,
+            title: title.trim() || undefined,
+            text: {
+              body: body.trim(),
+              ...(background !== "white" ? { background } : {}),
+            },
+          });
         }}
       >
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
@@ -161,6 +172,29 @@ export function TextSettings({
             className="bg-white"
           />
         </label>
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1 text-sm font-medium text-foreground">Background</legend>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Background">
+            {TEXT_BACKGROUNDS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={background === value}
+                aria-label={TEXT_BACKGROUND_STYLES[value].label}
+                title={TEXT_BACKGROUND_STYLES[value].label}
+                onClick={() => setBackground(value)}
+                className={cn(
+                  "h-8 w-8 rounded-full border border-border transition",
+                  background === value
+                    ? "ring-2 ring-primary ring-offset-2"
+                    : "hover:ring-2 hover:ring-border hover:ring-offset-1"
+                )}
+                style={{ backgroundColor: TEXT_BACKGROUND_STYLES[value].color }}
+              />
+            ))}
+          </div>
+        </fieldset>
         <div className="flex flex-col gap-1" data-text-editor>
           <span className="text-sm font-medium text-foreground">Text</span>
           <TextModuleEditor markdown={body} onChange={setBody} />

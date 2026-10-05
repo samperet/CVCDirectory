@@ -153,9 +153,30 @@ export interface CircleModule {
   log?: { post: LogPosters };
   /** A Forum module's setting: whether the circle's conversations are emailed to its members (unset: yes). */
   forum?: { email: boolean };
-  /** A Custom Text module's words, as Markdown (the wiki's formatting). */
-  text?: { body: string };
+  /** A Custom Text module's words, as Markdown (the wiki's formatting), and its background (unset: white). */
+  text?: { body: string; background?: TextBackground };
 }
+
+/** The background colours a Custom Text module can have: soft tints, so its words stay easy to read. */
+export const TEXT_BACKGROUNDS = [
+  "white",
+  "mint",
+  "yellow",
+  "peach",
+  "pink",
+  "lavender",
+  "blue",
+] as const;
+export type TextBackground = (typeof TEXT_BACKGROUNDS)[number];
+export const TEXT_BACKGROUND_STYLES: Record<TextBackground, { label: string; color: string }> = {
+  white: { label: "White", color: "#ffffff" },
+  mint: { label: "Mint", color: "#e9f7ec" },
+  yellow: { label: "Yellow", color: "#fff7d1" },
+  peach: { label: "Peach", color: "#fdecdc" },
+  pink: { label: "Pink", color: "#fce8f0" },
+  lavender: { label: "Lavender", color: "#efe9fa" },
+  blue: { label: "Blue", color: "#e5f0fc" },
+};
 
 /** Custom Text modules (and Information ones) can appear any number of times; the others once. */
 export const REPEATABLE_MODULES: ModuleType[] = ["information", "text"];

@@ -466,9 +466,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   remembered on their device.
   - A **Custom Text module** holds the circle's own words, written in its **Settings** with the
     wiki's visual editor (headings, quotes and callouts, bold, italic and highlights, lists and
-    checklists, links, tables, collapsible sections, dividers) under a heading of its choosing, and
+    checklists, links, tables, collapsible sections, dividers) under a heading of its choosing, on
+    a background it picks (white unless it chooses mint, yellow, peach, pink, lavender or blue), and
     shown formatted as on the wiki. It's saved with the page (`module.text.body`, Markdown, up to
-    20,000 characters); for anything longer, write a page and show it with an Information module.
+    20,000 characters; `module.text.background`); for anything longer, write a page and show it with an Information module.
   - An **Information module** has a title ("Information" unless given one) and **Settings**:
     which pages it shows — **Specific pages** (up to 12, searched by title, shown in the order
     chosen), **All pages of a circle** (any circle, by title), or **Recently edited** (3–12, from

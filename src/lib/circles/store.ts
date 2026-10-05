@@ -11,6 +11,7 @@ import {
   LOG_POSTERS,
   MAX_TEXT_MODULE,
   REPEATABLE_MODULES,
+  TEXT_BACKGROUNDS,
   type CircleModule,
 } from "./layout";
 import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
@@ -80,6 +81,7 @@ const moduleSchema = z
             MAX_TEXT_MODULE,
             `Keep custom text to ${MAX_TEXT_MODULE.toLocaleString()} characters`
           ),
+        background: z.enum(TEXT_BACKGROUNDS).optional(),
       })
       .optional(),
   })

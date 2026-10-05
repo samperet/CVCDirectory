@@ -1,7 +1,7 @@
 "use client";
 
 import { Type } from "lucide-react";
-import type { CircleModule } from "@/lib/circles/layout";
+import { TEXT_BACKGROUND_STYLES, type CircleModule } from "@/lib/circles/layout";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ModuleToggle } from "@/components/circles/circle-modules";
@@ -9,8 +9,9 @@ import { WikiMarkdown } from "@/components/wiki/markdown";
 
 /**
  * A Custom Text module: the circle's own words, formatted as on the wiki
- * (and linking pages and documents the same way). Written from the page's
- * Edit, under the module's Settings.
+ * (and linking pages and documents the same way), on the background it
+ * chose (white unless it picked a tint). Written from the page's Edit, under
+ * the module's Settings.
  */
 export function TextModule({
   circleId,
@@ -25,12 +26,16 @@ export function TextModule({
 }) {
   const body = module.text?.body ?? "";
   return (
-    <Card className="flex flex-col gap-3" data-text-module>
+    <Card
+      className="flex flex-col gap-3"
+      style={{ backgroundColor: TEXT_BACKGROUND_STYLES[module.text?.background ?? "white"].color }}
+      data-text-module
+    >
       <SectionHeading icon={Type} toggle={<ModuleToggle />}>
         {title}
       </SectionHeading>
       {body.trim() ? (
-        <div className="wiki-prose document-body">
+        <div className="min-w-0">
           <WikiMarkdown source={body} circleId={circleId} pages={undefined} />
         </div>
       ) : (
