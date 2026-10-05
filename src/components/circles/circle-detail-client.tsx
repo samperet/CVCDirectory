@@ -312,6 +312,24 @@ export function CircleDetailClient({ id }: { id: string }) {
           {pageDraft ? (
             <div className="flex flex-wrap items-center gap-2">
               <IconControls circle={circle} />
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                onClick={() => setDialog({ kind: "add" })}
+              >
+                <Plus className="h-4 w-4" /> Add module
+              </Button>
+              <Button
+                size="sm"
+                onClick={save}
+                disabled={saveEdit.isPending || (detailsDraft?.name.trim().length ?? 2) < 2}
+              >
+                {saveEdit.isPending ? "Saving…" : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={stopEditing}>
+                Cancel
+              </Button>
               {onBoard && circle.id !== BOARD_ID && !community ? (
                 <Button
                   size="sm"
@@ -333,30 +351,6 @@ export function CircleDetailClient({ id }: { id: string }) {
 
       {pageDraft ? (
         <>
-          <div className="sticky top-16 z-20 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-primary/50 bg-accent px-4 py-3 shadow-soft">
-            <p className="w-full text-sm text-foreground sm:w-auto sm:min-w-0 sm:flex-1">
-              <strong>Editing this circle</strong> — its name, description, icon, and page: add
-              modules, drag them or use the arrows, and set their sizes (on wider screens).
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={() => setDialog({ kind: "add" })}
-            >
-              <Plus className="h-4 w-4" /> Add module
-            </Button>
-            <Button size="sm" variant="ghost" onClick={stopEditing}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={save}
-              disabled={saveEdit.isPending || (detailsDraft?.name.trim().length ?? 2) < 2}
-            >
-              {saveEdit.isPending ? "Saving…" : "Save"}
-            </Button>
-          </div>
           {editing.length ? (
             <ModuleEditor
               modules={editing}
