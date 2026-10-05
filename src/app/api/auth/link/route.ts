@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
     const codes = Object.entries(sending.errors)
       .map(([provider, error]) => `${provider} ${error?.split(" ")[0]}`)
       .join(", ");
+    const why = codes || sending.problem;
     return problem(
       `We couldn't send the email just now. Please try again in a few minutes.${
-        codes ? ` (${codes})` : ""
+        why ? ` (${why})` : ""
       }`,
       503
     );

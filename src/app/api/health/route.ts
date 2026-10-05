@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { isDurable, isPersistent, readJson } from "@/lib/storage";
+import { providerConfigured } from "@/lib/email/deliver";
+import { PROVIDERS } from "@/lib/email/quota";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,8 @@ const R2_VARIABLES = [
 /**
  * Storage health. Performs a real read first — durability only reflects a
  * failure once an R2 operation has been attempted — then reports booleans
- * only, never configuration values.
+ * only, never configuration values. Also whether each email sender's key is
+ * set (BREVO_KEY, RESEND_KEY), as a boolean.
  */
 export async function GET() {
   await readJson("health/probe.json");
@@ -27,5 +30,11 @@ export async function GET() {
     );
     console.warn(`[health] R2 not configured: ${present.join(" ")}`);
   }
-  return NextResponse.json({ storage: { configured, durable } }, { status: durable ? 200 : 503 });
+  const email = Object.fromEntries(
+    PROVIDERS.map((provider) => [provider, providerConfigured(provider)])
+  );
+  return NextResponse.json(
+    { storage: { configured, durable }, email },
+    { status: durable ? 200 : 503 }
+  );
 }

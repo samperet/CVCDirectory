@@ -150,9 +150,17 @@ export async function emailNotification(message: {
 export async function sendDirectEmail(
   kind: "welcome" | "sign-in",
   message: Outgoing
-): Promise<{ sent: boolean; errors: Sending["errors"] }> {
+): Promise<{
+  sent: boolean;
+  errors: Sending["errors"];
+  /** Why nothing went, when no sender refused: no keys set, no room today, or a fault here. */
+  problem?: "not configured" | "over quota" | "error";
+}> {
   try {
-    if (!emailConfigured()) return { sent: false, errors: {} };
+    if (!emailConfigured()) {
+      console.error("[email] no sender is set up: BREVO_KEY and RESEND_KEY are both missing");
+      return { sent: false, errors: {}, problem: "not configured" };
+    }
     const result = await sendEmails([message], "groups");
     await logEmail({
       at: new Date().toISOString(),
@@ -166,10 +174,14 @@ export async function sendDirectEmail(
       ...errorsOf(result),
       testMode: false,
     });
-    return { sent: result.sent > 0, errors: result.errors };
+    return {
+      sent: result.sent > 0,
+      errors: result.errors,
+      ...(result.overQuota.length ? { problem: "over quota" as const } : {}),
+    };
   } catch (error) {
     console.error("[email] direct email failed", error instanceof Error ? error.name : "error");
-    return { sent: false, errors: {} };
+    return { sent: false, errors: {}, problem: "error" };
   }
 }
 
