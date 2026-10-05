@@ -196,11 +196,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link
             href="/"
             className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold text-foreground"
+            aria-label="Common Pastures"
           >
             <Image src="/CVC.png" alt="" width={32} height={32} priority className="h-8 w-8" />
-            Common Pastures
+            {/* On phones the logo alone, leaving room for the account button's name. */}
+            <span className="hidden sm:inline">Common Pastures</span>
           </Link>
-          <div className="flex items-center gap-2 xl:hidden">
+          <div className="flex min-w-0 items-center gap-2 xl:hidden">
             <SearchButton active={pathname === "/search"} open={searching} onOpen={openSearch} />
             <UserMenu />
             <Button

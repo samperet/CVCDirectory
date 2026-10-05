@@ -45,17 +45,17 @@ export function UserMenu() {
     });
 
   return (
-    <div className="relative">
+    // On phones the menu hangs from the header's right edge (the button isn't at the edge), so it fits.
+    <div className="sm:relative">
       <Button
         variant="outline"
         size="sm"
-        className="gap-2 whitespace-nowrap pl-1.5 max-sm:pr-1.5"
+        className="gap-2 whitespace-nowrap pl-1.5"
         onClick={() => setOpen((value) => !value)}
         aria-label={`Account menu for ${user.name}`}
       >
         <Avatar name={user.name} photoUrl={user.photoUrl} size={24} />
-        {/* On phones the avatar alone keeps the header on one line; the menu shows the name. */}
-        <span className="hidden sm:inline">{user.name}</span>
+        <span>{user.name}</span>
       </Button>
 
       {open ? (
@@ -68,7 +68,7 @@ export function UserMenu() {
             }}
             aria-hidden
           />
-          <div className="absolute right-0 z-50 mt-2 w-72 rounded-card border border-border bg-surface p-3 shadow-elev">
+          <div className="absolute right-4 top-full z-50 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-card sm:right-0 sm:top-auto sm:mt-2 border border-border bg-surface p-3 shadow-elev">
             <p className="px-1 text-sm font-medium text-foreground">{user.name}</p>
             {user.isAdmin ? (
               <p className="flex items-center gap-1 px-1 pt-0.5 text-xs text-muted">
