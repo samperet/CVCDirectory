@@ -113,8 +113,9 @@ contact details or unit numbers.
   app added to a phone's home screen, which doesn't share the browser's sign-in.
 - Opening a link signs nobody in: the page asks **Sign in as …?** and the button does it (POST),
   so mail scanners that open links can't use them up. Using the link or the code spends both.
-- Only keyed hashes of links and codes are stored (`auth/sign-in-links.json`,
-  `lib/auth/sign-in-links.ts`). Five links an hour per person; five wrong codes spoil the open
+- Only keyed hashes of links and codes are stored (`auth/sign-in-links-2.json`,
+  `lib/auth/sign-in-links.ts`). Five links an hour per person, until they sign in (which clears
+  their other links); five wrong codes spoil the open
   links. Sign-in emails go out even in email test mode and are logged without the address.
 - While the sign-in page waits, it notices a link opened in another tab of the same browser and
   continues; it never signs in a device just because someone else clicked a link.

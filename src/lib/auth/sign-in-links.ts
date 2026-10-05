@@ -9,10 +9,12 @@ import { authSecret } from "./secret";
  * device that asked (for an app added to a phone's home screen, which
  * doesn't share the browser's sign-in). Only keyed hashes of the token and
  * code are stored. A resident can ask for a few links an hour, and five
- * wrong codes spoil their open links, so a code can't be guessed.
+ * wrong codes spoil their open links, so a code can't be guessed. Signing in
+ * clears that person's other links — they're spent, and so is the count.
  */
 
-const KEY = "auth/sign-in-links.json";
+// "-2": the count started over on 2026-10-05 (the first file is left as it was).
+const KEY = "auth/sign-in-links-2.json";
 export const LINK_TTL_MS = 30 * 60 * 1000;
 export const MAX_LINKS_PER_HOUR = 5;
 export const MAX_CODE_ATTEMPTS = 5;
@@ -118,6 +120,17 @@ export async function peekSignInLink(
 
 type Used = { personId: string; next?: string };
 
+/** The links once `key` is used: it marked used, and the same person's others gone. */
+function spend(links: Links, key: string, now: number): Links {
+  const link = links[key];
+  return {
+    ...Object.fromEntries(
+      Object.entries(links).filter(([, other]) => other.personId !== link.personId)
+    ),
+    [key]: { ...link, usedAt: new Date(now).toISOString() },
+  };
+}
+
 /** Use a link: who it signs in, once. */
 export function redeemSignInLink(token: string, now = Date.now()): Promise<Used | LinkFailure> {
   const hash = tokenHash(token);
@@ -127,7 +140,7 @@ export function redeemSignInLink(token: string, now = Date.now()): Promise<Used 
     const state = linkState(link, now);
     if (state !== "ok") return { write: false, result: state };
     return {
-      value: { links: { ...links, [hash]: { ...link!, usedAt: new Date(now).toISOString() } } },
+      value: { links: spend(links, hash, now) },
       result: { personId: link!.personId, next: link!.next },
     };
   });
@@ -153,7 +166,7 @@ export function redeemSignInCode(
     if (match) {
       const [key, link] = match;
       return {
-        value: { links: { ...links, [key]: { ...link, usedAt: new Date(now).toISOString() } } },
+        value: { links: spend(links, key, now) },
         result: { personId, next: link.next },
       };
     }

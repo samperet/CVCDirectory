@@ -81,3 +81,34 @@ describe("sign-in links", () => {
     expect(maskEmail("ada@example.org")).toBe("a•••@example.org");
   });
 });
+
+describe("signing in", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "cvc-links-"));
+    vi.spyOn(process, "cwd").mockReturnValue(dir);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("clears the person's other links, and their count for the hour", async () => {
+    const now = Date.now();
+    const links = [];
+    for (let i = 0; i < MAX_LINKS_PER_HOUR; i++) {
+      const link = await createSignInLink(ADA, undefined, now);
+      if (link === "too-many") throw new Error("refused");
+      links.push(link);
+    }
+    const ben = await createSignInLink("000000000002", undefined, now);
+    expect(await createSignInLink(ADA, undefined, now)).toBe("too-many");
+    expect(await redeemSignInLink(links[4].token, now)).toMatchObject({ personId: ADA });
+    // The earlier links are gone, and Ada can ask again.
+    expect(await redeemSignInLink(links[0].token, now)).toBe("unknown");
+    expect(await createSignInLink(ADA, undefined, now)).not.toBe("too-many");
+    // Someone else's link is untouched.
+    if (ben === "too-many") throw new Error("refused");
+    expect(await redeemSignInLink(ben.token, now)).toMatchObject({ personId: "000000000002" });
+  });
+});
