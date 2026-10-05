@@ -54,6 +54,8 @@ export interface Circle {
   modules?: CircleModule[];
   /** Wiki pages (their addresses) once pinned to the circle's page, from before pinning was removed; no longer used. */
   pinnedWiki?: string[];
+  /** Its group email address part, as the circle chose it; unset is made from its name (see `groupLocal`). */
+  emailName?: string | null;
   /** Pending applications; only the circle's members, the Board, and admins see them. */
   applications?: CircleApplication[];
 }

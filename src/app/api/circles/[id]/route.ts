@@ -4,8 +4,8 @@ import { handOverPages } from "@/lib/wiki/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { deleteCircleLog } from "@/lib/log/store";
-import { addAlias, deleteCircleGroups } from "@/lib/groups/store";
-import { groupLocal } from "@/lib/groups/shared";
+import { addAlias, deleteCircleGroups, readAliases } from "@/lib/groups/store";
+import { addressTaken, emailNameProblem, groupLocal } from "@/lib/groups/shared";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -20,9 +20,11 @@ export const dynamic = "force-dynamic";
 type Params = { params: { id: string } };
 
 /**
- * Edit a circle's name, description, sections, or who can
- * join (its members or the Board), or whether it's an official circle or a
- * social club (the Board).
+ * Edit a circle's name, description, group email address, sections, or who
+ * can join (its members or the Board), or whether it's an official circle or
+ * a social club (the Board). A circle whose address changes (chosen, or by a
+ * rename) keeps answering to the old one; an address another circle answers
+ * to, or one kept for the mail system, can't be chosen.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "member-or-board" });
@@ -39,10 +41,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
 
+  const emailName = parsed.data.emailName;
+  if (emailName) {
+    if (params.id === COMMUNITY_ID) return problem("The Community circle has no address", 409);
+    const why = emailNameProblem(emailName);
+    if (why) return problem(why);
+    if (addressTaken(emailName, params.id, ctx.directory.circles, await readAliases()))
+      return problem("Another circle already uses that address — choose another", 409);
+  }
+
   const before = ctx.directory.circles.find((circle) => circle.id === params.id);
   const result = await updateCircle(ctx.imported, params.id, parsed.data);
-  // A renamed circle keeps answering to its old email address.
-  if (result.ok && before && parsed.data.name && parsed.data.name !== before.name)
+  // A circle whose address changed keeps answering to its old one.
+  if (result.ok && before && groupLocal(before) !== groupLocal(result.value))
     await addAlias(groupLocal(before), params.id);
   return result.ok ? NextResponse.json({ circle: result.value }) : circleProblem(result.reason);
 }

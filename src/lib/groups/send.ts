@@ -33,7 +33,12 @@ export async function iconVersionOf(circleId: string): Promise<string | null> {
 }
 
 export async function composeCircle(circle: Circle): Promise<ComposeCircle> {
-  return { id: circle.id, name: circle.name, iconVersion: await iconVersionOf(circle.id) };
+  return {
+    id: circle.id,
+    name: circle.name,
+    emailName: circle.emailName,
+    iconVersion: await iconVersionOf(circle.id),
+  };
 }
 
 export async function emailGroupPost({

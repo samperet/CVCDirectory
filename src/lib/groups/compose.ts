@@ -29,6 +29,8 @@ import type { Poll } from "@/lib/polls/shared";
 export interface ComposeCircle {
   id: string;
   name: string;
+  /** The address part the circle chose, if it did. */
+  emailName?: string | null;
   /** The icon's version (it changes when the icon does), or null for initials. */
   iconVersion: string | null;
 }

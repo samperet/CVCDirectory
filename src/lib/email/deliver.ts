@@ -54,7 +54,10 @@ export const fromAddress = () =>
   process.env.EMAIL_FROM ?? "Common Pastures <notifications@commonpasturesvt.org>";
 
 /** The domain the circles' group addresses are on. */
-export const mailDomain = () => process.env.GROUP_EMAIL_DOMAIN ?? "commonpasturesvt.org";
+export const mailDomain = () =>
+  process.env.GROUP_EMAIL_DOMAIN ||
+  process.env.NEXT_PUBLIC_GROUP_EMAIL_DOMAIN ||
+  "commonpasturesvt.org";
 
 export const escapeHtml = (text: string) =>
   text.replace(

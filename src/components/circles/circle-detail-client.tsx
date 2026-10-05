@@ -54,6 +54,7 @@ import {
   type DetailsDraft,
 } from "@/components/circles/details-editor";
 import { MembersModule, ROLES } from "@/components/circles/members-module";
+import { GroupAddress } from "@/components/groups/group-address";
 
 export function CircleDetailClient({ id }: { id: string }) {
   const confirm = useConfirm();
@@ -245,6 +246,8 @@ export function CircleDetailClient({ id }: { id: string }) {
       if (detailsDraft.name !== before.name) changes.name = detailsDraft.name;
       if (detailsDraft.description !== before.description)
         changes.description = detailsDraft.description;
+      if (!community && detailsDraft.emailName.trim() !== before.emailName)
+        changes.emailName = detailsDraft.emailName.trim();
       if (canSetKind && detailsDraft.club !== before.club)
         changes.kind = detailsDraft.club ? "club" : "circle";
     }
@@ -281,6 +284,7 @@ export function CircleDetailClient({ id }: { id: string }) {
               value={detailsDraft}
               onChange={setDetailsDraft}
               canSetKind={canSetKind}
+              hasAddress={!community}
             />
           ) : (
             <>
@@ -293,6 +297,7 @@ export function CircleDetailClient({ id }: { id: string }) {
               ) : canManage ? (
                 <p className="text-sm text-muted">No description yet.</p>
               ) : null}
+              {community ? null : <GroupAddress circle={circle} />}
             </>
           )}
           {canManage && !pageDraft ? (

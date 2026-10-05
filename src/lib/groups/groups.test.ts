@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cleanSubject, circleInitials, groupLocal, localPartOf, normalizeLocal } from "./shared";
+import {
+  addressTaken,
+  cleanSubject,
+  circleInitials,
+  emailNameProblem,
+  groupLocal,
+  localPartOf,
+  normalizeLocal,
+} from "./shared";
 import {
   readReplyTag,
   readVoteToken,
@@ -245,5 +253,43 @@ describe("a circle's email", () => {
       "Reply to this email to answer everyone in Land Care Circle (12 people)."
     );
     expect(headerName("A\r\nB <x@y>")).toBe("A B xy");
+  });
+});
+
+describe("chosen addresses", () => {
+  const circles = [
+    { id: "lcc", name: "Land Care Circle" },
+    { id: "om", name: "Operations and Maintenance", emailName: "om" },
+  ];
+  it("uses the chosen address part, else the name's", () => {
+    expect(groupLocal({ id: "om", name: "Operations and Maintenance", emailName: "om" })).toBe(
+      "om"
+    );
+    expect(groupLocal({ id: "lcc", name: "Land Care Circle", emailName: null })).toBe("landcare");
+  });
+  it("routes mail to a chosen address, and its old one", () => {
+    expect(resolveAddress("om@cp.org", "cp.org", circles, {})).toEqual({
+      circleId: "om",
+      tag: null,
+    });
+    expect(
+      resolveAddress("operationsandmaintenance@cp.org", "cp.org", circles, {
+        operationsandmaintenance: "om",
+      })
+    ).toEqual({ circleId: "om", tag: null });
+  });
+  it("refuses badly formed, reserved, and taken addresses", () => {
+    expect(emailNameProblem("water")).toBeNull();
+    expect(emailNameProblem("land.care")).toBeNull();
+    expect(emailNameProblem("x")).not.toBeNull();
+    expect(emailNameProblem("-water")).not.toBeNull();
+    expect(emailNameProblem("water dept")).not.toBeNull();
+    expect(emailNameProblem("postmaster")).not.toBeNull();
+    expect(emailNameProblem("no-reply")).not.toBeNull();
+    expect(addressTaken("land-care", "om", circles, {})).toBe(true);
+    expect(addressTaken("lcc", "om", circles, {})).toBe(true);
+    expect(addressTaken("water", "om", circles, { water: "lcc" })).toBe(true);
+    expect(addressTaken("water", "lcc", circles, { water: "lcc" })).toBe(false);
+    expect(addressTaken("om", "om", circles, {})).toBe(false);
   });
 });

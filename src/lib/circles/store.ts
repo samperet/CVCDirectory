@@ -144,6 +144,13 @@ export const circleUpdateSchema = circleInputSchema
     kind,
     /** The page, as modules (see `src/lib/circles/layout.ts`). */
     modules: modulesSchema,
+    /** Its group email address part (checked by the route); empty goes back to the one from its name. */
+    emailName: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(40, "Keep the address to 40 characters")
+      .transform((value) => value || null),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -283,6 +290,7 @@ export function updateCircle(
     joinPolicy: "open" | "apply";
     kind: CircleKind;
     modules: CircleModule[];
+    emailName: string | null;
   }>
 ) {
   return mutate(imported, (circles) => {

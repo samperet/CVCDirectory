@@ -61,8 +61,9 @@ Email (optional; see App & Notifications):
   Circle email groups); `CRON_SECRET` – for the daily cron (morning summary).
 - `BREVO_DAILY_LIMIT` / `BREVO_MONTHLY_LIMIT` – Brevo's allowance (default 300 a day, 9,000 a
   month); `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – Resend's (default: its free 100 a day,
-  3,000 a month); `GROUP_EMAIL_DOMAIN` – the circles' address domain (default
-  `commonpasturesvt.org`).
+  3,000 a month); `NEXT_PUBLIC_GROUP_EMAIL_DOMAIN` – the circles' address domain (default
+  `commonpasturesvt.org`; the server also reads `GROUP_EMAIL_DOMAIN`, but only the public one
+  reaches the pages that show addresses).
 - `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
   (default `gpt-image-1`).
 
@@ -632,7 +633,11 @@ from then on, so re-importing the directory never overwrites circle changes.
 
 Every circle and club has its own email address on the community's domain, made from its name
 (`landcare@commonpasturesvt.org` for "Land Care Circle"; its id, `lcc@`, works too, and so do the
-names it had before a rename). It works like a Google Group, built into the app (`src/lib/groups/`):
+addresses it had before). It's shown, with Copy, under the circle's name in its page's header, and
+its members (or the Board) can change it there in **Edit** (`emailName` on the circle; empty goes
+back to the name's). An address kept for the mail system (`postmaster`, `notifications`…) or
+already answered to by another circle — by its address, its id, or an old address — can't be
+chosen. It works like a Google Group, built into the app (`src/lib/groups/`):
 
 - **The Forum module** on a circle's page shows the address (with Copy), lets each member choose
   **By email** or **Web only**, and lists the circle's conversations; members **Start a

@@ -4,8 +4,9 @@ import type { Poll } from "@/lib/polls/shared";
 /**
  * Circle email groups — types and pure helpers, safe for the browser.
  *
- * Every circle (and club) has a group address on the community's domain,
- * made from its name (`landcare@` for "Land Care Circle"; its id works too).
+ * Every circle (and club) has a group address on the community's domain:
+ * the one it chose, or else made from its name (`landcare@` for "Land Care
+ * Circle"); its id works too, and so does any address it had before.
  * Writing to it starts a conversation in the circle's Forum, and every
  * message in a conversation — written in the app or sent by email — goes
  * to the circle's current members by email (unless they chose the web
@@ -92,13 +93,67 @@ export const localPartOf = (name: string) =>
 /** An address part as typed, made comparable: case, dots, dashes and underscores don't matter. */
 export const normalizeLocal = (local: string) => local.toLowerCase().replace(/[-._]/g, "");
 
-/** A circle's group address part: from its name, or its id if the name has nothing usable. */
-export const groupLocal = (circle: { id: string; name: string }) =>
-  localPartOf(circle.name) || circle.id.replace(/-/g, "");
+/** The domain group addresses are on, as the browser knows it (the server's is `mailDomain()`). */
+export const DEFAULT_MAIL_DOMAIN = "commonpasturesvt.org";
+export const publicMailDomain = () =>
+  process.env.NEXT_PUBLIC_GROUP_EMAIL_DOMAIN || DEFAULT_MAIL_DOMAIN;
+
+type Addressed = { id: string; name: string; emailName?: string | null };
+
+/** A circle's group address part: the one it chose, else from its name, else its id. */
+export const groupLocal = (circle: Addressed) =>
+  circle.emailName || localPartOf(circle.name) || circle.id.replace(/-/g, "");
 
 /** The address people write to. */
-export const groupAddress = (circle: { id: string; name: string }, domain: string) =>
+export const groupAddress = (circle: Addressed, domain: string) =>
   `${groupLocal(circle)}@${domain}`;
+
+/** Addresses no circle may have: the mail system's own, and the app's. */
+export const RESERVED_LOCALS = new Set([
+  "postmaster",
+  "abuse",
+  "hostmaster",
+  "webmaster",
+  "admin",
+  "administrator",
+  "root",
+  "noreply",
+  "no-reply",
+  "notifications",
+  "bounces",
+  "mailer-daemon",
+  "dmarc",
+  "security",
+  "support",
+  "help",
+]);
+
+/** Why a chosen address part can't be used, or null if it can (pure, for tests). */
+export function emailNameProblem(value: string): string | null {
+  if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(value) || value.length < 2 || value.length > 40)
+    return "Use 2–40 lowercase letters and numbers (dots and dashes in the middle are fine)";
+  if (RESERVED_LOCALS.has(value) || RESERVED_LOCALS.has(normalizeLocal(value)))
+    return "That address is kept for the mail system — choose another";
+  return null;
+}
+
+/** Whether another circle already answers to an address part (by its address, its id, or an old address). */
+export function addressTaken(
+  value: string,
+  circleId: string,
+  circles: Addressed[],
+  aliases: Record<string, string>
+) {
+  const key = normalizeLocal(value);
+  return (
+    circles.some(
+      (circle) =>
+        circle.id !== circleId &&
+        (normalizeLocal(groupLocal(circle)) === key || normalizeLocal(circle.id) === key)
+    ) ||
+    (!!aliases[key] && aliases[key] !== circleId)
+  );
+}
 
 /** A subject without Re:/Fwd: and the circle's [tag], for a conversation's title. */
 export function cleanSubject(subject: string): string {

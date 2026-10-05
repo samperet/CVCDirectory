@@ -14,7 +14,13 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { classify, senderVerdict } from "./classify";
 import { shareGroupPost } from "./http";
 import { extractReply, htmlToText } from "./reply-text";
-import { cleanSubject, groupLocal, normalizeLocal, type HeldMessage } from "./shared";
+import {
+  RESERVED_LOCALS,
+  cleanSubject,
+  groupLocal,
+  normalizeLocal,
+  type HeldMessage,
+} from "./shared";
 import {
   addPost,
   findThread,
@@ -51,24 +57,7 @@ import { confirmToken, readReplyTag } from "./tokens";
  * so, and the messages it makes have ids derived from its id.
  */
 
-const RESERVED = new Set([
-  "postmaster",
-  "abuse",
-  "hostmaster",
-  "webmaster",
-  "admin",
-  "administrator",
-  "root",
-  "noreply",
-  "no-reply",
-  "notifications",
-  "bounces",
-  "mailer-daemon",
-  "dmarc",
-  "security",
-  "support",
-  "help",
-]);
+const RESERVED = RESERVED_LOCALS;
 
 const LOG = "email/inbound-log.json";
 const MAX_LOG = 200;
@@ -102,7 +91,7 @@ function logInbound(entry: InboundLogEntry) {
 export function resolveAddress(
   address: string,
   domain: string,
-  circles: Pick<Circle, "id" | "name">[],
+  circles: Pick<Circle, "id" | "name" | "emailName">[],
   aliases: Record<string, string>
 ): { circleId: string; tag: string | null } | "reserved" | null {
   const [local, host] = address.toLowerCase().split("@");
