@@ -175,10 +175,9 @@ export function AddPerson({
       queryClient.invalidateQueries({ queryKey: ["directory"] });
       toast({
         title: `${person.displayName} added`,
-        description:
-          person.phone || person.landline
-            ? "They can sign in with their phone number."
-            : "Add a phone number so they can sign in.",
+        description: person.email
+          ? "They can sign in with a link sent to their email."
+          : "Add an email address so they can sign in.",
       });
       onDone();
       if (onAdded) onAdded(person);

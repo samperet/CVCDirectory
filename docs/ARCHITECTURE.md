@@ -10,7 +10,8 @@ component that fetches from the app's own API with React Query. The API routes u
 check who's asking, validate the body with zod, and call a **store** that reads and writes **JSON
 documents in Cloudflare R2** (or `./.data/` locally). There is no database, no ORM, and no cron:
 anything time-based (a poll closing) is worked out when the data is
-read. Residents sign in with their name and phone number and get a signed cookie; the middleware
+read. Residents sign in with a link or code emailed to their directory address and get a signed
+cookie; the middleware
 keeps everything else private — except a new member's welcome page (`/join/<token>`), whose
 signed token is its key (`lib/onboarding/token.ts`).
 
@@ -66,7 +67,7 @@ Main documents (see each store's `KEY`):
 | `onboarding/invitations.json`, `onboarding/resources.json` | The Secretary's new member invitations (and their answers), and what welcome pages list | `lib/onboarding` |
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
 | `photos/index.json`, `homes/listings.json`, `resources/recommendations.json`, `library/items.json`, `skills/index.json`, `appreciations/index.json`, `profiles/index.json` | The rest | one store each |
-| `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in log | `lib/push`, `lib/auth` |
+| `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in links (hashed), sign-in log | `lib/push`, `lib/auth` |
 | `email/settings.json`, `email/preferences.json`, `email/log.json`, `email/quota.json`, `email/inbound-log.json`, `email/inbound/<id>.json` | Test mode and allowed addresses, each person's email choices, recent sends, the free-plan counts (per sender: Brevo, Resend), received email | `lib/email`, `lib/groups/inbound.ts` |
 | `groups/<circleId>/index.json`, `groups/<circleId>/threads/<id>.json`, `groups/<circleId>/polls/<id>.json`, `groups/<circleId>/held.json`, `groups/delivery.json`, `groups/aliases.json`, `groups/summary.json` | Circle email groups: conversations, polls, held messages, delivery choices, old addresses, the morning summary queue | `lib/groups` |
 
@@ -185,8 +186,9 @@ field) or `todayInVermont()` too, not the device's zone.
 - `npm test` runs vitest over `src/**/*.test.ts` — pure logic (merge, review clock, modules, route
   helpers, the comment rules). Add a test beside anything with rules in it.
 - End-to-end checks run against a real build: seed synthetic data into `.data/`, start with
-  `AUTH_SECRET=local-test ADMIN_PERSON_IDS=<id> next start`, sign in through
-  `POST /api/auth/login {personId, phone}`, then curl the API and drive the UI with Playwright
+  `AUTH_SECRET=local-test ADMIN_PERSON_IDS=<id> EMAIL_TEST_SINK=1 next start`, sign in with
+  `POST /api/auth/link {personId}` and the link it writes to `.data/email-sink.json`
+  (`POST /api/auth/link/<token>`), then curl the API and drive the UI with Playwright
   (Chromium at `/opt/pw-browsers/chromium` in the cloud dev container). Keep fixtures synthetic:
   no real residents in the repo, ever.
 

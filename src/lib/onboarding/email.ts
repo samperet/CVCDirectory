@@ -5,8 +5,8 @@ import { LINK_DAYS } from "./shared";
 /**
  * The two emails a new member gets: the Secretary's invitation, with the
  * link to their welcome form; and, once the Secretary has added them to the
- * directory, word that they can sign in. Neither ever contains their phone
- * number, which is what they sign in with. Whether each went; never throws.
+ * directory, word that they can sign in (by a link emailed when they ask).
+ * Whether each went; never throws.
  */
 
 const button = (label: string, url: string) =>
@@ -62,13 +62,13 @@ export function sendInvitationEmail({
   });
 }
 
-/** They're in the directory: how to sign in (by name, and their mobile number). */
+/** They're in the directory: how to sign in (by name, with a link emailed to them). */
 export function sendSignInReadyEmail({ to, name }: { to: string; name: string }) {
   const login = `${siteUrl()}/login`;
   const hello = `Hello ${name.split(/\s+/)[0]},`;
   const ready =
     "You're in the CVC directory now, so you can sign in to Common Pastures. Start typing your name, choose " +
-    `“${name}”, and enter the mobile number you gave us — that's your password.`;
+    `“${name}”, and we'll email you a link to sign in with.`;
   return sendDirectEmail("welcome", {
     to,
     subject: "You can sign in to Common Pastures",

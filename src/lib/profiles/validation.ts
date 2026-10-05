@@ -18,6 +18,15 @@ export function normalizeBirthday(input: string): string | null {
 }
 
 /** A US number as XXX-XXX-XXXX, or null when it isn't 10 digits (an optional leading 1 is dropped). */
+/**
+ * Reduce a phone number to its digits so formatting never matters:
+ * "(802) 503-2217" and "+1 802-503-2217" both become "8025032217".
+ */
+export function phoneDigits(input: string | null | undefined): string {
+  const digits = (input ?? "").replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+}
+
 export function formatPhone(input: string): string | null {
   let digits = input.replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
@@ -41,6 +50,4 @@ export const profileUpdateSchema = z.object({
   unit: z.coerce.number().int().min(1, "Enter a unit number").max(999).optional(),
   role: z.enum(["owner", "renter", "household"]).optional(),
   resident: z.boolean().optional(),
-  /** Required to change either phone number, since phone numbers are how residents sign in. */
-  currentPhone: z.string().trim().max(40).optional(),
 });

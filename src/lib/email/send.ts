@@ -130,13 +130,16 @@ export async function emailNotification(message: {
 }
 
 /**
- * One email to one address someone typed in — a new member's welcome from
- * the Board Secretary — rather than a notification: it isn't held back by
- * test mode (it's sent on purpose, to one person, who isn't a resident yet),
+ * One email to one person, on purpose — a new member's welcome from the
+ * Board Secretary, or a resident's sign-in link — rather than a
+ * notification: it isn't held back by test mode (nobody could sign in),
  * and it's logged by its kind, without the address. It counts against the
  * free plan's quota like the rest. Whether it went; never throws.
  */
-export async function sendDirectEmail(kind: "welcome", message: Outgoing): Promise<boolean> {
+export async function sendDirectEmail(
+  kind: "welcome" | "sign-in",
+  message: Outgoing
+): Promise<boolean> {
   try {
     if (!emailConfigured()) return false;
     const result = await sendEmails([message], "groups");

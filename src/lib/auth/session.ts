@@ -7,7 +7,7 @@ import { readDirectory } from "@/lib/directory/store";
 
 /**
  * Session cookies are `userId.expiresAtMs.hmac` signed with AUTH_SECRET, and
- * are issued only after a resident signs in with their phone number. Set
+ * are issued only after a resident signs in with an emailed link or code. Set
  * AUTH_SECRET in production so sessions cannot be forged with the public
  * fallback secret. The edge middleware verifies the same format.
  */
@@ -66,7 +66,7 @@ export async function getRealSessionUser(): Promise<CommunityUser | null> {
   if (!userId) return null;
   const user = await getUser(userId);
   // Sessions from the retired name-only sign-in don't count: only accounts
-  // linked to a resident (proven by phone number) are signed in.
+  // linked to a resident (proven by an emailed link or code) are signed in.
   return user?.personId ? user : null;
 }
 

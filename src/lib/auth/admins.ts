@@ -2,8 +2,8 @@
  * Site administrators, by directory person id (stable across name edits).
  * Admins can do anything any resident can, on anyone's content: manage and
  * delete any circle, edit or delete any forum post or appreciation, remove
- * any skill or library item, and edit any profile (including resetting a
- * resident's phone number, which is their password).
+ * any skill or library item, and edit any profile (including the email
+ * address a resident's sign-in links go to).
  *
  * More admins can be added without a code change via ADMIN_PERSON_IDS
  * (comma-separated person ids).

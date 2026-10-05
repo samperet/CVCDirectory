@@ -2,7 +2,7 @@ import { mutateJson, readJson } from "@/lib/storage";
 
 /**
  * A log of successful sign-ins, newest kept, for admins. It records who
- * signed in and when — no phone numbers, addresses, or devices — and when an
+ * signed in and when — no email or street addresses, or devices — and when an
  * admin viewed the app as someone.
  */
 

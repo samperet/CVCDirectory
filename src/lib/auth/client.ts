@@ -46,7 +46,7 @@ export interface SignInPerson {
   name: string;
 }
 
-/** Residents who can sign in (those with a phone number on file). */
+/** Residents who can sign in (those with an email address on file). */
 export function usePeople({ enabled = true }: { enabled?: boolean } = {}) {
   const query = useQuery({
     queryKey: ["auth", "people"],
@@ -62,19 +62,34 @@ export function useRefreshSession() {
   return useInvalidateAuth();
 }
 
-/**
- * Sign in. With `deferSession`, the app doesn't switch to the signed-in view
- * until the caller calls `useRefreshSession()` — the sign-in page uses this to
- * finish its logo animation first.
- */
-export function useLogin({ deferSession = false }: { deferSession?: boolean } = {}) {
-  const invalidate = useInvalidateAuth();
+/** Email a sign-in link (and code) to a resident's directory address. */
+export function useRequestSignInLink() {
   return useMutation({
-    mutationFn: (input: { personId: string; phone: string }) =>
-      apiFetch<{ user: PublicUser }>("/api/auth/login", {
+    mutationFn: (input: { personId: string; next?: string }) =>
+      apiFetch<{ sentTo: string }>("/api/auth/link", {
         method: "POST",
         body: JSON.stringify(input),
       }),
+  });
+}
+
+type SignedIn = { user: PublicUser; next: string };
+
+/**
+ * Sign in with the code from the email, or with the link's token. With
+ * `deferSession`, the app doesn't switch to the signed-in view until the
+ * caller calls `useRefreshSession()` — the sign-in page uses this to finish
+ * its logo animation first.
+ */
+export function useSignIn({ deferSession = false }: { deferSession?: boolean } = {}) {
+  const invalidate = useInvalidateAuth();
+  return useMutation({
+    mutationFn: (input: { token: string } | { personId: string; code: string }) =>
+      "token" in input
+        ? apiFetch<SignedIn>(`/api/auth/link/${encodeURIComponent(input.token)}`, {
+            method: "POST",
+          })
+        : apiFetch<SignedIn>("/api/auth/code", { method: "POST", body: JSON.stringify(input) }),
     onSuccess: deferSession ? undefined : invalidate,
   });
 }

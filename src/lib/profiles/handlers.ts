@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { canManageDirectory } from "@/lib/directory/access";
 import { renameUserForPerson } from "@/lib/auth/users";
-import { phoneMatches, phoneDigits } from "@/lib/auth/phone";
 import { readDirectory } from "@/lib/directory/store";
 import { entriesOf } from "@/lib/directory/manage";
 import { deleteBinary, writeBinary } from "@/lib/storage";
 import { ProfileOverride, isPersonId, photoKey, updateProfile } from "@/lib/profiles/store";
-import { formatPhone, normalizeBirthday, profileUpdateSchema } from "@/lib/profiles/validation";
+import {
+  formatPhone,
+  normalizeBirthday,
+  phoneDigits,
+  profileUpdateSchema,
+} from "@/lib/profiles/validation";
 import { problem, readBody, throttled } from "@/lib/http";
 import { MAX_IMAGE_BYTES, readImageUpload } from "@/lib/images";
 
@@ -30,7 +34,7 @@ async function resolve(target: Target) {
   if (!directory) return { error: problem("Directory entry not found", 404) } as const;
   // An entry combined into another profile (listed in two households) edits that profile.
   const personId = directory.aliases?.[requested] ?? requested;
-  // "admin" here: may edit anyone's entry, including unit, role, and phone numbers without the current one.
+  // "admin" here: may edit anyone's entry, including unit and role.
   const admin = canManageDirectory(user, directory);
   if (personId !== user.personId && !admin) {
     return { error: problem("You can only change your own profile", 403) } as const;
@@ -50,10 +54,9 @@ export async function getProfile(target: Target) {
 }
 
 /**
- * Edit an entry. Unit and owner/renter are for directory managers. Because phone numbers
- * are passwords, a resident changing one must give the current one (directory managers
- * can reset them without it), and at least one must remain so they can still
- * sign in.
+ * Edit an entry. Unit and owner/renter are for directory managers. The email
+ * address is where sign-in links go, so a resident can change theirs but not
+ * remove it (directory managers can).
  */
 export async function patchProfile(request: NextRequest, target: Target) {
   const limited = throttled(request, "profile");
@@ -81,7 +84,11 @@ export async function patchProfile(request: NextRequest, target: Target) {
     patch.lastName = lastName;
   }
 
-  if (input.email !== undefined) patch.email = input.email ? input.email.toLowerCase() : null;
+  if (input.email !== undefined) {
+    if (!input.email && person.email && !admin)
+      return problem("Keep an email address — it's where your sign-in links go");
+    patch.email = input.email ? input.email.toLowerCase() : null;
+  }
 
   for (const field of ["phone", "landline"] as const) {
     const value = input[field];
@@ -91,20 +98,6 @@ export async function patchProfile(request: NextRequest, target: Target) {
       return problem(`Enter a 10-digit ${field === "phone" ? "phone" : "landline"} number`);
     if (phoneDigits(formatted) !== phoneDigits(person[field])) patch[field] = formatted;
   }
-  if (patch.phone !== undefined || patch.landline !== undefined) {
-    if (
-      !admin &&
-      (!input.currentPhone || !phoneMatches(input.currentPhone, [person.phone, person.landline]))
-    ) {
-      return problem("Enter your current phone number to change your phone numbers", 403);
-    }
-    const phone = patch.phone !== undefined ? patch.phone : person.phone;
-    const landline = patch.landline !== undefined ? patch.landline : person.landline;
-    if (!phone && !landline) {
-      return problem("Keep at least one phone number — it's how residents sign in");
-    }
-  }
-
   if (input.birthday !== undefined) {
     const birthday = input.birthday ? normalizeBirthday(input.birthday) : null;
     if (input.birthday && !birthday) return problem("Enter a birthday like “April 25”");

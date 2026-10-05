@@ -4,7 +4,7 @@ import { mutateJson, readJson } from "@/lib/storage";
 /**
  * Community user registry. Every account belongs to a resident in the
  * directory (linked by personId) and is created on that resident's first
- * sign-in with their phone number.
+ * sign-in with an emailed link or code.
  */
 
 export interface CommunityUser {
@@ -84,7 +84,7 @@ export async function userIdsForPeople(personIds: (string | null)[]): Promise<st
 /**
  * The account for a directory resident, created on first sign-in. A legacy
  * name-only account with the same name is claimed by the resident, since the
- * phone number proved who they are.
+ * emailed link or code proved who they are.
  */
 export async function userForPerson(person: {
   id: string;

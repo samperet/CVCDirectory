@@ -4,7 +4,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 
 ## Features
 
-- 🔐 **Resident sign-in** – Pick your name, enter your phone number; signed-out visitors see only the sign-in page.
+- 🔐 **Resident sign-in** – Pick your name and get a sign-in link (and code) by email; signed-out visitors see only the sign-in page.
 - 📇 **Directory** – Residents by unit with contact details, circles with open seats, and carshed allocations.
 - 👋 **New member welcome** – The Board Secretary emails each new member a welcome form (a short bio, including what drew them to cohousing, and how they'll sign in), with sign-in instructions and resources like the Living in Community Guide, then adds them to the directory in a click.
 - 🛠️ **Loan Library** – Items residents lend, each with a photo if they like (taken right from a phone's camera), lent-out tracking, and an "Ask to borrow" button.
@@ -101,15 +101,23 @@ is served without sign-in; every other page and API still requires it.
 
 ## Signing In
 
-Residents sign in at `/login` by choosing their name from a searchable dropdown and entering
-their phone number as the password. The names come from the imported community directory — only
-residents with a phone number on file can sign in — and the dropdown exposes names only, never
+Residents sign in at `/login` by choosing their name from a searchable dropdown and tapping
+**Email me a sign-in link**. The names come from the imported community directory — only
+residents with an email address on file can sign in — and the dropdown exposes names only, never
 contact details or unit numbers.
 
-- Formatting is ignored: `802-555-1234`, `802.555.1234`, `(802) 555 1234`, and `+1 802 555 1234`
-  all match. A landline on file works too.
-- Five wrong attempts lock that name for 15 minutes. Failures are tracked in the shared store, so
-  the limit holds across serverless instances.
+- The email (`POST /api/auth/link`) goes to the resident's address **in the directory**, never one
+  typed in; the page shows it half-hidden (`c•••@example.org`). It holds a **link** and a
+  **six-digit code**. Either signs in, once, within 30 minutes: the link on whatever device opens
+  it (`/login/<token>`), the code typed on the device that asked (`POST /api/auth/code`) — for an
+  app added to a phone's home screen, which doesn't share the browser's sign-in.
+- Opening a link signs nobody in: the page asks **Sign in as …?** and the button does it (POST),
+  so mail scanners that open links can't use them up. Using the link or the code spends both.
+- Only keyed hashes of links and codes are stored (`auth/sign-in-links.json`,
+  `lib/auth/sign-in-links.ts`). Five links an hour per person; five wrong codes spoil the open
+  links. Sign-in emails go out even in email test mode and are logged without the address.
+- While the sign-in page waits, it notices a link opened in another tab of the same browser and
+  continues; it never signs in a device just because someone else clicked a link.
 - An account is created on a resident's first sign-in and linked to their directory entry.
 - Signed-out visitors see only the public front page and the sign-in page: middleware redirects every other page to `/login`
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
@@ -135,7 +143,7 @@ contact details or unit numbers.
   use the Fraunces serif (`font-display`), and the signed-in dashboard greets residents by first name
   on the same green band.
 
-Phone numbers are not secret, so this keeps the barrier low rather than high. Session cookies are
+Session cookies last 90 days and are
 signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SECRET_ACCESS_KEY`
 (never the public development default), and with neither it refuses to create sessions. Setting
 `AUTH_SECRET` explicitly is still recommended.
@@ -151,7 +159,7 @@ Admin status is checked server-side on every request, and the user menu shows an
 - **Skills & Loan Library** – remove anyone's skills; mark anyone's items lent out or returned, or
   remove them.
 - **Profiles** – edit any resident's entry and photo from the "Edit" link beside them in the
-  directory (`/profile/<personId>`), including resetting a phone number without the current one.
+  directory (`/profile/<personId>`), including the email address their sign-in links go to.
 - **View as a resident** – "View as resident…" in the user menu, or "View as" beside anyone in the
   directory, shows the app exactly as that resident sees it: their name, their permissions, their
   own posts. It's read-only — while it's on, the middleware refuses every change, so an admin can
@@ -215,8 +223,8 @@ Authors always come from the signed-in session, never from the request body.
   Secretary and admins, to welcome new members. **Invite a new member** takes their email (and
   name, if known) and emails them a link to their own **welcome form** (`/join/<token>`, no
   account needed): a short bio, including what drew them to cohousing, and the name, mobile
-  number, and unit they'll be listed with. The same page explains how to sign in (by name, with
-  their mobile number as the password; adding the app to a phone's home screen) and lists the
+  number, and unit they'll be listed with. The same page explains how to sign in (by name, with a
+  link emailed to them; adding the app to a phone's home screen) and lists the
   **welcome resources**. Their answers come back to the Secretary page, where **Add to directory**
   opens "Add a person" filled in from them (or, if they're already listed, **Already listed as …**
   marks them added); once they're in, their bio goes on their profile (if it has none), they're
@@ -684,8 +692,8 @@ names it had before a rename). It works like a Google Group, built into the app 
 - **Profiles** (`/profile`) – residents edit their own name, email, phone numbers, birthday, and a
   short bio, and upload a photo. Edits live in `profiles/index.json`, separate from the imported
   sheet, and are layered over it wherever resident data is read, so a re-import never wipes them.
-  Unit and owner/renter stay as imported. Because phone numbers are passwords, changing one
-  requires the current number, and at least one must remain. Photos are center-cropped and
+  Unit and owner/renter stay as imported. The email address is where sign-in links go, so a
+  resident can change theirs but not remove it (admins can). Photos are center-cropped and
   downscaled in the browser, verified server-side by their bytes (JPEG, PNG, or WebP, up to 1 MB),
   stored in `profiles/photos/`, and served only to signed-in residents.
 - **Community calendar** – the dashboard shows the next event, read server-side from the calendar's
@@ -738,8 +746,9 @@ docs/ARCHITECTURE.md     # How it fits together; CLAUDE.md has the conventions f
   `src/**/*.test.ts`, kept beside the code — the paragraph merge, circle
   modules, the route helpers, the comment rules).
 - End to end: `npm run seed`, then either `npm run dev` or `npm run build && npm start` with
-  `AUTH_SECRET` and `ADMIN_PERSON_IDS` set; sign in through the UI or `POST /api/auth/login
-  {personId, phone}` and exercise the API with curl and the pages with Playwright. Fixtures are
+  `AUTH_SECRET`, `ADMIN_PERSON_IDS` and `EMAIL_TEST_SINK=1` set; sign in through the UI, or
+  `POST /api/auth/link {personId}`, read the link from `.data/email-sink.json` and `POST` it to
+  `/api/auth/link/<token>`, and exercise the API with curl and the pages with Playwright. Fixtures are
   synthetic: never put real residents in the repository.
 - API errors are JSON problem details (`{type, title, status, detail}`); rate limiting is in-memory
   per server instance.

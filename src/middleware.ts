@@ -19,7 +19,8 @@ const PUBLIC_PATHS = new Set([
   "/", // the public front page (residents see their dashboard there)
   "/welcome", // the public front page for anyone
   "/login",
-  "/api/auth/login",
+  "/api/auth/link", // ask for a sign-in link
+  "/api/auth/code", // sign in with the code from that email
   "/api/auth/logout",
   "/api/auth/me",
   "/api/auth/people",
@@ -84,6 +85,9 @@ export async function middleware(request: NextRequest) {
   // Pages opened from an email, which work without signing in: a poll's
   // one-click answer, and "Did you send this?" (each checks its own signed token).
   if (/^\/(vote|email\/confirm)\/[A-Za-z0-9._-]{10,700}$/.test(pathname))
+    return NextResponse.next();
+  // A sign-in link, and the page it opens (the token is the key; using it takes a POST).
+  if (/^\/(api\/auth\/link|login)\/[A-Za-z0-9_-]{20,64}$/.test(pathname))
     return NextResponse.next();
   // Circles' icons in emails (signed addresses; mail apps load images without signing in).
   if (

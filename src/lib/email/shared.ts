@@ -59,10 +59,11 @@ export const PROVIDER_NAMES = { brevo: "Brevo", resend: "Resend" } as const;
 export interface EmailLogEntry {
   at: string;
   /**
-   * A notification topic, an admin's test, a new member's welcome (`sendDirectEmail`), a circle's
+   * A notification topic, an admin's test, a new member's welcome or a sign-in link
+   * (`sendDirectEmail`), a circle's
    * group email, a daily summary, or a "did you send this?" check.
    */
-  topic: Topic | "test" | "welcome" | "group" | "summary" | "confirm";
+  topic: Topic | "test" | "welcome" | "sign-in" | "group" | "summary" | "confirm";
   /** For group email: the circle. */
   circleId?: string;
   subject: string;

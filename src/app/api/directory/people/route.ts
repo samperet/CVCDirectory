@@ -25,7 +25,7 @@ const schema = z.object({
   bio: z.string().trim().max(500).default(""),
 });
 
-/** Add a resident to the directory: the Board Secretary or an admin. They can then sign in with their phone number. */
+/** Add a resident to the directory: the Board Secretary or an admin. They can then sign in with a link sent to their email. */
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) return problem("Sign in to continue", 401);

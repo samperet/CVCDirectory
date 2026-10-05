@@ -72,7 +72,6 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<FormState | null>(null);
-  const [currentPhone, setCurrentPhone] = useState("");
 
   const { data, isLoading, error } = useQuery({
     queryKey,
@@ -96,7 +95,6 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
     onSuccess: (response) => {
       queryClient.setQueryData(queryKey, response);
       setForm(toForm(response.profile));
-      setCurrentPhone("");
       refreshEverywhere();
       toast({ title: "Profile saved" });
     },
@@ -128,8 +126,6 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
     return <ErrorCard error={error} fallback="Your profile is unavailable." />;
   }
 
-  // Admins can reset phone numbers without knowing the current one.
-  const needsCurrentPhone = !isManager;
   const phonesChanged =
     digits(form.phone) !== digits(profile.phone ?? "") ||
     digits(form.landline) !== digits(profile.landline ?? "");
@@ -150,7 +146,6 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
     if (phonesChanged) {
       body.phone = form.phone;
       body.landline = form.landline;
-      if (needsCurrentPhone) body.currentPhone = currentPhone;
     }
     if (isManager) {
       body.unit = form.unit;
@@ -283,6 +278,9 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
               onChange={set("email")}
               className="bg-white"
             />
+            <span className="text-xs font-normal text-muted">
+              {own ? "Sign-in links are sent here." : "Their sign-in links are sent here."}
+            </span>
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -309,30 +307,6 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
               />
             </label>
           </div>
-          <p className="-mt-2 text-xs text-muted">
-            {own
-              ? "Your phone numbers are also how you sign in."
-              : "These phone numbers are also how they sign in."}
-          </p>
-
-          {phonesChanged && needsCurrentPhone ? (
-            <label className="flex flex-col gap-1 rounded-lg border border-border bg-accent/50 p-3 text-sm font-medium text-foreground">
-              Current phone number
-              <span className="text-xs font-normal text-muted">
-                To change a phone number, confirm the one you sign in with now.
-              </span>
-              <Input
-                type="password"
-                inputMode="tel"
-                autoComplete="current-password"
-                value={currentPhone}
-                onChange={(event) => setCurrentPhone(event.target.value)}
-                className="bg-white"
-                required
-              />
-            </label>
-          ) : null}
-
           <fieldset className="flex flex-col gap-1 text-sm font-medium text-foreground">
             <legend className="mb-1">Birthday</legend>
             <div className="flex gap-2">
@@ -368,14 +342,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
           </label>
 
           <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              disabled={
-                save.isPending ||
-                !form.firstName.trim() ||
-                (phonesChanged && needsCurrentPhone && !currentPhone.trim())
-              }
-            >
+            <Button type="submit" disabled={save.isPending || !form.firstName.trim()}>
               {save.isPending ? "Saving…" : "Save profile"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setForm(toForm(profile))}>

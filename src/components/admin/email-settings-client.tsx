@@ -40,6 +40,7 @@ const KEY = ["admin", "email"];
 const LOG_KINDS: Record<string, string> = {
   test: "Test email",
   welcome: "New member welcome",
+  "sign-in": "Sign-in link",
   group: "Circle email",
   summary: "Daily summary",
   confirm: "“Did you send this?” check",

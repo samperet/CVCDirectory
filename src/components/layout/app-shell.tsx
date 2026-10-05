@@ -103,7 +103,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     opener.current?.focus();
   };
   useEffect(() => setSearching(false), [pathname]);
-  const onLoginPage = pathname === "/login";
+  // The sign-in page, and the page a sign-in link opens.
+  const onLoginPage = pathname === "/login" || pathname.startsWith("/login/");
   // Signed out, "/" is the public front page, which has its own header and footer;
   // "/welcome" is the same page for anyone, including residents previewing it.
   const onWelcome = pathname === "/welcome";

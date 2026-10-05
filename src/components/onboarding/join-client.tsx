@@ -204,9 +204,7 @@ function IntakeForm({ token, view }: { token: string; view: WelcomeView }) {
             />
           </label>
           <label className={field}>
-            <span>
-              Mobile phone <span className={hint}>(how you&apos;ll sign in)</span>
-            </span>
+            <span>Mobile phone</span>
             <Input
               type="tel"
               inputMode="tel"
@@ -294,11 +292,8 @@ function SignInSteps({ view }: { view: WelcomeView }) {
           .
         </li>
         <li>
-          Under <strong>Phone Number</strong>, enter your mobile number — it&apos;s your password.
-          Dashes, dots, spaces, and parentheses are all fine.
-        </li>
-        <li>
-          Tap <strong>Sign In</strong>. You stay signed in on that device.
+          Tap <strong>Email me a sign-in link</strong>, then open the email and tap{" "}
+          <strong>Sign in</strong> (or type its code). You stay signed in on that device.
         </li>
       </ol>
       <p className="text-sm text-foreground-light">
@@ -307,7 +302,7 @@ function SignInSteps({ view }: { view: WelcomeView }) {
         <strong>Add to Home screen</strong> (or <strong>Install app</strong>).
       </p>
       <p className="text-sm text-foreground-light">
-        Changed your number, or can&apos;t sign in? Ask the Board Secretary.
+        Changed your email, or can&apos;t sign in? Ask the Board Secretary.
       </p>
     </Card>
   );
