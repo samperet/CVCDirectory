@@ -16,7 +16,7 @@ import {
 import { DocumentRecord, consentState, documentDate } from "@/lib/documents/types";
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
-import { notify } from "@/lib/push/notify";
+import { announceDocument } from "@/lib/documents/announce";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { visiblePages } from "@/lib/wiki/access";
 import { consentState as pageConsentState, pageStage } from "@/lib/wiki/consent";
@@ -273,22 +273,7 @@ export async function POST(request: NextRequest) {
     );
 
   const doc = result.value;
-  const circleName =
-    directory.circles.find((entry) => entry.id === doc.circleId)?.name ?? "the Board";
-  const typeName = typeLabelFor(doc, await readTypeMap());
-  const kind = doc.type === "other" ? "document" : typeName.toLowerCase();
-  await notify({
-    topic: "documents",
-    title: grant.replaces
-      ? `Updated in ${circleName}: ${doc.title}`
-      : `New ${kind} in ${circleName}: ${doc.title}`,
-    body: `${user.name} ${grant.replaces ? "uploaded a new version" : "added it"}${
-      doc.meetingDate ? ` · meeting ${doc.meetingDate}` : ""
-    }`,
-    url: `/circles/${doc.circleId}#documents`,
-    tag: `document-${doc.id}`,
-    exceptUserId: user.id,
-  });
+  await announceDocument(doc, user, directory, !!grant.replaces);
   return NextResponse.json(
     { document: toListing(doc, user, directory, await readTypeMap()) },
     { status: grant.replaces ? 200 : 201 }

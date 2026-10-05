@@ -1,7 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { File, FileImage, FileSpreadsheet, FileText, Presentation } from "lucide-react";
+import {
+  ClipboardList,
+  File,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Link2,
+  Presentation,
+} from "lucide-react";
+import type { LinkKind } from "@/lib/documents/links";
 import { apiFetch } from "@/lib/api-client";
 import {
   ACCEPTED_EXTENSIONS,
@@ -23,7 +32,31 @@ export function useCircleTypes(circleId: string) {
   });
 }
 
-export function FileIcon({ contentType, className }: { contentType: string; className?: string }) {
+/** A file's icon by its type — or, for a link, by what it links to. */
+export function FileIcon({
+  contentType,
+  link,
+  className,
+}: {
+  contentType: string;
+  link?: LinkKind;
+  className?: string;
+}) {
+  if (link) {
+    const LinkIcon =
+      link === "google-doc"
+        ? FileText
+        : link === "google-sheet"
+          ? FileSpreadsheet
+          : link === "google-slides"
+            ? Presentation
+            : link === "google-form"
+              ? ClipboardList
+              : link === "google-drive"
+                ? File
+                : Link2;
+    return <LinkIcon className={className} aria-hidden />;
+  }
   const Icon = contentType.startsWith("image/")
     ? FileImage
     : /sheet|excel|csv/.test(contentType)

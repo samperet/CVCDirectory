@@ -1,12 +1,15 @@
 import type { Actor } from "@/lib/auth/actor";
 import type { NamedPerson } from "@/lib/people";
+import type { LinkKind } from "./links";
 /**
  * Circle documents: shared by the server and the browser (no server imports).
  *
  * Documents belong to a circle (community-wide ones to the Board), are
  * visible to every signed-in resident, keep every version when replaced, and
  * are searchable by their details and — for PDFs, Word, Excel, PowerPoint,
- * and text files — by their contents.
+ * text files, and shared Google Docs, Sheets and Slides — by their contents.
+ * A document is a file or a link (see links.ts); each version is one or the
+ * other.
  */
 
 /** One of a circle's document types. Each circle edits its own list. */
@@ -63,6 +66,8 @@ export interface DocumentVersion {
   textChars: number;
   uploadedBy: Uploader;
   uploadedAt: string;
+  /** A link instead of a file: where it goes, and what it is. */
+  link?: { url: string; kind: LinkKind };
 }
 
 export interface DocumentRecord {

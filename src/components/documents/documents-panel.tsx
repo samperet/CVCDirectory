@@ -19,6 +19,7 @@ import { DocumentRow, Highlighted } from "@/components/documents/document-row";
 import { TypesEditor } from "@/components/documents/types-editor";
 import { PageListingRow } from "@/components/documents/page-row";
 import { NewMenu, WritePageDialog } from "@/components/documents/new-menu";
+import { LinkDialog } from "@/components/documents/link-dialog";
 import type { PageListing } from "@/lib/wiki/listing";
 
 type FileItem = DocumentListing & { kind: "file" };
@@ -134,6 +135,7 @@ export function DocumentsPanel({
   const [adding, setAdding] = useState(false);
   const [editingTypes, setEditingTypes] = useState(false);
   const [bulk, setBulk] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 250);
@@ -295,6 +297,7 @@ export function DocumentsPanel({
           canUpload={circleId ? canUpload : uploadCircles.length > 0}
           onWrite={() => setWriting(true)}
           onUpload={() => (circleId ? setAdding(true) : setBulk(true))}
+          onLink={() => setLinking(true)}
         />
       </div>
 
@@ -305,6 +308,13 @@ export function DocumentsPanel({
           circleId={circleId}
           preferredCircle={circle}
           onClose={() => setWriting(false)}
+        />
+      ) : null}
+      {linking ? (
+        <LinkDialog
+          circles={circleId ? [{ id: circleId, name: circleName ?? "this circle" }] : uploadCircles}
+          initialCircleId={circleId ?? (circle || undefined)}
+          onClose={() => setLinking(false)}
         />
       ) : null}
       {editingTypes && circleId ? (

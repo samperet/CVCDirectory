@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
 import { canUploadTo } from "@/lib/documents/access";
 import { identifyDocument } from "@/lib/documents/files";
+import { readGoogleDocx } from "@/lib/documents/link-fetch";
+import { classifyLink } from "@/lib/documents/links";
 import { fileKey, getDocument, isDocumentId } from "@/lib/documents/store";
 import { fileToMarkdown } from "@/lib/documents/to-markdown";
 import { currentVersion } from "@/lib/documents/types";
@@ -21,7 +23,8 @@ type Params = { params: { id: string } };
  * Turn an uploaded file into a written page: its text (a Word file's
  * headings, bold, italics, and lists too) becomes a new page with the
  * file's title, kept by the file's circle, opening with a link back to the
- * file — which stays as it is. Anyone who can start pages for that circle.
+ * file — which stays as it is. A shared Google Doc comes in the same way,
+ * through Google's Word export. Anyone who can start pages for that circle.
  */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "document-to-page");
@@ -33,20 +36,31 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!canUploadTo(context.user, context.directory, doc.circleId))
     return problem("Only the circle's members can turn its files into pages", 403);
   const version = currentVersion(doc);
-  const file = await readBinary(fileKey(doc.id, version.number));
-  if (!file) return problem("The file is missing", 404);
-  const identified = identifyDocument(file.bytes, version.fileName);
-  if (!identified) return problem("That kind of file can't be turned into a page", 422);
-  const text = await fileToMarkdown(file.bytes, identified.kind, version.fileName);
+  let text: string;
+  if (version.link) {
+    const info = classifyLink(version.link.url);
+    const bytes = info ? await readGoogleDocx(info) : null;
+    if (!bytes)
+      return problem(
+        "Only a Google Doc shared with anyone who has the link can be turned into a page",
+        422
+      );
+    text = await fileToMarkdown(bytes, "docx", `${doc.title}.docx`);
+  } else {
+    const file = await readBinary(fileKey(doc.id, version.number));
+    if (!file) return problem("The file is missing", 404);
+    const identified = identifyDocument(file.bytes, version.fileName);
+    if (!identified) return problem("That kind of file can't be turned into a page", 422);
+    text = await fileToMarkdown(file.bytes, identified.kind, version.fileName);
+  }
   if (!text.trim())
     return problem(
       "There's no text in this file to bring in (a scan or a photo, say, or an old Office format)",
       422
     );
-  const body = `*Made from the file [[doc:${doc.title}]], uploaded ${shortDate(
-    version.uploadedAt,
-    true
-  )}.*\n\n${text}`;
+  const body = `*Made from the ${version.link ? "Google Doc" : "file"} [[doc:${
+    doc.title
+  }]], added ${shortDate(version.uploadedAt, true)}.*\n\n${text}`;
   const result = await createPage(context.actor, {
     title: doc.title,
     body: body.slice(0, 50_000),

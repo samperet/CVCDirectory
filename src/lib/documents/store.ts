@@ -8,8 +8,41 @@ import { searchTerms } from "@/lib/search";
 /**
  * Documents: details for all of them in one index, the searchable text of
  * each document's current version in another, and each version's file as its
- * own object (`documents/files/<id>/v<n>`).
+ * own object (`documents/files/<id>/v<n>`) — or, for a link, nothing more.
  */
+
+/** A new version's content: a file's bytes, or a link (no bytes). */
+export interface VersionContent {
+  bytes?: Uint8Array;
+  fileName: string;
+  contentType: string;
+  viewable: boolean;
+  text: string;
+  link?: DocumentVersion["link"];
+}
+
+const versionOf = (
+  number: number,
+  content: VersionContent,
+  uploader: Uploader,
+  at: string
+): DocumentVersion => ({
+  number,
+  fileName: content.fileName,
+  size: content.bytes?.length ?? 0,
+  contentType: content.contentType,
+  viewable: content.viewable,
+  textChars: content.text.length,
+  uploadedBy: { userId: uploader.userId, personId: uploader.personId, name: uploader.name },
+  uploadedAt: at,
+  ...(content.link ? { link: content.link } : {}),
+});
+
+/** Store a version's file (links have none). */
+const storeFile = (id: string, number: number, content: VersionContent) =>
+  content.bytes
+    ? writeBinary(fileKey(id, number), { bytes: content.bytes, contentType: content.contentType })
+    : Promise.resolve();
 
 const INDEX = "documents/index.json";
 const TEXT = "documents/text.json";
@@ -118,28 +151,13 @@ async function mutate<T>(
 export async function createDocument(
   circleId: string,
   details: DocumentDetails,
-  file: {
-    bytes: Uint8Array;
-    fileName: string;
-    contentType: string;
-    viewable: boolean;
-    text: string;
-  },
+  file: VersionContent,
   uploader: Uploader
 ) {
   const id = randomUUID();
   const now = new Date().toISOString();
-  const version: DocumentVersion = {
-    number: 1,
-    fileName: file.fileName,
-    size: file.bytes.length,
-    contentType: file.contentType,
-    viewable: file.viewable,
-    textChars: file.text.length,
-    uploadedBy: { userId: uploader.userId, personId: uploader.personId, name: uploader.name },
-    uploadedAt: now,
-  };
-  await writeBinary(fileKey(id, 1), { bytes: file.bytes, contentType: file.contentType });
+  const version = versionOf(1, file, uploader, now);
+  await storeFile(id, 1, file);
   const result = await mutate<DocumentRecord>(
     (documents) => {
       if (documents.length >= MAX_DOCUMENTS) return "full";
@@ -155,26 +173,16 @@ export async function createDocument(
     },
     { id, value: file.text }
   );
-  if (!result.ok) await deleteBinary(fileKey(id, 1));
+  if (!result.ok && file.bytes) await deleteBinary(fileKey(id, 1));
   return result;
 }
 
-/** Replace a document's file with a new version, keeping the old ones. */
-export async function addVersion(
-  id: string,
-  file: {
-    bytes: Uint8Array;
-    fileName: string;
-    contentType: string;
-    viewable: boolean;
-    text: string;
-  },
-  uploader: Uploader
-) {
+/** Replace a document's file (or link) with a new version, keeping the old ones. */
+export async function addVersion(id: string, file: VersionContent, uploader: Uploader) {
   const existing = await getDocument(id);
   if (!existing) return { ok: false as const, reason: "not_found" as const };
   const number = Math.max(...existing.versions.map((version) => version.number)) + 1;
-  await writeBinary(fileKey(id, number), { bytes: file.bytes, contentType: file.contentType });
+  await storeFile(id, number, file);
   const now = new Date().toISOString();
   const result = await mutate<DocumentRecord>(
     (documents) => {
@@ -182,16 +190,7 @@ export async function addVersion(
       if (index === -1) return "not_found";
       // Another upload took this version number first: this file is taken back.
       if (documents[index].versions.some((entry) => entry.number === number)) return "conflict";
-      const version: DocumentVersion = {
-        number,
-        fileName: file.fileName,
-        size: file.bytes.length,
-        contentType: file.contentType,
-        viewable: file.viewable,
-        textChars: file.text.length,
-        uploadedBy: { userId: uploader.userId, personId: uploader.personId, name: uploader.name },
-        uploadedAt: now,
-      };
+      const version = versionOf(number, file, uploader, now);
       const next = [...documents];
       next[index] = {
         ...documents[index],
@@ -202,7 +201,7 @@ export async function addVersion(
     },
     { id, value: file.text }
   );
-  if (!result.ok) await deleteBinary(fileKey(id, number));
+  if (!result.ok && file.bytes) await deleteBinary(fileKey(id, number));
   return result;
 }
 
@@ -245,7 +244,9 @@ export async function deleteDocument(id: string) {
   );
   if (result.ok)
     await Promise.all(
-      result.value.versions.map((version) => deleteBinary(fileKey(id, version.number)))
+      result.value.versions
+        .filter((version) => !version.link)
+        .map((version) => deleteBinary(fileKey(id, version.number)))
     );
   return result;
 }

@@ -17,7 +17,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page or uploads a file; a file can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file, and who consented.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file, and who consented.
 - 🐞 **Bugs & ideas** – A ladybug in the corner of every page sends the admins a bug report or a feature request, with the page it came from.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -299,7 +299,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   their type), filtered and sorted together (`GET /api/documents?pages=1` returns them as `items`,
   each `kind` "page" or "file"; the **Type** filter can keep to **Written pages**, **All files**,
   or one type of file). The one **New** button offers **Write a page** (a title and its circle,
-  then the editor) or **Upload a file**. The **Map** button shows how pages link. `/wiki` (and
+  then the editor), **Upload a file**, or **Add a link**. The **Map** button shows how pages link. `/wiki` (and
   `/wiki?keeper=…`, `?new=…`) now lead here; pages keep their `/wiki/<slug>` addresses. A rule of
   thumb: anything people will keep improving is best written as a page; a fixed record, or anything
   from outside, uploaded as a file.
@@ -308,7 +308,18 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   title, kept by the file's circle and opening with a link back to the file, which stays as it is.
   A Word file keeps its headings, bold and italic words, and lists; other files come in paragraph by
   paragraph; the words are never changed (`POST /api/documents/<id>/page`,
-  `lib/documents/to-markdown.ts`).
+  `lib/documents/to-markdown.ts`). A shared Google Doc can be turned into a page the same way
+  (through Google's Word export).
+- **Links** – **Add a link** keeps a Google Doc, Sheet, Slides deck, Form or Drive file — or any
+  web page — with a circle's documents, titled, typed, dated and open to consent like a file
+  (`POST /api/documents/links`; each version is a file or a link, `version.link`). Google links
+  are recognised by their address (`lib/documents/links.ts`): the dialog fills in the title from
+  Google, says whether it's shared with **Anyone with the link** (and how to share it if not), and a
+  shared one's text is read through Google's export so search finds what's in it
+  (`lib/documents/link-fetch.ts` fetches only Google's fixed export addresses, built from the
+  file's id). In the list a link opens where it lives; a Google one has **Preview here** (shown in
+  the page) and its kind (**Google Doc**…); **Change the link** saves a new version, keeping the old
+  link in the history.
 - Each circle's page has a **Documents** section, listing its pages and files; documents for everyone belong to the Community circle.
   Each document shows its full title, then a line with its type, badges (Consented), circle where
   the list spans circles, date, and who uploaded the current version; Download, versions, and — for

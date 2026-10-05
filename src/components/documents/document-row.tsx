@@ -3,7 +3,20 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, BookOpen, Download, History, Pencil, Trash2, Upload } from "lucide-react";
+import {
+  BadgeCheck,
+  BookOpen,
+  Download,
+  Eye,
+  History,
+  Link2,
+  Pencil,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import { LINK_LABELS, classifyLink } from "@/lib/documents/links";
+import { LinkFacts, useLinkCheck } from "@/components/documents/link-dialog";
+import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { FileIcon, checkFile, sendFile, useCircleTypes } from "@/components/documents/upload";
@@ -17,18 +30,20 @@ import {
   formatBytes,
 } from "@/lib/documents/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ON_HOVER } from "@/components/ui/hover";
 import { useConfirm } from "@/components/ui/confirm";
-import { Select } from "@/components/ui/select";
+import { DetailsFields, type DetailsForm } from "@/components/documents/details-fields";
 import { shortDate } from "@/lib/time";
 import type { NamedPerson } from "@/lib/people";
 import { ConsentDialog, ConsentRecord, consentSummary } from "@/components/circles/consent-record";
 
-/** One document in the list: its details, versions, consent record, and what the reader may change. */
+/**
+ * One document in the list: its details, versions, consent record, and what
+ * the reader may change. A link opens where it lives; a Google one can be
+ * previewed in place, and its link changed (a new version).
+ */
 
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
   `/api/documents/${doc.id}/file?${new URLSearchParams({
@@ -77,75 +92,6 @@ export function Highlighted({ text, terms }: { text: string; terms: string[] }) 
         )
       )}
     </>
-  );
-}
-
-interface DetailsForm {
-  title: string;
-  type: string;
-  meetingDate: string;
-  description: string;
-}
-
-function DetailsFields({
-  form,
-  onChange,
-  types,
-}: {
-  form: DetailsForm;
-  onChange: (form: DetailsForm) => void;
-  /** The circle's types (plus, when editing, the document's current type if the circle has since removed it). */
-  types: DocumentTypeOption[];
-}) {
-  const set =
-    (key: keyof DetailsForm) =>
-    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-      onChange({ ...form, [key]: event.target.value });
-  return (
-    <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-        Title
-        <Input
-          value={form.title}
-          maxLength={160}
-          onChange={set("title")}
-          className="bg-white"
-          required
-        />
-      </label>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-          Type
-          <Select value={form.type} onChange={set("type")}>
-            {types.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.label}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-          Meeting date{" "}
-          <span className="text-xs font-normal text-muted">(for minutes and agendas)</span>
-          <Input
-            type="date"
-            value={form.meetingDate}
-            onChange={set("meetingDate")}
-            className="bg-white"
-          />
-        </label>
-      </div>
-      <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-        Description <span className="text-xs font-normal text-muted">(optional)</span>
-        <Textarea
-          rows={2}
-          value={form.description}
-          maxLength={1000}
-          onChange={set("description")}
-          className="bg-white"
-        />
-      </label>
-    </div>
   );
 }
 
@@ -205,6 +151,10 @@ export function DocumentRow({
     finishing: boolean;
   } | null>(null);
   const version = currentVersion(doc);
+  const link = version.link ? classifyLink(version.link.url) : null;
+  const [previewing, setPreviewing] = useState(false);
+  const [newLink, setNewLink] = useState<string | null>(null);
+  const newLinkCheck = useLinkCheck(newLink ?? "");
   const consent = consentState(doc);
   const today = new Date().toLocaleDateString("en-CA");
   const [consenting, setConsenting] = useState(false);
@@ -315,6 +265,25 @@ export function DocumentRow({
     onSettled: () => setReplacing(null),
   });
 
+  const changeLink = useMutation({
+    mutationFn: (url: string) =>
+      apiFetch("/api/documents/links", {
+        method: "POST",
+        body: JSON.stringify({ url, replaces: doc.id }),
+      }),
+    onSuccess: () => {
+      setNewLink(null);
+      toast({ title: "Link changed", description: "The earlier link is kept in the history." });
+      refresh();
+    },
+    onError: (err: Error) =>
+      toast({
+        title: "Could not change the link",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
   if (mode === "edit") {
     return (
       <li className="flex flex-col gap-3 py-4">
@@ -343,10 +312,11 @@ export function DocumentRow({
       <div className="flex items-start gap-3">
         <FileIcon
           contentType={version.contentType}
+          link={version.link?.kind}
           className="mt-0.5 h-5 w-5 shrink-0 text-primary"
         />
         <a
-          href={fileUrl(doc)}
+          href={version.link?.url ?? fileUrl(doc)}
           target={version.viewable ? "_blank" : undefined}
           rel="noopener noreferrer"
           className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
@@ -359,6 +329,11 @@ export function DocumentRow({
           <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
             {doc.typeLabel}
           </span>
+          {version.link ? (
+            <span className="whitespace-nowrap rounded-full border border-border px-2 py-0.5 font-medium">
+              {LINK_LABELS[version.link.kind]}
+            </span>
+          ) : null}
           <ConsentBadge doc={doc} />
           {showCircle ? (
             <Link
@@ -379,17 +354,35 @@ export function DocumentRow({
         <div
           className={cn(
             "ml-auto flex shrink-0 items-center",
-            mode === "view" && !replacing && !consenting && ON_HOVER
+            mode === "view" &&
+              !replacing &&
+              !consenting &&
+              !previewing &&
+              newLink === null &&
+              ON_HOVER
           )}
         >
-          <a
-            href={fileUrl(doc, undefined, true)}
-            className={action}
-            aria-label={`Download ${doc.title}`}
-            title="Download"
-          >
-            <Download className="h-4 w-4" />
-          </a>
+          {link?.previewUrl ? (
+            <button
+              type="button"
+              onClick={() => setPreviewing((open) => !open)}
+              className={cn(action, previewing && "bg-accent text-foreground")}
+              aria-label={`Preview ${doc.title}`}
+              aria-expanded={previewing}
+              title="Preview here"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          ) : version.link ? null : (
+            <a
+              href={fileUrl(doc, undefined, true)}
+              className={action}
+              aria-label={`Download ${doc.title}`}
+              title="Download"
+            >
+              <Download className="h-4 w-4" />
+            </a>
+          )}
           {doc.versions.length > 1 ? (
             <button
               type="button"
@@ -438,7 +431,9 @@ export function DocumentRow({
               </button>
             )
           ) : null}
-          {doc.canWritePage && version.textChars > 0 ? (
+          {doc.canWritePage &&
+          version.textChars > 0 &&
+          (!version.link || version.link.kind === "google-doc") ? (
             <button
               type="button"
               onClick={async () => {
@@ -447,7 +442,9 @@ export function DocumentRow({
                     title: `Turn “${doc.title}” into a page?`,
                     body: `Its text becomes a page anyone in ${
                       doc.circleName || "the circle"
-                    } can keep improving. The file stays as it is, linked from the page.`,
+                    } can keep improving. The ${
+                      version.link ? "Google Doc" : "file"
+                    } stays as it is, linked from the page.`,
                     confirmLabel: "Make the page",
                   })
                 )
@@ -491,16 +488,29 @@ export function DocumentRow({
                   else replace.mutate(file);
                 }}
               />
-              <button
-                type="button"
-                onClick={() => replaceInput.current?.click()}
-                disabled={replace.isPending}
-                className={action}
-                aria-label="Upload a new version"
-                title="Upload a new version"
-              >
-                <Upload className="h-4 w-4" />
-              </button>
+              {version.link ? (
+                <button
+                  type="button"
+                  onClick={() => setNewLink((open) => (open === null ? version.link!.url : null))}
+                  className={cn(action, newLink !== null && "bg-accent text-foreground")}
+                  aria-label="Change the link"
+                  aria-expanded={newLink !== null}
+                  title="Change the link"
+                >
+                  <Link2 className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => replaceInput.current?.click()}
+                  disabled={replace.isPending}
+                  className={action}
+                  aria-label="Upload a new version"
+                  title="Upload a new version"
+                >
+                  <Upload className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={async () => {
@@ -558,6 +568,66 @@ export function DocumentRow({
         </p>
       ) : null}
 
+      {newLink !== null ? (
+        <form
+          className="ml-8 flex flex-col gap-2 rounded-lg border border-border bg-white p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            changeLink.mutate(newLink.trim());
+          }}
+        >
+          <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+            New link
+            <Input
+              type="url"
+              value={newLink}
+              onChange={(event) => setNewLink(event.target.value)}
+              className="bg-white"
+              autoFocus
+            />
+          </label>
+          {newLinkCheck.data ? <LinkFacts check={newLinkCheck.data} /> : null}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              type="submit"
+              disabled={
+                changeLink.isPending ||
+                !classifyLink(newLink) ||
+                newLink.trim() === version.link?.url
+              }
+            >
+              {changeLink.isPending ? "Saving…" : "Save as a new version"}
+            </Button>
+            <Button size="sm" type="button" variant="outline" onClick={() => setNewLink(null)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {previewing && link?.previewUrl ? (
+        <div className="ml-8 flex flex-col gap-1">
+          <iframe
+            src={link.previewUrl}
+            title={`Preview of ${doc.title}`}
+            className="h-[70vh] max-h-[640px] w-full rounded-lg border border-border bg-white"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+            referrerPolicy="no-referrer"
+          />
+          <p className="text-xs text-muted">
+            Blank or asking you to sign in? It isn&apos;t shared with anyone who has the link —{" "}
+            <a
+              href={version.link!.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-4"
+            >
+              open it in Google
+            </a>{" "}
+            instead.
+          </p>
+        </div>
+      ) : null}
       {replacing ? (
         <div className="pl-8">
           <Progress
@@ -586,14 +656,27 @@ export function DocumentRow({
                   </span>
                 ) : null}
               </span>
-              <a
-                href={fileUrl(doc, entry.number, true)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground"
-                aria-label={`Download version ${entry.number}`}
-                title="Download"
-              >
-                <Download className="h-4 w-4" />
-              </a>
+              {entry.link ? (
+                <a
+                  href={entry.link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground"
+                  aria-label={`Open version ${entry.number}`}
+                  title="Open"
+                >
+                  <Link2 className="h-4 w-4" />
+                </a>
+              ) : (
+                <a
+                  href={fileUrl(doc, entry.number, true)}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-accent hover:text-foreground"
+                  aria-label={`Download version ${entry.number}`}
+                  title="Download"
+                >
+                  <Download className="h-4 w-4" />
+                </a>
+              )}
             </li>
           ))}
         </ol>

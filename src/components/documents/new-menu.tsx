@@ -1,26 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronDown, Plus, Upload } from "lucide-react";
+import { BookOpen, ChevronDown, Link2, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { NewPageForm } from "@/components/wiki/wiki-client";
 
 /**
  * The Documents list's one "New" button: **Write a page** (a title, then the
- * editor) or **Upload a file**. Either may be missing for someone who can't
- * do it; with neither, there's no button.
+ * editor), **Upload a file**, or **Add a link** (a Google Doc, say). Each
+ * may be missing for someone who can't do it; with none, there's no button.
  */
 export function NewMenu({
   canWrite,
   canUpload,
   onUpload,
   onWrite,
+  onLink,
 }: {
   canWrite: boolean;
+  /** Upload files and add links. */
   canUpload: boolean;
   onUpload: () => void;
   onWrite: () => void;
+  onLink: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -90,6 +93,22 @@ export function NewMenu({
                 <span className="block text-sm font-medium text-foreground">Upload a file</span>
                 <span className="block text-xs text-muted">
                   A PDF, Word file, spreadsheet, scan, or photo
+                </span>
+              </span>
+            </button>
+          ) : null}
+          {canUpload ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={choose(onLink)}
+              className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
+            >
+              <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span>
+                <span className="block text-sm font-medium text-foreground">Add a link</span>
+                <span className="block text-xs text-muted">
+                  A Google Doc, Sheet or Slides, or any web page
                 </span>
               </span>
             </button>

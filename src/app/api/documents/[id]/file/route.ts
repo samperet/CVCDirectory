@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
  * Open or download a document (`?v=` for an earlier version, `?download=1`
  * to save rather than view). Files come straight from storage through a
  * link that works for five minutes, so size is no limit; PDFs, images, and
- * text open in the browser, everything else downloads.
+ * text open in the browser, everything else downloads. A link goes to where
+ * it points.
  */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const user = await getSessionUser();
@@ -24,6 +25,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     ? doc.versions.find((entry) => entry.number === wanted)
     : currentVersion(doc);
   if (!version) return problem("That version doesn't exist", 404);
+  if (version.link)
+    return NextResponse.redirect(version.link.url, {
+      status: 302,
+      headers: { "Cache-Control": "private, no-store" },
+    });
   const inline = version.viewable && request.nextUrl.searchParams.get("download") !== "1";
   const key = fileKey(doc.id, version.number);
 
