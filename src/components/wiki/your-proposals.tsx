@@ -15,8 +15,8 @@ const SHOWN = 6;
 /**
  * On the dashboard: the pages proposed to a circle you're in, waiting for its
  * consent — your own circles' and Community's (everyone is in Community) —
- * the soonest to be decided first. Shown only when there are some; only
- * pages you can see.
+ * the soonest to be decided first: each with its circle above its title.
+ * Shown only when there are some; only pages you can see.
  */
 export function YourProposals() {
   const { user } = useSession();
@@ -48,30 +48,30 @@ export function YourProposals() {
       <SectionHeading icon={Hourglass}>Waiting for consent</SectionHeading>
       <ul className="flex flex-col divide-y divide-border">
         {proposals.slice(0, SHOWN).map((page) => (
-          <li
-            key={page.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0"
-          >
+          <li key={page.id} className="flex flex-col gap-0.5 py-2 first:pt-0 last:pb-0">
+            <span className="text-xs font-medium text-muted">
+              {names.get(page.keeper) ?? "A circle"}
+            </span>
             <Link
               href={`/wiki/${page.slug}`}
-              className="min-w-0 flex-1 font-medium text-foreground hover:underline"
+              className="break-words font-medium text-foreground hover:underline"
             >
               {page.title}
             </Link>
-            {consentState(page) === "changed" ? (
-              <span className="rounded-full bg-sun/30 px-2 py-0.5 text-xs font-semibold text-foreground">
-                Proposed change
+            {consentState(page) === "changed" || page.proposal?.decideOn ? (
+              <span className="flex flex-wrap items-center gap-2 text-xs">
+                {consentState(page) === "changed" ? (
+                  <span className="rounded-full bg-sun/30 px-2 py-0.5 font-semibold text-foreground">
+                    Proposed change
+                  </span>
+                ) : null}
+                {page.proposal?.decideOn ? (
+                  <span className="whitespace-nowrap font-medium text-foreground">
+                    to decide {shortDate(page.proposal.decideOn, true)}
+                  </span>
+                ) : null}
               </span>
             ) : null}
-            {page.proposal?.decideOn ? (
-              <span className="whitespace-nowrap text-xs font-medium text-foreground">
-                to decide {shortDate(page.proposal.decideOn, true)}
-              </span>
-            ) : null}
-            <span className="text-xs text-muted">
-              {names.get(page.keeper) ?? "A circle"}
-              {page.proposal ? ` · proposed by ${page.proposal.by.name}` : ""}
-            </span>
           </li>
         ))}
       </ul>
