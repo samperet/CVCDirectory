@@ -16,7 +16,8 @@ const R2_VARIABLES = [
  * Storage health. Performs a real read first — durability only reflects a
  * failure once an R2 operation has been attempted — then reports booleans
  * only, never configuration values. Also whether each email sender's key is
- * set (BREVO_KEY, RESEND_KEY), as a boolean.
+ * set (BREVO_KEY, RESEND_KEY), and whether receiving email is
+ * (RESEND_WEBHOOK_SECRET) — booleans.
  */
 export async function GET() {
   await readJson("health/probe.json");
@@ -34,7 +35,7 @@ export async function GET() {
     PROVIDERS.map((provider) => [provider, providerConfigured(provider)])
   );
   return NextResponse.json(
-    { storage: { configured, durable }, email },
+    { storage: { configured, durable }, email, receiving: !!process.env.RESEND_WEBHOOK_SECRET },
     { status: durable ? 200 : 503 }
   );
 }
