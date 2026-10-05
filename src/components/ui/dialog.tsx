@@ -11,11 +11,14 @@ export function Dialog({
   icon,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   icon?: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
+  /** Room for an editor, rather than a short form. */
+  wide?: boolean;
 }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -32,7 +35,9 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className="flex max-h-[90vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-card border border-border bg-surface p-5 shadow-elev"
+        className={`flex max-h-[90vh] w-full ${
+          wide ? "max-w-3xl" : "max-w-md"
+        } flex-col gap-3 overflow-y-auto rounded-card border border-border bg-surface p-5 shadow-elev`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">

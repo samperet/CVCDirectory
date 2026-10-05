@@ -446,7 +446,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   or an admin; authors edit and delete their own (admins any). The page's writers and the thread's
   participants are notified (the "wiki" notification setting). Stored page by page in
   `wiki/comments/<pageId>.json`; a page's comments go with it.
-- **A circle's page** – is built from **modules**: **Information** (as many as the circle likes),
+- **A circle's page** – is built from **modules**: **Information** and **Custom Text** (as many of
+  each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
   there is one, **Tasks**, **Forum** (see Circle email groups), **Log**, and **Documents** (each of those once). One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
@@ -460,6 +461,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   (only what changed); **Cancel** drops it all. Everyone sees the circle's page as it was saved
   (stored on the circle as `modules`). Each reader can fold any module away with the arrow by its title,
   remembered on their device.
+  - A **Custom Text module** holds the circle's own words, written in its **Settings** with the
+    wiki's visual editor (headings, quotes and callouts, bold, italic and highlights, lists and
+    checklists, links, tables, collapsible sections, dividers) under a heading of its choosing, and
+    shown formatted as on the wiki. It's saved with the page (`module.text.body`, Markdown, up to
+    20,000 characters); for anything longer, write a page and show it with an Information module.
   - An **Information module** has a title ("Information" unless given one) and **Settings**:
     which pages it shows — **Specific pages** (up to 12, searched by title, shown in the order
     chosen), **All pages of a circle** (any circle, by title), or **Recently edited** (3–12, from

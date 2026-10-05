@@ -60,6 +60,7 @@ const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   forum:
     " The circle's conversations are kept, and its email address still works; add Forum again to see them here.",
   documents: " The circle's documents are kept, and come back if you add Documents again.",
+  text: " Its words go with it.",
 };
 
 /** Members goes in the right-hand column; everything else in the main one, in order. */
@@ -322,6 +323,7 @@ export function ModuleEditor({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {module.type === "information" ||
+            module.type === "text" ||
             module.type === "tasks" ||
             module.type === "forum" ||
             module.type === "log" ? (

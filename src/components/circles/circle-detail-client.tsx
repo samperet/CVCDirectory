@@ -24,7 +24,9 @@ import {
   TasksSettings,
   LogSettings,
   ForumSettings,
+  TextSettings,
   describeForum,
+  describeText,
   describeLog,
   describeFilter,
   describeTasks,
@@ -33,6 +35,7 @@ import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { InformationModule } from "@/components/circles/information-module";
 import { ForumModule } from "@/components/groups/forum-module";
 import { LogModule } from "@/components/circles/log-module";
+import { TextModule } from "@/components/circles/text-module";
 import { TasksModule } from "@/components/tasks/task-board";
 import { type CircleModule, moduleTitle, modulesFor } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
@@ -203,6 +206,15 @@ export function CircleDetailClient({ id }: { id: string }) {
             </Card>
           ),
         };
+      case "text":
+        return {
+          title,
+          icon: icon(module),
+          detail: describeText(module),
+          content: (
+            <TextModule circleId={circle.id} module={module} title={title} canEdit={canManage} />
+          ),
+        };
       case "documents":
         return {
           title,
@@ -365,13 +377,26 @@ export function CircleDetailClient({ id }: { id: string }) {
               onClose={() => setDialog(null)}
               onAdd={(module) => {
                 setPageDraft([...editing, module]);
-                setDialog(module.type === "information" ? { kind: "settings", module } : null);
+                setDialog(
+                  module.type === "information" || module.type === "text"
+                    ? { kind: "settings", module }
+                    : null
+                );
               }}
             />
           ) : dialog?.kind === "settings" && dialog.module.type === "forum" ? (
             <ForumSettings
               module={dialog.module}
               circleId={circle.id}
+              onClose={() => setDialog(null)}
+              onSave={(module) => {
+                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setDialog(null);
+              }}
+            />
+          ) : dialog?.kind === "settings" && dialog.module.type === "text" ? (
+            <TextSettings
+              module={dialog.module}
               onClose={() => setDialog(null)}
               onSave={(module) => {
                 setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));

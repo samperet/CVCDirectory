@@ -171,7 +171,7 @@ function DetailsEditor({ mdastNode }: { mdastNode: ContainerDirective }) {
   );
 }
 
-const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
+export const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
   name: "details",
   type: "containerDirective",
   testNode: (node) => node.type === "containerDirective" && node.name === "details",
@@ -202,7 +202,7 @@ function CalloutEditor() {
   );
 }
 
-const calloutDirective: DirectiveDescriptor<ContainerDirective> = {
+export const calloutDirective: DirectiveDescriptor<ContainerDirective> = {
   name: "callout",
   type: "containerDirective",
   testNode: (node) => node.type === "containerDirective" && node.name === "callout",
@@ -245,7 +245,7 @@ function $blockMarkdown(block: LexicalNode): string {
  * block the cursor is in. A callout takes in the selected blocks' words
  * (keeping bold and italic) and sets them apart; the others are the editor's own.
  */
-function StyleSelect() {
+export function StyleSelect() {
   const convertSelectionToNode = usePublisher(convertSelectionToNode$);
   const insertMarkdown = usePublisher(insertMarkdown$);
   const current = useCellValue(currentBlockType$);
@@ -555,7 +555,7 @@ function MarkEditor({ mdastNode, lexicalNode, parentEditor }: DirectiveEditorPro
   );
 }
 
-const markDirective: DirectiveDescriptor<TextDirective> = {
+export const markDirective: DirectiveDescriptor<TextDirective> = {
   name: "mark",
   type: "textDirective",
   testNode: (node) => node.type === "textDirective" && node.name === "mark",
@@ -569,7 +569,7 @@ const markDirective: DirectiveDescriptor<TextDirective> = {
  * one paragraph) are highlighted in it. Inside a highlight, its own palette
  * (just above it) changes it instead.
  */
-function HighlightButton({ onApply }: { onApply: (markdown: string) => void }) {
+export function HighlightButton({ onApply }: { onApply: (markdown: string) => void }) {
   const active = useCellValue(activeEditor$);
   const inFocus = useCellValue(editorInFocus$);
   const { toast } = useToast();
@@ -602,7 +602,7 @@ function HighlightButton({ onApply }: { onApply: (markdown: string) => void }) {
 }
 
 /** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
-const textDirectives: DirectiveDescriptor<TextDirective> = {
+export const textDirectives: DirectiveDescriptor<TextDirective> = {
   name: ":text",
   type: "textDirective",
   testNode: (node) => node.type === "textDirective",
@@ -617,7 +617,7 @@ const textDirectives: DirectiveDescriptor<TextDirective> = {
 };
 
 /** Anything else that parses as a directive keeps its text rather than breaking the editor. */
-const otherDirectives: DirectiveDescriptor = {
+export const otherDirectives: DirectiveDescriptor = {
   name: "*",
   testNode: () => true,
   attributes: [],

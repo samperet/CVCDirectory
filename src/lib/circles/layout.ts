@@ -15,6 +15,7 @@ export const MODULE_TYPES = [
   "forum",
   "log",
   "documents",
+  "text",
 ] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
@@ -98,9 +99,9 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
 
 /**
  * A circle's page is built from modules, each a size wide. Information
- * modules show a chosen set of wiki pages (there can be several); the
- * others (members, the duty schedule, tasks, the log, documents) appear
- * once each.
+ * modules show a chosen set of wiki pages, and Custom Text modules the
+ * circle's own formatted words (there can be several of each); the others
+ * (members, the duty schedule, tasks, the log, documents) appear once each.
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
   information: "Information",
@@ -110,6 +111,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   forum: "Forum",
   log: "Log",
   documents: "Documents",
+  text: "Custom Text",
 };
 
 /** Which pages an Information module shows: chosen ones (in order), all of a circle's, a circle's proposals waiting for consent, or the most recently edited (of a circle, or the whole wiki). */
@@ -151,7 +153,13 @@ export interface CircleModule {
   log?: { post: LogPosters };
   /** A Forum module's setting: whether the circle's conversations are emailed to its members (unset: yes). */
   forum?: { email: boolean };
+  /** A Custom Text module's words, as Markdown (the wiki's formatting). */
+  text?: { body: string };
 }
+
+/** Custom Text modules (and Information ones) can appear any number of times; the others once. */
+export const REPEATABLE_MODULES: ModuleType[] = ["information", "text"];
+export const MAX_TEXT_MODULE = 20_000;
 
 export const MAX_MODULES = 20;
 

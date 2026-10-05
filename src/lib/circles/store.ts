@@ -9,6 +9,8 @@ import {
   MODULE_SIZES,
   TASK_ADDERS,
   LOG_POSTERS,
+  MAX_TEXT_MODULE,
+  REPEATABLE_MODULES,
   type CircleModule,
 } from "./layout";
 import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
@@ -70,6 +72,16 @@ const moduleSchema = z
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
     log: z.object({ post: z.enum(LOG_POSTERS) }).optional(),
     forum: z.object({ email: z.boolean() }).optional(),
+    text: z
+      .object({
+        body: z
+          .string()
+          .max(
+            MAX_TEXT_MODULE,
+            `Keep custom text to ${MAX_TEXT_MODULE.toLocaleString()} characters`
+          ),
+      })
+      .optional(),
   })
   .refine(
     (module) => (module.type === "information") === !!module.info,
@@ -87,18 +99,20 @@ const moduleSchema = z
     (module) => module.type === "forum" || !module.forum,
     "Only a Forum module says whether it's emailed"
   )
+  .refine((module) => module.type === "text" || !module.text, "Only Custom Text modules hold text")
   .transform(
-    ({ title, info, tasks, log, forum, ...module }): CircleModule => ({
+    ({ title, info, tasks, log, forum, text, ...module }): CircleModule => ({
       ...module,
       ...(title ? { title } : {}),
       ...(info ? { info } : {}),
       ...(tasks ? { tasks } : {}),
       ...(log ? { log } : {}),
       ...(forum ? { forum } : {}),
+      ...(text ? { text } : {}),
     })
   );
 
-/** The page's modules, in order: any number of Information modules, the others once each. */
+/** The page's modules, in order: any number of Information and Custom Text modules, the others once each. */
 export const modulesSchema = z
   .array(moduleSchema)
   .max(MAX_MODULES, `Up to ${MAX_MODULES} modules`)
@@ -108,7 +122,7 @@ export const modulesSchema = z
   )
   .refine((modules) => {
     const others = modules
-      .filter((module) => module.type !== "information")
+      .filter((module) => !REPEATABLE_MODULES.includes(module.type))
       .map((module) => module.type);
     return new Set(others).size === others.length;
   }, "Members, the duty schedule, tasks, the forum, the log, and documents can each appear once");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { forumQuery } from "@/components/groups/forum-module";
 import {
@@ -15,6 +16,7 @@ import {
   Plus,
   MessagesSquare,
   ScrollText,
+  Type,
   Search,
   Settings2,
   Users,
@@ -25,8 +27,10 @@ import {
   INFO_VIEWS,
   INFO_VIEW_LABELS,
   MAX_CHOSEN_PAGES,
+  MAX_TEXT_MODULE,
   MODULE_NAMES,
   RECENT_LIMITS,
+  REPEATABLE_MODULES,
   TASK_ADDERS,
   TASK_ADDER_LABELS,
   LOG_POSTERS,
@@ -58,6 +62,7 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   forum: MessagesSquare,
   log: ScrollText,
   documents: FileText,
+  text: Type,
 };
 
 const MODULE_HINTS: Record<ModuleType, string> = {
@@ -71,7 +76,19 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   log: "Short updates, with replies — a small forum of the circle's own that never notifies or emails anyone.",
   documents:
     "The circle's documents — pages written here and files uploaded — searchable, with New to add one.",
+  text: "Your own words, formatted — headings, lists, links, highlights, tables. Add as many as you like.",
 };
+
+// The visual editor is large, and needs the browser; load it only when someone edits.
+const TextModuleEditor = dynamic(
+  () => import("@/components/circles/text-module-editor").then((module) => module.TextModuleEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[16rem] animate-pulse rounded-lg border border-border bg-white" />
+    ),
+  }
+);
 
 const VIEW_ICONS: Record<InfoView, typeof List> = {
   full: FileText,
@@ -80,7 +97,7 @@ const VIEW_ICONS: Record<InfoView, typeof List> = {
 };
 
 const newId = (type: ModuleType, taken: CircleModule[]) =>
-  type !== "information" && !taken.some((module) => module.id === type)
+  !REPEATABLE_MODULES.includes(type) && !taken.some((module) => module.id === type)
     ? type
     : `${type}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -91,6 +108,81 @@ export const newInformationModule = (circle: Circle, taken: CircleModule[]): Cir
   size: "full",
   info: { filter: { kind: "circle", circleId: circle.id }, view: DEFAULT_INFO_VIEW },
 });
+
+/** A new Custom Text module, empty, full width. */
+export const newTextModule = (taken: CircleModule[]): CircleModule => ({
+  id: newId("text", taken),
+  type: "text",
+  size: "full",
+  text: { body: "" },
+});
+
+/** What a Custom Text module holds, in a few words. */
+export const describeText = (module: CircleModule) => {
+  const words = (module.text?.body ?? "").split(/\s+/).filter(Boolean).length;
+  return words ? `${words} word${words === 1 ? "" : "s"}` : "Nothing written yet";
+};
+
+/** Writing a Custom Text module: its heading and its words, with the wiki's formatting. */
+export function TextSettings({
+  module,
+  onSave,
+  onClose,
+}: {
+  module: CircleModule;
+  onSave: (module: CircleModule) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(module.title ?? "");
+  const [body, setBody] = useState(module.text?.body ?? "");
+  const tooLong = body.length > MAX_TEXT_MODULE;
+  return (
+    <Dialog
+      title="Custom Text"
+      icon={<Type className="h-5 w-5 text-primary" aria-hidden />}
+      onClose={onClose}
+      wide
+    >
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (tooLong) return;
+          onSave({ ...module, title: title.trim() || undefined, text: { body: body.trim() } });
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+          Heading
+          <Input
+            value={title}
+            maxLength={60}
+            placeholder={MODULE_NAMES.text}
+            onChange={(event) => setTitle(event.target.value)}
+            className="bg-white"
+          />
+        </label>
+        <div className="flex flex-col gap-1" data-text-editor>
+          <span className="text-sm font-medium text-foreground">Text</span>
+          <TextModuleEditor markdown={body} onChange={setBody} />
+          {tooLong ? (
+            <p className="text-xs text-destructive">
+              That&apos;s longer than {MAX_TEXT_MODULE.toLocaleString()} characters — for something
+              this long, write a page and show it with an Information module.
+            </p>
+          ) : null}
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={tooLong}>
+            Done
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
 
 /** What a Forum module does, in a few words. */
 export const describeForum = (module: CircleModule) =>
@@ -232,7 +324,7 @@ export function describeFilter(filter: InfoFilter, circleName: (id: string) => s
   } pages`;
 }
 
-/** Choosing what to add: Information any number of times; the others when they're not on the page. */
+/** Choosing what to add: Information and Custom Text any number of times; the others when they're not on the page. */
 export function AddModuleDialog({
   circle,
   modules,
@@ -247,9 +339,9 @@ export function AddModuleDialog({
   onClose: () => void;
 }) {
   const offered = (
-    ["information", "members", "schedule", "tasks", "forum", "log", "documents"] as const
+    ["information", "text", "members", "schedule", "tasks", "forum", "log", "documents"] as const
   ).filter((type) => {
-    if (type === "information") return true;
+    if (REPEATABLE_MODULES.includes(type)) return true;
     if (modules.some((module) => module.type === type)) return false;
     if (type === "members" || type === "forum") return !isCommunity(circle.id);
     if (type === "schedule") return hasSchedule;
@@ -272,11 +364,13 @@ export function AddModuleDialog({
                   onAdd(
                     type === "information"
                       ? newInformationModule(circle, modules)
-                      : {
-                          id: newId(type, modules),
-                          type,
-                          size: type === "members" ? "small" : "full",
-                        }
+                      : type === "text"
+                        ? newTextModule(modules)
+                        : {
+                            id: newId(type, modules),
+                            type,
+                            size: type === "members" ? "small" : "full",
+                          }
                   )
                 }
                 className="flex w-full items-start gap-3 rounded-lg border border-border bg-white px-3 py-2.5 text-left transition hover:border-primary hover:bg-accent/50"
