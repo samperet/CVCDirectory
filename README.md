@@ -324,7 +324,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   file's id). In the list a link opens where it lives; a Google one has **Preview here** (shown in
   the page) and its kind (**Google Doc**…); **Change the link** saves a new version, keeping the old
   link in the history.
-- Each circle's page has a **Documents** section, listing its pages and files; documents for everyone belong to the Community circle.
+- Each circle's page has a **Documents** section, listing its pages and files by icon and title only
+  (their type, dates, authors and opening lines are on the Documents page); documents for everyone
+  belong to the Community circle.
   Each document shows its full title, then a line with its type, badges (Consented), circle where
   the list spans circles, date, and who uploaded the current version; Download, versions, and — for
   its managers — Edit, New version, and Delete are icons at the end of that line that appear on

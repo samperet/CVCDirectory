@@ -12,20 +12,23 @@ import { ConsentRecord, consentSummary } from "@/components/circles/consent-reco
  * instead of a file icon and a "Page" label instead of a file type, its
  * stage (proposed or consented; drafts aren't labelled), circle, and when
  * it was last edited, then its opening lines — or, in a search, the passage
- * that matched. Its title opens the page.
+ * that matched. Its title opens the page. In a circle's Documents module
+ * (`compact`), just the book and the title.
  */
 export function PageListingRow({
   page,
   terms,
   showCircle,
+  compact = false,
 }: {
   page: PageListing;
   terms: string[];
   showCircle: boolean;
+  compact?: boolean;
 }) {
   const text = page.snippet ?? page.excerpt;
   return (
-    <li className="flex flex-col gap-1 py-4" data-listing="page">
+    <li className={compact ? "flex flex-col py-2" : "flex flex-col gap-1 py-4"} data-listing="page">
       <div className="flex items-start gap-3">
         <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
         <Link
@@ -41,71 +44,77 @@ export function PageListingRow({
           />
         ) : null}
       </div>
-      <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 pl-8 text-xs text-muted">
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-pine">Page</span>
-        {page.stage === "consented" ? (
-          <span
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-pine/10 px-2 py-0.5 font-semibold text-pine"
-            title={page.consentRecord ? consentSummary(page.consentRecord) : undefined}
-          >
-            <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented
-          </span>
-        ) : page.stage === "proposed" ? (
-          <span
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/30 px-2 py-0.5 font-semibold text-foreground"
-            title={
-              page.decideOn
-                ? `Waiting for consent · to decide ${shortDate(page.decideOn, true)}`
-                : "Waiting for consent"
-            }
-          >
-            <Hourglass className="h-3.5 w-3.5" aria-hidden />{" "}
-            {page.consent === "changed" ? "Proposed change" : "Proposed"}
-            {page.decideOn ? (
-              <span className="hidden font-normal sm:inline">
-                · {shortDate(page.decideOn, true)}
+      {compact ? null : (
+        <>
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 pl-8 text-xs text-muted">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-pine">
+              Page
+            </span>
+            {page.stage === "consented" ? (
+              <span
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-pine/10 px-2 py-0.5 font-semibold text-pine"
+                title={page.consentRecord ? consentSummary(page.consentRecord) : undefined}
+              >
+                <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented
+              </span>
+            ) : page.stage === "proposed" ? (
+              <span
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/30 px-2 py-0.5 font-semibold text-foreground"
+                title={
+                  page.decideOn
+                    ? `Waiting for consent · to decide ${shortDate(page.decideOn, true)}`
+                    : "Waiting for consent"
+                }
+              >
+                <Hourglass className="h-3.5 w-3.5" aria-hidden />{" "}
+                {page.consent === "changed" ? "Proposed change" : "Proposed"}
+                {page.decideOn ? (
+                  <span className="hidden font-normal sm:inline">
+                    · {shortDate(page.decideOn, true)}
+                  </span>
+                ) : null}
+              </span>
+            ) : page.consent === "changed" ? (
+              <span
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/15 px-2 py-0.5 font-medium text-[#7a5200]"
+                title="A draft: edited since the circle consented"
+              >
+                <span className="sm:hidden">Changed</span>
+                <span className="hidden sm:inline">Changed since consent</span>
               </span>
             ) : null}
-          </span>
-        ) : page.consent === "changed" ? (
-          <span
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/15 px-2 py-0.5 font-medium text-[#7a5200]"
-            title="A draft: edited since the circle consented"
-          >
-            <span className="sm:hidden">Changed</span>
-            <span className="hidden sm:inline">Changed since consent</span>
-          </span>
-        ) : null}
-        {showCircle ? (
-          <Link
-            href={`/circles/${page.circleId}#documents`}
-            className="font-medium hover:text-foreground hover:underline"
-          >
-            {page.circleName}
-          </Link>
-        ) : null}
-        <span className="whitespace-nowrap" title={shortDate(page.updatedAt, true)}>
-          edited {timeAgo(page.updatedAt)} by {page.updatedBy}
-        </span>
-      </p>
-      {page.consentRecord && page.consent ? (
-        <ConsentRecord
-          consent={page.consentRecord}
-          what={page.consent === "changed" ? "An earlier version was consented" : "Consented"}
-          className="pl-8"
-        />
-      ) : null}
-      {text ? (
-        <p
-          className={
-            page.snippet
-              ? "ml-8 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light"
-              : "ml-8 line-clamp-2 text-sm text-foreground-light"
-          }
-        >
-          <Highlighted text={text} terms={terms} />
-        </p>
-      ) : null}
+            {showCircle ? (
+              <Link
+                href={`/circles/${page.circleId}#documents`}
+                className="font-medium hover:text-foreground hover:underline"
+              >
+                {page.circleName}
+              </Link>
+            ) : null}
+            <span className="whitespace-nowrap" title={shortDate(page.updatedAt, true)}>
+              edited {timeAgo(page.updatedAt)} by {page.updatedBy}
+            </span>
+          </p>
+          {page.consentRecord && page.consent ? (
+            <ConsentRecord
+              consent={page.consentRecord}
+              what={page.consent === "changed" ? "An earlier version was consented" : "Consented"}
+              className="pl-8"
+            />
+          ) : null}
+          {text ? (
+            <p
+              className={
+                page.snippet
+                  ? "ml-8 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light"
+                  : "ml-8 line-clamp-2 text-sm text-foreground-light"
+              }
+            >
+              <Highlighted text={text} terms={terms} />
+            </p>
+          ) : null}
+        </>
+      )}
     </li>
   );
 }

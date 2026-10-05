@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "@/components/layout/back-link";
-import { LayoutGrid, Loader2, Pencil, Plus, X } from "lucide-react";
+import { FileText, LayoutGrid, Loader2, Pencil, Plus, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle, CircleApplication, CircleSeat, JoinPolicy } from "@/lib/circles/types";
@@ -222,7 +222,9 @@ export function CircleDetailClient({ id }: { id: string }) {
           icon: icon(module),
           content: (
             <Card className="flex flex-col gap-4">
-              <SectionHeading toggle={<ModuleToggle />}>{title}</SectionHeading>
+              <SectionHeading icon={FileText} toggle={<ModuleToggle />}>
+                {title}
+              </SectionHeading>
               <DocumentsPanel circleId={id} circleName={circle.name} canUpload={canUpload} />
             </Card>
           ),

@@ -387,6 +387,7 @@ export function DocumentsPanel({
                   page={item}
                   terms={terms}
                   showCircle={!circleId}
+                  compact={!!circleId}
                 />
               ) : (
                 <DocumentRow
@@ -394,6 +395,7 @@ export function DocumentsPanel({
                   doc={item}
                   terms={terms}
                   showCircle={!circleId}
+                  compact={!!circleId}
                 />
               )
             )}

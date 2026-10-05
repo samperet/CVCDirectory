@@ -128,10 +128,13 @@ export function DocumentRow({
   doc,
   terms,
   showCircle,
+  compact = false,
 }: {
   doc: DocumentListing;
   terms: string[];
   showCircle: boolean;
+  /** Just the icon and title (and the actions, on hover): a circle's Documents module. */
+  compact?: boolean;
 }) {
   const confirm = useConfirm();
   const router = useRouter();
@@ -306,9 +309,190 @@ export function DocumentRow({
 
   const action =
     "inline-flex h-7 min-w-[1.75rem] items-center justify-center gap-0.5 rounded-md px-1 text-muted transition hover:bg-accent hover:text-foreground disabled:opacity-50";
+  const actions = (
+    <div
+      className={cn(
+        "ml-auto flex shrink-0 items-center",
+        mode === "view" && !replacing && !consenting && !previewing && newLink === null && ON_HOVER
+      )}
+    >
+      {link?.previewUrl ? (
+        <button
+          type="button"
+          onClick={() => setPreviewing((open) => !open)}
+          className={cn(action, previewing && "bg-accent text-foreground")}
+          aria-label={`Preview ${doc.title}`}
+          aria-expanded={previewing}
+          title="Preview here"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+      ) : version.link ? null : (
+        <a
+          href={fileUrl(doc, undefined, true)}
+          className={action}
+          aria-label={`Download ${doc.title}`}
+          title="Download"
+        >
+          <Download className="h-4 w-4" />
+        </a>
+      )}
+      {doc.versions.length > 1 ? (
+        <button
+          type="button"
+          onClick={() => setMode(mode === "history" ? "view" : "history")}
+          className={cn(action, mode === "history" && "bg-accent text-foreground")}
+          aria-label={`${doc.versions.length} versions`}
+          aria-expanded={mode === "history"}
+          title={`${doc.versions.length} versions`}
+        >
+          <History className="h-4 w-4" />
+          <span className="text-xs tabular-nums">{doc.versions.length}</span>
+        </button>
+      ) : null}
+      {doc.canConsent ? (
+        consent === "consented" ? (
+          <button
+            type="button"
+            onClick={async () => {
+              if (
+                await confirm({
+                  title: `Withdraw the record that ${
+                    doc.circleName || "the circle"
+                  } consented to “${doc.title}”?`,
+                  confirmLabel: "Withdraw",
+                })
+              )
+                withdraw.mutate();
+            }}
+            disabled={withdraw.isPending}
+            className={cn(action, "text-pine")}
+            aria-label="Withdraw consent"
+            title="Withdraw consent"
+          >
+            <BadgeCheck className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConsenting((open) => !open)}
+            className={cn(action, consenting && "bg-accent text-foreground")}
+            aria-label="Mark consented"
+            aria-expanded={consenting}
+            title={consent === "changed" ? "Mark this version consented" : "Mark consented"}
+          >
+            <BadgeCheck className="h-4 w-4" />
+          </button>
+        )
+      ) : null}
+      {doc.canWritePage &&
+      version.textChars > 0 &&
+      (!version.link || version.link.kind === "google-doc") ? (
+        <button
+          type="button"
+          onClick={async () => {
+            if (
+              await confirm({
+                title: `Turn “${doc.title}” into a page?`,
+                body: `Its text becomes a page anyone in ${
+                  doc.circleName || "the circle"
+                } can keep improving. The ${
+                  version.link ? "Google Doc" : "file"
+                } stays as it is, linked from the page.`,
+                confirmLabel: "Make the page",
+              })
+            )
+              toPage.mutate();
+          }}
+          disabled={toPage.isPending}
+          className={action}
+          aria-label="Turn into a page"
+          title="Turn into a page"
+        >
+          <BookOpen className="h-4 w-4" />
+        </button>
+      ) : null}
+      {doc.canManage ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setMode("edit")}
+            className={action}
+            aria-label="Edit details"
+            title="Edit details"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <input
+            ref={replaceInput}
+            type="file"
+            accept={ACCEPTED_EXTENSIONS.join(",")}
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              const problem = checkFile(file);
+              if (problem)
+                toast({
+                  title: "Can't upload that file",
+                  description: problem,
+                  variant: "destructive",
+                });
+              else replace.mutate(file);
+            }}
+          />
+          {version.link ? (
+            <button
+              type="button"
+              onClick={() => setNewLink((open) => (open === null ? version.link!.url : null))}
+              className={cn(action, newLink !== null && "bg-accent text-foreground")}
+              aria-label="Change the link"
+              aria-expanded={newLink !== null}
+              title="Change the link"
+            >
+              <Link2 className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => replaceInput.current?.click()}
+              disabled={replace.isPending}
+              className={action}
+              aria-label="Upload a new version"
+              title="Upload a new version"
+            >
+              <Upload className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={async () => {
+              if (
+                await confirm({
+                  title: `Delete “${doc.title}” and all ${
+                    doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"
+                  }?`,
+                  destructive: true,
+                })
+              )
+                remove.mutate();
+            }}
+            disabled={remove.isPending}
+            className={cn(action, "hover:bg-destructive/10 hover:text-destructive")}
+            aria-label={`Delete ${doc.title}`}
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </>
+      ) : null}
+    </div>
+  );
   return (
-    <li className="group/post flex flex-col gap-1 py-2.5">
-      {/* The title on its own line, never cut off; its details and actions on the line below. */}
+    <li className={cn("group/post flex flex-col gap-1", compact ? "py-2" : "py-2.5")}>
+      {/* The title on its own line, never cut off; its details and actions on the line below
+          (in a circle's module, just the title, with the actions beside it). */}
       <div className="flex items-start gap-3">
         <FileIcon
           contentType={version.contentType}
@@ -323,220 +507,40 @@ export function DocumentRow({
         >
           <Highlighted text={doc.title} terms={terms} />
         </a>
+        {compact ? actions : null}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-8">
-        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-          <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
-            {doc.typeLabel}
-          </span>
-          {version.link ? (
-            <span className="whitespace-nowrap rounded-full border border-border px-2 py-0.5 font-medium">
-              {LINK_LABELS[version.link.kind]}
+      {compact ? null : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-8">
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+            <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
+              {doc.typeLabel}
             </span>
-          ) : null}
-          <ConsentBadge doc={doc} />
-          {showCircle ? (
-            <Link
-              href={`/circles/${doc.circleId}#documents`}
-              className="font-medium hover:text-foreground hover:underline"
-            >
-              {doc.circleName}
-            </Link>
-          ) : null}
-          <span className="whitespace-nowrap">
-            {doc.meetingDate
-              ? `Meeting ${shortDate(doc.meetingDate, true)}`
-              : shortDate(documentDate(doc), true)}
-          </span>
-          <span>by {version.uploadedBy.name}</span>
-        </p>
-
-        <div
-          className={cn(
-            "ml-auto flex shrink-0 items-center",
-            mode === "view" &&
-              !replacing &&
-              !consenting &&
-              !previewing &&
-              newLink === null &&
-              ON_HOVER
-          )}
-        >
-          {link?.previewUrl ? (
-            <button
-              type="button"
-              onClick={() => setPreviewing((open) => !open)}
-              className={cn(action, previewing && "bg-accent text-foreground")}
-              aria-label={`Preview ${doc.title}`}
-              aria-expanded={previewing}
-              title="Preview here"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-          ) : version.link ? null : (
-            <a
-              href={fileUrl(doc, undefined, true)}
-              className={action}
-              aria-label={`Download ${doc.title}`}
-              title="Download"
-            >
-              <Download className="h-4 w-4" />
-            </a>
-          )}
-          {doc.versions.length > 1 ? (
-            <button
-              type="button"
-              onClick={() => setMode(mode === "history" ? "view" : "history")}
-              className={cn(action, mode === "history" && "bg-accent text-foreground")}
-              aria-label={`${doc.versions.length} versions`}
-              aria-expanded={mode === "history"}
-              title={`${doc.versions.length} versions`}
-            >
-              <History className="h-4 w-4" />
-              <span className="text-xs tabular-nums">{doc.versions.length}</span>
-            </button>
-          ) : null}
-          {doc.canConsent ? (
-            consent === "consented" ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: `Withdraw the record that ${
-                        doc.circleName || "the circle"
-                      } consented to “${doc.title}”?`,
-                      confirmLabel: "Withdraw",
-                    })
-                  )
-                    withdraw.mutate();
-                }}
-                disabled={withdraw.isPending}
-                className={cn(action, "text-pine")}
-                aria-label="Withdraw consent"
-                title="Withdraw consent"
+            {version.link ? (
+              <span className="whitespace-nowrap rounded-full border border-border px-2 py-0.5 font-medium">
+                {LINK_LABELS[version.link.kind]}
+              </span>
+            ) : null}
+            <ConsentBadge doc={doc} />
+            {showCircle ? (
+              <Link
+                href={`/circles/${doc.circleId}#documents`}
+                className="font-medium hover:text-foreground hover:underline"
               >
-                <BadgeCheck className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConsenting((open) => !open)}
-                className={cn(action, consenting && "bg-accent text-foreground")}
-                aria-label="Mark consented"
-                aria-expanded={consenting}
-                title={consent === "changed" ? "Mark this version consented" : "Mark consented"}
-              >
-                <BadgeCheck className="h-4 w-4" />
-              </button>
-            )
-          ) : null}
-          {doc.canWritePage &&
-          version.textChars > 0 &&
-          (!version.link || version.link.kind === "google-doc") ? (
-            <button
-              type="button"
-              onClick={async () => {
-                if (
-                  await confirm({
-                    title: `Turn “${doc.title}” into a page?`,
-                    body: `Its text becomes a page anyone in ${
-                      doc.circleName || "the circle"
-                    } can keep improving. The ${
-                      version.link ? "Google Doc" : "file"
-                    } stays as it is, linked from the page.`,
-                    confirmLabel: "Make the page",
-                  })
-                )
-                  toPage.mutate();
-              }}
-              disabled={toPage.isPending}
-              className={action}
-              aria-label="Turn into a page"
-              title="Turn into a page"
-            >
-              <BookOpen className="h-4 w-4" />
-            </button>
-          ) : null}
-          {doc.canManage ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setMode("edit")}
-                className={action}
-                aria-label="Edit details"
-                title="Edit details"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
-              <input
-                ref={replaceInput}
-                type="file"
-                accept={ACCEPTED_EXTENSIONS.join(",")}
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (!file) return;
-                  const problem = checkFile(file);
-                  if (problem)
-                    toast({
-                      title: "Can't upload that file",
-                      description: problem,
-                      variant: "destructive",
-                    });
-                  else replace.mutate(file);
-                }}
-              />
-              {version.link ? (
-                <button
-                  type="button"
-                  onClick={() => setNewLink((open) => (open === null ? version.link!.url : null))}
-                  className={cn(action, newLink !== null && "bg-accent text-foreground")}
-                  aria-label="Change the link"
-                  aria-expanded={newLink !== null}
-                  title="Change the link"
-                >
-                  <Link2 className="h-4 w-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => replaceInput.current?.click()}
-                  disabled={replace.isPending}
-                  className={action}
-                  aria-label="Upload a new version"
-                  title="Upload a new version"
-                >
-                  <Upload className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: `Delete “${doc.title}” and all ${
-                        doc.versions.length > 1 ? `${doc.versions.length} versions` : "of it"
-                      }?`,
-                      destructive: true,
-                    })
-                  )
-                    remove.mutate();
-                }}
-                disabled={remove.isPending}
-                className={cn(action, "hover:bg-destructive/10 hover:text-destructive")}
-                aria-label={`Delete ${doc.title}`}
-                title="Delete"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </>
-          ) : null}
+                {doc.circleName}
+              </Link>
+            ) : null}
+            <span className="whitespace-nowrap">
+              {doc.meetingDate
+                ? `Meeting ${shortDate(doc.meetingDate, true)}`
+                : shortDate(documentDate(doc), true)}
+            </span>
+            <span>by {version.uploadedBy.name}</span>
+          </p>
+          {actions}
         </div>
-      </div>
+      )}
 
-      {doc.consent ? (
+      {doc.consent && !compact ? (
         <ConsentRecord
           consent={doc.consent}
           what={consent === "changed" ? `Version ${doc.consent.version} consented` : "Consented"}
@@ -557,12 +561,12 @@ export function DocumentRow({
           onClose={() => setConsenting(false)}
         />
       ) : null}
-      {doc.description ? (
+      {doc.description && !compact ? (
         <p className="truncate pl-8 text-sm text-foreground-light" title={doc.description}>
           <Highlighted text={doc.description} terms={terms} />
         </p>
       ) : null}
-      {doc.snippet ? (
+      {doc.snippet && !compact ? (
         <p className="ml-8 rounded-md bg-accent/60 px-2 py-1 text-sm text-foreground-light">
           <Highlighted text={doc.snippet} terms={terms} />
         </p>
