@@ -1,6 +1,7 @@
 import { readDirectory } from "@/lib/directory/store";
 import { emailConfigured, mailDomain, sendEmails } from "@/lib/email/deliver";
 import { logEmail, readEmailSettings } from "@/lib/email/settings";
+import { errorsOf } from "@/lib/email/send";
 import { readCircleIcons } from "@/lib/circles/icons";
 import { siteUrl } from "@/lib/site-url";
 import type { Circle } from "@/lib/circles/types";
@@ -111,6 +112,7 @@ export async function emailGroupPost({
       failed: result.failed,
       overQuota: later.length,
       by: result.by,
+      ...errorsOf(result),
       testMode: settings.testMode,
       ...(settings.testMode ? { to: eligible.map((recipient) => recipient.email) } : {}),
     });

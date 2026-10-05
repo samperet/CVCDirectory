@@ -68,7 +68,12 @@ describe("sending with a backup", () => {
       vi.fn(async (url: string, init: RequestInit) => {
         if (url.includes("brevo")) {
           calls.push(`brevo:${JSON.parse(String(init.body)).to[0].email}`);
-          return new Response("{}", { status: brevoStatus });
+          return new Response(
+            brevoStatus === 201
+              ? "{}"
+              : JSON.stringify({ code: "unauthorized", message: "Key not found" }),
+            { status: brevoStatus }
+          );
         }
         const body = JSON.parse(String(init.body)) as { to: string[] }[];
         calls.push(`resend:${body.map((entry) => entry.to[0]).join(",")}`);
@@ -102,6 +107,8 @@ describe("sending with a backup", () => {
     const first = await sendEmails([message("a@example.org")], "groups");
     expect(first.by).toEqual({ resend: 1 });
     expect(first.failed).toBe(0);
+    // Why Brevo refused is kept, for the admin's log.
+    expect(first.errors).toEqual({ brevo: "401 unauthorized Key not found" });
     // Brevo's allowance wasn't used up by the failures: it's tried again next time.
     brevoStatus = 201;
     const second = await sendEmails(

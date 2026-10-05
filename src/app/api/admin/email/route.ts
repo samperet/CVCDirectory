@@ -92,10 +92,16 @@ export async function POST(request: NextRequest) {
   const settings = await readEmailSettings();
   if (!settings.allowed.includes(parsed.data.to))
     return problem("Add that address to the allowed list first");
-  const worked = await sendTestEmail(parsed.data.to, ctx.user.name);
-  if (!worked.length) return problem("The email couldn't be sent; see the log", 502);
+  const { worked, errors } = await sendTestEmail(parsed.data.to, ctx.user.name);
+  const why = Object.entries(errors)
+    .map(
+      ([provider, error]) => `${PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES]}: ${error}`
+    )
+    .join(" · ");
+  if (!worked.length) return problem(`The email couldn't be sent${why ? ` — ${why}` : ""}`, 502);
   return NextResponse.json({
     ...(await state()),
     sentThrough: worked.map((provider) => PROVIDER_NAMES[provider]),
+    ...(why ? { refused: why } : {}),
   });
 }

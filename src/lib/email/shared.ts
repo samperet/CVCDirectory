@@ -74,6 +74,8 @@ export interface EmailLogEntry {
   overQuota?: number;
   /** How many each provider took. */
   by?: Partial<Record<keyof typeof PROVIDER_NAMES, number>>;
+  /** Why a provider refused (its status, code and message), when one did. */
+  errors?: Partial<Record<keyof typeof PROVIDER_NAMES, string>>;
   testMode: boolean;
   /** Who it went to — only kept for test sends, which go to the allow-list. */
   to?: string[];

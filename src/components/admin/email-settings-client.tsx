@@ -84,7 +84,7 @@ export function EmailSettingsClient() {
   });
   const test = useMutation({
     mutationFn: (to: string) =>
-      apiFetch<EmailState & { sentThrough: string[] }>("/api/admin/email", {
+      apiFetch<EmailState & { sentThrough: string[]; refused?: string }>("/api/admin/email", {
         method: "POST",
         body: JSON.stringify({ to }),
       }),
@@ -328,6 +328,15 @@ export function EmailSettingsClient() {
                   ) : null}
                   {entry.to?.length ? ` · to ${entry.to.join(", ")}` : ""}
                 </p>
+                {entry.errors
+                  ? providers
+                      .filter((provider) => entry.errors?.[provider])
+                      .map((provider) => (
+                        <p key={provider} className="text-xs text-destructive" data-refusal>
+                          {PROVIDER_NAMES[provider]} refused: {entry.errors![provider]}
+                        </p>
+                      ))
+                  : null}
               </li>
             ))}
           </ul>

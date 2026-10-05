@@ -669,6 +669,13 @@ names it had before a rename). It works like a Google Group, built into the app 
   the daily cron, `/api/cron/daily` with `CRON_SECRET`). The admin page shows each sender's use
   today and this month, which sender took each sending, what's waiting, and the received-email log. The admin's **test mode** applies to
   circle email too.
+- **When a sender refuses**, its status, error code and message are kept with the sending in the
+  admin **Recent sends** log (and the server log), and a failed sign-in email shows the status
+  codes, e.g. `(brevo 401, resend 403)`. Common causes: Brevo **401** — the key is an SMTP key
+  rather than an **API key** (`xkeysib-…`), or Brevo's **Authorised IPs** blocks Vercel's changing
+  addresses (Security → Authorised IPs → turn the blocking off); Brevo **400** — the sender
+  (`notifications@commonpasturesvt.org`) or its domain isn't verified there; Resend **403** — the
+  domain isn't verified, or the key can't send.
 - **Unsubscribe links** ask first (GET shows a button; POST — the button or a mail app's one-click
   — acts), so link scanners can't unsubscribe anyone. "Stop all emails" also sets every circle to
   web only.

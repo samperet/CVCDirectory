@@ -7,10 +7,20 @@ import { PROVIDERS, type Provider } from "./quota";
 import { logEmail, readEmailSettings } from "./settings";
 import { chooseRecipients, PROVIDER_NAMES } from "./shared";
 import { unsubscribeToken } from "./unsubscribe";
-import { emailConfigured, providerConfigured, sendEmails, type Outgoing } from "./deliver";
+import {
+  emailConfigured,
+  providerConfigured,
+  sendEmails,
+  type Outgoing,
+  type Sending,
+} from "./deliver";
 import { button, emailLayout, footerLink, paragraphs } from "./templates/layout";
 
 export { emailConfigured, escapeHtml, fromAddress, type Outgoing } from "./deliver";
+
+/** A sending's refusals, for the log (left out when there were none). */
+export const errorsOf = (result: Pick<Sending, "errors">) =>
+  Object.keys(result.errors).length ? { errors: result.errors } : {};
 
 /**
  * Notification emails: every notification is also emailed to the residents
@@ -121,6 +131,7 @@ export async function emailNotification(message: {
       failed: result.failed,
       overQuota: result.overQuota.length,
       by: result.by,
+      ...errorsOf(result),
       testMode: settings.testMode,
       ...(settings.testMode ? { to: sending.map((recipient) => recipient.email) } : {}),
     });
@@ -139,9 +150,9 @@ export async function emailNotification(message: {
 export async function sendDirectEmail(
   kind: "welcome" | "sign-in",
   message: Outgoing
-): Promise<boolean> {
+): Promise<{ sent: boolean; errors: Sending["errors"] }> {
   try {
-    if (!emailConfigured()) return false;
+    if (!emailConfigured()) return { sent: false, errors: {} };
     const result = await sendEmails([message], "groups");
     await logEmail({
       at: new Date().toISOString(),
@@ -152,12 +163,13 @@ export async function sendDirectEmail(
       failed: result.failed,
       overQuota: result.overQuota.length,
       by: result.by,
+      ...errorsOf(result),
       testMode: false,
     });
-    return result.sent > 0;
+    return { sent: result.sent > 0, errors: result.errors };
   } catch (error) {
     console.error("[email] direct email failed", error instanceof Error ? error.name : "error");
-    return false;
+    return { sent: false, errors: {} };
   }
 }
 
@@ -166,9 +178,13 @@ export async function sendDirectEmail(
  * settings — one through each provider that's set up, so each can be seen to
  * work. Which providers took theirs.
  */
-export async function sendTestEmail(to: string, by: string): Promise<Provider[]> {
+export async function sendTestEmail(
+  to: string,
+  by: string
+): Promise<{ worked: Provider[]; errors: Sending["errors"] }> {
   const site = siteUrl();
   const worked: Provider[] = [];
+  const errors: Sending["errors"] = {};
   for (const provider of PROVIDERS.filter(providerConfigured)) {
     const name = PROVIDER_NAMES[provider];
     const result = await sendEmails(
@@ -192,6 +208,7 @@ export async function sendTestEmail(to: string, by: string): Promise<Provider[]>
       provider
     );
     if (result.sent) worked.push(provider);
+    Object.assign(errors, result.errors);
     await logEmail({
       at: new Date().toISOString(),
       topic: "test",
@@ -201,9 +218,10 @@ export async function sendTestEmail(to: string, by: string): Promise<Provider[]>
       failed: result.failed,
       overQuota: result.overQuota.length,
       by: result.by,
+      ...errorsOf(result),
       testMode: true,
       to: [to],
     });
   }
-  return worked;
+  return { worked, errors };
 }

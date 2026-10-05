@@ -59,7 +59,7 @@ export function sendInvitationEmail({
         paragraph(signOff),
       ].join("")
     ),
-  });
+  }).then((result) => result.sent);
 }
 
 /** They're in the directory: how to sign in (by name, with a link emailed to them). */
@@ -74,5 +74,5 @@ export function sendSignInReadyEmail({ to, name }: { to: string; name: string })
     subject: "You can sign in to Common Pastures",
     text: [hello, "", ready, "", login].join("\n"),
     html: page([paragraph(hello), paragraph(ready), button("Sign in", login)].join("")),
-  });
+  }).then((result) => result.sent);
 }

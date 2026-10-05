@@ -30,7 +30,18 @@ export async function POST(request: NextRequest) {
       429,
       "Too Many Requests"
     );
-  if (!(await sendSignInEmail(person, email, link.token, link.code)))
-    return problem("We couldn't send the email just now. Please try again in a few minutes.", 503);
+  const sending = await sendSignInEmail(person, email, link.token, link.code);
+  if (!sending.sent) {
+    // Which senders refused, by status only (the admin's email log has their reasons).
+    const codes = Object.entries(sending.errors)
+      .map(([provider, error]) => `${provider} ${error?.split(" ")[0]}`)
+      .join(", ");
+    return problem(
+      `We couldn't send the email just now. Please try again in a few minutes.${
+        codes ? ` (${codes})` : ""
+      }`,
+      503
+    );
+  }
   return NextResponse.json({ sentTo: maskEmail(email) });
 }

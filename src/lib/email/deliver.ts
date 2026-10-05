@@ -104,9 +104,36 @@ async function post(url: string, headers: Record<string, string>, body: unknown)
 
 const errorName = (error: unknown) => (error instanceof Error ? error.name : "error");
 
+/**
+ * Why a provider refused, in a line: its status, and the error code and
+ * message it gave (never our request, so never a key or an address).
+ */
+export async function refusal(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => null)) as {
+    code?: unknown;
+    name?: unknown;
+    message?: unknown;
+  } | null;
+  const code =
+    typeof body?.code === "string" ? body.code : typeof body?.name === "string" ? body.name : "";
+  const message = typeof body?.message === "string" ? body.message : "";
+  return [String(response.status), code, message].filter(Boolean).join(" ").slice(0, 300);
+}
+
+/** What one provider did with its share: which (by index) it didn't take, and why. */
+interface Attempt {
+  failed: number[];
+  error?: string;
+}
+
 /** Which of `messages` (by index) Resend didn't take. */
-async function viaResend(messages: Outgoing[], key: string, idempotencyKey?: string) {
+async function viaResend(
+  messages: Outgoing[],
+  key: string,
+  idempotencyKey?: string
+): Promise<Attempt> {
   const failed: number[] = [];
+  let error: string | undefined;
   const auth = { Authorization: `Bearer ${key}` };
   for (let start = 0; start < messages.length; start += BATCH) {
     const batch = messages.slice(start, start + BATCH);
@@ -124,24 +151,29 @@ async function viaResend(messages: Outgoing[], key: string, idempotencyKey?: str
         // One bad address can refuse the whole batch: send each on its own.
         for (const index of indexes) {
           const one = await post(RESEND_ONE, auth, toResend(messages[index])).catch(() => null);
-          if (!one?.ok) failed.push(index);
+          if (one?.ok) continue;
+          failed.push(index);
+          error ??= one ? await refusal(one) : "no answer";
         }
         continue;
       }
       failed.push(...indexes);
-      console.error("[email] Resend refused a batch", response.status, batch.length);
-    } catch (error) {
+      error ??= await refusal(response);
+      console.error("[email] Resend refused a batch", batch.length, error);
+    } catch (thrown) {
       failed.push(...indexes);
-      console.error("[email] Resend sending failed", errorName(error));
+      error ??= `no answer (${errorName(thrown)})`;
+      console.error("[email] Resend sending failed", errorName(thrown));
     }
   }
-  return failed;
+  return { failed, error };
 }
 
 /** Which of `messages` (by index) Brevo didn't take. */
-async function viaBrevo(messages: Outgoing[], key: string) {
+async function viaBrevo(messages: Outgoing[], key: string): Promise<Attempt> {
   const failed: number[] = [];
   let refused = false;
+  let error: string | undefined;
   for (let start = 0; start < messages.length; start += BREVO_AT_ONCE) {
     const indexes = messages.slice(start, start + BREVO_AT_ONCE).map((_, offset) => start + offset);
     if (refused) {
@@ -156,20 +188,24 @@ async function viaBrevo(messages: Outgoing[], key: string) {
           failed.push(index);
           // The key, the account or its credits: no use trying the rest.
           if ([401, 402, 403].includes(response.status)) refused = true;
-          console.error("[email] Brevo refused an email", response.status);
-        } catch (error) {
+          const why = await refusal(response);
+          error ??= why;
+          console.error("[email] Brevo refused an email", why);
+        } catch (thrown) {
           failed.push(index);
-          console.error("[email] Brevo sending failed", errorName(error));
+          error ??= `no answer (${errorName(thrown)})`;
+          console.error("[email] Brevo sending failed", errorName(thrown));
         }
       })
     );
   }
-  return failed.sort((a, b) => a - b);
+  return { failed: failed.sort((a, b) => a - b), error };
 }
 
-async function viaSink(sink: string, provider: Provider, messages: Outgoing[]) {
+async function viaSink(sink: string, provider: Provider, messages: Outgoing[]): Promise<Attempt> {
   const failing = (process.env.EMAIL_TEST_FAIL ?? "").split(",").map((entry) => entry.trim());
-  if (failing.includes(provider)) return messages.map((_, index) => index);
+  if (failing.includes(provider))
+    return { failed: messages.map((_, index) => index), error: "401 unauthorized (test)" };
   const earlier = JSON.parse(await fs.readFile(sink, "utf8").catch(() => "[]")) as unknown[];
   const at = new Date().toISOString();
   await fs.mkdir(path.dirname(sink), { recursive: true });
@@ -189,10 +225,10 @@ async function viaSink(sink: string, provider: Provider, messages: Outgoing[]) {
       1
     )
   );
-  return [];
+  return { failed: [] };
 }
 
-function via(provider: Provider, messages: Outgoing[], idempotencyKey?: string) {
+function via(provider: Provider, messages: Outgoing[], idempotencyKey?: string): Promise<Attempt> {
   const sink = sinkPath();
   if (sink) return viaSink(sink, provider, messages);
   const key = KEYS[provider]()!;
@@ -209,6 +245,8 @@ export interface Sending {
   overQuota: number[];
   /** How many each provider took. */
   by: Partial<Record<Provider, number>>;
+  /** Why a provider refused (its first refusal), when one did. */
+  errors: Partial<Record<Provider, string>>;
 }
 
 /**
@@ -223,7 +261,7 @@ export async function sendEmails(
   idempotencyKey?: string,
   only?: Provider
 ): Promise<Sending> {
-  const result: Sending = { sent: 0, failed: 0, overQuota: [], by: {} };
+  const result: Sending = { sent: 0, failed: 0, overQuota: [], by: {}, errors: {} };
   let waiting = messages.map((_, index) => index);
   const tried = new Set<number>();
   for (const provider of PROVIDERS.filter(
@@ -234,11 +272,12 @@ export async function sendEmails(
       const granted = await reserveQuota(provider, waiting.length, use);
       const now = waiting.slice(0, granted);
       if (!now.length) continue;
-      const failed = await via(
+      const { failed, error } = await via(
         provider,
         now.map((index) => messages[index]),
         idempotencyKey
       );
+      if (error) result.errors[provider] = error;
       await releaseQuota(provider, failed.length);
       now.forEach((index) => tried.add(index));
       const taken = now.length - failed.length;
@@ -246,6 +285,7 @@ export async function sendEmails(
       result.sent += taken;
       waiting = [...failed.map((offset) => now[offset]), ...waiting.slice(granted)];
     } catch (error) {
+      result.errors[provider] = `couldn't send (${errorName(error)})`;
       console.error("[email] sending through a provider failed", provider, errorName(error));
     }
   }

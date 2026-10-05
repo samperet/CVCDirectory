@@ -33,7 +33,7 @@ export async function findSignInPerson(personId: string) {
   return directory.people.find((person) => person.id === personId) ?? null;
 }
 
-/** Email someone their link and code. Whether it went. */
+/** Email someone their link and code: whether it went, and why each sender refused if not. */
 export function sendSignInEmail(
   person: { displayName: string },
   to: string,
