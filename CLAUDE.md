@@ -44,7 +44,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/text.ts` | `sentence`, `initials`, `listNames`, `likedByLabel` |
 | `src/lib/circles/ids.ts` | `COMMUNITY_ID`, `BOARD_ID`, `isCommunity`, `sitsOnBoard` (importable anywhere) |
 | `src/lib/time.ts` | `TIME_ZONE` (Vermont), `todayInVermont`, `timeAgo` |
-| `src/lib/email/` | Sending (`deliver.ts`, Resend), the free-plan quota, the shared email layout, notification emails, test mode |
+| `src/lib/email/` | Sending (`deliver.ts`: Brevo, then Resend as backup), the free-plan quotas, the shared email layout, notification emails, test mode |
 | `src/lib/groups/` | Circle email groups: conversations, addresses, inbound mail, fan-out, polls with one-click links, the morning summary |
 
 ## Conventions that matter

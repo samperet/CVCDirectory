@@ -1,6 +1,5 @@
 import { readDirectory } from "@/lib/directory/store";
-import { deliver, emailConfigured, mailDomain } from "@/lib/email/deliver";
-import { reserveQuota, releaseQuota } from "@/lib/email/quota";
+import { emailConfigured, mailDomain, sendEmails } from "@/lib/email/deliver";
 import { logEmail, readEmailSettings } from "@/lib/email/settings";
 import { readCircleIcons } from "@/lib/circles/icons";
 import { siteUrl } from "@/lib/site-url";
@@ -70,15 +69,12 @@ export async function emailGroupPost({
     const allowed = new Set(settings.allowed);
     const eligible = settings.testMode ? to.filter((entry) => allowed.has(entry.email)) : to;
     const skipped = to.length - eligible.length;
-    const granted = await reserveQuota(eligible.length, "groups");
-    const now = eligible.slice(0, granted);
-    const later = eligible.slice(granted);
     const site = siteUrl();
     const domain = mailDomain();
     const composeFor = await composeCircle(circle);
     const memberCount = new Set(memberIds.filter(Boolean)).size;
-    const result = await deliver(
-      now.map((recipient) =>
+    const result = await sendEmails(
+      eligible.map((recipient) =>
         composeGroupEmail({
           site,
           domain,
@@ -92,9 +88,10 @@ export async function emailGroupPost({
           testMode: settings.testMode,
         })
       ),
+      "groups",
       `group/${post.id}`
     );
-    await releaseQuota(result.failed);
+    const later = result.overQuota.map((index) => eligible[index]);
     if (later.length)
       await queueForSummary(
         later.map((recipient) => ({
@@ -113,8 +110,9 @@ export async function emailGroupPost({
       skipped,
       failed: result.failed,
       overQuota: later.length,
+      by: result.by,
       testMode: settings.testMode,
-      ...(settings.testMode ? { to: now.map((recipient) => recipient.email) } : {}),
+      ...(settings.testMode ? { to: eligible.map((recipient) => recipient.email) } : {}),
     });
     return { sent: result.sent, skipped, webOnly, overQuota: later.length };
   } catch (error) {

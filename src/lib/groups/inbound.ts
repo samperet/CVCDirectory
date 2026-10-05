@@ -3,7 +3,7 @@ import { readDirectory } from "@/lib/directory/store";
 import { listUsers } from "@/lib/auth/users";
 import { canManageCircle } from "@/lib/circles/icons";
 import { isCommunity } from "@/lib/circles/ids";
-import { deliver, mailDomain } from "@/lib/email/deliver";
+import { mailDomain, sendEmails } from "@/lib/email/deliver";
 import { reserveQuota } from "@/lib/email/quota";
 import { logEmail, readEmailSettings } from "@/lib/email/settings";
 import { fetchReceived, type ReceivedEmail } from "@/lib/email/received";
@@ -174,26 +174,29 @@ export async function publish(
 
 /** Ask a member, at their directory address, whether they sent a message we couldn't verify. */
 async function askToConfirm(circle: Circle, held: HeldMessage, email: string) {
-  if ((await reserveQuota(1, "groups")) < 1) return;
   const settings = await readEmailSettings();
   if (settings.testMode && !settings.allowed.includes(email)) return;
   const link = `${siteUrl()}/email/confirm/${confirmToken(circle.id, held.id)}`;
-  const result = await deliver([
-    {
-      to: email,
-      subject: `${settings.testMode ? "[Test] " : ""}Did you send this to ${circle.name}?`,
-      text: `We got a message from your address for ${circle.name}, but couldn't check that it really came from you.\n\n"${held.subject}"\n\nIf you sent it, post it here: ${link}\nIf you didn't, ignore this email and it will be dropped.`,
-      html: emailLayout({
-        preheader: `Did you send "${held.subject}" to ${circle.name}?`,
-        test: settings.testMode,
-        body: `${paragraphs(
-          `We got a message from your address for ${circle.name}, but couldn't check that it really came from you.\n\n"${held.subject}"\n\nIf you sent it, post it with the button below. If you didn't, just ignore this email and it will be dropped.`
-        )}${button(link, "Yes, I sent it — post it")}`,
-        footer:
-          "Sent because a message to your circle couldn't be verified. Nobody else got this email.",
-      }),
-    },
-  ]);
+  const result = await sendEmails(
+    [
+      {
+        to: email,
+        subject: `${settings.testMode ? "[Test] " : ""}Did you send this to ${circle.name}?`,
+        text: `We got a message from your address for ${circle.name}, but couldn't check that it really came from you.\n\n"${held.subject}"\n\nIf you sent it, post it here: ${link}\nIf you didn't, ignore this email and it will be dropped.`,
+        html: emailLayout({
+          preheader: `Did you send "${held.subject}" to ${circle.name}?`,
+          test: settings.testMode,
+          body: `${paragraphs(
+            `We got a message from your address for ${circle.name}, but couldn't check that it really came from you.\n\n"${held.subject}"\n\nIf you sent it, post it with the button below. If you didn't, just ignore this email and it will be dropped.`
+          )}${button(link, "Yes, I sent it — post it")}`,
+          footer:
+            "Sent because a message to your circle couldn't be verified. Nobody else got this email.",
+        }),
+      },
+    ],
+    "groups",
+    `confirm/${held.id}`
+  );
   await logEmail({
     at: new Date().toISOString(),
     topic: "confirm",
@@ -214,7 +217,8 @@ export async function handleInbound(emailId: string): Promise<string> {
     if (done?.outcome) return done.outcome;
     const email = await fetchReceived(emailId);
     if (!email) return "not fetched";
-    await reserveQuota(1, "inbound");
+    // Received mail counts against Resend's allowance (it receives it).
+    await reserveQuota("resend", 1, "inbound");
     const outcome = await route(email);
     await mutateJson(recordKey(emailId), () => ({
       value: { at: new Date().toISOString(), outcome },

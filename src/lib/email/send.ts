@@ -3,11 +3,11 @@ import { readDirectory } from "@/lib/directory/store";
 import { TOPICS, type Topic } from "@/lib/push/topics";
 import { siteUrl } from "@/lib/site-url";
 import { allEmailPreferences } from "./preferences";
-import { reserveQuota, releaseQuota } from "./quota";
+import { PROVIDERS, type Provider } from "./quota";
 import { logEmail, readEmailSettings } from "./settings";
-import { chooseRecipients } from "./shared";
+import { chooseRecipients, PROVIDER_NAMES } from "./shared";
 import { unsubscribeToken } from "./unsubscribe";
-import { deliver, emailConfigured, type Outgoing } from "./deliver";
+import { emailConfigured, providerConfigured, sendEmails, type Outgoing } from "./deliver";
 import { button, emailLayout, footerLink, paragraphs } from "./templates/layout";
 
 export { emailConfigured, escapeHtml, fromAddress, type Outgoing } from "./deliver";
@@ -106,12 +106,12 @@ export async function emailNotification(message: {
       settings,
     });
     if (!to.length && !skipped) return;
-    const granted = await reserveQuota(to.length, "notifications");
-    const sending = to.slice(0, granted);
-    const result = await deliver(
-      sending.map((recipient) => compose(message, recipient, settings.testMode))
+    const result = await sendEmails(
+      to.map((recipient) => compose(message, recipient, settings.testMode)),
+      "notifications"
     );
-    await releaseQuota(result.failed);
+    const over = new Set(result.overQuota);
+    const sending = to.filter((_, index) => !over.has(index));
     await logEmail({
       at: new Date().toISOString(),
       topic: message.topic,
@@ -119,7 +119,8 @@ export async function emailNotification(message: {
       sent: result.sent,
       skipped,
       failed: result.failed,
-      overQuota: to.length - sending.length,
+      overQuota: result.overQuota.length,
+      by: result.by,
       testMode: settings.testMode,
       ...(settings.testMode ? { to: sending.map((recipient) => recipient.email) } : {}),
     });
@@ -138,9 +139,7 @@ export async function emailNotification(message: {
 export async function sendDirectEmail(kind: "welcome", message: Outgoing): Promise<boolean> {
   try {
     if (!emailConfigured()) return false;
-    if ((await reserveQuota(1, "groups")) < 1) return false;
-    const result = await deliver([message]);
-    await releaseQuota(result.failed);
+    const result = await sendEmails([message], "groups");
     await logEmail({
       at: new Date().toISOString(),
       topic: kind,
@@ -148,6 +147,8 @@ export async function sendDirectEmail(kind: "welcome", message: Outgoing): Promi
       sent: result.sent,
       skipped: 0,
       failed: result.failed,
+      overQuota: result.overQuota.length,
+      by: result.by,
       testMode: false,
     });
     return result.sent > 0;
@@ -157,33 +158,49 @@ export async function sendDirectEmail(kind: "welcome", message: Outgoing): Promi
   }
 }
 
-/** The admin's "Send a test email": to one allowed address, whatever anyone's settings. */
-export async function sendTestEmail(to: string, by: string) {
+/**
+ * The admin's "Send a test email": to one allowed address, whatever anyone's
+ * settings — one through each provider that's set up, so each can be seen to
+ * work. Which providers took theirs.
+ */
+export async function sendTestEmail(to: string, by: string): Promise<Provider[]> {
   const site = siteUrl();
-  const result = await deliver([
-    {
-      to,
-      subject: "[Test] Email from Common Pastures is working",
-      text: `This is a test email sent by ${by} from the admin email settings.\n\n${site}`,
-      html: emailLayout({
-        preheader: "Email from Common Pastures is working.",
-        test: true,
-        body: `${paragraphs(
-          `Email from Common Pastures is working.\n\nThis is a test sent by ${by} from the admin email settings.`
-        )}${button(site, "Open Common Pastures")}`,
-        footer: "Sent from the admin email settings.",
-      }),
-    },
-  ]);
-  await logEmail({
-    at: new Date().toISOString(),
-    topic: "test",
-    subject: "Test email",
-    sent: result.sent,
-    skipped: 0,
-    failed: result.failed,
-    testMode: true,
-    to: [to],
-  });
-  return result;
+  const worked: Provider[] = [];
+  for (const provider of PROVIDERS.filter(providerConfigured)) {
+    const name = PROVIDER_NAMES[provider];
+    const result = await sendEmails(
+      [
+        {
+          to,
+          subject: `[Test] Email from Common Pastures is working (${name})`,
+          text: `This is a test email sent by ${by} from the admin email settings, through ${name}.\n\n${site}`,
+          html: emailLayout({
+            preheader: `Email from Common Pastures is working, through ${name}.`,
+            test: true,
+            body: `${paragraphs(
+              `Email from Common Pastures is working.\n\nThis is a test sent by ${by} from the admin email settings, through ${name}.`
+            )}${button(site, "Open Common Pastures")}`,
+            footer: "Sent from the admin email settings.",
+          }),
+        },
+      ],
+      "groups",
+      undefined,
+      provider
+    );
+    if (result.sent) worked.push(provider);
+    await logEmail({
+      at: new Date().toISOString(),
+      topic: "test",
+      subject: `Test email (${name})`,
+      sent: result.sent,
+      skipped: 0,
+      failed: result.failed,
+      overQuota: result.overQuota.length,
+      by: result.by,
+      testMode: true,
+      to: [to],
+    });
+  }
+  return worked;
 }

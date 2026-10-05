@@ -5,13 +5,14 @@ import { isAdmin } from "@/lib/auth/admins";
 import { readDirectory } from "@/lib/directory/store";
 import { problem, readBody, throttled } from "@/lib/http";
 import { emailConfigured, fromAddress, sendTestEmail } from "@/lib/email/send";
+import { providerConfigured } from "@/lib/email/deliver";
 import {
   readEmailLog,
   readEmailSettings,
   settingsUpdateSchema,
   updateEmailSettings,
 } from "@/lib/email/settings";
-import { isEmailAddress } from "@/lib/email/shared";
+import { isEmailAddress, PROVIDER_NAMES } from "@/lib/email/shared";
 import { quotaStatus } from "@/lib/email/quota";
 import { readInboundLog } from "@/lib/groups/inbound";
 import { pendingSummary } from "@/lib/groups/summary";
@@ -19,7 +20,7 @@ import { pendingSummary } from "@/lib/groups/summary";
 export const dynamic = "force-dynamic";
 
 /**
- * The admin email settings: whether email can be sent (RESEND_KEY), test
+ * The admin email settings: whether email can be sent (BREVO_KEY, RESEND_KEY), test
  * mode and the addresses allowed while it's on, how many residents have an
  * address, and the log of recent sendings. Admins only.
  */
@@ -36,7 +37,7 @@ async function state() {
     readEmailSettings(),
     readEmailLog(),
     readDirectory(),
-    quotaStatus(),
+    quotaStatus(providerConfigured),
     readInboundLog(),
     pendingSummary(),
   ]);
@@ -86,11 +87,15 @@ export async function POST(request: NextRequest) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, testSchema);
   if ("error" in parsed) return parsed.error;
-  if (!emailConfigured()) return problem("Email isn't set up: RESEND_KEY is missing", 503);
+  if (!emailConfigured())
+    return problem("Email isn't set up: BREVO_KEY and RESEND_KEY are missing", 503);
   const settings = await readEmailSettings();
   if (!settings.allowed.includes(parsed.data.to))
     return problem("Add that address to the allowed list first");
-  const result = await sendTestEmail(parsed.data.to, ctx.user.name);
-  if (!result.sent) return problem("The email couldn't be sent; see the log", 502);
-  return NextResponse.json(await state());
+  const worked = await sendTestEmail(parsed.data.to, ctx.user.name);
+  if (!worked.length) return problem("The email couldn't be sent; see the log", 502);
+  return NextResponse.json({
+    ...(await state()),
+    sentThrough: worked.map((provider) => PROVIDER_NAMES[provider]),
+  });
 }

@@ -5,7 +5,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, FlaskConical, Gauge, Inbox, Mail, Plus, Send, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { TOPICS } from "@/lib/push/topics";
-import { isEmailAddress, type EmailLogEntry, type EmailSettings } from "@/lib/email/shared";
+import {
+  isEmailAddress,
+  PROVIDER_NAMES,
+  type EmailLogEntry,
+  type EmailSettings,
+} from "@/lib/email/shared";
+import type { QuotaStatus } from "@/lib/email/quota";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,7 +29,7 @@ type EmailState = {
   configured: boolean;
   from: string;
   residentsWithEmail: number;
-  quota: { dayCount: number; monthCount: number; limits: { day: number; month: number } };
+  quota: QuotaStatus;
   inbound: { at: string; from: string; to: string[]; subject: string; outcome: string }[];
   waitingForSummary: number;
   receiving: boolean;
@@ -40,6 +46,16 @@ const LOG_KINDS: Record<string, string> = {
 };
 const logKind = (topic: EmailLogEntry["topic"]) =>
   LOG_KINDS[topic] ?? TOPICS[topic as keyof typeof TOPICS] ?? topic;
+
+const providers = Object.keys(PROVIDER_NAMES) as (keyof typeof PROVIDER_NAMES)[];
+
+/** "via Brevo 3, Resend 1" */
+const viaText = (by: EmailLogEntry["by"]) => {
+  const parts = providers
+    .filter((provider) => by?.[provider])
+    .map((provider) => `${PROVIDER_NAMES[provider]} ${by![provider]}`);
+  return parts.length ? ` · via ${parts.join(", ")}` : "";
+};
 
 /**
  * The admin's email settings: test mode (on: only the allowed addresses
@@ -67,10 +83,16 @@ export function EmailSettingsClient() {
   });
   const test = useMutation({
     mutationFn: (to: string) =>
-      apiFetch<EmailState>("/api/admin/email", { method: "POST", body: JSON.stringify({ to }) }),
-    onSuccess: (next, to) => {
+      apiFetch<EmailState & { sentThrough: string[] }>("/api/admin/email", {
+        method: "POST",
+        body: JSON.stringify({ to }),
+      }),
+    onSuccess: ({ sentThrough, ...next }, to) => {
       saved(next);
-      toast({ title: `Test email sent to ${to}` });
+      toast({
+        title: `Test email sent to ${to}`,
+        description: `Through ${sentThrough.join(" and ")}`,
+      });
     },
     onError: (err: Error) => {
       queryClient.invalidateQueries({ queryKey: KEY });
@@ -106,7 +128,8 @@ export function EmailSettingsClient() {
             <>Sending from {data.from}.</>
           ) : (
             <span className="inline-flex items-center gap-1 text-destructive">
-              <AlertTriangle className="h-4 w-4" /> Email is off: RESEND_KEY isn&apos;t set.
+              <AlertTriangle className="h-4 w-4" /> Email is off: neither BREVO_KEY nor RESEND_KEY
+              is set.
             </span>
           )}
         </p>
@@ -223,19 +246,36 @@ export function EmailSettingsClient() {
 
       <Card className="flex flex-col gap-3" data-quota>
         <SectionHeading icon={Gauge}>Free plan allowance</SectionHeading>
-        <p className="text-sm text-foreground-light">
-          Today: <strong>{data.quota.dayCount}</strong> of {data.quota.limits.day} · This month:{" "}
-          <strong>{data.quota.monthCount}</strong> of {data.quota.limits.month} (sent and received
-          both count).
-          {data.waitingForSummary
-            ? ` ${data.waitingForSummary} circle message${
-                data.waitingForSummary === 1 ? "" : "s"
-              } waiting for tomorrow's summary.`
-            : ""}
-        </p>
+        <ul className="flex flex-col gap-1 text-sm text-foreground-light">
+          {providers.map((provider) => {
+            const use = data.quota[provider];
+            return (
+              <li key={provider} data-provider={provider}>
+                <strong className="text-foreground">{PROVIDER_NAMES[provider]}</strong>
+                {provider === "brevo" ? " (tried first)" : " (backup)"}:{" "}
+                {use.configured ? (
+                  <>
+                    today <strong>{use.dayCount}</strong> of {use.limits.day} · this month{" "}
+                    <strong>{use.monthCount}</strong> of {use.limits.month}
+                    {provider === "resend" ? " (received email counts too)" : ""}
+                  </>
+                ) : (
+                  <span className="text-muted">not set up</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {data.waitingForSummary ? (
+          <p className="text-sm text-foreground-light">
+            {data.waitingForSummary} circle message{data.waitingForSummary === 1 ? "" : "s"} waiting
+            for tomorrow&apos;s summary.
+          </p>
+        ) : null}
         <p className="text-xs text-muted">
-          Circle email goes first; notification emails stop at 70% of the day&apos;s allowance.
-          Circle messages that don&apos;t fit go out in the next morning&apos;s summary.
+          Each email goes through Brevo while it has room and works, otherwise Resend. Circle email
+          goes first: notification emails stop at 70% of each day&apos;s allowance. Circle messages
+          that fit nowhere go out in the next morning&apos;s summary.
         </p>
       </Card>
 
@@ -280,6 +320,7 @@ export function EmailSettingsClient() {
                 <p className="text-xs text-muted">
                   {timeAgo(entry.at)} · {logKind(entry.topic)} · sent {entry.sent}
                   {entry.skipped ? ` · skipped ${entry.skipped}` : ""}
+                  {viaText(entry.by)}
                   {entry.overQuota ? ` · over today's quota ${entry.overQuota}` : ""}
                   {entry.failed ? (
                     <span className="text-destructive"> · failed {entry.failed}</span>

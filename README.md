@@ -51,14 +51,17 @@ Accounts and admin:
 
 Email (optional; see App & Notifications):
 
-- `RESEND_KEY` – Resend API key for sending email; without it nothing is emailed.
+- `BREVO_KEY` – Brevo API key: email is sent through Brevo first (free: 300 a day).
+- `RESEND_KEY` – Resend API key: the backup sender, and receiving. With neither key nothing is
+  emailed.
 - `EMAIL_FROM` – Sender, default `Common Pastures <notifications@commonpasturesvt.org>` (the
-  domain must be verified in Resend).
+  domain must be verified in both Brevo and Resend).
 - `SITE_URL` – The app's address for links in emails (default: Vercel's production domain).
 - `RESEND_WEBHOOK_SECRET` – Signing secret of Resend's webhook, for circle email arriving (see
   Circle email groups); `CRON_SECRET` – for the daily cron (morning summary).
-- `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – the email allowance (default: Resend's free 100 a
-  day, 3,000 a month); `GROUP_EMAIL_DOMAIN` – the circles' address domain (default
+- `BREVO_DAILY_LIMIT` / `BREVO_MONTHLY_LIMIT` – Brevo's allowance (default 300 a day, 9,000 a
+  month); `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – Resend's (default: its free 100 a day,
+  3,000 a month); `GROUP_EMAIL_DOMAIN` – the circles' address domain (default
   `commonpasturesvt.org`).
 - `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
   (default `gpt-image-1`).
@@ -575,7 +578,7 @@ from then on, so re-importing the directory never overwrites circle changes.
   dropped automatically) and choices in `push/preferences.json`. Sending never blocks or breaks
   a post: it's capped at a few seconds and failures are only logged.
 - **Email** – everything that sends a notification can also be emailed (`notify()` does both;
-  `lib/email/`), through Resend from `EMAIL_FROM`, to the address in each resident's directory
+  `lib/email/`), through Brevo (or Resend when Brevo can't) from `EMAIL_FROM`, to the address in each resident's directory
   entry — including residents who have never signed in. Each resident picks what to be emailed
   about under **Email me about** on their profile; until they do, they get discussions, replies,
   circle requests, tasks, polls, and comments on their pages (not photos, appreciations,
@@ -628,12 +631,14 @@ names it had before a rename). It works like a Google Group, built into the app 
   **one click** in the email (`/vote/<token>`). Opening the link records nothing (mail scanners
   open links); signed in as that person it records at once, otherwise **Confirm my answer**
   records it without signing in. Votes are kept by person, so web and email votes are one.
-- **Free plan**: Resend's free plan allows 100 emails a day and 3,000 a month (received mail
-  counts). The app keeps count (`email/quota.json`; `EMAIL_DAILY_LIMIT`/`EMAIL_MONTHLY_LIMIT` change
-  it): circle email comes first; notification emails stop at 70% of the day; circle messages that
+- **Two free senders**: every email goes through **Brevo** (300 a day free) while it has room and
+  works, and otherwise through **Resend** (100 a day and 3,000 a month; received mail counts
+  there too). An outage, a refused key or a used-up day at Brevo falls over to Resend
+  (`sendEmails` in `lib/email/deliver.ts`). The app keeps count for each (`email/quota.json`;
+  `BREVO_*_LIMIT` and `EMAIL_*_LIMIT` change the limits): circle email comes first; notification emails stop at 70% of the day; circle messages that
   don't fit wait (`groups/summary.json`) for the **morning summary** (one email per person, sent by
-  the daily cron, `/api/cron/daily` with `CRON_SECRET`). The admin page shows today's and this
-  month's use, what's waiting, and the received-email log. The admin's **test mode** applies to
+  the daily cron, `/api/cron/daily` with `CRON_SECRET`). The admin page shows each sender's use
+  today and this month, which sender took each sending, what's waiting, and the received-email log. The admin's **test mode** applies to
   circle email too.
 - **Unsubscribe links** ask first (GET shows a button; POST — the button or a mail app's one-click
   — acts), so link scanners can't unsubscribe anyone. "Stop all emails" also sets every circle to

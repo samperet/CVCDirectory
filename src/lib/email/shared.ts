@@ -53,6 +53,9 @@ export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
 };
 
 /** One sending, as the admin page lists it: counts only (and, in test mode, the addresses). */
+/** The email providers, in the order they're tried (see deliver.ts). */
+export const PROVIDER_NAMES = { brevo: "Brevo", resend: "Resend" } as const;
+
 export interface EmailLogEntry {
   at: string;
   /**
@@ -68,6 +71,8 @@ export interface EmailLogEntry {
   failed: number;
   /** Over the free plan's quota: left for the next summary (group email) or skipped (notifications). */
   overQuota?: number;
+  /** How many each provider took. */
+  by?: Partial<Record<keyof typeof PROVIDER_NAMES, number>>;
   testMode: boolean;
   /** Who it went to — only kept for test sends, which go to the allow-list. */
   to?: string[];

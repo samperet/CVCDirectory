@@ -1,7 +1,6 @@
 import { mutateJson, readJson } from "@/lib/storage";
 import { readDirectory } from "@/lib/directory/store";
-import { deliver, emailConfigured, escapeHtml } from "@/lib/email/deliver";
-import { reserveQuota, releaseQuota } from "@/lib/email/quota";
+import { emailConfigured, escapeHtml, sendEmails } from "@/lib/email/deliver";
 import { logEmail, readEmailSettings } from "@/lib/email/settings";
 import { button, emailLayout, footerLink, heading, PALETTE } from "@/lib/email/templates/layout";
 import { unsubscribeToken } from "@/lib/email/unsubscribe";
@@ -85,7 +84,6 @@ export async function sendSummaries(): Promise<{
       done.push(...mine);
       continue;
     }
-    if ((await reserveQuota(1, "groups")) < 1) break;
     const sections: string[] = [];
     const lines: string[] = [];
     for (const item of mine) {
@@ -114,7 +112,6 @@ ${button(link, "Read and reply", "plain")}
 </div>`);
     }
     if (!sections.length) {
-      await releaseQuota(1);
       done.push(...mine);
       continue;
     }
@@ -122,7 +119,7 @@ ${button(link, "Read and reply", "plain")}
       unsubscribeToken(personId, "all")
     )}`;
     const count = sections.length;
-    const result = await deliver(
+    const result = await sendEmails(
       [
         {
           to: email,
@@ -147,13 +144,16 @@ ${button(link, "Read and reply", "plain")}
           }),
         },
       ],
+      "groups",
       `summary/${personId}/${new Date().toISOString().slice(0, 10)}`
     );
+    // No room left anywhere today: the rest wait for tomorrow's summary.
+    if (result.overQuota.length) break;
     if (result.sent) {
       people++;
       messages += count;
       done.push(...mine);
-    } else await releaseQuota(1);
+    }
   }
   await dropFromQueue(done);
   if (people)
