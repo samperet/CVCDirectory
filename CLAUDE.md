@@ -8,7 +8,8 @@ Notes for anyone — person or AI — picking this codebase up. The longer tour 
 A private web app for the residents of CVC (a cohousing community in Vermont): directory, circles
 (sociocratic working groups), a wiki, documents (pages, including meeting notes, and files), tasks, forum, loan library,
 calendar, photos. Next.js 14 (app router, TypeScript, Tailwind) on Vercel; **all data is JSON and
-files in Cloudflare R2** — there is no database. Refer to the community only as **CVC**.
+files in Cloudflare R2** — there is no database. Refer to the community as **CVC**; its public
+name, on the front page, is **Common Pastures — a Champlain Valley Cohousing development (CVC)**.
 
 ## Commands
 

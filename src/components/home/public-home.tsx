@@ -6,7 +6,8 @@ import { type HomeListing, homePhotoUrl } from "@/lib/homes/store";
 import { Pill } from "@/components/ui/pill";
 
 /**
- * The public front page for CVC, shown at "/" to
+ * The public front page for Common Pastures — a Champlain Valley Cohousing
+ * development (CVC), the name it leads with — shown at "/" to
  * visitors who aren't signed in (residents see their dashboard there). The
  * text is the community's own, from its original website. Everything here is
  * public: no resident names or contact details. Residents can see it too, at
@@ -21,6 +22,10 @@ import { Pill } from "@/components/ui/pill";
 const UNDER_CONSTRUCTION = true;
 
 const CONTACT_EMAIL = "champlainvalleycohousinginfo@gmail.com";
+
+/** The community's public name, and what it is. */
+const NAME = "Common Pastures";
+const TAGLINE = "A Champlain Valley Cohousing development (CVC)";
 
 const sections = [
   { href: "#about", label: "About us" },
@@ -192,14 +197,15 @@ function UnderConstruction() {
       />
       <div className="relative flex max-w-md flex-col items-center gap-5 text-center">
         <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-soft">
-          <Image src="/CVC.png" alt="CVC" width={64} height={64} priority className="h-14 w-14" />
+          <Image src="/CVC.png" alt="" width={64} height={64} priority className="h-14 w-14" />
         </span>
-        <p className="text-sm font-semibold uppercase tracking-widest text-sun">
-          Under construction
-        </p>
-        <h1 className="font-display text-3xl font-semibold leading-tight md:text-4xl">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-display text-4xl font-semibold leading-tight md:text-5xl">{NAME}</h1>
+          <p className="text-base font-medium text-sun">{TAGLINE}</p>
+        </div>
+        <p className="text-sm font-semibold uppercase tracking-widest text-white/70">
           This site is under construction
-        </h1>
+        </p>
         <p className="text-base leading-relaxed text-white/85">
           It&apos;s being proposed to the CVC Board and community, and isn&apos;t open to visitors
           yet.
@@ -253,7 +259,10 @@ export function PublicHome({
               priority
               className="h-9 w-9 shrink-0"
             />
-            <span className="font-display text-xl font-semibold">CVC</span>
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="font-display text-xl font-semibold">{NAME}</span>
+              <span className="hidden truncate text-xs text-muted sm:block">{TAGLINE}</span>
+            </span>
           </Link>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Sections">
             {[
@@ -286,12 +295,18 @@ export function PublicHome({
             className="pointer-events-none absolute -right-16 top-0 h-full w-auto max-w-none select-none opacity-70 sm:-right-6 sm:opacity-100"
           />
           <div className="relative mx-auto flex max-w-6xl flex-col gap-5 px-4 pb-36 pt-14 md:px-6 md:pb-44 md:pt-20">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sun">
-              CVC · Charlotte, Vermont
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+              Charlotte, Vermont
             </p>
-            <h1 className="max-w-3xl text-5xl font-semibold leading-[1.05] md:text-7xl">
+            <div className="flex flex-col gap-2">
+              <h1 className="max-w-3xl font-display text-6xl font-semibold leading-[1.0] md:text-8xl">
+                {NAME}
+              </h1>
+              <p className="text-xl font-medium text-sun md:text-2xl">{TAGLINE}</p>
+            </div>
+            <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight md:text-5xl">
               Do you seek community?
-            </h1>
+            </h2>
             <p className="max-w-2xl text-lg leading-relaxed text-white/85 md:text-xl">
               As a community, we are dedicated to knowing each other in a meaningful way. We help
               each other with childcare, meals, and all sorts of projects. Our energy-efficient
@@ -440,8 +455,8 @@ export function PublicHome({
       <footer className="border-t border-border bg-background">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted sm:flex-row sm:items-center sm:justify-between md:px-6">
           <p>
-            © {new Date().getFullYear()} Common Pastures Homeowners&apos; Association, INC. ·
-            Charlotte, Vermont 05445
+            © {new Date().getFullYear()} Common Pastures Homeowners&apos; Association, INC. ·{" "}
+            {TAGLINE} · Charlotte, Vermont 05445
           </p>
           <div className="flex gap-4">
             <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground">

@@ -133,7 +133,9 @@ contact details or unit numbers.
   `/welcome`; residents previewing `/welcome` still see the page. Turn it off with
   `UNDER_CONSTRUCTION` in `components/home/public-home.tsx`.
 - The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
-  the account menu to see what visitors see, with a bar leading back to the app. It opens on a
+  the account menu to see what visitors see, with a bar leading back to the app. It leads with the
+  name — **Common Pastures**, *A Champlain Valley Cohousing development (CVC)* — in its header, its
+  opening band, the under-construction notice and the footer. It opens on a
   forest-green band with a white oak leaf on the right (`public/home/leaf.webp`) and the aerial photo
   of the neighborhood (`public/home/aerial.jpg`, shown whole so the lake and mountains stay in view)
   framed over its lower edge. **Where we are** has a street map (OpenStreetMap) and **Our land** a

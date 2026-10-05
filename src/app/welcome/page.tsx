@@ -5,9 +5,9 @@ import { publicHomes } from "@/lib/homes/store";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "CVC · Charlotte, Vermont",
+  title: "Common Pastures · A Champlain Valley Cohousing development (CVC)",
   description:
-    "Do you seek community? CVC: energy-efficient homes clustered around a central green on 125 acres of farmland, woods, and ponds in Charlotte, Vermont.",
+    "Do you seek community? Common Pastures, a Champlain Valley Cohousing development (CVC): energy-efficient homes clustered around a central green on 125 acres of farmland, woods, and ponds in Charlotte, Vermont.",
 };
 
 /** The public front page for anyone, including signed-in residents who want to see what visitors see. */
