@@ -21,6 +21,27 @@ export type ModuleType = (typeof MODULE_TYPES)[number];
 export const MODULE_SIZES = ["small", "medium", "large", "full"] as const;
 export type ModuleSize = (typeof MODULE_SIZES)[number];
 
+const COLUMNS: Record<ModuleSize, number> = { small: 2, medium: 3, large: 4, full: 6 };
+
+/**
+ * How many of the page's six columns each module takes: its size, laid in
+ * rows in order — and the last module of a row widened to fill it, so the
+ * page never has holes (pure, for tests).
+ */
+export function rowSpans(sizes: ModuleSize[]): number[] {
+  const spans = sizes.map((size) => COLUMNS[size]);
+  let used = 0;
+  spans.forEach((span, index) => {
+    used += span;
+    const next = spans[index + 1];
+    if (next === undefined || used + next > 6) {
+      spans[index] += 6 - used;
+      used = 0;
+    }
+  });
+  return spans;
+}
+
 /** From before modules: one entry per section of the page, in order. Read for circles that haven't saved modules. */
 export interface SectionLayout {
   id: ModuleType;

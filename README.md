@@ -443,7 +443,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
   modules (**Add module**), removes them, drags them into order — or moves them
   with arrows, on phones — and sizes each to a third, half, two thirds, or the full width of wider
-  screens; phones stack them. **Save** sends the details and the page together in one request
+  screens, in rows (the last module of a row widens to fill it, so there are no holes); phones
+  stack them. **Members** always has its own column on the right (after the rest, on phones), so
+  a long list of members never pushes the other modules apart. **Save** sends the details and the page together in one request
   (only what changed); **Cancel** drops it all. Everyone sees the circle's page as it was saved
   (stored on the circle as `modules`). Each reader can fold any module away with the arrow by its title,
   remembered on their device.

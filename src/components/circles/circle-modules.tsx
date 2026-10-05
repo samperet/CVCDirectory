@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   MODULE_SIZES,
+  rowSpans,
   SIZE_LABELS,
   SIZE_NAMES,
   type CircleModule,
@@ -24,17 +25,21 @@ import { SegmentedControl } from "@/components/ui/segmented";
 
 /**
  * A circle page's modules, laid out as the circle chose: in its order, each
- * a third, half, two thirds, or the full width of wider screens (phones
- * stack them). Each reader can fold any module away; that's remembered on
- * their device. Editing the page, the circle's members drag modules (or use
- * the arrows), pick their sizes, set Information modules up, and remove them.
+ * a third, half, two thirds, or the full width of the main column on wider
+ * screens, in rows — the last of a row widening to fill it (phones stack
+ * them). Members always sits in its own column on the
+ * right, so its length never pushes the other modules apart (on phones it
+ * comes after them). Each reader can fold any module away; that's remembered
+ * on their device. Editing the page, the circle's members drag modules (or
+ * use the arrows), pick their sizes, set modules up, and remove them.
  */
 
-const SPAN: Record<ModuleSize, string> = {
-  small: "lg:col-span-2",
-  medium: "lg:col-span-3",
-  large: "lg:col-span-4",
-  full: "lg:col-span-6",
+const SPAN: Record<number, string> = {
+  2: "lg:col-span-2",
+  3: "lg:col-span-3",
+  4: "lg:col-span-4",
+  5: "lg:col-span-5",
+  6: "lg:col-span-6",
 };
 
 export interface ModuleView {
@@ -56,6 +61,20 @@ const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
     " The circle's conversations are kept, and its email address still works; add Forum again to see them here.",
   documents: " The circle's documents are kept, and come back if you add Documents again.",
 };
+
+/** Members goes in the right-hand column; everything else in the main one, in order. */
+const isAside = (module: Pick<CircleModule, "type">) => module.type === "members";
+
+/** The main column and, when there is one, the right-hand column beside it. */
+function Columns({ main, aside }: { main: React.ReactNode; aside: React.ReactNode | null }) {
+  if (!aside) return <>{main}</>;
+  return (
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="min-w-0 flex-1">{main}</div>
+      <aside className="min-w-0 lg:w-80 lg:shrink-0 xl:w-96">{aside}</aside>
+    </div>
+  );
+}
 
 type ModuleState = { collapsed: boolean; toggle: () => void; title: string };
 const ModuleContext = createContext<ModuleState | null>(null);
@@ -151,40 +170,54 @@ export function CircleModules({
   sections: ModuleViews;
 }) {
   const [folded, toggle] = useCollapsed(circleId);
+  const main = modules.filter((module) => !isAside(module) && sections[module.id]);
+  const spans = rowSpans(main.map((module) => module.size));
+  const render = ({ id, type }: CircleModule, span: number | null) => {
+    const section = sections[id];
+    if (!section) return null;
+    const collapsed = folded.includes(id);
+    return (
+      <div
+        key={id}
+        id={id}
+        className={cn("min-w-0 scroll-mt-24", span && SPAN[span])}
+        data-module={type}
+        data-module-id={id}
+      >
+        <ModuleContext.Provider
+          value={{ collapsed, toggle: () => toggle(id), title: section.title }}
+        >
+          {collapsed ? (
+            <FoldedModule title={section.title} icon={section.icon} onOpen={() => toggle(id)} />
+          ) : (
+            section.content
+          )}
+        </ModuleContext.Provider>
+      </div>
+    );
+  };
+  const aside = modules.filter((module) => isAside(module) && sections[module.id]);
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-flow-row-dense lg:grid-cols-6">
-      {modules.map(({ id, type, size }) => {
-        const section = sections[id];
-        if (!section) return null;
-        const collapsed = folded.includes(id);
-        return (
-          <div
-            key={id}
-            id={id}
-            className={cn("min-w-0 scroll-mt-24", SPAN[size])}
-            data-module={type}
-            data-module-id={id}
-          >
-            <ModuleContext.Provider
-              value={{ collapsed, toggle: () => toggle(id), title: section.title }}
-            >
-              {collapsed ? (
-                <FoldedModule title={section.title} icon={section.icon} onOpen={() => toggle(id)} />
-              ) : (
-                section.content
-              )}
-            </ModuleContext.Provider>
-          </div>
-        );
-      })}
-    </div>
+    <Columns
+      main={
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-6">
+          {main.map((module, index) => render(module, spans[index]))}
+        </div>
+      }
+      aside={
+        aside.length ? (
+          <div className="flex flex-col gap-6">{aside.map((module) => render(module, null))}</div>
+        ) : null
+      }
+    />
   );
 }
 
 /**
  * Editing the page: each module as a small card — dragged into place (or
  * moved with its arrows, on phones), sized for wider screens, set up (an
- * Information module's pages), or removed.
+ * Information module's pages), or removed. Members stays in its column on
+ * the right: it can be removed, but not moved or sized.
  */
 export function ModuleEditor({
   modules: layout,
@@ -199,66 +232,71 @@ export function ModuleEditor({
 }) {
   const confirm = useConfirm();
   const [dragging, setDragging] = useState<string | null>(null);
+  const main = layout.filter((module) => !isAside(module));
+  const aside = layout.filter(isAside);
   const move = (from: number, to: number) => {
-    if (to < 0 || to >= layout.length || from === to) return;
-    const next = [...layout];
+    if (to < 0 || to >= main.length || from === to) return;
+    const next = [...main];
     const [entry] = next.splice(from, 1);
     next.splice(to, 0, entry);
-    onChange(next);
+    onChange([...next, ...aside]);
   };
   const remove = (id: string) => onChange(layout.filter((entry) => entry.id !== id));
   const resize = (id: string, size: ModuleSize) =>
     onChange(layout.map((entry) => (entry.id === id ? { ...entry, size } : entry)));
   const control =
     "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white text-foreground transition hover:bg-accent disabled:opacity-40";
-  return (
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-flow-row-dense lg:grid-cols-6">
-      {layout.map((module, index) => {
-        const { id, size } = module;
-        const section = sections[id];
-        if (!section) return null;
-        return (
-          <div
-            key={id}
-            data-module={module.type}
-            data-module-id={id}
-            data-editing=""
-            className={cn("min-w-0", SPAN[size])}
-            draggable
-            onDragStart={(event) => {
-              setDragging(id);
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", id);
-            }}
-            onDragOver={(event) => {
-              if (!dragging || dragging === id) return;
-              event.preventDefault();
-              move(
-                layout.findIndex((entry) => entry.id === dragging),
-                index
-              );
-            }}
-            onDrop={(event) => event.preventDefault()}
-            onDragEnd={() => setDragging(null)}
-          >
-            <Card
-              className={cn(
-                "flex flex-col gap-3 border-dashed border-primary/60 p-4 transition",
-                dragging === id && "opacity-50 ring-2 ring-primary"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <GripVertical
-                  className="hidden h-5 w-5 shrink-0 cursor-grab text-muted lg:block"
-                  aria-hidden
-                />
-                {section.icon}
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-semibold text-foreground">{section.title}</span>
-                  {section.detail ? (
-                    <span className="truncate text-xs text-muted">{section.detail}</span>
-                  ) : null}
-                </span>
+  const spans = rowSpans(main.map((module) => module.size));
+  const card = (module: CircleModule, index: number, fixed: boolean) => {
+    const { id, size } = module;
+    const section = sections[id];
+    if (!section) return null;
+    return (
+      <div
+        key={id}
+        data-module={module.type}
+        data-module-id={id}
+        data-editing=""
+        className={cn("min-w-0", !fixed && SPAN[spans[index]])}
+        draggable={!fixed}
+        onDragStart={(event) => {
+          setDragging(id);
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", id);
+        }}
+        onDragOver={(event) => {
+          if (fixed || !dragging || dragging === id) return;
+          event.preventDefault();
+          move(
+            main.findIndex((entry) => entry.id === dragging),
+            index
+          );
+        }}
+        onDrop={(event) => event.preventDefault()}
+        onDragEnd={() => setDragging(null)}
+      >
+        <Card
+          className={cn(
+            "flex flex-col gap-3 border-dashed border-primary/60 p-4 transition",
+            dragging === id && "opacity-50 ring-2 ring-primary"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {fixed ? null : (
+              <GripVertical
+                className="hidden h-5 w-5 shrink-0 cursor-grab text-muted lg:block"
+                aria-hidden
+              />
+            )}
+            {section.icon}
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-semibold text-foreground">{section.title}</span>
+              {section.detail ? (
+                <span className="truncate text-xs text-muted">{section.detail}</span>
+              ) : null}
+            </span>
+            {fixed ? null : (
+              <>
                 <button
                   type="button"
                   className={control}
@@ -273,66 +311,86 @@ export function ModuleEditor({
                   type="button"
                   className={control}
                   onClick={() => move(index, index + 1)}
-                  disabled={index === layout.length - 1}
+                  disabled={index === main.length - 1}
                   aria-label={`Move ${section.title} down`}
                   title="Move down"
                 >
                   <ArrowDown className="h-4 w-4" />
                 </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {module.type === "information" ||
-                module.type === "tasks" ||
-                module.type === "forum" ||
-                module.type === "log" ? (
-                  <button
-                    type="button"
-                    className={cn(control, "w-auto gap-1.5 px-2.5 text-sm")}
-                    onClick={() => onSettings(module)}
-                    aria-label={`Set up ${section.title}`}
-                  >
-                    <Settings2 className="h-4 w-4" /> Settings
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className={cn(
-                    control,
-                    "w-auto gap-1.5 px-2.5 text-sm text-muted hover:text-destructive"
-                  )}
-                  onClick={async () => {
-                    if (
-                      await confirm({
-                        title: `Remove ${section.title} from this page?`,
-                        body: REMOVE_NOTE[module.type]?.trim(),
-                        confirmLabel: "Remove",
-                      })
-                    )
-                      remove(id);
-                  }}
-                  aria-label={`Remove ${section.title}`}
-                >
-                  <Trash2 className="h-4 w-4" /> Remove
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span>Size</span>
-                <SegmentedControl
-                  size="xs"
-                  label={`${section.title} size`}
-                  value={size}
-                  onChange={(option) => resize(id, option)}
-                  options={MODULE_SIZES.map((option) => ({
-                    value: option,
-                    label: SIZE_LABELS[option],
-                    title: SIZE_NAMES[option],
-                  }))}
-                />
-              </div>
-            </Card>
+              </>
+            )}
           </div>
-        );
-      })}
-    </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {module.type === "information" ||
+            module.type === "tasks" ||
+            module.type === "forum" ||
+            module.type === "log" ? (
+              <button
+                type="button"
+                className={cn(control, "w-auto gap-1.5 px-2.5 text-sm")}
+                onClick={() => onSettings(module)}
+                aria-label={`Set up ${section.title}`}
+              >
+                <Settings2 className="h-4 w-4" /> Settings
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={cn(
+                control,
+                "w-auto gap-1.5 px-2.5 text-sm text-muted hover:text-destructive"
+              )}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: `Remove ${section.title} from this page?`,
+                    body: REMOVE_NOTE[module.type]?.trim(),
+                    confirmLabel: "Remove",
+                  })
+                )
+                  remove(id);
+              }}
+              aria-label={`Remove ${section.title}`}
+            >
+              <Trash2 className="h-4 w-4" /> Remove
+            </button>
+          </div>
+          {fixed ? (
+            <p className="text-xs text-muted">Always in the right-hand column.</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span>Size</span>
+              <SegmentedControl
+                size="xs"
+                label={`${section.title} size`}
+                value={size}
+                onChange={(option) => resize(id, option)}
+                options={MODULE_SIZES.map((option) => ({
+                  value: option,
+                  label: SIZE_LABELS[option],
+                  title: SIZE_NAMES[option],
+                }))}
+              />
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  };
+  return (
+    <Columns
+      main={
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-6">
+          {main.map((module, index) => card(module, index, false))}
+        </div>
+      }
+      aside={
+        aside.length ? (
+          <div className="flex flex-col gap-4">
+            {aside.map((module, index) => card(module, index, true))}
+          </div>
+        ) : null
+      }
+    />
   );
 }

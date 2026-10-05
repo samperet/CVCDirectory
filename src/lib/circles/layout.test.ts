@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moduleTitle, modulesFor, type CircleModule } from "./layout";
+import { moduleTitle, modulesFor, rowSpans, type CircleModule } from "./layout";
 
 const types = (modules: CircleModule[]) => modules.map((module) => module.type);
 
@@ -70,5 +70,16 @@ describe("moduleTitle", () => {
     expect(moduleTitle({ type: "information", title: "  " })).toBe("Information");
     expect(moduleTitle({ type: "schedule" }, "Chicken duty")).toBe("Chicken duty");
     expect(moduleTitle({ type: "schedule" })).toBe("Duty schedule");
+  });
+});
+
+describe("rowSpans", () => {
+  it("lays modules in rows and widens the last of each row to fill it", () => {
+    // Information (two thirds) alone now that Members has its own column: full width.
+    expect(rowSpans(["large", "full", "full"])).toEqual([6, 6, 6]);
+    expect(rowSpans(["large", "small", "medium", "medium"])).toEqual([4, 2, 3, 3]);
+    expect(rowSpans(["small", "small", "large"])).toEqual([2, 4, 6]);
+    expect(rowSpans(["medium", "small", "small"])).toEqual([3, 3, 6]);
+    expect(rowSpans([])).toEqual([]);
   });
 });
