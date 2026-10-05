@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readDirectory } from "@/lib/directory/store";
-import { button, emailLayout, PALETTE, paragraphs } from "@/lib/email/templates/layout";
+import { emailLayout, PALETTE, SANS, SERIF } from "@/lib/email/templates/layout";
+import { escapeHtml } from "@/lib/email/send";
 import { sendDirectEmail } from "@/lib/email/send";
 import { isEmailAddress } from "@/lib/email/shared";
 import { problem } from "@/lib/http";
@@ -33,41 +34,58 @@ export async function findSignInPerson(personId: string) {
   return directory.people.find((person) => person.id === personId) ?? null;
 }
 
-/** Email someone their link and code: whether it went, and why each sender refused if not. */
+/**
+ * Email someone their link and code: whether it went, and why each sender
+ * refused if not. The email is the logo, a greeting, and one big Sign in
+ * button; the code is a small line beneath, for an app on a phone's home
+ * screen.
+ */
 export function sendSignInEmail(
   person: { displayName: string },
   to: string,
   token: string,
   code: string
 ) {
-  const link = `${siteUrl()}/login/${token}`;
+  const site = siteUrl();
+  const link = `${site}/login/${token}`;
   const minutes = LINK_TTL_MS / 60_000;
   const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
-  const hello = `Hello ${person.displayName.split(/\s+/)[0]},`;
-  const note = `The link and code work once, for ${minutes} minutes. If you didn't ask to sign in, you can ignore this email — nobody can sign in without it.`;
+  const first = person.displayName.split(/\s+/)[0];
+  const note = `The button and code work once, for ${minutes} minutes. If you didn't ask to sign in, ignore this email — nobody can sign in without it.`;
+  const html = `<div style="text-align:center;padding:12px 0 4px">
+<img src="${escapeHtml(
+    `${site}/CVC.png`
+  )}" width="72" height="79" alt="" style="display:inline-block;width:72px;height:79px;border:0">
+<div style="margin:10px 0 0;font:700 22px/1.3 ${SERIF};color:${PALETTE.text}">Common Pastures</div>
+<p style="margin:22px 0 24px;font:16px/1.6 ${SANS};color:${PALETTE.text}">Hello ${escapeHtml(
+    first
+  )}, tap the button to sign in.</p>
+<a href="${escapeHtml(
+    link
+  )}" style="display:inline-block;padding:16px 48px;border-radius:999px;background:${
+    PALETTE.forest
+  };color:#ffffff;font:700 18px/1.2 ${SANS};text-decoration:none">Sign in</a>
+<p style="margin:28px 0 0;font:13px/1.6 ${SANS};color:${
+    PALETTE.muted
+  }">Or enter this code: <span style="letter-spacing:1px;color:${PALETTE.soft}">${spaced}</span></p>
+<p style="margin:4px 0 0;font:12px/1.6 ${SANS};color:${PALETTE.muted}">${escapeHtml(note)}</p>
+</div>`;
   return sendDirectEmail("sign-in", {
     to,
-    subject: `Sign in to Common Pastures (code ${spaced})`,
+    subject: "Sign in to Common Pastures",
     text: [
-      hello,
+      `Hello ${first},`,
       "",
       "Open this link to sign in to Common Pastures:",
       link,
       "",
-      `Or type this code where you asked to sign in: ${spaced}`,
+      `Or enter this code: ${spaced}`,
       "",
       note,
     ].join("\n"),
     html: emailLayout({
-      preheader: `Your sign-in code is ${spaced}.`,
-      body: `${paragraphs(`${hello}\n\nTap the button to sign in to Common Pastures.`)}${button(
-        link,
-        "Sign in"
-      )}${paragraphs(
-        "Or type this code where you asked to sign in — handy on an app added to your home screen:"
-      )}<p style="margin:4px 0 20px;font:700 30px/1.2 ui-monospace,Menlo,monospace;letter-spacing:6px;color:${
-        PALETTE.text
-      }">${spaced}</p>${paragraphs(note)}`,
+      preheader: "Tap the button to sign in to Common Pastures.",
+      body: html,
       footer: "Sent because someone asked to sign in as you on Common Pastures.",
     }),
   });

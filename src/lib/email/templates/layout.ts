@@ -22,9 +22,9 @@ export const PALETTE = {
   sun: "#e8a317",
 };
 
-const SANS =
+export const SANS =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif";
-const SERIF = "Georgia, 'Times New Roman', serif";
+export const SERIF = "Georgia, 'Times New Roman', serif";
 
 /** Plain text as paragraphs, with web addresses made into links. */
 export function paragraphs(text: string): string {
