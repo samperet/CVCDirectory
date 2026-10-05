@@ -33,8 +33,12 @@ export async function GET() {
   const email = Object.fromEntries(
     PROVIDERS.map((provider) => [provider, providerConfigured(provider)])
   );
+  // Temporary: the names (never values) of email-related variables this deployment sees.
+  const emailNames = Object.keys(process.env)
+    .filter((name) => /BREVO|RESEND|EMAIL|MAIL/i.test(name))
+    .sort();
   return NextResponse.json(
-    { storage: { configured, durable }, email },
+    { storage: { configured, durable }, email, emailNames },
     { status: durable ? 200 : 503 }
   );
 }
