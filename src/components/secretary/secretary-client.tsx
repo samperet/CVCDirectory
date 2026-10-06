@@ -286,7 +286,9 @@ function InvitationRow({
         </Pill>
       </div>
       <p className="text-xs text-muted">
-        Invited {timeAgo(invitation.createdAt)} by {invitation.invitedBy.name}
+        {invitation.selfRequested
+          ? `Asked to join from the sign-in page ${timeAgo(invitation.createdAt)}`
+          : `Invited ${timeAgo(invitation.createdAt)} by ${invitation.invitedBy.name}`}
         {invitation.sentAt ? ` · emailed ${timeAgo(invitation.sentAt)}` : " · not emailed"}
         {answers ? ` · answered ${timeAgo(answers.submittedAt)}` : ""}
         {invitation.addedAt ? ` · added ${timeAgo(invitation.addedAt)}` : ""}

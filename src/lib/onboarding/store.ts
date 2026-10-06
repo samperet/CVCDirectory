@@ -24,6 +24,8 @@ import {
 const KEY = "onboarding/invitations.json";
 const RESOURCES_KEY = "onboarding/resources.json";
 const MAX_INVITATIONS = 500;
+/** Open requests from the sign-in page, at most (so the page can't be used to flood the Secretary). */
+const MAX_OPEN_REQUESTS = 40;
 
 export const invitationInputSchema = z.object({
   email: z
@@ -159,6 +161,41 @@ export function createInvitation(
       email: input.email,
       name: input.name,
       invitedBy: { personId: by.personId, name: by.name },
+      createdAt: now.toISOString(),
+      sentAt: null,
+      answers: null,
+      personId: null,
+      addedAt: null,
+    };
+    return { value: { invitations: [...list, invitation] }, result: { ok: true, invitation } };
+  });
+}
+
+/**
+ * Someone asks to join from the sign-in page: an invitation of their own,
+ * answered by `secretary`. Asking again (an open invitation for the same
+ * address) is the same invitation, not another (`existing`).
+ */
+export function requestToJoin(
+  secretary: { personId: string | null; name: string },
+  input: { email: string; name: string | null },
+  now = new Date()
+): Promise<InvitationResult & { existing?: boolean }> {
+  return mutateJson<InvitationResult & { existing?: boolean }>(KEY, (raw) => {
+    const list = normalize(raw);
+    const open = list.find(
+      (invitation) => invitation.email === input.email && !invitation.personId
+    );
+    if (open) return { write: false, result: { ok: true, invitation: open, existing: true } };
+    const requests = list.filter((invitation) => invitation.selfRequested && !invitation.personId);
+    if (requests.length >= MAX_OPEN_REQUESTS || list.length >= MAX_INVITATIONS)
+      return { write: false, result: { ok: false, reason: "full" } };
+    const invitation: Invitation = {
+      id: randomUUID(),
+      email: input.email,
+      name: input.name,
+      invitedBy: secretary,
+      selfRequested: true,
       createdAt: now.toISOString(),
       sentAt: null,
       answers: null,

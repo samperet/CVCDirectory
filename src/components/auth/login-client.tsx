@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { CvcLogo } from "@/components/auth/cvc-logo";
 import { LogoSpin, startLogoSpin } from "@/components/auth/logo-spin";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
+import { JoinRequest } from "@/components/auth/join-request";
 import {
   usePeople,
   useRefreshSession,
@@ -46,7 +47,8 @@ export function useLogoSpin() {
  * to your address in the directory. Open the link, or type the code here —
  * the code is for when the link opens somewhere else, like a phone's
  * browser instead of the app on its home screen. While waiting, this page
- * notices a link opened in another tab of the same browser.
+ * notices a link opened in another tab of the same browser. Someone not in
+ * the list can ask to join ("I'm new here", `join-request.tsx`).
  */
 export function LoginClient() {
   const router = useRouter();
@@ -62,6 +64,8 @@ export function LoginClient() {
 
   const [selected, setSelected] = useState<NameOption | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  // "I'm new here": asking to join instead of signing in.
+  const [joining, setJoining] = useState(false);
   const [code, setCode] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -145,14 +149,22 @@ export function LoginClient() {
             <div className="mb-6 flex justify-center">
               <CvcLogo ref={logoRef} size={120} busy={signingIn} />
             </div>
-            <h1 className="mb-2 text-3xl font-bold text-foreground">Sign In</h1>
+            <h1 className="mb-2 text-3xl font-bold text-foreground">
+              {joining ? "Join Common Pastures" : "Sign In"}
+            </h1>
             <p className="text-lg text-muted">
-              {sentTo ? "Check your email" : "Choose your name and we'll email you a link"}
+              {joining
+                ? "For residents of CVC"
+                : sentTo
+                  ? "Check your email"
+                  : "Choose your name and we'll email you a link"}
             </p>
           </div>
 
           {sessionUser ? (
             <p className="text-center text-sm text-muted">Signing you in…</p>
+          ) : joining ? (
+            <JoinRequest onBack={() => setJoining(false)} />
           ) : sentTo && selected ? (
             <form className="flex flex-col gap-5" onSubmit={submitCode} noValidate>
               <div className="flex gap-3 rounded-lg border border-border bg-accent/40 p-4 text-sm text-foreground">
@@ -236,10 +248,21 @@ export function LoginClient() {
                 {request.isPending ? "Sending…" : "Email me a sign-in link"}
               </Button>
 
-              <p className="text-center text-sm text-muted">
-                The link goes to your email address in the CVC directory. Don&apos;t see your name,
-                or changed your email? Ask the Board Secretary to update your entry.
-              </p>
+              <div className="flex flex-col items-center gap-2 border-t border-border pt-5 text-center">
+                <p className="text-sm text-muted">Don&apos;t see your name in the list?</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setJoining(true)}
+                >
+                  I&apos;m new here — ask to join
+                </Button>
+                <p className="text-xs text-muted">
+                  The sign-in link goes to your email address in the CVC directory. Changed your
+                  email? Ask the Board Secretary to update your entry.
+                </p>
+              </div>
             </form>
           )}
         </div>

@@ -32,7 +32,8 @@ export function sendInvitationEmail({
 }: {
   to: string;
   name: string | null;
-  secretary: string;
+  /** The Board Secretary's name, or null if the seat is empty. */
+  secretary: string | null;
   link: string;
   /** The resources' titles, to name them. */
   resources: string[];
@@ -41,10 +42,10 @@ export function sendInvitationEmail({
   const intro =
     "Welcome to CVC! To get you set up in Common Pastures — our community's private website, with the directory, circles, calendar, documents, and more — please fill in this short welcome form:";
   const asks =
-    "It asks for a short bio, including what drew you to cohousing, and the name and mobile number you'll sign in with. It also explains how to sign in, and lists some things to read as you settle in" +
+    "It asks for a short bio, including what drew you to cohousing, and the name, mobile number, and unit you'll be listed with. It also explains how to sign in, and lists some things to read as you settle in" +
     (resources.length ? `: ${resources.slice(0, 5).join("; ")}.` : ".");
   const valid = `The link is just for you and works for ${LINK_DAYS} days.`;
-  const signOff = `${secretary}\nBoard Secretary, CVC`;
+  const signOff = secretary ? `${secretary}\nBoard Secretary, CVC` : "The Board Secretary, CVC";
   return sendDirectEmail("welcome", {
     to,
     subject: "Welcome to CVC — tell us about yourself",

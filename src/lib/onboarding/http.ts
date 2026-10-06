@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { actorOf } from "@/lib/auth/actor";
 import { getSessionUser } from "@/lib/auth/session";
 import { canManageDirectory } from "@/lib/directory/access";
+import { adminPersonIds } from "@/lib/auth/admins";
+import { BOARD_ID } from "@/lib/circles/ids";
+import type { DirectoryDocument } from "@/lib/directory/types";
 import { readDirectory } from "@/lib/directory/store";
 import { problem } from "@/lib/http";
 import { siteUrl } from "@/lib/site-url";
@@ -24,6 +27,23 @@ export async function secretaryContext() {
   if (!canManageDirectory(user, directory))
     return { error: problem("Only the Board Secretary and admins can do that", 403) };
   return { user, directory, actor: actorOf(user) };
+}
+
+/** Whoever holds the Board's Secretary seat (the first, if two do), by name — or null. */
+export function boardSecretary(directory: DirectoryDocument) {
+  const seat = directory.circles
+    .find((circle) => circle.id === BOARD_ID)
+    ?.seats.find((entry) => entry.personId && /secretary/i.test(entry.position ?? ""));
+  const person = seat ? directory.people.find((entry) => entry.id === seat.personId) : null;
+  return person ? { personId: person.id, name: person.displayName } : null;
+}
+
+/** Who manages new members: the Board Secretary seat's holders, and the admins (person ids). */
+export function intakeManagers(directory: DirectoryDocument): string[] {
+  const secretaries = (directory.circles.find((circle) => circle.id === BOARD_ID)?.seats ?? [])
+    .filter((seat) => seat.personId && /secretary/i.test(seat.position ?? ""))
+    .map((seat) => seat.personId as string);
+  return Array.from(new Set([...secretaries, ...Array.from(adminPersonIds())]));
 }
 
 /** The invitation a welcome link is for. */

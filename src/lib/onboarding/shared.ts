@@ -1,7 +1,8 @@
 /**
  * New member intake: the Board Secretary's welcome for people joining CVC.
  *
- * The Secretary invites a new member by email. The email links to a welcome
+ * The Secretary invites a new member by email — or they ask to join
+ * themselves, from the sign-in page ("I'm new here"). The email links to a welcome
  * form of their own (`/join/<token>` — no account needed), which asks for a
  * short bio, including what drew them to cohousing, and the name and mobile
  * number they'll sign in with. The same page explains how to sign in and lists
@@ -32,6 +33,8 @@ export interface Invitation {
   /** The name the Secretary knows them by, if given. */
   name: string | null;
   invitedBy: { personId: string | null; name: string };
+  /** They asked to join themselves, from the sign-in page (`invitedBy` is then the Secretary to answer them). */
+  selfRequested?: boolean;
   createdAt: string;
   /** When the welcome email last went (null if it never did: email wasn't set up, so the link was copied instead). */
   sentAt: string | null;
@@ -123,6 +126,8 @@ export interface WelcomeView {
   name: string | null;
   email: string;
   invitedBy: string;
+  /** They asked to join themselves (rather than being invited). */
+  selfRequested: boolean;
   status: InvitationStatus;
   expired: boolean;
   answers: IntakeAnswers | null;

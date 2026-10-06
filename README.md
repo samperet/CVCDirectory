@@ -246,6 +246,15 @@ Authors always come from the signed-in session, never from the request body.
   Links are the invitation's id signed with the app's secret, and work for 60 days from when they
   were last sent; answers can be changed until the person is added. An address has one open
   invitation at a time.
+- **Asking to join** – someone not in the sign-in list chooses **I'm new here — ask to join** on
+  the sign-in page and gives their name and email (`POST /api/join/request`). They're emailed the
+  same welcome form (so the address is proved theirs), and the request shows on the Secretary page
+  as "Asked to join from the sign-in page". The answer is the same whatever the address: one
+  already in the directory is emailed how to sign in instead, so the form can't be used to find out
+  who lives here. Asking again within ten minutes doesn't email again; five asks a minute from one
+  place, and 40 open requests, at most. When anyone sends their welcome form (invited or asking),
+  the Board Secretary and the admins are notified (the "circles" notifications) with a link to the
+  Secretary page.
 - **Welcome resources** – what every welcome page lists, chosen on the Secretary page in order:
   documents, pages every resident may read, and links, each with an optional note. Until the
   Secretary saves a list, it's any document or page titled "Living in Community Guide". New

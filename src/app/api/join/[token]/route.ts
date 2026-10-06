@@ -10,6 +10,9 @@ import {
   type WelcomeView,
 } from "@/lib/onboarding/shared";
 import { answersSchema, saveAnswers } from "@/lib/onboarding/store";
+import { intakeManagers } from "@/lib/onboarding/http";
+import { userIdsForPeople } from "@/lib/auth/users";
+import { notify } from "@/lib/push/notify";
 import { siteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +33,7 @@ async function view(invitation: Invitation): Promise<WelcomeView> {
     name: answered ?? invitation.name,
     email: invitation.email,
     invitedBy: invitation.invitedBy.name,
+    selfRequested: !!invitation.selfRequested,
     status: invitationStatus(invitation),
     expired,
     answers: expired ? null : invitation.answers,
@@ -51,6 +55,28 @@ export async function GET(request: NextRequest, { params }: Params) {
   return NextResponse.json(await view(ctx.invitation), { headers });
 }
 
+/** Push (and email, for those who chose it) to the people who add new members. */
+async function announceAnswers(invitation: Invitation) {
+  const directory = await readDirectory();
+  if (!directory) return;
+  const userIds = await userIdsForPeople(intakeManagers(directory));
+  if (!userIds.length) return;
+  const name = invitation.answers
+    ? `${invitation.answers.firstName} ${invitation.answers.lastName}`.trim()
+    : invitation.email;
+  await notify({
+    topic: "circles",
+    title: invitation.selfRequested
+      ? `${name} asked to join CVC`
+      : `${name} sent their welcome form`,
+    body: "Their answers are on the Secretary page, ready to add to the directory.",
+    url: "/secretary",
+    tag: `intake-${invitation.id}`,
+    exceptUserId: null,
+    onlyUserIds: userIds,
+  });
+}
+
 /** Send (or change) their answers: a short bio, their name, mobile number, and unit. */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "join");
@@ -63,5 +89,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!saved.ok && saved.reason === "already_added")
     return problem("You're already in the directory, so you can sign in now", 409);
   if (!saved.ok) return onboardingProblem(saved.reason);
+  // Their first answers: tell the Board Secretary (and admins) there's someone to add.
+  if (!ctx.invitation.answers) await announceAnswers(saved.invitation);
   return NextResponse.json(await view(saved.invitation), { headers });
 }

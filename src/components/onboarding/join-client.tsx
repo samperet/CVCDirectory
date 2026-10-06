@@ -57,15 +57,24 @@ export function JoinClient({ token }: { token: string }) {
           Welcome to CVC{first ? `, ${first}` : ""}!
         </h1>
         <p className="text-foreground-light">
-          {data.invitedBy}, the Board Secretary, invited you to Common Pastures: CVC&apos;s private
-          website for residents, with the directory, circles, calendar, documents, forum, and more.
+          {data.selfRequested ? (
+            <>Thanks for asking to join Common Pastures</>
+          ) : (
+            <>{data.invitedBy}, the Board Secretary, invited you to Common Pastures</>
+          )}
+          : CVC&apos;s private website for residents, with the directory, circles, calendar,
+          documents, forum, and more.
         </p>
       </div>
       {data.expired ? (
         <Card>
           <p className="text-foreground">
-            This welcome link has expired. Ask {data.invitedBy}, the Board Secretary, to send you a
-            new one.
+            This welcome link has expired. Ask for a new one from the sign-in page (&ldquo;I&apos;m
+            new here&rdquo;), or ask{" "}
+            {data.invitedBy === "The Board Secretary"
+              ? "the Board Secretary"
+              : `${data.invitedBy}, the Board Secretary,`}{" "}
+            to send you one.
           </p>
         </Card>
       ) : (
