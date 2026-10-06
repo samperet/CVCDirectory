@@ -18,7 +18,7 @@ import {
   confirmToken,
 } from "./tokens";
 import { extractReply, htmlToText } from "./reply-text";
-import { classify, headerMap, senderVerdict } from "./classify";
+import { authSummary, classify, headerMap, senderVerdict } from "./classify";
 import { groupRecipients } from "./recipients";
 import { composeGroupEmail, headerName, markerLine } from "./compose";
 import { resolveAddress } from "./inbound";
@@ -291,5 +291,17 @@ describe("chosen addresses", () => {
     expect(addressTaken("water", "om", circles, { water: "lcc" })).toBe(true);
     expect(addressTaken("water", "lcc", circles, { water: "lcc" })).toBe(false);
     expect(addressTaken("om", "om", circles, {})).toBe(false);
+  });
+});
+
+describe("authSummary", () => {
+  it("says what the checks said", () => {
+    expect(authSummary({ dmarc: "gray", dkim: "pass", spf: "pass" }, {})).toBe(
+      "DMARC gray · DKIM pass · SPF pass"
+    );
+    expect(authSummary(null, {})).toBe("no checks given");
+    expect(authSummary(null, { "authentication-results": "mx; dmarc=pass" })).toBe(
+      "checks only in the headers"
+    );
   });
 });

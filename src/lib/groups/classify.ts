@@ -85,3 +85,25 @@ export function senderVerdict(
   if (word(authentication?.dkim) === "pass" && word(authentication?.spf) === "pass") return "pass";
   return "unknown";
 }
+
+/**
+ * What the receiving server's checks said, in a line for the admin's log —
+ * "DMARC gray · DKIM pass · SPF pass" — or that it said nothing.
+ */
+export function authSummary(
+  authentication: { dmarc?: unknown; dkim?: unknown; spf?: unknown } | null | undefined,
+  headers: Headers
+): string {
+  const word = (value: unknown) =>
+    typeof value === "string"
+      ? value
+      : value && typeof value === "object" && "result" in value
+        ? String((value as { result: unknown }).result)
+        : "";
+  const parts = (["dmarc", "dkim", "spf"] as const)
+    .map((name) => [name.toUpperCase(), word(authentication?.[name])] as const)
+    .filter(([, value]) => value)
+    .map(([name, value]) => `${name} ${value}`);
+  if (parts.length) return parts.join(" · ");
+  return headers["authentication-results"] ? "checks only in the headers" : "no checks given";
+}

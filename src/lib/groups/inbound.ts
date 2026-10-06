@@ -11,7 +11,7 @@ import { button, emailLayout, paragraphs } from "@/lib/email/templates/layout";
 import { siteUrl } from "@/lib/site-url";
 import type { Circle } from "@/lib/circles/types";
 import type { DirectoryDocument } from "@/lib/directory/types";
-import { classify, senderVerdict } from "./classify";
+import { authSummary, classify, senderVerdict } from "./classify";
 import { shareGroupPost } from "./http";
 import { extractReply, htmlToText } from "./reply-text";
 import {
@@ -288,7 +288,10 @@ async function route(email: ReceivedEmail): Promise<string> {
         alreadyAddressed,
       });
     } else if (!person && verdict !== "pass") {
-      outcome = "dropped: unverified outsider";
+      outcome = `dropped: unverified outsider (${authSummary(
+        email.authentication,
+        email.headers
+      )})`;
     } else {
       const held: Omit<HeldMessage, "at"> = {
         id: email.id,
@@ -308,7 +311,9 @@ async function route(email: ReceivedEmail): Promise<string> {
           { ...held, at: new Date().toISOString() },
           person.email.trim().toLowerCase()
         );
-      outcome = `held: ${held.reason}`;
+      outcome = `held: ${held.reason}${
+        held.reason === "unverified" ? ` (${authSummary(email.authentication, email.headers)})` : ""
+      }`;
     }
     outcomes.push(outcome);
     await logInbound({ ...base, outcome, circleId });
