@@ -345,3 +345,27 @@ mark.wiki-mark {
   font-weight: 600;
   color: theme("colors.forest");
 }
+
+/* The welcome tour's spotlight: lifts something (the ladybug) above the tour's shade and rings it. */
+.tour-spotlight {
+  z-index: 70 !important;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 4px #ffffff,
+    0 0 0 8px #e8a317;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-spotlight {
+    animation: none;
+  }
+}

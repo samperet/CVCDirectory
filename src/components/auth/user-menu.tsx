@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   Bell,
   Bug,
+  Compass,
   Eye,
   EyeOff,
   Globe,
@@ -18,6 +19,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTour } from "@/components/tour/welcome-tour";
 import { useLogout, usePeople, useSession, useViewAs } from "@/lib/auth/client";
 import { NameCombobox } from "@/components/auth/name-combobox";
 import { useToast } from "@/components/ui/use-toast";
@@ -29,6 +31,7 @@ export function UserMenu() {
   const { user, viewAs } = useSession();
   const logout = useLogout();
   const view = useViewAs();
+  const tour = useTour();
   const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   // Residents who can sign in, for "View as" (only loaded once an admin opens the picker).
@@ -95,6 +98,17 @@ export function UserMenu() {
               <Link href="/welcome" onClick={() => setOpen(false)}>
                 <Globe className="h-4 w-4" /> Public homepage
               </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mb-1 w-full justify-start gap-2"
+              onClick={() => {
+                setOpen(false);
+                tour.start();
+              }}
+            >
+              <Compass className="h-4 w-4" /> Take the tour
             </Button>
             {user.canManageDirectory ? (
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">

@@ -121,6 +121,15 @@ contact details or unit numbers.
 - While the sign-in page waits, it notices a link opened in another tab of the same browser and
   continues; it never signs in a device just because someone else clicked a link.
 - An account is created on a resident's first sign-in and linked to their directory entry.
+- **Welcome tour** – the first time someone is signed in (on any device), a small window offers a
+  short tour: the portal as a digital common house; circles keeping their own ways of working; each
+  circle's page, group email address, documents and links; the community's tools (Loan Library,
+  Photos); the ladybug for bugs and ideas (lifted out and ringed in its corner while it's
+  described); adding the app to the home screen (this device's way — iPhone, Android, or both on a
+  computer — and left out if it's already added); and thanks. **No thanks**, closing it, or finishing
+  it is remembered on the account (`tourSeenAt`, `POST /api/auth/tour`), so it opens by itself only
+  once; **Take the tour** in the account menu runs it again (`components/tour/welcome-tour.tsx`). It
+  never opens by itself while an admin views the app as someone, or on pages opened from an email.
 - Signed-out visitors see only the public front page and the sign-in page: middleware redirects every other page to `/login`
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
 - **Homes for sale** – admins and Board members list homes for sale at `/homes-for-sale` (linked

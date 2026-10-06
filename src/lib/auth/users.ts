@@ -13,6 +13,8 @@ export interface CommunityUser {
   personId?: string | null;
   name: string;
   createdAt: string;
+  /** When they finished or skipped the welcome tour; unset until then (it shows once, on any device). */
+  tourSeenAt?: string;
 }
 
 export interface PublicUser {
@@ -25,7 +27,14 @@ export interface PublicUser {
   canManageDirectory?: boolean;
   /** An admin or on the Board: may list homes for sale. */
   canManageHomes?: boolean;
+  /** Whether they've finished or skipped the welcome tour. */
+  tourSeen?: boolean;
+  /** An account made in the last couple of days: the tour greets them as new. */
+  newAccount?: boolean;
 }
+
+/** How long an account counts as new, for the tour's greeting. */
+const NEW_FOR_MS = 2 * 24 * 60 * 60 * 1000;
 
 const USERS_KEY = "auth/users.json";
 
@@ -58,8 +67,28 @@ export async function listUsers(): Promise<CommunityUser[]> {
   return readUsers();
 }
 
-export function toPublicUser(user: CommunityUser): PublicUser {
-  return { id: user.id, name: user.name, personId: user.personId ?? null };
+export function toPublicUser(user: CommunityUser, now = Date.now()): PublicUser {
+  return {
+    id: user.id,
+    name: user.name,
+    personId: user.personId ?? null,
+    tourSeen: !!user.tourSeenAt,
+    newAccount: now - new Date(user.createdAt).getTime() < NEW_FOR_MS,
+  };
+}
+
+/** Remember that someone has finished (or skipped) the welcome tour. */
+export async function markTourSeen(userId: string): Promise<void> {
+  const user = await getUser(userId);
+  if (!user || user.tourSeenAt) return;
+  await mutateUsers((users) => ({
+    users: users.map((entry) =>
+      entry.id === userId && !entry.tourSeenAt
+        ? { ...entry, tourSeenAt: new Date().toISOString() }
+        : entry
+    ),
+    result: null,
+  }));
 }
 
 export async function getUser(id: string): Promise<CommunityUser | null> {
