@@ -248,21 +248,16 @@ export function LoginClient() {
                 {request.isPending ? "Sending…" : "Email me a sign-in link"}
               </Button>
 
-              <div className="flex flex-col items-center gap-2 border-t border-border pt-5 text-center">
-                <p className="text-sm text-muted">Don&apos;t see your name in the list?</p>
-                <Button
+              <p className="text-center text-sm text-muted">
+                The link goes to your email address in the CVC directory. Not in the list?{" "}
+                <button
                   type="button"
-                  variant="outline"
-                  className="w-full"
                   onClick={() => setJoining(true)}
+                  className="text-secondary-foreground underline underline-offset-4 hover:text-foreground"
                 >
-                  I&apos;m new here — ask to join
-                </Button>
-                <p className="text-xs text-muted">
-                  The sign-in link goes to your email address in the CVC directory. Changed your
-                  email? Ask the Board Secretary to update your entry.
-                </p>
-              </div>
+                  Ask to join
+                </button>
+              </p>
             </form>
           )}
         </div>
