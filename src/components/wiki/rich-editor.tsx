@@ -34,8 +34,10 @@ import {
   ChevronsUpDown,
   Eraser,
   FilePlus2,
+  Globe,
   Highlighter,
   LayoutList,
+  Link2,
   Mic,
   Users,
   X,
@@ -45,7 +47,7 @@ import {
   BoldItalicUnderlineToggles,
   ButtonOrDropdownButton,
   ButtonWithTooltip,
-  CreateLink,
+  openLinkEditDialog$,
   type DirectiveDescriptor,
   type DirectiveEditorProps,
   GenericDirectiveEditor,
@@ -601,6 +603,69 @@ export function HighlightButton({ onApply }: { onApply: (markdown: string) => vo
   );
 }
 
+type LinkChoice = "web" | "page" | "upload";
+
+/**
+ * The toolbar's one **Link** menu: a web address (the editor's own link box,
+ * for the selected words), a page or document already here (linked — or a
+ * page shown in this one), or a new file, uploaded to the circle's documents
+ * and linked.
+ */
+function LinkMenu({
+  canUpload,
+  onPage,
+  onUpload,
+}: {
+  canUpload: boolean;
+  onPage: () => void;
+  onUpload: () => void;
+}) {
+  const openLinkDialog = usePublisher(openLinkEditDialog$);
+  const items: { value: LinkChoice; label: JSX.Element }[] = [
+    {
+      value: "web",
+      label: (
+        <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice="web">
+          <Globe className="h-4 w-4 shrink-0" aria-hidden /> Web address…
+        </span>
+      ),
+    },
+    {
+      value: "page",
+      label: (
+        <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice="page">
+          <LayoutList className="h-4 w-4 shrink-0" aria-hidden /> A page or document…
+        </span>
+      ),
+    },
+    ...(canUpload
+      ? [
+          {
+            value: "upload" as const,
+            label: (
+              <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice="upload">
+                <FilePlus2 className="h-4 w-4 shrink-0" aria-hidden /> Upload a file…
+              </span>
+            ),
+          },
+        ]
+      : []),
+  ];
+  return (
+    <ButtonOrDropdownButton<LinkChoice>
+      title="Link"
+      items={items}
+      onChoose={(choice) => {
+        if (choice === "web") openLinkDialog();
+        else if (choice === "page") onPage();
+        else onUpload();
+      }}
+    >
+      <Link2 className="h-5 w-5" />
+    </ButtonOrDropdownButton>
+  );
+}
+
 /** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
 export const textDirectives: DirectiveDescriptor<TextDirective> = {
   name: ":text",
@@ -803,20 +868,13 @@ export const RichEditor = forwardRef<
                 <Separator />
                 <ListsToggle options={["bullet", "number", "check"]} />
                 <Separator />
-                <CreateLink />
+                <LinkMenu
+                  canUpload={documentsOn}
+                  onPage={() => setEmbedding(true)}
+                  onUpload={() => setAddingDocument(true)}
+                />
                 <Separator />
                 <InsertImage />
-                {documentsOn ? (
-                  <ButtonWithTooltip title="Add a document" onClick={() => setAddingDocument(true)}>
-                    <FilePlus2 className="h-5 w-5" />
-                  </ButtonWithTooltip>
-                ) : null}
-                <ButtonWithTooltip
-                  title="Show or link another page"
-                  onClick={() => setEmbedding(true)}
-                >
-                  <LayoutList className="h-5 w-5" />
-                </ButtonWithTooltip>
                 <InsertTable />
                 <ButtonWithTooltip
                   title="Collapsible section"

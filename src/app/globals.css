@@ -369,3 +369,9 @@ mark.wiki-mark {
     animation: none;
   }
 }
+
+/* The wiki toolbar's Link menu: wide enough for its choices (the editor's menus are narrow). */
+.mdxeditor-select-content:has([data-link-choice]) {
+  width: auto;
+  min-width: 13rem;
+}

@@ -393,14 +393,16 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple toolbar: headings, bold/italic,
   lists and checklists, links, photos, tables, collapsible sections, embedded pages, and **polls**;
   Markdown shortcuts work as you type. **Typing @** searches pages and documents and links the one
-  you pick — or, for a new title, links a new page (`GET /api/wiki/link-search`). The toolbar's
-  **Add a document** button uploads a file into the parent circle's documents and links it. **Links**
+  you pick — or, for a new title, links a new page (`GET /api/wiki/link-search`). The toolbar's one
+  **Link** menu offers **Web address…** (a link on the selected words), **A page or document…**
+  (find a page or an uploaded file; a page can be linked or shown here, a file is linked), and
+  **Upload a file…** (into the parent circle's documents, then linked). **Links**
   show as **tags**; they're written `[[Page title]]` (titles are unique across the wiki; an older
   `[[O&M:Page title]]` still works) and `[[doc:Document title]]` (`[[doc:O&M:Document title]]` for
   one circle's); any of them takes `|shown text`. **Renaming a page updates the links and embeds
   that point to it.** **Embeds** (`::embed{page="Title" section="Heading"}`) show another page, or
   one section of it, inline and always current, labelled with the circle that keeps it; the
-  toolbar's **Show or link another page** button adds one, or just a link to the page. Changes
+  toolbar's **Link** menu (**A page or document…**) adds one, or just a link to the page. Changes
   **save as you type**, and several people can edit at once (others' saves merge in paragraph by
   paragraph). Each page keeps its last 25 versions (`wiki/history/<pageId>.json`), and its address
   when renamed. Pages are stored together in `wiki/pages.json` (`/api/wiki/pages`,

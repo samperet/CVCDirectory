@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpen, LayoutList, Link2 } from "lucide-react";
+import { BookOpen, FileText, LayoutList, Link2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { wikiPageQuery } from "@/components/wiki/link-data";
 import { embedText, tableOfContents } from "@/lib/wiki/sections";
-import { pageLinkText } from "@/lib/wiki/links";
+import { docLinkText, pageLinkText } from "@/lib/wiki/links";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,20 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type Found = { circleId: string; circleName: string; title: string; slug: string };
+type FoundFile = {
+  id: string;
+  title: string;
+  circleId: string;
+  circleName: string;
+  ambiguous: boolean;
+};
 
 /**
- * Show another page — or one section of it — inside the page being written,
- * or just link to it: find it, then either choose the whole page
- * or a section (an embed, always showing that page's current text) or "Just
- * a link" (`[[Title]]`; links go to the whole page). It goes where the
- * cursor was.
+ * Link a page or document, or show a page in this one: find it — then, for
+ * a page, either the whole page or a section (an embed, always showing that
+ * page's current text) or "Just a link" (`[[Title]]`; links go to the whole
+ * page); a file (an uploaded document) is linked at once (`[[doc:Title]]`).
+ * It goes where the cursor was.
  */
 export function EmbedPageDialog({
   circle,
@@ -47,7 +54,7 @@ export function EmbedPageDialog({
   const results = useQuery({
     queryKey: ["wiki-link-search", circle.id, pageId, search],
     queryFn: () =>
-      apiFetch<{ pages: Found[] }>(
+      apiFetch<{ pages: Found[]; documents: FoundFile[] }>(
         `/api/wiki/link-search?${new URLSearchParams({
           q: search,
           circle: circle.id,
@@ -67,13 +74,13 @@ export function EmbedPageDialog({
 
   return (
     <Dialog
-      title="Show or link a page"
-      icon={<LayoutList className="h-5 w-5 text-primary" />}
+      title="Link a page or document"
+      icon={<Link2 className="h-5 w-5 text-primary" />}
       onClose={onClose}
     >
       <p className="text-sm text-muted">
-        Show another page — or one section of it — inside this one, always as it currently reads
-        (it&apos;s still edited where it lives), or just add a link to it.
+        Link a page or an uploaded file — or show another page (or one section of it) inside this
+        one, always as it currently reads.
       </p>
       {chosen ? (
         <div className="flex flex-col gap-3">
@@ -150,11 +157,15 @@ export function EmbedPageDialog({
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a page"
-            aria-label="Find a page"
+            placeholder="Find a page or file"
+            aria-label="Find a page or file"
             className="bg-white"
           />
-          <ul className="flex max-h-72 flex-col overflow-y-auto" role="listbox" aria-label="Pages">
+          <ul
+            className="flex max-h-72 flex-col overflow-y-auto"
+            role="listbox"
+            aria-label="Pages and files"
+          >
             {(results.data?.pages ?? []).map((found) => (
               <li key={`${found.circleId}:${found.slug}`}>
                 <button
@@ -172,8 +183,34 @@ export function EmbedPageDialog({
                 </button>
               </li>
             ))}
-            {results.data && !results.data.pages.length ? (
-              <li className="px-2 py-1.5 text-sm text-muted">No pages match.</li>
+            {(results.data?.documents ?? []).map((file) => (
+              <li key={`file:${file.id}`}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onClick={() =>
+                    onChosen(
+                      docLinkText(
+                        file.title,
+                        { id: file.circleId, name: file.circleName },
+                        circle.id,
+                        file.ambiguous
+                      ),
+                      "link"
+                    )
+                  }
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                  data-file-result
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{file.title}</span>
+                  <span className="shrink-0 text-xs text-muted">{file.circleName} · file</span>
+                </button>
+              </li>
+            ))}
+            {results.data && !results.data.pages.length && !results.data.documents.length ? (
+              <li className="px-2 py-1.5 text-sm text-muted">Nothing matches.</li>
             ) : null}
           </ul>
         </div>
