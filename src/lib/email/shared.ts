@@ -24,7 +24,7 @@ export const DEFAULT_EMAIL_PREFERENCES: Preferences = {
   polls: true,
   wiki: true,
   tasks: true,
-  // Circle messages are emailed by the circle itself (each member's choice per circle), not as notifications.
+  // Circle forum messages are app notifications only.
   groups: false,
 };
 
@@ -52,25 +52,25 @@ export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
   updatedBy: null,
 };
 
-/** One sending, as the admin page lists it: counts only (and, in test mode, the addresses). */
 /** The email providers, in the order they're tried (see deliver.ts). */
 export const PROVIDER_NAMES = { brevo: "Brevo", resend: "Resend" } as const;
 
+/** One sending, as the admin page lists it: counts only (and, in test mode, the addresses). */
 export interface EmailLogEntry {
   at: string;
   /**
    * A notification topic, an admin's test, a new member's welcome or a sign-in link
-   * (`sendDirectEmail`), a circle's
-   * group email, a daily summary, or a "did you send this?" check.
+   * (`sendDirectEmail`). "group", "summary" and "confirm" are from the group email the app
+   * once had, and stay readable in the log.
    */
   topic: Topic | "test" | "welcome" | "sign-in" | "group" | "summary" | "confirm";
-  /** For group email: the circle. */
+  /** For the old group email: the circle. */
   circleId?: string;
   subject: string;
   sent: number;
   skipped: number;
   failed: number;
-  /** Over the free plan's quota: left for the next summary (group email) or skipped (notifications). */
+  /** Over the free plan's quota: not sent. */
   overQuota?: number;
   /** How many each provider took. */
   by?: Partial<Record<keyof typeof PROVIDER_NAMES, number>>;

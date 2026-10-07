@@ -14,8 +14,6 @@ import {
 } from "@/lib/email/settings";
 import { isEmailAddress, PROVIDER_NAMES } from "@/lib/email/shared";
 import { quotaStatus } from "@/lib/email/quota";
-import { readInboundLog } from "@/lib/groups/inbound";
-import { pendingSummary } from "@/lib/groups/summary";
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +31,11 @@ async function admin() {
 }
 
 async function state() {
-  const [settings, log, directory, quota, inbound, waiting] = await Promise.all([
+  const [settings, log, directory, quota] = await Promise.all([
     readEmailSettings(),
     readEmailLog(),
     readDirectory(),
     quotaStatus(providerConfigured),
-    readInboundLog(),
-    pendingSummary(),
   ]);
   const withAddress = new Set(
     (directory?.people ?? [])
@@ -53,9 +49,6 @@ async function state() {
     from: fromAddress(),
     residentsWithEmail: withAddress,
     quota,
-    inbound: inbound.slice(0, 50),
-    waitingForSummary: waiting.length,
-    receiving: !!process.env.RESEND_WEBHOOK_SECRET,
   };
 }
 

@@ -91,7 +91,7 @@ describe("sending with a backup", () => {
   it("uses Brevo first, then Resend, then reports what fits nowhere", async () => {
     const result = await sendEmails(
       ["a", "b", "c", "d", "e", "f"].map((name) => message(`${name}@example.org`)),
-      "groups"
+      "direct"
     );
     expect(result.by).toEqual({ brevo: 3, resend: 2 });
     expect(result.sent).toBe(5);
@@ -104,7 +104,7 @@ describe("sending with a backup", () => {
 
   it("falls over to Resend when Brevo refuses our key, and gives Brevo's room back", async () => {
     brevoStatus = 401;
-    const first = await sendEmails([message("a@example.org")], "groups");
+    const first = await sendEmails([message("a@example.org")], "direct");
     expect(first.by).toEqual({ resend: 1 });
     expect(first.failed).toBe(0);
     // Why Brevo refused is kept, for the admin's log.
@@ -113,7 +113,7 @@ describe("sending with a backup", () => {
     brevoStatus = 201;
     const second = await sendEmails(
       ["b", "c", "d"].map((name) => message(`${name}@example.org`)),
-      "groups"
+      "direct"
     );
     expect(second.by).toEqual({ brevo: 3 });
   });

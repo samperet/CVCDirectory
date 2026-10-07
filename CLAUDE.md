@@ -46,7 +46,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/circles/ids.ts` | `COMMUNITY_ID`, `BOARD_ID`, `isCommunity`, `sitsOnBoard` (importable anywhere) |
 | `src/lib/time.ts` | `TIME_ZONE` (Vermont), `todayInVermont`, `timeAgo` |
 | `src/lib/email/` | Sending (`deliver.ts`: Brevo, then Resend as backup), the free-plan quotas, the shared email layout, notification emails, test mode |
-| `src/lib/groups/` | Circle email groups: conversations, addresses, inbound mail, fan-out, polls with one-click links, the morning summary |
+| `src/lib/groups/` | Circle forums: conversations and polls, with app notifications to the circle's members |
 
 ## Conventions that matter
 

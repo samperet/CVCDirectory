@@ -23,7 +23,6 @@ import {
   MODULE_ICONS,
   TasksSettings,
   LogSettings,
-  ForumSettings,
   TextSettings,
   describeForum,
   describeText,
@@ -54,7 +53,6 @@ import {
   type DetailsDraft,
 } from "@/components/circles/details-editor";
 import { MembersModule, ROLES } from "@/components/circles/members-module";
-import { GroupAddress } from "@/components/groups/group-address";
 
 export function CircleDetailClient({ id }: { id: string }) {
   const confirm = useConfirm();
@@ -189,7 +187,7 @@ export function CircleDetailClient({ id }: { id: string }) {
         return {
           title,
           icon: icon(module),
-          detail: describeForum(module),
+          detail: describeForum(),
           content: (
             <Card>
               <ForumModule circleId={circle.id} circleName={circle.name} />
@@ -243,8 +241,6 @@ export function CircleDetailClient({ id }: { id: string }) {
       if (detailsDraft.name !== before.name) changes.name = detailsDraft.name;
       if (detailsDraft.description !== before.description)
         changes.description = detailsDraft.description;
-      if (!community && detailsDraft.emailName.trim() !== before.emailName)
-        changes.emailName = detailsDraft.emailName.trim();
       if (canSetKind && detailsDraft.club !== before.club)
         changes.kind = detailsDraft.club ? "club" : "circle";
     }
@@ -281,7 +277,6 @@ export function CircleDetailClient({ id }: { id: string }) {
               value={detailsDraft}
               onChange={setDetailsDraft}
               canSetKind={canSetKind}
-              hasAddress={!community}
             />
           ) : (
             <>
@@ -294,7 +289,6 @@ export function CircleDetailClient({ id }: { id: string }) {
               ) : canManage ? (
                 <p className="text-sm text-muted">No description yet.</p>
               ) : null}
-              {community ? null : <GroupAddress circle={circle} />}
             </>
           )}
           {canManage && !pageDraft ? (
@@ -378,16 +372,6 @@ export function CircleDetailClient({ id }: { id: string }) {
                     ? { kind: "settings", module }
                     : null
                 );
-              }}
-            />
-          ) : dialog?.kind === "settings" && dialog.module.type === "forum" ? (
-            <ForumSettings
-              module={dialog.module}
-              circleId={circle.id}
-              onClose={() => setDialog(null)}
-              onSave={(module) => {
-                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
-                setDialog(null);
               }}
             />
           ) : dialog?.kind === "settings" && dialog.module.type === "text" ? (

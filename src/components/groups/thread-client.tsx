@@ -20,17 +20,16 @@ type ThreadData = {
   poll: Poll | null;
   pollAuthorPersonId: string | null;
   circle: { id: string; name: string };
-  address: string;
   canPost: boolean;
   canModerate: boolean;
   personId: string;
 };
 
 /**
- * One conversation in a circle's Forum — the page every circle email links
- * to: its messages in order (each says if it came by email), its poll, and
- * a reply box for the circle's members (replies are emailed to the members,
- * just like replying to the email).
+ * One conversation in a circle's Forum — the page its notifications open:
+ * its messages in order, its poll, and a reply box for the circle's members
+ * (who get an app notification for each reply). Messages that came by the
+ * group email the app once had still say so.
  */
 export function GroupThreadClient({ circleId, threadId }: { circleId: string; threadId: string }) {
   const { toast } = useToast();
@@ -93,9 +92,8 @@ export function GroupThreadClient({ circleId, threadId }: { circleId: string; th
       <Card className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{data.thread.title}</h1>
-          <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
-            {data.circle.name}&apos;s Forum · {live.length} message{live.length === 1 ? "" : "s"} ·{" "}
-            <Mail className="h-3.5 w-3.5" aria-hidden /> {data.address}
+          <p className="text-xs text-muted">
+            {data.circle.name}&apos;s Forum · {live.length} message{live.length === 1 ? "" : "s"}
           </p>
         </div>
         {data.poll ? (
@@ -147,7 +145,7 @@ export function GroupThreadClient({ circleId, threadId }: { circleId: string; th
           }
           deleteConfirm={() => ({
             title: "Delete this message?",
-            body: "It's removed here; emails already sent stay in people's inboxes.",
+            body: "It's removed for everyone.",
           })}
         />
         {data.canPost ? (

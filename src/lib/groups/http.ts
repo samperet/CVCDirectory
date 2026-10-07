@@ -3,19 +3,17 @@ import { circleContext } from "@/lib/circles/access";
 import { canManageCircle } from "@/lib/circles/icons";
 import { isCommunity } from "@/lib/circles/ids";
 import { userIdsForPeople } from "@/lib/auth/users";
-import { mailDomain } from "@/lib/email/deliver";
 import { notify, excerpt } from "@/lib/push/notify";
 import { problem } from "@/lib/http";
 import type { Circle } from "@/lib/circles/types";
-import { emailGroupPost } from "./send";
-import { groupAddress, type GroupPost, type GroupThread } from "./shared";
+import type { GroupPost, GroupThread } from "./shared";
 import type { Failure } from "./store";
 
 /**
  * Who may do what in a circle's Forum. Every signed-in resident reads it.
  * The circle's members, the Board, and admins start conversations, reply,
- * answer its polls, approve held messages, and delete any message (authors
- * edit and delete their own). Community is everyone and has no group email.
+ * answer its polls, and delete any message (authors edit and delete their
+ * own). Community's conversations are in the community Forum instead.
  */
 export async function groupContext(circleId: string) {
   const ctx = await circleContext({ circleId });
@@ -24,13 +22,7 @@ export async function groupContext(circleId: string) {
     return { error: problem("Community conversations are in the Forum", 404) };
   const circle = ctx.directory.circles.find((entry) => entry.id === circleId)!;
   const member = ctx.actor.admin || canManageCircle(ctx.directory, circleId, ctx.personId);
-  return {
-    ...ctx,
-    circle,
-    canPost: member,
-    canModerate: member,
-    address: groupAddress(circle, mailDomain()),
-  };
+  return { ...ctx, circle, canPost: member, canModerate: member };
 }
 
 export function groupProblem(reason: Failure) {
@@ -46,29 +38,24 @@ export function groupProblem(reason: Failure) {
 }
 
 /**
- * After a message is saved: email it to the circle's members and push it to
- * those who use notifications (never twice by email). Both never throw.
+ * After a message is saved: an app notification to the circle's members
+ * (the "groups" topic, push only — never emailed). Never throws.
  */
 export async function shareGroupPost(
   circle: Circle,
   thread: GroupThread,
   post: GroupPost,
-  opening: GroupPost | null,
-  options: { exceptUserId: string | null; alreadyAddressed?: Set<string> }
+  options: { exceptUserId: string | null }
 ) {
   const memberUsers = await userIdsForPeople(circle.seats.map((seat) => seat.personId));
-  const [emailed] = await Promise.all([
-    emailGroupPost({ circle, thread, post, opening, alreadyAddressed: options.alreadyAddressed }),
-    notify({
-      topic: "groups",
-      title: `${circle.name}: ${thread.title}`,
-      body: `${post.authorName}: ${excerpt(post.body)}`,
-      url: `/circles/${circle.id}/forum/${thread.id}`,
-      tag: `group-${thread.id}`,
-      exceptUserId: options.exceptUserId,
-      onlyUserIds: memberUsers,
-      skipEmail: true,
-    }),
-  ]);
-  return emailed;
+  await notify({
+    topic: "groups",
+    title: `${circle.name}: ${thread.title}`,
+    body: `${post.authorName}: ${excerpt(post.body)}`,
+    url: `/circles/${circle.id}/forum/${thread.id}`,
+    tag: `group-${thread.id}`,
+    exceptUserId: options.exceptUserId,
+    onlyUserIds: memberUsers,
+    skipEmail: true,
+  });
 }

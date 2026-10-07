@@ -3,18 +3,17 @@ import { mutateJson, readJson } from "@/lib/storage";
 /**
  * Keeping within the email providers' free plans, each counted on its own:
  * Brevo (300 a day; `BREVO_DAILY_LIMIT`, `BREVO_MONTHLY_LIMIT`) and Resend
- * (100 a day and 3,000 a month, received mail included;
- * `EMAIL_DAILY_LIMIT`, `EMAIL_MONTHLY_LIMIT`). Group email comes first:
- * notification emails stop a little early each day (`NOTIFICATION_SHARE`),
- * so a circle's post still goes out — and what doesn't fit anywhere waits
- * for the next morning's summary rather than being lost. Days and months are
- * counted in UTC, as the providers count them.
+ * (100 a day and 3,000 a month; `EMAIL_DAILY_LIMIT`, `EMAIL_MONTHLY_LIMIT`).
+ * Emails to one person on purpose (sign-in links, welcomes, tests) come
+ * first: notification emails stop a little early each day
+ * (`NOTIFICATION_SHARE`), so someone can always still sign in. Days and
+ * months are counted in UTC, as the providers count them.
  */
 
 const KEY = "email/quota.json";
 const NOTIFICATION_SHARE = 0.7;
 
-export type QuotaUse = "groups" | "notifications" | "inbound";
+export type QuotaUse = "direct" | "notifications";
 
 /** The senders, in the order they're tried. */
 export const PROVIDERS = ["brevo", "resend"] as const;
@@ -73,8 +72,6 @@ export function allowance(
 ): number {
   const dayCap = use === "notifications" ? Math.floor(max.day * NOTIFICATION_SHARE) : max.day;
   const room = Math.min(dayCap - state.dayCount, max.month - state.monthCount);
-  // Received mail is counted, never refused.
-  if (use === "inbound") return wanted;
   return Math.max(0, Math.min(wanted, room));
 }
 

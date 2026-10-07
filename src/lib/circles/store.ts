@@ -72,7 +72,6 @@ const moduleSchema = z
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
     log: z.object({ post: z.enum(LOG_POSTERS) }).optional(),
-    forum: z.object({ email: z.boolean() }).optional(),
     text: z
       .object({
         body: z
@@ -97,19 +96,14 @@ const moduleSchema = z
     (module) => module.type === "log" || !module.log,
     "Only a Log module says who can post to it"
   )
-  .refine(
-    (module) => module.type === "forum" || !module.forum,
-    "Only a Forum module says whether it's emailed"
-  )
   .refine((module) => module.type === "text" || !module.text, "Only Custom Text modules hold text")
   .transform(
-    ({ title, info, tasks, log, forum, text, ...module }): CircleModule => ({
+    ({ title, info, tasks, log, text, ...module }): CircleModule => ({
       ...module,
       ...(title ? { title } : {}),
       ...(info ? { info } : {}),
       ...(tasks ? { tasks } : {}),
       ...(log ? { log } : {}),
-      ...(forum ? { forum } : {}),
       ...(text ? { text } : {}),
     })
   );
@@ -144,13 +138,6 @@ export const circleUpdateSchema = circleInputSchema
     kind,
     /** The page, as modules (see `src/lib/circles/layout.ts`). */
     modules: modulesSchema,
-    /** Its group email address part (checked by the route); empty goes back to the one from its name. */
-    emailName: z
-      .string()
-      .trim()
-      .toLowerCase()
-      .max(40, "Keep the address to 40 characters")
-      .transform((value) => value || null),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
@@ -290,7 +277,6 @@ export function updateCircle(
     joinPolicy: "open" | "apply";
     kind: CircleKind;
     modules: CircleModule[];
-    emailName: string | null;
   }>
 ) {
   return mutate(imported, (circles) => {

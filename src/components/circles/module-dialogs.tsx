@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
-import { forumQuery } from "@/components/groups/forum-module";
 import {
   ArrowDown,
   ArrowUp,
@@ -75,7 +74,7 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   schedule: "The circle's duty schedule.",
   tasks: "The circle's tasks.",
   forum:
-    "Conversations by email and on the web: the circle gets its own email address, and every message goes to all its members.",
+    "Conversations and polls for the circle's members, who get an app notification for each new message.",
   log: "Short updates, with replies — a small forum of the circle's own that never notifies or emails anyone.",
   documents:
     "The circle's documents — pages written here and files uploaded — searchable, with New to add one.",
@@ -219,71 +218,7 @@ export function TextSettings({
 }
 
 /** What a Forum module does, in a few words. */
-export const describeForum = (module: CircleModule) =>
-  module.forum?.email === false ? "Web only — not emailed" : "Emailed to every member";
-
-/** Setting up a Forum module: whether its conversations are emailed to the circle's members. */
-export function ForumSettings({
-  module,
-  circleId,
-  onSave,
-  onClose,
-}: {
-  module: CircleModule;
-  circleId: string;
-  onSave: (module: CircleModule) => void;
-  onClose: () => void;
-}) {
-  const [email, setEmail] = useState(module.forum?.email !== false);
-  const address = useQuery(forumQuery(circleId)).data?.address ?? "its own address";
-  return (
-    <Dialog
-      title="Forum settings"
-      icon={<Settings2 className="h-5 w-5 text-primary" aria-hidden />}
-      onClose={onClose}
-    >
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSave({ ...module, forum: { email } });
-        }}
-      >
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1 text-sm font-medium text-foreground">Email</legend>
-          {(
-            [
-              [true, "Email every message to the circle's members"],
-              [false, "Web only — don't email anyone"],
-            ] as const
-          ).map(([value, label]) => (
-            <label key={String(value)} className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="radio"
-                name="forum-email"
-                checked={email === value}
-                onChange={() => setEmail(value)}
-                className="h-4 w-4 accent-primary"
-              />
-              {label}
-            </label>
-          ))}
-          <p className="text-xs text-muted">
-            The circle&apos;s address is <strong>{address}</strong>. Members write to it from any
-            email; others&apos; messages wait for a member to approve them. Each member can also
-            choose the web only for themselves.
-          </p>
-        </fieldset>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit">Done</Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
+export const describeForum = () => "Conversations, with app notifications";
 
 /** What a Log module allows, in a few words. */
 export const describeLog = (module: CircleModule) =>

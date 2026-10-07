@@ -8,7 +8,7 @@ import { PROVIDERS, releaseQuota, reserveQuota, type Provider, type QuotaUse } f
  * Each email takes room in one provider's free allowance; whatever a
  * provider has no room for, or fails to take, is offered to the next one —
  * so an outage or a used-up day at Brevo falls over to Resend, and only what
- * fits nowhere comes back as `overQuota` (for the morning summary). A
+ * fits nowhere comes back as `overQuota`. A
  * provider that refuses our key is skipped for the rest of the sending.
  * Resend takes batches of 100 (a batch refused for one bad address is split
  * and sent one by one); Brevo takes one email per request. Never throws;
@@ -52,12 +52,6 @@ export const emailConfigured = () => PROVIDERS.some(providerConfigured);
 
 export const fromAddress = () =>
   process.env.EMAIL_FROM ?? "Common Pastures <notifications@commonpasturesvt.org>";
-
-/** The domain the circles' group addresses are on. */
-export const mailDomain = () =>
-  process.env.GROUP_EMAIL_DOMAIN ||
-  process.env.NEXT_PUBLIC_GROUP_EMAIL_DOMAIN ||
-  "commonpasturesvt.org";
 
 export const escapeHtml = (text: string) =>
   text.replace(
@@ -260,7 +254,7 @@ export interface Sending {
  */
 export async function sendEmails(
   messages: Outgoing[],
-  use: Exclude<QuotaUse, "inbound">,
+  use: QuotaUse,
   idempotencyKey?: string,
   only?: Provider
 ): Promise<Sending> {

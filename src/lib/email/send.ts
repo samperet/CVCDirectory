@@ -161,7 +161,7 @@ export async function sendDirectEmail(
       console.error("[email] no sender is set up: BREVO_KEY and RESEND_KEY are both missing");
       return { sent: false, errors: {}, problem: "not configured" };
     }
-    const result = await sendEmails([message], "groups");
+    const result = await sendEmails([message], "direct");
     await logEmail({
       at: new Date().toISOString(),
       topic: kind,
@@ -215,7 +215,7 @@ export async function sendTestEmail(
           }),
         },
       ],
-      "groups",
+      "direct",
       undefined,
       provider
     );

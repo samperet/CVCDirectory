@@ -151,8 +151,6 @@ export interface CircleModule {
   tasks?: { add: TaskAdders };
   /** A Log module's setting: who can post updates (unset: the circle's members). */
   log?: { post: LogPosters };
-  /** A Forum module's setting: whether the circle's conversations are emailed to its members (unset: yes). */
-  forum?: { email: boolean };
   /** A Custom Text module's words, as Markdown (the wiki's formatting), and its background (unset: white). */
   text?: { body: string; background?: TextBackground };
 }

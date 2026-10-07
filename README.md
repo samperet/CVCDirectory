@@ -52,18 +52,13 @@ Accounts and admin:
 Email (optional; see App & Notifications):
 
 - `BREVO_KEY` – Brevo API key: email is sent through Brevo first (free: 300 a day).
-- `RESEND_KEY` – Resend API key: the backup sender, and receiving. With neither key nothing is
-  emailed.
+- `RESEND_KEY` – Resend API key: the backup sender. With neither key nothing is emailed.
 - `EMAIL_FROM` – Sender, default `Common Pastures <notifications@commonpasturesvt.org>` (the
   domain must be verified in both Brevo and Resend).
 - `SITE_URL` – The app's address for links in emails (default: Vercel's production domain).
-- `RESEND_WEBHOOK_SECRET` – Signing secret of Resend's webhook, for circle email arriving (see
-  Circle email groups); `CRON_SECRET` – for the daily cron (morning summary).
 - `BREVO_DAILY_LIMIT` / `BREVO_MONTHLY_LIMIT` – Brevo's allowance (default 300 a day, 9,000 a
   month); `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – Resend's (default: its free 100 a day,
-  3,000 a month); `NEXT_PUBLIC_GROUP_EMAIL_DOMAIN` – the circles' address domain (default
-  `commonpasturesvt.org`; the server also reads `GROUP_EMAIL_DOMAIN`, but only the public one
-  reaches the pages that show addresses).
+  3,000 a month).
 - `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
   (default `gpt-image-1`).
 
@@ -124,7 +119,7 @@ contact details or unit numbers.
 - An account is created on a resident's first sign-in and linked to their directory entry.
 - **Welcome tour** – the first time someone is signed in (on any device), a small window offers a
   short tour: the portal as a digital common house; circles keeping their own ways of working; each
-  circle's page, group email address, documents and links; the community's tools (Loan Library,
+  circle's page, forum, documents and links; the community's tools (Loan Library,
   Photos); the ladybug for bugs and ideas (lifted out and ringed in its corner while it's
   described); adding the app to the home screen (this device's way — iPhone, Android, or both on a
   computer — and left out if it's already added); and thanks. **No thanks**, closing it, or finishing
@@ -476,7 +471,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **A circle's page** – is built from **modules**: **Information** and **Custom Text** (as many of
   each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Forum** (see Circle email groups), **Log**, and **Documents** (each of those once). One **Edit** button (the
+  there is one, **Tasks**, **Forum** (see Circle forums), **Log**, and **Documents** (each of those once). One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
   in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
@@ -652,59 +647,12 @@ from then on, so re-importing the directory never overwrites circle changes.
   welcome", without the address.
   Settings in `email/settings.json`, the log (last 200) in `email/log.json`. Locally,
   `EMAIL_TEST_SINK=1` writes emails to `.data/email-sink.json` instead of sending them.
-
-## Circle email groups
-
-Every circle and club has its own email address on the community's domain, made from its name
-(`landcare@commonpasturesvt.org` for "Land Care Circle"; its id, `lcc@`, works too, and so do the
-addresses it had before). It's shown, with Copy, under the circle's name in its page's header, and
-its members (or the Board) can change it there in **Edit** (`emailName` on the circle; empty goes
-back to the name's). An address kept for the mail system (`postmaster`, `notifications`…) or
-already answered to by another circle — by its address, its id, or an old address — can't be
-chosen. It works like a Google Group, built into the app (`src/lib/groups/`):
-
-- **The Forum module** on a circle's page shows the address (with Copy), lets each member choose
-  **By email** or **Web only**, and lists the circle's conversations; members **Start a
-  conversation** (optionally **with a poll**) and reply on the web (`/circles/<id>/forum/<thread>`).
-  Everyone at CVC can read it; the circle's members, the Board, and admins post, approve held
-  messages, and delete messages (authors edit their own). Its **Settings** can make the circle web
-  only (no email).
-- **Every message** — written in the app or emailed to the address — goes by email to the circle's
-  **current** members (not its author, not those on web only, one copy per address), and as a push
-  notification (topic "groups", push only). Emails come "from" the author via the circle
-  (`"Ada Ash via Land Care" <landcare@…>` — they can't come from the author's own address: our
-  senders only send from our domain, and the author's mail provider would call it forged) and
-  reply to the circle's plain address, so **Reply and Reply All go to everyone**; a **reply to Ada
-  Ash alone** link (to the author's directory address) writes to them only. Replies find their
-  conversation by the References they carry (`<t.<thread>@…>`); replies to emails sent before
-  2026-10-07, whose Reply-To had a signed tag (`landcare+t.<thread>.<sig>@…`), still use it. They
-  carry the circle's icon at the top (a public signed address, `/api/email/icon/…`), the message,
-  a poll's answers as buttons, "See the whole conversation", and list headers (List-Id,
-  List-Post, one-click List-Unsubscribe meaning "this circle on the web only", Precedence, a loop
-  guard).
-- **Email arriving** (Resend's `email.received` webhook, `/api/email/inbound`, signed with
-  `RESEND_WEBHOOK_SECRET`): automatic mail (out-of-office, bounces, other lists, our own) is
-  dropped; the address picks the circle, the tag (or the message ids, or a "Re:" subject from the
-  last 30 days) picks the conversation; only the new words are kept (quoted text, "On … wrote:",
-  signatures cut; HTML made plain). A member or Board member whose email passes the sender check
-  (DMARC) is posted at once; a member whose email can't be verified is held and asked at their
-  directory address **"Did you send this?"** (`/email/confirm/<token>`, no sign-in); other
-  residents and outsiders are held for the circle to approve; unverifiable outsiders are dropped.
-  Nothing ever replies to unverified mail. Each email is handled once (`email/inbound/<id>.json`;
-  message ids derived from the email's). Attachments aren't kept yet (the message says so).
-- **Polls** in a conversation (the subject is the question): members answer on the page or with
-  **one click** in the email (`/vote/<token>`). Opening the link records nothing (mail scanners
-  open links); signed in as that person it records at once, otherwise **Confirm my answer**
-  records it without signing in. Votes are kept by person, so web and email votes are one.
 - **Two free senders**: every email goes through **Brevo** (300 a day free) while it has room and
-  works, and otherwise through **Resend** (100 a day and 3,000 a month; received mail counts
-  there too). An outage, a refused key or a used-up day at Brevo falls over to Resend
-  (`sendEmails` in `lib/email/deliver.ts`). The app keeps count for each (`email/quota.json`;
-  `BREVO_*_LIMIT` and `EMAIL_*_LIMIT` change the limits): circle email comes first; notification emails stop at 70% of the day; circle messages that
-  don't fit wait (`groups/summary.json`) for the **morning summary** (one email per person, sent by
-  the daily cron, `/api/cron/daily` with `CRON_SECRET`). The admin page shows each sender's use
-  today and this month, which sender took each sending, what's waiting, and the received-email log. The admin's **test mode** applies to
-  circle email too.
+  works, and otherwise through **Resend** (100 a day and 3,000 a month). An outage, a refused key
+  or a used-up day at Brevo falls over to Resend (`sendEmails` in `lib/email/deliver.ts`). The app
+  keeps count for each (`email/quota.json`; `BREVO_*_LIMIT` and `EMAIL_*_LIMIT` change the limits):
+  sign-in links and welcomes come first; notification emails stop at 70% of the day. The admin
+  page shows each sender's use today and this month, and which sender took each sending.
 - **When a sender refuses**, its status, error code and message are kept with the sending in the
   admin **Recent sends** log (and the server log), and a failed sign-in email shows the status
   codes, e.g. `(brevo 401, resend 403)`. Common causes: Brevo **401** — the key is an SMTP key
@@ -713,17 +661,24 @@ chosen. It works like a Google Group, built into the app (`src/lib/groups/`):
   (`notifications@commonpasturesvt.org`) or its domain isn't verified there; Resend **403** — the
   domain isn't verified, or the key can't send.
 - **Unsubscribe links** ask first (GET shows a button; POST — the button or a mail app's one-click
-  — acts), so link scanners can't unsubscribe anyone. "Stop all emails" also sets every circle to
-  web only.
+  — acts), so link scanners can't unsubscribe anyone.
+
+## Circle forums
+
+A circle's **Forum** module (`src/lib/groups/`, `src/components/groups/`) holds its conversations;
+circles keep using Google Groups or whatever email they like for mail.
+
+- The module lists the circle's conversations; its members, the Board, and admins **Start a
+  conversation** (optionally **with a poll** — the title is the question) and reply on the
+  conversation's page (`/circles/<id>/forum/<thread>`). Everyone at CVC can read it; members
+  delete any message and authors edit their own.
+- **Every new message** sends an app notification to the circle's current members (topic
+  "groups", push only — never emailed), except its author.
+- Poll answers are kept by person; members answer on the page.
+- Messages and conversations marked with an envelope came by the group email the app had briefly
+  in October 2026; they're kept as they were.
 - Stored as `groups/<circleId>/index.json` (conversations), `groups/<circleId>/threads/<id>.json`
-  (messages), `groups/<circleId>/polls/<id>.json`, `groups/<circleId>/held.json` (14 days),
-  `groups/delivery.json` (each person's choice per circle), `groups/aliases.json` (old names).
-  Deleting a circle forgets its index and held messages.
-- **Setting up receiving** (once): in Resend, turn on Receiving for the domain and add the MX record
-  it shows (`@` → `inbound-smtp.us-east-1.amazonaws.com`, priority 10) in Vercel DNS; add a webhook
-  to `https://<site>/api/email/inbound` for `email.received` and put its signing secret in
-  `RESEND_WEBHOOK_SECRET`; set `CRON_SECRET` for the morning summary. Locally,
-  `EMAIL_TEST_SINK=1` also reads received emails from `.data/inbound-fixtures/<id>.json`.
+  (messages) and `groups/<circleId>/polls/<id>.json`. Deleting a circle forgets its index.
 
 ## Resources
 

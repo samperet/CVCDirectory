@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
  * tour"). Finishing or skipping it is remembered on the account
  * (`POST /api/auth/tour`, and this device, in case that can't be saved).
  * It never opens by itself while an admin is viewing the app as someone, or
- * on the pages opened from an email. While it talks about the ladybug, the
+ * on the sign-in page or a new member's form. While it talks about the ladybug, the
  * ladybug is lifted above the tour's shade and ringed; the home-screen tip
  * gives this device's way of adding the app, and is left out when it's
  * already added.
@@ -51,8 +51,8 @@ const seenHere = (userId: string) => {
   }
 };
 
-/** Pages where the tour doesn't open by itself: ones opened from an email, and a new member's form. */
-const QUIET = /^\/(vote|email\/confirm|join|login)\//;
+/** Pages where the tour doesn't open by itself: signing in, and a new member's form. */
+const QUIET = /^\/(join|login)\//;
 
 export function TourProvider({ children }: { children: ReactNode }) {
   const { user, viewAs } = useSession();
@@ -202,7 +202,7 @@ function WelcomeTour({
         key: "circle-pages",
         art: <SectionArt href="/circles" size={64} />,
         title: "Every circle has its own page",
-        body: "Circles can edit their own page to fit their needs. Each circle gets its own group email address, which reaches its current members, and each circle can host documents and links.",
+        body: "Circles can edit their own page to fit their needs. Each circle can have its own forum for conversations and polls, and can host documents and links.",
       },
       {
         key: "community-tools",

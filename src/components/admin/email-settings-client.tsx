@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, FlaskConical, Gauge, Inbox, Mail, Plus, Send, X } from "lucide-react";
+import { AlertTriangle, FlaskConical, Gauge, Mail, Plus, Send, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { TOPICS } from "@/lib/push/topics";
 import {
@@ -30,9 +30,6 @@ type EmailState = {
   from: string;
   residentsWithEmail: number;
   quota: QuotaStatus;
-  inbound: { at: string; from: string; to: string[]; subject: string; outcome: string }[];
-  waitingForSummary: number;
-  receiving: boolean;
 };
 
 const KEY = ["admin", "email"];
@@ -41,6 +38,7 @@ const LOG_KINDS: Record<string, string> = {
   test: "Test email",
   welcome: "New member welcome",
   "sign-in": "Sign-in link",
+  // From the group email the app once had.
   group: "Circle email",
   summary: "Daily summary",
   confirm: "“Did you send this?” check",
@@ -258,7 +256,6 @@ export function EmailSettingsClient() {
                   <>
                     today <strong>{use.dayCount}</strong> of {use.limits.day} · this month{" "}
                     <strong>{use.monthCount}</strong> of {use.limits.month}
-                    {provider === "resend" ? " (received email counts too)" : ""}
                   </>
                 ) : (
                   <span className="text-muted">not set up</span>
@@ -267,43 +264,10 @@ export function EmailSettingsClient() {
             );
           })}
         </ul>
-        {data.waitingForSummary ? (
-          <p className="text-sm text-foreground-light">
-            {data.waitingForSummary} circle message{data.waitingForSummary === 1 ? "" : "s"} waiting
-            for tomorrow&apos;s summary.
-          </p>
-        ) : null}
         <p className="text-xs text-muted">
-          Each email goes through Brevo while it has room and works, otherwise Resend. Circle email
-          goes first: notification emails stop at 70% of each day&apos;s allowance. Circle messages
-          that fit nowhere go out in the next morning&apos;s summary.
+          Each email goes through Brevo while it has room and works, otherwise Resend. Sign-in links
+          and welcomes go first: notification emails stop at 70% of each day&apos;s allowance.
         </p>
-      </Card>
-
-      <Card className="flex flex-col gap-3">
-        <SectionHeading icon={Inbox}>Received email</SectionHeading>
-        {!data.receiving ? (
-          <p className="text-sm text-muted">
-            Receiving isn&apos;t set up yet (RESEND_WEBHOOK_SECRET). Circles can send, but replies
-            by email won&apos;t arrive.
-          </p>
-        ) : null}
-        {data.inbound.length ? (
-          <ul className="flex flex-col divide-y divide-border" aria-label="Received email">
-            {data.inbound.map((entry, index) => (
-              <li key={`${entry.at}-${index}`} className="flex flex-col gap-0.5 py-2 text-sm">
-                <span className="font-medium text-foreground">
-                  {entry.subject || "(no subject)"}
-                </span>
-                <span className="text-xs text-muted">
-                  {timeAgo(entry.at)} · from {entry.from} to {entry.to.join(", ")} · {entry.outcome}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">Nothing received yet.</p>
-        )}
       </Card>
 
       <Card className="flex flex-col gap-3">

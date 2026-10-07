@@ -5,7 +5,6 @@ import { getGroupPoll } from "@/lib/groups/polls";
 import { addPost, getThread, postInputSchema, removeThread } from "@/lib/groups/store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
 type Params = { params: { id: string; threadId: string } };
 
@@ -25,7 +24,6 @@ export async function GET(_request: Request, { params }: Params) {
       poll: poll?.poll ?? null,
       pollAuthorPersonId: poll?.authorPersonId ?? null,
       circle: { id: ctx.circle.id, name: ctx.circle.name },
-      address: ctx.address,
       canPost: ctx.canPost,
       canModerate: ctx.canModerate,
       personId: ctx.personId,
@@ -34,7 +32,7 @@ export async function GET(_request: Request, { params }: Params) {
   );
 }
 
-/** Reply; the reply is emailed to the circle's members. */
+/** Reply; the circle's members get an app notification. */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "groups");
   if (limited) return limited;
@@ -47,20 +45,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     params.id,
     params.threadId,
     { userId: ctx.user.id, personId: ctx.personId, name: ctx.actor.name },
-    { body: parsed.data.body, via: "web" }
+    { body: parsed.data.body }
   );
   if (!result.ok) return groupProblem(result.reason);
-  const doc = await getThread(params.id, params.threadId);
-  const emailed = await shareGroupPost(
-    ctx.circle,
-    result.thread,
-    result.post,
-    doc?.posts[0] ?? null,
-    {
-      exceptUserId: ctx.user.id,
-    }
-  );
-  return NextResponse.json({ post: result.post, emailed }, { status: 201 });
+  await shareGroupPost(ctx.circle, result.thread, result.post, { exceptUserId: ctx.user.id });
+  return NextResponse.json({ post: result.post }, { status: 201 });
 }
 
 /** Remove a whole conversation (the circle's members, the Board, admins). */

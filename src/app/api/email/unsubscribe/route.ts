@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { NO_EMAIL, updateEmailPreferences } from "@/lib/email/preferences";
 import {
   readUnsubscribeToken,
-  scopeCircle,
   unsubscribeToken,
   type UnsubscribeScope,
 } from "@/lib/email/unsubscribe";
 import { escapeHtml } from "@/lib/email/deliver";
-import { readDirectory } from "@/lib/directory/store";
-import { setDelivery, webOnlyEverywhere } from "@/lib/groups/delivery";
 import { throttled } from "@/lib/http";
 import { TOPICS, type Topic } from "@/lib/push/topics";
 
@@ -18,9 +15,8 @@ export const dynamic = "force-dynamic";
  * An email's "Stop them" link (no sign-in: the signed token says who and
  * what). Opening it changes nothing — it asks, with a button — because mail
  * scanners open every link in an email; pressing the button (a POST), or a
- * mail app's one-click unsubscribe (also a POST), makes the change. A
- * notification topic is turned off; a circle's email switches that circle to
- * the web only (they stay in the circle); "all" does both for everything.
+ * mail app's one-click unsubscribe (also a POST), makes the change: that
+ * notification topic is turned off, or, for "all", every one.
  */
 
 const page = (title: string, body: string, status = 200) =>
@@ -43,24 +39,10 @@ const button = (label: string) =>
   )}</button>`;
 
 async function describe(scope: UnsubscribeScope) {
-  const circleId = scopeCircle(scope);
-  if (circleId) {
-    const name =
-      (await readDirectory())?.circles.find((circle) => circle.id === circleId)?.name ??
-      "this circle";
-    return {
-      ask: `Get ${name}'s messages on the web only?`,
-      explain: `You'll stay in ${escapeHtml(
-        name
-      )} and can read and write its messages in Common Pastures — they just won't be emailed to you.`,
-      action: "Yes, web only",
-      done: `${name}'s messages won't be emailed to you`,
-    };
-  }
   if (scope === "all")
     return {
       ask: "Stop all emails from Common Pastures?",
-      explain: "No notifications and no circle messages by email. Everything stays in the app.",
+      explain: "No notifications by email. Everything stays in the app.",
       action: "Stop all emails",
       done: "You won't get any more emails",
     };
@@ -74,15 +56,8 @@ async function describe(scope: UnsubscribeScope) {
   };
 }
 
-async function apply(personId: string, scope: UnsubscribeScope) {
-  const circleId = scopeCircle(scope);
-  if (circleId) return setDelivery(personId, circleId, "web");
-  await updateEmailPreferences(personId, scope === "all" ? NO_EMAIL : { [scope]: false });
-  if (scope === "all")
-    await webOnlyEverywhere(
-      personId,
-      ((await readDirectory())?.circles ?? []).map((circle) => circle.id)
-    );
+function apply(personId: string, scope: UnsubscribeScope) {
+  return updateEmailPreferences(personId, scope === "all" ? NO_EMAIL : { [scope]: false });
 }
 
 const invalid = () =>
