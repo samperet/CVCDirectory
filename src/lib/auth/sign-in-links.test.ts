@@ -7,7 +7,6 @@ import {
   LINK_TTL_MS,
   MAX_CODE_ATTEMPTS,
   MAX_LINKS_PER_HOUR,
-  peekSignInLink,
   redeemSignInCode,
   redeemSignInLink,
   safeNext,
@@ -31,8 +30,6 @@ describe("sign-in links", () => {
     const now = Date.now();
     const link = await createSignInLink(ADA, "/circles/lcc", now);
     if (link === "too-many") throw new Error("refused");
-    expect(await peekSignInLink(link.token, now)).toEqual({ personId: ADA });
-    // Opening the page used nothing up.
     expect(await redeemSignInLink(link.token, now)).toEqual({
       personId: ADA,
       next: "/circles/lcc",

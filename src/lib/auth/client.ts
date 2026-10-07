@@ -79,11 +79,13 @@ type SignedIn = { user: PublicUser; next: string };
  * Sign in with the code from the email, or with the link's token. With
  * `deferSession`, the app doesn't switch to the signed-in view until the
  * caller calls `useRefreshSession()` — the sign-in page uses this to finish
- * its logo animation first.
+ * its logo animation first. Never retried: a link works once, and each
+ * wrong code counts.
  */
 export function useSignIn({ deferSession = false }: { deferSession?: boolean } = {}) {
   const invalidate = useInvalidateAuth();
   return useMutation({
+    retry: false,
     mutationFn: (input: { token: string } | { personId: string; code: string }) =>
       "token" in input
         ? apiFetch<SignedIn>(`/api/auth/link/${encodeURIComponent(input.token)}`, {

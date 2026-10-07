@@ -112,8 +112,9 @@ contact details or unit numbers.
   **six-digit code**. Either signs in, once, within 30 minutes: the link on whatever device opens
   it (`/login/<token>`), the code typed on the device that asked (`POST /api/auth/code`) — for an
   app added to a phone's home screen, which doesn't share the browser's sign-in.
-- Opening a link signs nobody in: the page asks **Sign in as …?** and the button does it (POST),
-  so mail scanners that open links can't use them up. Using the link or the code spends both.
+- Opening a link signs in straight away and goes on to the dashboard (or wherever the link was
+  asked for): the page posts the token once it has loaded, so a mail scanner that only fetches the
+  page can't use it up. Using the link or the code spends both.
 - Only keyed hashes of links and codes are stored (`auth/sign-in-links-2.json`,
   `lib/auth/sign-in-links.ts`). Five links an hour per person, until they sign in (which clears
   their other links); five wrong codes spoil the open

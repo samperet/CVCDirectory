@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "crypto";
-import { mutateJson, readJson } from "@/lib/storage";
+import { mutateJson } from "@/lib/storage";
 import { authSecret } from "./secret";
 
 /**
@@ -106,16 +106,6 @@ export function createSignInLink(
     };
     return { value: { links: { ...links, [tokenHash(token)]: link } }, result: { token, code } };
   });
-}
-
-/** Who a link is for, without using it (the page that asks "Sign in as …?"). */
-export async function peekSignInLink(
-  token: string,
-  now = Date.now()
-): Promise<{ personId: string } | LinkFailure> {
-  const link = normalize(await readJson(KEY))[tokenHash(token)];
-  const state = linkState(link, now);
-  return state === "ok" ? { personId: link!.personId } : state;
 }
 
 type Used = { personId: string; next?: string };
