@@ -672,11 +672,16 @@ chosen. It works like a Google Group, built into the app (`src/lib/groups/`):
 - **Every message** — written in the app or emailed to the address — goes by email to the circle's
   **current** members (not its author, not those on web only, one copy per address), and as a push
   notification (topic "groups", push only). Emails come "from" the author via the circle
-  (`"Ada Ash via Land Care" <landcare@…>`) and reply to the circle with the conversation's signed
-  tag (`landcare+t.<thread>.<sig>@…`), so **Reply and Reply All go to everyone**. They carry the
-  circle's icon at the top (a public signed address, `/api/email/icon/…`), the message, a poll's
-  answers as buttons, "See the whole conversation", and list headers (List-Id, List-Post,
-  one-click List-Unsubscribe meaning "this circle on the web only", Precedence, a loop guard).
+  (`"Ada Ash via Land Care" <landcare@…>` — they can't come from the author's own address: our
+  senders only send from our domain, and the author's mail provider would call it forged) and
+  reply to the circle's plain address, so **Reply and Reply All go to everyone**; a **reply to Ada
+  Ash alone** link (to the author's directory address) writes to them only. Replies find their
+  conversation by the References they carry (`<t.<thread>@…>`); replies to emails sent before
+  2026-10-07, whose Reply-To had a signed tag (`landcare+t.<thread>.<sig>@…`), still use it. They
+  carry the circle's icon at the top (a public signed address, `/api/email/icon/…`), the message,
+  a poll's answers as buttons, "See the whole conversation", and list headers (List-Id,
+  List-Post, one-click List-Unsubscribe meaning "this circle on the web only", Precedence, a loop
+  guard).
 - **Email arriving** (Resend's `email.received` webhook, `/api/email/inbound`, signed with
   `RESEND_WEBHOOK_SECRET`): automatic mail (out-of-office, bounces, other lists, our own) is
   dropped; the address picks the circle, the tag (or the message ids, or a "Re:" subject from the

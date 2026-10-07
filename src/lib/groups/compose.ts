@@ -11,19 +11,21 @@ import {
 import { unsubscribeToken } from "@/lib/email/unsubscribe";
 import { TIME_ZONE } from "@/lib/time";
 import { circleInitials, excerptOf, groupLocal, type GroupPost, type GroupThread } from "./shared";
-import { iconSignature, replyTag, voteToken } from "./tokens";
+import { iconSignature, voteToken } from "./tokens";
 import type { Poll } from "@/lib/polls/shared";
 
 /**
  * One copy of a circle's message for one member (pure). It comes "from" the
- * author via the circle (`"Ada Ash via Land Care" <landcare@…>`), since
- * mail can't honestly be sent as the author's own address; Reply-To is the
- * circle with the conversation's signed tag, so Reply and Reply All reach
- * everyone in it now. It carries the mailing-list headers mail apps expect
- * (List-Id, List-Post, one-click List-Unsubscribe meaning "web only for this
- * circle", Precedence, a loop guard) and stable References so replies thread.
- * The email shows the circle's icon and name at the top, the message, a
- * poll's options as buttons, and how to reply.
+ * author via the circle (`"Ada Ash via Land Care" <landcare@…>`): mail can't
+ * be sent as the author's own address (our senders only send from our
+ * domain, and the author's mail provider would call it forged). Reply-To is
+ * the circle's plain address, so Reply and Reply All reach everyone in it;
+ * the email also offers a link to write to the author alone. Replies find
+ * their conversation by the References they carry back (`<t.<thread>@…>`).
+ * It carries the mailing-list headers mail apps expect (List-Id, List-Post,
+ * one-click List-Unsubscribe meaning "web only for this circle", Precedence,
+ * a loop guard). The email shows the circle's icon and name at the top, the
+ * message, a poll's options as buttons, and how to reply.
  */
 
 export interface ComposeCircle {
@@ -73,6 +75,7 @@ export function composeGroupEmail({
   post,
   opening,
   recipient,
+  authorEmail,
   memberCount,
   poll,
   testMode,
@@ -85,13 +88,14 @@ export function composeGroupEmail({
   /** The conversation's first message, when this is a reply (for context). */
   opening: GroupPost | null;
   recipient: { personId: string; email: string };
+  /** The author's directory address, for writing to them alone (null: no such link). */
+  authorEmail: string | null;
   memberCount: number;
   poll: Poll | null;
   testMode: boolean;
 }): Outgoing {
   const local = groupLocal(circle);
   const address = `${local}@${domain}`;
-  const tag = replyTag(circle.id, thread.id);
   const conversation = `${site}/circles/${circle.id}/forum/${thread.id}`;
   const stop = `${site}/api/email/unsubscribe?t=${encodeURIComponent(
     unsubscribeToken(recipient.personId, `g-${circle.id}`)
@@ -103,6 +107,11 @@ export function composeGroupEmail({
   }`.slice(0, 200);
   const everyone = `everyone in ${circle.name}${memberCount > 1 ? ` (${memberCount} people)` : ""}`;
   const author = headerName(post.authorName) || "Someone";
+  // Writing to the author alone (not to the reader themselves, when they share an address).
+  const privately =
+    authorEmail && authorEmail.toLowerCase() !== recipient.email.toLowerCase()
+      ? `mailto:${authorEmail}?subject=${encodeURIComponent(`Re: ${thread.title}`)}`
+      : null;
   const options = poll && !poll.closedAt ? poll.options : [];
   const pollLinks = options.map((option) => ({
     text: option.text,
@@ -132,6 +141,7 @@ export function composeGroupEmail({
       ? ["Answer with one click:", ...pollLinks.map((link) => `  ${link.text}: ${link.href}`), ""]
       : []),
     `Reply to this email to answer ${everyone}.`,
+    ...(privately ? [`To answer ${author} alone, write to ${authorEmail}.`] : []),
     `See the whole conversation: ${conversation}`,
     "",
     "—",
@@ -169,7 +179,13 @@ ${pollLinks.map((link) => button(link.href, link.text, "plain")).join("")}
     )}${paragraphs(post.body + skipped)}${pollHtml}
 <p style="margin:8px 0 14px;font:14px/1.5 sans-serif;color:${
       PALETTE.soft
-    }">Reply to this email to answer ${escapeHtml(everyone)}.</p>
+    }">Reply to this email to answer ${escapeHtml(everyone)}.${
+      privately
+        ? ` Or <a href="${escapeHtml(privately)}" style="color:${
+            PALETTE.forest
+          };text-decoration:underline">reply to ${escapeHtml(author)} alone</a>.`
+        : ""
+    }</p>
 ${button(conversation, "See the whole conversation", "plain")}`,
     footer: `You get this because you're in ${escapeHtml(circle.name)} (${escapeHtml(
       address
@@ -186,7 +202,7 @@ ${button(conversation, "See the whole conversation", "plain")}`,
   return {
     to: recipient.email,
     from: `"${author} via ${headerName(circle.name)}" <${address}>`,
-    replyTo: `"${headerName(circle.name)}" <${local}+${tag}@${domain}>`,
+    replyTo: `"${headerName(circle.name)}" <${address}>`,
     subject,
     text,
     html,

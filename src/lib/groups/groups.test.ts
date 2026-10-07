@@ -221,28 +221,30 @@ describe("a circle's email", () => {
       createdAt: "2026-10-04T13:12:00.000Z",
       via: "web" as const,
     };
-    const email = composeGroupEmail({
-      site: "https://cp.org",
-      domain: "cp.org",
-      circle: { id: "lcc", name: "Land Care Circle", iconVersion: "abc" },
-      thread: {
-        id: THREAD,
-        circleId: "lcc",
-        title: "Seed swap",
-        createdAt: post.createdAt,
-        lastAt: post.createdAt,
-      },
-      post,
-      opening: null,
-      recipient: { personId: "ben", email: "ben@example.org" },
-      memberCount: 12,
-      poll: { options: [{ id: "o1", text: "Saturday" }], multiple: false, votes: [] },
-      testMode: false,
-    });
+    const compose = (recipient: { personId: string; email: string }) =>
+      composeGroupEmail({
+        site: "https://cp.org",
+        domain: "cp.org",
+        circle: { id: "lcc", name: "Land Care Circle", iconVersion: "abc" },
+        thread: {
+          id: THREAD,
+          circleId: "lcc",
+          title: "Seed swap",
+          createdAt: post.createdAt,
+          lastAt: post.createdAt,
+        },
+        post,
+        opening: null,
+        recipient,
+        authorEmail: "ada@example.org",
+        memberCount: 12,
+        poll: { options: [{ id: "o1", text: "Saturday" }], multiple: false, votes: [] },
+        testMode: false,
+      });
+    const email = compose({ personId: "ben", email: "ben@example.org" });
     expect(email.from).toBe('"Ada A Ash via Land Care Circle" <landcare@cp.org>');
-    expect(email.replyTo).toMatch(
-      /^"Land Care Circle" <landcare\+t\.[0-9a-f]{12}\.[0-9a-z]{10}@cp\.org>$/
-    );
+    // The circle's plain address: replies find their conversation by References.
+    expect(email.replyTo).toBe('"Land Care Circle" <landcare@cp.org>');
     expect(email.subject).toBe("[Land Care Circle] Seed swap");
     expect(email.headers?.["List-Id"]).toBe('"Land Care Circle" <lcc.circles.cp.org>');
     expect(email.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
@@ -252,6 +254,12 @@ describe("a circle's email", () => {
     expect(email.text).toContain(
       "Reply to this email to answer everyone in Land Care Circle (12 people)."
     );
+    // And a way to write to the author alone (not offered to someone sharing their address).
+    expect(email.text).toContain("To answer Ada A Ash alone, write to ada@example.org.");
+    expect(email.html).toContain('href="mailto:ada@example.org?subject=Re%3A%20Seed%20swap"');
+    const shared = compose({ personId: "cal", email: "ADA@example.org" });
+    expect(shared.text).not.toContain("alone");
+    expect(shared.html).not.toContain("mailto:");
     expect(headerName("A\r\nB <x@y>")).toBe("A B xy");
   });
 });

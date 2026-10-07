@@ -34,9 +34,9 @@ import {
 import { confirmToken, readReplyTag } from "./tokens";
 
 /**
- * Email arriving at a circle's address (`landcare@…`, or a conversation's
- * tagged Reply-To `landcare+t.…@…`) becomes a message in that circle's
- * Forum and is sent on to its members:
+ * Email arriving at a circle's address (`landcare@…`, or the tagged
+ * `landcare+t.…@…` that older emails replied to) becomes a message in
+ * that circle's Forum and is sent on to its members:
  *
  * 1. Automatic mail (out-of-office, bounces, other lists, our own) is dropped.
  * 2. The address picks the circle (by its name, id, or an old name); the

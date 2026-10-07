@@ -4,8 +4,9 @@ import { authSecret } from "@/lib/auth/secret";
 /**
  * The signed parts of circle email, each with its own key so one can't be
  * used as another:
- * - **reply tags** in a conversation's Reply-To (`landcare+t.<thread>.<sig>@`),
- *   so a reply finds its conversation and can't be steered into another;
+ * - **reply tags** (`landcare+t.<thread>.<sig>@`), which emails sent before
+ *   2026-10-07 put in their Reply-To: replies to those still find their
+ *   conversation by it (newer emails are found by their References);
  * - **vote links** in a poll email (who, which poll, which option);
  * - **icon links**, so mail apps can load a circle's icon without signing in;
  * - **post confirmations** ("Did you send this?") for held messages.
@@ -28,7 +29,7 @@ function same(a: string, b: string) {
 /** A conversation's short id for addresses: its id without dashes, first 12 characters. */
 export const shortThreadId = (threadId: string) => threadId.replace(/-/g, "").slice(0, 12);
 
-/** The `+t.<thread>.<sig>` part of a conversation's Reply-To address (lowercase: some mail apps lowercase addresses). */
+/** The `+t.<thread>.<sig>` part older emails' Reply-To carried (lowercase: some mail apps lowercase addresses). */
 export const replyTag = (circleId: string, threadId: string) => {
   const short = shortThreadId(threadId);
   return `t.${short}.${sign("group-reply", `${circleId}.${short}`, 10).toLowerCase()}`;

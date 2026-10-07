@@ -78,6 +78,8 @@ export async function emailGroupPost({
     const site = siteUrl();
     const domain = mailDomain();
     const composeFor = await composeCircle(circle);
+    const authorEmail =
+      directory.people.find((person) => person.id === post.authorPersonId)?.email?.trim() || null;
     const memberCount = new Set(memberIds.filter(Boolean)).size;
     const result = await sendEmails(
       eligible.map((recipient) =>
@@ -89,6 +91,7 @@ export async function emailGroupPost({
           post,
           opening,
           recipient,
+          authorEmail,
           memberCount,
           poll: poll?.poll ?? null,
           testMode: settings.testMode,
