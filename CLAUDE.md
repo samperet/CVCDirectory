@@ -47,6 +47,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/time.ts` | `TIME_ZONE` (Vermont), `todayInVermont`, `timeAgo` |
 | `src/lib/email/` | Sending (`deliver.ts`: Brevo, then Resend as backup), the free-plan quotas, the shared email layout, notification emails, test mode |
 | `src/lib/groups/` | Circle forums: conversations and polls, with app notifications to the circle's members |
+| `src/lib/proposals/` | Proposals put to circles, about documents, consented at meetings; `mirror.ts` keeps pages' and files' stage in step |
 
 ## Conventions that matter
 

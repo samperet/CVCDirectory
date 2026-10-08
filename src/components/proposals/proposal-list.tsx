@@ -1,0 +1,103 @@
+"use client";
+
+import Link from "next/link";
+import { Handshake } from "lucide-react";
+import type { ProposalListing } from "@/lib/proposals/shared";
+import { shortDate } from "@/lib/time";
+import { Highlighted } from "@/components/documents/document-row";
+import { ProposalStatusPill } from "./proposal-bits";
+
+/**
+ * Proposals in lists: a row in the Documents list (beside pages and files —
+ * a handshake for an icon, where it stands, its circle, who proposed it, and
+ * its opening words or the passage a search matched), and cards for a
+ * circle's page (the Information module's "proposals waiting for consent").
+ */
+
+export function ProposalListingRow({
+  proposal,
+  terms,
+  showCircle,
+  compact = false,
+}: {
+  proposal: ProposalListing;
+  terms: string[];
+  showCircle: boolean;
+  compact?: boolean;
+}) {
+  const text = proposal.snippet ?? proposal.excerpt;
+  return (
+    <li
+      className={compact ? "flex flex-col py-2" : "flex flex-col gap-1 py-4"}
+      data-listing="proposal"
+    >
+      <div className="flex items-start gap-3">
+        <Handshake className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+        <Link
+          href={`/proposals/${proposal.id}`}
+          className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          <Highlighted text={proposal.title} terms={terms} />
+        </Link>
+      </div>
+      {compact ? null : (
+        <>
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 pl-8 text-xs text-muted">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-pine">
+              Proposal
+            </span>
+            <ProposalStatusPill
+              size="xs"
+              status={proposal.status}
+              decideOn={proposal.decideOn}
+              consentDate={proposal.consent?.date}
+            />
+            {showCircle ? <span className="font-medium">{proposal.circleName}</span> : null}
+            <span>by {proposal.proposedBy}</span>
+            <span className="whitespace-nowrap">
+              {shortDate(proposal.createdAt.slice(0, 10), true)}
+            </span>
+          </p>
+          {text ? (
+            <p className="line-clamp-2 pl-8 text-sm text-foreground-light">
+              <Highlighted text={text} terms={terms} />
+            </p>
+          ) : null}
+        </>
+      )}
+    </li>
+  );
+}
+
+/** A circle's proposals as small cards. */
+export function ProposalCards({ proposals }: { proposals: ProposalListing[] }) {
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2" data-proposal-cards>
+      {proposals.map((proposal) => (
+        <li
+          key={proposal.id}
+          className="flex flex-col gap-1.5 rounded-xl border border-border border-l-4 border-l-primary bg-white/80 p-3"
+        >
+          <Link
+            href={`/proposals/${proposal.id}`}
+            className="break-words font-medium text-foreground hover:underline"
+          >
+            {proposal.title}
+          </Link>
+          <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            <ProposalStatusPill
+              size="xs"
+              status={proposal.status}
+              decideOn={proposal.decideOn}
+              consentDate={proposal.consent?.date}
+            />
+            by {proposal.proposedBy}
+          </span>
+          {proposal.excerpt ? (
+            <p className="line-clamp-3 text-sm text-foreground-light">{proposal.excerpt}</p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}

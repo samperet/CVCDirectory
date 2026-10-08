@@ -1,11 +1,12 @@
 # Proposal-Forming
 
 The sociocratic proposal-forming steps our community follows. In the app, a
-proposal is brought to a circle meeting in the Minutes Maker (a circle's
-**Meetings** module → a meeting → **Add proposal**) and then sent for a 5-day
-consent review, where the circle's members log tensions and can raise a
-Reasoned Objection (see the README, "Meetings & minutes"). The steps below are
-the work that happens before and around that review.
+proposal is put to a circle (Documents → **New** → **A proposal**, a page's
+**Propose for consent**, or **Add a proposal** in a page's editor), and the
+circle consents to it at one of its meetings — from the meeting's notes, whose
+**Consent** button records who was there, the circle, and who recorded it (see
+the README, Documents → Proposals). The steps below are the work that happens
+before and around that meeting.
 
 **1. Present the issue.** *(A problem or opportunity)*
 

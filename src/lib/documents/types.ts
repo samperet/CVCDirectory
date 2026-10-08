@@ -1,5 +1,6 @@
 import type { Actor } from "@/lib/auth/actor";
 import type { NamedPerson } from "@/lib/people";
+import type { MeetingRef } from "@/lib/proposals/shared";
 import type { LinkKind } from "./links";
 /**
  * Circle documents: shared by the server and the browser (no server imports).
@@ -86,6 +87,19 @@ export interface DocumentRecord {
   updatedAt: string;
   /** The circle's consent, recorded by one of its members (or the Board): to one version of the document. */
   consent?: DocumentConsent | null;
+  /** Put to the circle for consent: a copy of the open proposal about it (see `lib/proposals`). */
+  proposal?: DocumentProposal | null;
+}
+
+/** An open proposal about a document, as the document shows it. */
+export interface DocumentProposal {
+  proposalId: string;
+  title: string;
+  /** The circle it's put to. */
+  circleId: string;
+  by: { personId: string | null; name: string };
+  at: string;
+  decideOn: string | null;
 }
 
 export interface DocumentConsent {
@@ -98,6 +112,9 @@ export interface DocumentConsent {
   /** Who recorded it here. */
   recordedBy: { personId: string | null; name: string };
   recordedAt: string;
+  /** The proposal it came through and the meeting it was given at (unset on records from before proposals). */
+  proposalId?: string;
+  meeting?: MeetingRef;
 }
 
 /**

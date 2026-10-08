@@ -1,28 +1,36 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { BadgeCheck, CircleDashed, History, Hourglass, Send } from "lucide-react";
+import { BadgeCheck, CircleDashed, History, Hourglass } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import type { NamedPerson } from "@/lib/people";
 import type { WikiPage } from "@/lib/wiki/store";
 import { consentState, pageStage } from "@/lib/wiki/consent";
-import { shortDate, todayInVermont } from "@/lib/time";
+import { shortDate } from "@/lib/time";
 import { Pill } from "@/components/ui/pill";
-import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { ActionLink } from "@/components/ui/action-link";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/use-toast";
-import { ConsentDialog, consentSummary } from "@/components/circles/consent-record";
+import { consentSummary } from "@/components/circles/consent-record";
+import { ConsentDialog } from "@/components/proposals/consent-dialog";
+import { ProposalFormDialog } from "@/components/proposals/proposal-form";
+import {
+  changeProposal,
+  createProposal,
+  recordConsent,
+  useProposalsChanged,
+  withdrawConsent,
+  type ConsentDraft,
+  type ProposalDraft,
+} from "@/components/proposals/data";
 
 /**
  * A page's stage with its parent circle, as a pill: a draft (and, if it was
  * consented before, since when it has changed), proposed (a proposed change,
  * for a consented page; the day it's to be decided), or consented (when).
- * Proposals and consent are only for pages; uploaded files are consented
- * to as they are.
+ * The stage comes from the proposals about the page (`lib/proposals`); a
+ * record from before proposals shows the same way.
  */
 export function StagePill({
   page,
@@ -86,15 +94,30 @@ export function StagePill({
   );
 }
 
-type StageChange =
-  | { consent: { date: string; consentedBy: NamedPerson[] } | null }
-  | { proposal: { decideOn: string | null } | null };
+/** Where the page's stage comes from: a link to its proposal, or — for consent — the meeting. */
+export function StageSource({ page }: { page: Pick<WikiPage, "consent" | "proposal"> }) {
+  const proposalId = page.proposal?.proposalId ?? page.consent?.proposalId;
+  if (!proposalId) return null;
+  return (
+    <Link
+      href={`/proposals/${proposalId}`}
+      className="text-xs font-medium text-secondary-foreground underline-offset-2 hover:underline"
+      data-stage-proposal
+    >
+      {page.proposal?.proposalId
+        ? `Proposal: ${page.proposal.title ?? "see it"}`
+        : "The proposal and its consent"}
+    </Link>
+  );
+}
 
 /**
- * Moving a page between stages. Its editors propose it to the circle (by a
- * day, if they like) or withdraw the proposal; the circle's members and the
- * Board record consent — the day, and who consented (which ends the
- * proposal) — or withdraw it.
+ * Moving a page between stages, through proposals. Its editors **propose
+ * it for consent** (a proposal about the page, to its circle); the circle's
+ * members and the Board **record consent** at a meeting (to the open
+ * proposal about it, or — when there's none — a proposal made for it there
+ * and then). Withdrawing a proposal, or consent recorded by mistake, acts
+ * on the proposal; records from before proposals are withdrawn on the page.
  */
 export function StageControls({
   page,
@@ -113,36 +136,63 @@ export function StageControls({
 }) {
   const { toast } = useToast();
   const confirm = useConfirm();
+  const changed = useProposalsChanged();
   const [dialog, setDialog] = useState<"propose" | "consent" | null>(null);
-  const today = todayInVermont();
-  const decideOn = page.proposal?.decideOn;
-  const [decideBy, setDecideBy] = useState("");
   const stage = pageStage(page);
   const state = consentState(page);
-  const save = useMutation({
-    mutationFn: (change: StageChange) =>
+  const openProposal = page.proposal?.proposalId ?? null;
+  const fail = (title: string) => (err: Error) =>
+    toast({ title, description: err.message, variant: "destructive" });
+  const done = (title: string) => {
+    setDialog(null);
+    toast({ title });
+    changed();
+  };
+
+  const propose = useMutation({
+    mutationFn: (draft: ProposalDraft) => createProposal(draft),
+    onSuccess: ({ proposal }) => done(`Proposed to ${proposal.circleName}`),
+    onError: fail("Could not propose it"),
+  });
+  const consent = useMutation({
+    mutationFn: (draft: ConsentDraft) =>
+      openProposal
+        ? recordConsent(openProposal, draft)
+        : createProposal({
+            circleId: page.keeper,
+            title: page.title,
+            body: "",
+            documents: [{ kind: "page", id: page.id }],
+            decideOn: null,
+            consent: draft,
+          }),
+    onSuccess: () => done("Consent recorded"),
+    onError: fail("Could not record consent"),
+  });
+  // Records from before proposals are withdrawn on the page itself.
+  const legacy = useMutation({
+    mutationFn: (change: { consent: null } | { proposal: null }) =>
       apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
         method: "PATCH",
         body: JSON.stringify(change),
       }),
     onSuccess: ({ page: updated }, change) => {
-      setDialog(null);
-      toast({
-        title:
-          "consent" in change
-            ? change.consent
-              ? "Consent recorded"
-              : "Consent withdrawn"
-            : change.proposal
-              ? `Proposed to ${circleName}`
-              : "Proposal withdrawn",
-      });
+      toast({ title: "consent" in change ? "Consent withdrawn" : "Proposal withdrawn" });
       onSaved(updated);
     },
-    onError: (err: Error) =>
-      toast({ title: "Could not change that", description: err.message, variant: "destructive" }),
+    onError: fail("Could not change that"),
   });
-  const withdraw = async (what: "proposal" | "consent") => {
+  const withdraw = useMutation({
+    mutationFn: (what: "proposal" | "consent") =>
+      what === "proposal"
+        ? changeProposal(page.proposal!.proposalId!, { status: "withdrawn" })
+        : withdrawConsent(page.consent!.proposalId!),
+    onSuccess: (_result, what) =>
+      done(what === "proposal" ? "Proposal withdrawn" : "Consent withdrawn"),
+    onError: fail("Could not change that"),
+  });
+
+  const ask = async (what: "proposal" | "consent") => {
     const ok = await confirm(
       what === "proposal"
         ? {
@@ -152,13 +202,20 @@ export function StageControls({
           }
         : {
             title: `Withdraw the record that ${circleName} consented to “${page.title}”?`,
+            body: "For a record made by mistake.",
             confirmLabel: "Withdraw",
           }
     );
-    if (ok) save.mutate(what === "proposal" ? { proposal: null } : { consent: null });
+    if (!ok) return;
+    const fromProposal =
+      what === "proposal" ? !!page.proposal?.proposalId : !!page.consent?.proposalId;
+    if (fromProposal) withdraw.mutate(what);
+    else legacy.mutate(what === "proposal" ? { proposal: null } : { consent: null });
   };
+  const busy = legacy.isPending || withdraw.isPending;
   return (
     <span className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+      <StageSource page={page} />
       {stage === "draft" && canEdit ? (
         <ActionLink onClick={() => setDialog("propose")}>Propose for consent</ActionLink>
       ) : null}
@@ -168,65 +225,39 @@ export function StageControls({
         </ActionLink>
       ) : null}
       {stage === "proposed" && canEdit ? (
-        <ActionLink danger disabled={save.isPending} onClick={() => void withdraw("proposal")}>
+        <ActionLink danger disabled={busy} onClick={() => void ask("proposal")}>
           Withdraw proposal
         </ActionLink>
       ) : null}
       {state && canConsent ? (
-        <ActionLink danger disabled={save.isPending} onClick={() => void withdraw("consent")}>
+        <ActionLink danger disabled={busy} onClick={() => void ask("consent")}>
           Withdraw consent
         </ActionLink>
       ) : null}
       {dialog === "propose" ? (
-        <Dialog
-          title="Propose for consent"
-          icon={<Send className="h-5 w-5 text-primary" />}
+        <ProposalFormDialog
+          heading="Propose for consent"
+          initial={{
+            circleId: page.keeper,
+            title: state === "changed" ? `Changes to ${page.title}` : page.title,
+            body: "",
+            decideOn: null,
+          }}
+          initialDocuments={[{ kind: "page", id: page.id, title: page.title }]}
+          circleName={circleName}
+          submitLabel="Propose"
+          saving={propose.isPending}
+          onSubmit={(draft) => propose.mutate(draft)}
           onClose={() => setDialog(null)}
-        >
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              save.mutate({ proposal: { decideOn: decideBy || null } });
-            }}
-          >
-            <p className="text-sm text-foreground">
-              Put “{page.title}” to {circleName} for consent. It shows as <strong>Proposed</strong>{" "}
-              until the circle consents{state === "changed" ? " to the changes" : ""}.
-            </p>
-            <label className="flex flex-col gap-1 text-sm text-foreground">
-              To be decided on (if you know)
-              <Input
-                type="date"
-                value={decideBy}
-                min={today}
-                onChange={(event) => setDecideBy(event.target.value)}
-                className="bg-white"
-              />
-            </label>
-            <p className="text-xs text-muted">
-              Anyone with a concern can select the words on the page and add a comment. It can still
-              be edited while it&apos;s proposed.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDialog(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={save.isPending}>
-                {save.isPending ? "Proposing…" : "Propose"}
-              </Button>
-            </div>
-          </form>
-        </Dialog>
+        />
       ) : null}
       {dialog === "consent" ? (
         <ConsentDialog
-          circleId={page.keeper}
+          circleId={page.proposal?.circleId ?? page.keeper}
           circleName={circleName}
-          initialDate={decideOn && decideOn <= today ? decideOn : today}
-          note="Consent is to the page as it stands now; if it's edited again, it becomes a draft until the circle consents to the new version."
-          saving={save.isPending}
-          onSave={(consent) => save.mutate({ consent })}
+          title={page.proposal?.title ?? page.title}
+          saving={consent.isPending}
+          onSubmit={(draft) => consent.mutate(draft)}
           onClose={() => setDialog(null)}
         />
       ) : null}

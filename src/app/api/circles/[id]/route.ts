@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { moveCircleDocuments } from "@/lib/documents/store";
 import { handOverPages } from "@/lib/wiki/store";
+import { handOverProposals } from "@/lib/proposals/store";
 import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { deleteCircleLog } from "@/lib/log/store";
@@ -55,8 +56,10 @@ export async function DELETE(_request: Request, { params }: Params) {
   await setCircleIcon(params.id, null);
   // Its documents are community records: they become the Board's rather than vanishing.
   await moveCircleDocuments(params.id, BOARD_ID);
-  // Its wiki pages are community records too: the Board keeps them (photos, comments, and polls stay with them).
+  // Its wiki pages are community records too: the Board keeps them (photos, comments, and polls stay with them),
+  // and its proposals not yet consented (consented ones stay as they were decided).
   await handOverPages(params.id, BOARD_ID);
+  await handOverProposals(params.id, BOARD_ID);
   await deleteCircleTasks(params.id);
   await deleteCircleTaskComments(params.id);
   // What's left of its old meetings and proposals (no longer shown) goes with it.

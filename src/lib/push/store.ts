@@ -20,6 +20,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   documents: true,
   circles: true,
   polls: true,
+  proposals: true,
   wiki: true,
   tasks: true,
   groups: true,

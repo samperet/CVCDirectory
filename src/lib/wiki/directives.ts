@@ -7,7 +7,8 @@
  *
  * (`:::details[Winter duty]` works too.) This remark plugin turns them into
  * <details>/<summary>, a poll — `::poll{id="…"}`, on its own line — into
- * a placeholder the page fills with the poll, and an embedded page —
+ * a placeholder the page fills with the poll, a proposal —
+ * `::proposal{id="…"}` — into one it fills with the proposal, an embedded page —
  * `::embed{page="Circle:Title" section="Heading"}` — into one the page fills
  * with that page (or section), highlighted text —
  * `:mark[the text]{color="yellow"}` — into <mark> in that colour, and a
@@ -84,6 +85,14 @@ function transform(node: Node): Node[] {
   if (node.type === "leafDirective" && node.name === "poll" && node.attributes?.id) {
     return [
       { type: "wikiPoll", data: { hName: "div", hProperties: { dataPoll: node.attributes.id } } },
+    ];
+  }
+  if (node.type === "leafDirective" && node.name === "proposal" && node.attributes?.id) {
+    return [
+      {
+        type: "wikiProposal",
+        data: { hName: "div", hProperties: { dataProposal: node.attributes.id } },
+      },
     ];
   }
   if (node.type === "leafDirective" && node.name === "embed" && node.attributes?.page) {

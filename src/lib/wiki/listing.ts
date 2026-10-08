@@ -73,8 +73,9 @@ export function pageListing(
   };
 }
 
-/** The day a page counts as dated, for sorting and the year filter: the day it was started. */
-export const pageDate = (page: Pick<WikiPage, "createdAt">) => page.createdAt.slice(0, 10);
+/** The day a page counts as dated, for sorting and the year filter: its meeting's, for meeting notes; otherwise the day it was started. */
+export const pageDate = (page: Pick<WikiPage, "createdAt" | "meetingDate">) =>
+  page.meetingDate ?? page.createdAt.slice(0, 10);
 
 /**
  * Pages matching every term, in their title, their circle's name (and

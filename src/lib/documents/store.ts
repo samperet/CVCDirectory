@@ -4,6 +4,7 @@ import { deleteBinary, mutateJson, readJson, writeBinary } from "@/lib/storage";
 import { occurrences, snippetFor } from "@/lib/search";
 import { DocumentConsent, DocumentRecord, DocumentVersion, Uploader } from "./types";
 import { searchTerms } from "@/lib/search";
+import { differs } from "@/lib/proposals/mirror";
 
 /**
  * Documents: details for all of them in one index, the searchable text of
@@ -249,6 +250,31 @@ export async function deleteDocument(id: string) {
         .map((version) => deleteBinary(fileKey(id, version.number)))
     );
   return result;
+}
+
+/**
+ * Copy where proposals stand onto the documents they're about (`decide`
+ * says what each should show; see `lib/proposals/mirror.ts`). Documents
+ * that already show it aren't rewritten.
+ */
+export async function setDocumentDecisions(
+  ids: string[],
+  decide: (doc: DocumentRecord) => Pick<DocumentRecord, "proposal" | "consent">
+) {
+  const wanted = new Set(ids);
+  const stale = (doc: DocumentRecord) => {
+    if (!wanted.has(doc.id)) return null;
+    const next = decide(doc);
+    return differs(doc.proposal, next.proposal) || differs(doc.consent, next.consent) ? next : null;
+  };
+  if (!(await listDocuments()).some(stale)) return;
+  await mutate<null>((documents) => ({
+    documents: documents.map((doc) => {
+      const next = stale(doc);
+      return next ? { ...doc, proposal: next.proposal, consent: next.consent } : doc;
+    }),
+    value: null,
+  }));
 }
 
 /** When a circle is deleted, its documents become the Board's (community-wide) rather than disappearing. */

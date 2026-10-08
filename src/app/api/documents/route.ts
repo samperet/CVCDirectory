@@ -21,7 +21,10 @@ import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { visiblePages } from "@/lib/wiki/access";
 import { consentState as pageConsentState, pageStage } from "@/lib/wiki/consent";
 import { pageDate, pageListing, searchPages } from "@/lib/wiki/listing";
-import { searchTerms } from "@/lib/search";
+import { searchTerms, snippetFor } from "@/lib/search";
+import { listProposals } from "@/lib/proposals/store";
+import { listingOf, proposalScore } from "@/lib/proposals/http";
+import { proposalDate, type Proposal } from "@/lib/proposals/shared";
 import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +58,12 @@ const pageSortable = (page: WikiPage): Sortable => ({
   title: page.title,
   updatedAt: page.updatedAt,
 });
+const proposalSortable = (proposal: Proposal): Sortable => ({
+  date: proposalDate(proposal),
+  createdAt: proposal.createdAt,
+  title: proposal.title,
+  updatedAt: proposal.updatedAt,
+});
 
 /**
  * List documents, newest first — or, with `q`, search their details and
@@ -65,10 +74,12 @@ const pageSortable = (page: WikiPage): Sortable => ({
  * pages waiting for consent — files aren't proposed). `sort`: newest, oldest, title, or updated. Also returns
  * the type names and years in use, for the filters.
  *
- * With `pages=1` the written pages someone can see come too, as one list
- * (`items`: each `kind` "file" or "page") filtered, searched and sorted
- * alike; `kind=pages` or `kind=files` keeps to one (choosing a file `type`
- * means files). `documents` stays the files alone.
+ * With `pages=1` the written pages someone can see come too, and the
+ * proposals (proposed or consented; withdrawn ones only when asked for), as
+ * one list (`items`: each `kind` "file", "page" or "proposal") filtered,
+ * searched and sorted alike; `kind=pages`, `kind=files` or `kind=proposals`
+ * keeps to one (choosing a file `type` means files). `documents` stays the
+ * files alone.
  */
 export async function GET(request: NextRequest) {
   const context = await circleContext();
@@ -96,15 +107,24 @@ export async function GET(request: NextRequest) {
         (page) => !circle || page.keeper === circle
       )
     : [];
+  const proposalsInCircle = withPages
+    ? (await listProposals()).filter(
+        (proposal) =>
+          (!circle || proposal.circleId === circle) &&
+          (kind === "proposals" || proposal.status !== "withdrawn")
+      )
+    : [];
   const typeOptions = Array.from(new Set(inCircle.map(label))).sort((a, b) => a.localeCompare(b));
   const yearOptions = Array.from(
     new Set([
       ...inCircle.map((doc) => documentDate(doc).slice(0, 4)),
       ...pagesInCircle.map((page) => pageDate(page).slice(0, 4)),
+      ...proposalsInCircle.map((proposal) => proposalDate(proposal).slice(0, 4)),
     ])
   ).sort((a, b) => b.localeCompare(a));
-  const showFiles = kind !== "pages" && !proposedOnly;
-  const showPages = withPages && kind !== "files" && !type;
+  const showFiles = kind !== "pages" && kind !== "proposals" && !proposedOnly;
+  const showPages = withPages && kind !== "files" && kind !== "proposals" && !type;
+  const showProposals = withPages && (!kind || kind === "proposals") && !type;
   const documents = (showFiles ? inCircle : [])
     .filter((doc) => !type || label(doc).toLowerCase() === type.toLowerCase())
     .filter((doc) => !year || documentDate(doc).startsWith(`${year}-`))
@@ -112,7 +132,13 @@ export async function GET(request: NextRequest) {
   const pages = (showPages ? pagesInCircle : [])
     .filter((page) => !year || pageDate(page).startsWith(`${year}-`))
     .filter((page) => !consentedOnly || pageConsentState(page) === "consented")
-    .filter((page) => !proposedOnly || pageStage(page) === "proposed");
+    .filter((page) => !proposedOnly || pageStage(page) === "proposed")
+    // A page about an open proposal is listed through the proposal.
+    .filter((page) => !proposedOnly || !page.proposal?.proposalId);
+  const proposals = (showProposals ? proposalsInCircle : [])
+    .filter((proposal) => !year || proposalDate(proposal).startsWith(`${year}-`))
+    .filter((proposal) => !consentedOnly || proposal.status === "consented")
+    .filter((proposal) => !proposedOnly || proposal.status === "proposed");
   const options = { typeOptions, yearOptions, hasPages: pagesInCircle.length > 0 };
   const headers = { "Cache-Control": "private, no-store" };
 
@@ -126,6 +152,11 @@ export async function GET(request: NextRequest) {
     sortable: pageSortable(page),
     score,
     listing: () => pageListing(page, circleName(page.keeper), snippet),
+  });
+  const proposalItem = (proposal: Proposal, score = 0, snippet?: string | null): Item => ({
+    sortable: proposalSortable(proposal),
+    score,
+    listing: () => listingOf(proposal, directory, snippet),
   });
 
   if (q) {
@@ -146,9 +177,16 @@ export async function GET(request: NextRequest) {
     const hits = sort
       ? [...found].sort((a, b) => SORTS[sort](fileSortable(a.doc), fileSortable(b.doc)))
       : found;
+    const terms = searchTerms(q);
+    const foundProposals = proposals
+      .map((proposal) => ({ proposal, score: proposalScore(proposal, terms) }))
+      .filter((hit) => hit.score > 0);
     const items = [
       ...found.map((hit) => fileItem(hit.doc, hit.score, hit.snippet)),
       ...foundPages.map((hit) => pageItem(hit.page, hit.score, hit.snippet)),
+      ...foundProposals.map((hit) =>
+        proposalItem(hit.proposal, hit.score, snippetFor(hit.proposal.body, terms))
+      ),
     ].sort((a, b) => (sort ? SORTS[sort](a.sortable, b.sortable) : b.score - a.score));
     return NextResponse.json(
       {
@@ -167,9 +205,11 @@ export async function GET(request: NextRequest) {
     SORTS[sort ?? "newest"](fileSortable(a), fileSortable(b))
   );
   const items = withPages
-    ? [...sorted.map((doc) => fileItem(doc)), ...pages.map((page) => pageItem(page))].sort((a, b) =>
-        SORTS[sort ?? "newest"](a.sortable, b.sortable)
-      )
+    ? [
+        ...sorted.map((doc) => fileItem(doc)),
+        ...pages.map((page) => pageItem(page)),
+        ...proposals.map((proposal) => proposalItem(proposal)),
+      ].sort((a, b) => SORTS[sort ?? "newest"](a.sortable, b.sortable))
     : [];
   return NextResponse.json(
     {

@@ -61,6 +61,7 @@ Main documents (see each store's `KEY`):
 | `circles/circles.json`, `circles/icons.json`, `circles/schedules/<id>.json` | Circles, seats, page modules; icons; duty rotations | `lib/circles`, `lib/schedules` |
 | `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/comments/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
+| `proposals/proposals.json` | Proposals: what's put to which circle, about which documents, and its consent at a meeting | `lib/proposals` |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
 | `logs/<circleId>.json` | Circle logs: short updates and replies, never notified | `lib/log` |
 | `feedback/reports.json` | Bug reports and feature requests from the ladybug | `lib/feedback` |
@@ -131,19 +132,29 @@ Highlighted words are `:mark[…]{color="…"}` (palette in `lib/wiki/colors.ts`
 (`components/wiki/wiki-page.tsx`: the keeper's icon, title, date and consent in a centred header
 over a `.document-sheet` with `.document-body` margins); the editor (`wiki-editor.tsx`) has a
 sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
-A page's **consent** (`lib/wiki/consent.ts`, `page.consent`) is the keeper circle's, recorded with
-a date (`PATCH {consent: {date}}`, or `null` to withdraw) against the version current then;
-`consentState()` reads "changed" once the page is edited again. A page's **stage**
-(`pageStage()`: draft, proposed, consented) adds `page.proposal` (`PATCH {proposal: {decideOn}}`, or
-`null`; its editors), which recording consent clears — a proposal is a page waiting for consent. Who may record it is the same for
-pages and files: `canRecordConsent` (`lib/circles/consent.ts`) — anyone in the circle, the Board for
-any circle, admins.
+**Proposals** are their own records (`lib/proposals`: `shared.ts` types and the
+`::proposal{id="…"}` directive, `store.ts`, `access.ts`, `http.ts`; `/api/proposals`), put to a
+circle and about documents (pages or files). A circle consents to one **at a meeting** — notes (a
+page with `meetingDate`, or older notes with `present`) or minutes (a file with a meeting date), or
+new notes started for the day — recording the meeting, who was there (each marked as a member or
+not), the circle, who recorded it, and the documents' versions (a page's `updatedAt`, a file's
+version number). Pages and files keep a copy of where their proposals stand — `page.proposal` /
+`page.consent` (`lib/wiki/consent.ts`), `doc.proposal` / `doc.consent` — each with a `proposalId`,
+computed by `lib/proposals/mirror.ts` and written by `syncDocuments()` after every change, so
+`consentState()` ("changed" once a page is edited again) and `pageStage()` (draft, proposed,
+consented) still read the document alone. Records without a `proposalId` are from before
+proposals (consent recorded directly, without a meeting): they show until a proposal takes their
+place and can only be withdrawn. Who records consent is the same for every circle:
+`canRecordConsent` (`lib/circles/consent.ts`) — anyone in the circle, the Board for any circle,
+admins. In meeting notes, `MeetingProposals` (a **Consent** button per proposal waiting for the
+circle) and `ProposalHostContext` (proposal cards in the notes offer **Consent at this meeting**)
+record against that meeting.
 
 Pages and uploaded files share one **Documents** section (`/documents`; `/wiki` redirects there).
-`GET /api/documents?pages=1` returns both as `items` (`kind` "page" | "file"; pages listed by
-`lib/wiki/listing.ts`, searched and sorted like files), shown by `DocumentsPanel` with
-`PageListingRow` and `DocumentRow`, and its **New** menu (`documents/new-menu.tsx`) writes a page
-or uploads a file. Storage, links and history stay separate. **Turn into a page**
+`GET /api/documents?pages=1` returns them, and proposals, as `items` (`kind` "page" | "file" |
+"proposal"; pages listed by `lib/wiki/listing.ts`, searched and sorted like files), shown by
+`DocumentsPanel` with `PageListingRow`, `DocumentRow` and `ProposalListingRow`, and its **New** menu
+(`documents/new-menu.tsx`) writes a page or meeting notes, makes a proposal, or uploads a file. Storage, links and history stay separate. **Turn into a page**
 (`POST /api/documents/<id>/page`) converts a file's text with `lib/documents/to-markdown.ts`.
 
 ## Notifications

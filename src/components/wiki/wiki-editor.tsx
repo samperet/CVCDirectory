@@ -12,6 +12,7 @@ import type { PageEditor } from "@/lib/wiki/presence";
 import { blockStarts, mergeText } from "@/lib/wiki/merge";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import type { RichEditorHandle } from "@/components/wiki/rich-editor";
+import { meetingDateOf } from "@/lib/proposals/shared";
 import Link from "next/link";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
@@ -549,6 +550,8 @@ export function WikiEditor({
               circleName={circleName}
               pageId={initial.id}
               pageSlug={initial.slug}
+              pageTitle={title}
+              meetingNotes={!!meetingDateOf(initial)}
               onChange={setBody}
               onCreatePage={onCreatePage}
               onTranscribe={() => setRecordSignal((n) => n + 1)}

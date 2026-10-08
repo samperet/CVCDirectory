@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, BadgeCheck, MessagesSquare, Search, Tags, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { BulkUpload } from "@/components/documents/bulk-upload";
@@ -21,20 +21,33 @@ import { PageListingRow } from "@/components/documents/page-row";
 import { NewMenu, WritePageDialog } from "@/components/documents/new-menu";
 import { LinkDialog } from "@/components/documents/link-dialog";
 import type { PageListing } from "@/lib/wiki/listing";
+import type { ProposalListing } from "@/lib/proposals/shared";
+import { ProposalListingRow } from "@/components/proposals/proposal-list";
+import { ProposalFormDialog } from "@/components/proposals/proposal-form";
+import {
+  createProposal,
+  proposalCirclesQuery,
+  useProposalsChanged,
+  type ProposalDraft,
+} from "@/components/proposals/data";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
 
 type FileItem = DocumentListing & { kind: "file" };
 type ListResponse = {
   documents: DocumentListing[];
-  items: (FileItem | PageListing)[];
+  items: (FileItem | PageListing | ProposalListing)[];
   total: number;
   typeOptions: string[];
   yearOptions?: string[];
   hasPages: boolean;
 };
 
-/** The Type filter's two kinds (any other value is one of the file types' names). */
+/** The Type filter's kinds (any other value is one of the file types' names). */
 const PAGES = "__pages";
 const FILES = "__files";
+const PROPOSALS = "__proposals";
+const KINDS: Record<string, string> = { pages: PAGES, files: FILES, proposals: PROPOSALS };
 
 function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
   const href = `/forum/${hit.id}${hit.replyId ? `#reply-${hit.replyId}` : ""}`;
@@ -89,6 +102,7 @@ export function DocumentsPanel({
   newPage,
   startUpload = false,
   initialStage = "",
+  initialKind = "",
 }: {
   circleId?: string;
   /** On a circle's page: its name, for the upload form. */
@@ -111,10 +125,12 @@ export function DocumentsPanel({
   startUpload?: boolean;
   /** Start filtered to a stage: "proposed" or "consented" (the dashboard's "And N more"). */
   initialStage?: string;
+  /** Start with one kind: "pages", "files", or "proposals" (`/proposals`). */
+  initialKind?: string;
 }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [type, setType] = useState("");
+  const [type, setType] = useState(KINDS[initialKind] ?? "");
   // "" any stage; "proposed" pages waiting for consent; "consented".
   const [stage, setStage] = useState(
     initialStage === "proposed" || initialStage === "consented" ? initialStage : ""
@@ -123,11 +139,31 @@ export function DocumentsPanel({
   // "" means the natural order: newest first, or best match while searching.
   const [sort, setSort] = useState("");
   const [circle, setCircle] = useState(initialCircle);
-  const [writing, setWriting] = useState(false);
+  const [writing, setWriting] = useState<"page" | "meeting" | null>(null);
+  const [proposing, setProposing] = useState(false);
+  const proposeTo =
+    useQuery({ ...proposalCirclesQuery(), enabled: proposing }).data?.canProposeTo ?? [];
+  const router = useRouter();
+  const { toast } = useToast();
+  const proposalsChanged = useProposalsChanged();
+  const propose = useMutation({
+    mutationFn: (draft: ProposalDraft) => createProposal(draft),
+    onSuccess: ({ proposal }) => {
+      setProposing(false);
+      proposalsChanged();
+      router.push(`/proposals/${proposal.id}`);
+    },
+    onError: (err: Error) =>
+      toast({
+        title: "Could not make the proposal",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
   // Asked for by the address (a link to a page that doesn't exist yet): opened once in the browser.
   const asked = !!newPage;
   useEffect(() => {
-    if (asked) setWriting(true);
+    if (asked) setWriting("page");
   }, [asked]);
   useEffect(() => {
     if (startUpload && uploadCircles.length) setBulk(true);
@@ -146,8 +182,9 @@ export function DocumentsPanel({
   const filters = {
     q: debounced,
     circle: circleId ?? circle,
-    type: type === PAGES || type === FILES ? "" : type,
-    kind: type === PAGES ? "pages" : type === FILES ? "files" : "",
+    type: type === PAGES || type === FILES || type === PROPOSALS ? "" : type,
+    kind:
+      type === PAGES ? "pages" : type === FILES ? "files" : type === PROPOSALS ? "proposals" : "",
     year,
     sort,
     stage,
@@ -181,7 +218,7 @@ export function DocumentsPanel({
       Array.from(
         new Set([
           ...(data?.typeOptions ?? []),
-          ...(type && type !== PAGES && type !== FILES ? [type] : []),
+          ...(type && type !== PAGES && type !== FILES && type !== PROPOSALS ? [type] : []),
         ])
       ).sort(),
     [data, type]
@@ -231,9 +268,10 @@ export function DocumentsPanel({
           </Select>
         ) : null}
         <Select value={type} onChange={(event) => setType(event.target.value)} aria-label="Type">
-          <option value="">Pages and files</option>
+          <option value="">Pages, files and proposals</option>
           <option value={PAGES}>Written pages</option>
           <option value={FILES}>All files</option>
+          <option value={PROPOSALS}>Proposals</option>
           {typeOptions.length ? (
             <optgroup label="Files of one type">
               {typeOptions.map((entry) => (
@@ -304,7 +342,9 @@ export function DocumentsPanel({
         <NewMenu
           canWrite={canWrite}
           canUpload={circleId ? canUpload : uploadCircles.length > 0}
-          onWrite={() => setWriting(true)}
+          onWrite={() => setWriting("page")}
+          onMeeting={() => setWriting("meeting")}
+          onPropose={() => setProposing(true)}
           onUpload={() => (circleId ? setAdding(true) : setBulk(true))}
           onLink={() => setLinking(true)}
         />
@@ -316,7 +356,25 @@ export function DocumentsPanel({
           from={newPage?.from}
           circleId={circleId}
           preferredCircle={circle}
-          onClose={() => setWriting(false)}
+          meeting={writing === "meeting"}
+          onClose={() => setWriting(null)}
+        />
+      ) : null}
+      {proposing ? (
+        <ProposalFormDialog
+          heading="A proposal"
+          initial={{
+            circleId: circleId ?? (circle || proposeTo[0]?.id || ""),
+            title: "",
+            body: "",
+            decideOn: null,
+          }}
+          initialDocuments={[]}
+          circleName={circleName ?? ""}
+          submitLabel="Propose"
+          saving={propose.isPending}
+          onSubmit={(draft) => propose.mutate(draft)}
+          onClose={() => setProposing(false)}
         />
       ) : null}
       {linking ? (
@@ -381,7 +439,15 @@ export function DocumentsPanel({
           ) : null}
           <ul className={cn("divide-y divide-border", isFetching && "opacity-60")}>
             {data.items.map((item) =>
-              item.kind === "page" ? (
+              item.kind === "proposal" ? (
+                <ProposalListingRow
+                  key={`proposal-${item.id}-${item.updatedAt}`}
+                  proposal={item}
+                  terms={terms}
+                  showCircle={!circleId}
+                  compact={!!circleId}
+                />
+              ) : item.kind === "page" ? (
                 <PageListingRow
                   key={`page-${item.id}-${item.updatedAt}`}
                   page={item}

@@ -6,6 +6,7 @@ import { WIKI_LINK, circleNamed, normalizeWikiLinks, type CircleRef } from "./li
 import type { Actor } from "@/lib/auth/actor";
 import type { PageConsent, PageProposal } from "./consent";
 import { namedPeopleSchema, type NamedPerson } from "@/lib/people";
+import { differs } from "@/lib/proposals/mirror";
 
 /**
  * The wiki: one for all of CVC. Every page, written in Markdown, has a
@@ -66,6 +67,8 @@ export interface WikiPage {
   proposal?: PageProposal | null;
   /** Who was present (for a meeting's notes), shown under the title; set by its editors. */
   present?: PagePerson[];
+  /** For a meeting's notes: the day of the meeting (YYYY-MM-DD). Proposals are consented at meetings. */
+  meetingDate?: string | null;
   /** What was said, transcribed while the notes were taken; shown folded away at the end of the page. */
   transcript?: string;
   /** The current version was saved as someone typed (so the next autosave can fold into it). */
@@ -86,6 +89,7 @@ export type WikiPageSummary = Pick<
   | "edit"
   | "consent"
   | "proposal"
+  | "meetingDate"
 > & {
   /** Its opening lines, as plain text (in the page list, for cards). */
   excerpt?: string;
@@ -104,6 +108,7 @@ const title = z
   .max(120, "Titles must be 120 characters or fewer");
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
 const circleIdSchema = z.string().min(1).max(80);
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-08");
 export const viewSchema = z.union([
   z.object({ kind: z.literal("everyone") }),
   z.object({ kind: z.literal("keeper") }),
@@ -123,6 +128,9 @@ export const pageInputSchema = z.object({
   from: z.string().max(80).optional(),
   /** The circle that keeps it (otherwise the keeper of the page it was started from, or Community). */
   keeper: circleIdSchema.optional(),
+  /** Meeting notes: the day of the meeting, and who was there. */
+  meetingDate: isoDate.optional(),
+  present: namedPeopleSchema(200).optional(),
 });
 export const pageUpdateSchema = z
   .object({
@@ -135,25 +143,14 @@ export const pageUpdateSchema = z
     keeper: circleIdSchema.optional(),
     view: viewSchema.optional(),
     edit: editSchema.optional(),
-    /** Record the parent circle's consent (the date, and who consented), or withdraw it (null). */
-    consent: z
-      .object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the date it was consented"),
-        consentedBy: namedPeopleSchema(100, "Choose who consented"),
-      })
-      .nullable()
-      .optional(),
-    /** Propose it to the circle for consent (by a day, or not), or withdraw the proposal (null). */
-    proposal: z
-      .object({
-        decideOn: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/, "Give the day it's to be decided")
-          .nullable()
-          .optional(),
-      })
-      .nullable()
-      .optional(),
+    /**
+     * Withdraw a record of consent, or a proposal, from before proposals were
+     * their own (null). New ones are proposals (`/api/proposals`), consented at a meeting.
+     */
+    consent: z.null().optional(),
+    proposal: z.null().optional(),
+    /** Meeting notes: the day of the meeting (null: these aren't a meeting's notes). */
+    meetingDate: isoDate.nullable().optional(),
     /** Who was present (the whole list; empty to clear it). */
     present: namedPeopleSchema(200).optional(),
     /** The whole transcript (empty to clear it). */
@@ -181,6 +178,7 @@ export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   edit: page.edit,
   ...(page.consent ? { consent: page.consent } : {}),
   ...(page.proposal ? { proposal: page.proposal } : {}),
+  ...(page.meetingDate ? { meetingDate: page.meetingDate } : {}),
 });
 
 type Stored = { version: number; pages: WikiPage[] };
@@ -298,6 +296,8 @@ export function createPage(
     keeper: string;
     view?: PageView;
     edit?: PageEdit;
+    meetingDate?: string;
+    present?: PagePerson[];
   }
 ) {
   return mutate((pages) => {
@@ -327,6 +327,8 @@ export function createPage(
       view: input.view ?? DEFAULT_VIEW,
       edit: input.edit ?? DEFAULT_EDIT,
       historyCount: 0,
+      ...(input.meetingDate ? { meetingDate: input.meetingDate } : {}),
+      ...(input.present?.length ? { present: input.present } : {}),
     };
     return { pages: [...pages, page], page };
   });
@@ -419,9 +421,10 @@ type PageUpdate = {
   keeper?: string;
   view?: PageView;
   edit?: PageEdit;
-  consent?: { date: string; consentedBy: PagePerson[] } | null;
-  proposal?: { decideOn?: string | null } | null;
+  consent?: null;
+  proposal?: null;
   present?: PagePerson[];
+  meetingDate?: string | null;
   transcript?: string;
 };
 
@@ -434,36 +437,13 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     // Its keeper, who can see or edit it, its stage, who was present, and the transcript aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.present ? { present: update.present } : {}),
+      ...(update.meetingDate !== undefined ? { meetingDate: update.meetingDate } : {}),
       ...(update.transcript !== undefined ? { transcript: update.transcript } : {}),
       ...(update.keeper ? { keeper: update.keeper } : {}),
       ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),
-      ...(update.consent === null
-        ? { consent: null }
-        : update.consent
-          ? {
-              consent: {
-                date: update.consent.date,
-                consentedBy: update.consent.consentedBy,
-                recordedBy: { userId: editor.userId, name: editor.name },
-                recordedAt: new Date().toISOString(),
-                version: page.updatedAt,
-              },
-              // Consent ends the proposal.
-              proposal: null,
-            }
-          : {}),
-      ...(update.proposal === null
-        ? { proposal: null }
-        : update.proposal
-          ? {
-              proposal: {
-                by: { userId: editor.userId, name: editor.name },
-                at: new Date().toISOString(),
-                decideOn: update.proposal.decideOn ?? null,
-              },
-            }
-          : {}),
+      ...(update.consent === null ? { consent: null } : {}),
+      ...(update.proposal === null ? { proposal: null } : {}),
     };
     page = { ...page, ...settings };
     const current = page;
@@ -512,6 +492,33 @@ export function deletePage(slug: string) {
     if (!page) return "not_found";
     return { pages: pages.filter((entry) => entry.id !== page.id), page: null };
   });
+}
+
+/**
+ * Copy where proposals stand onto the pages they're about (`decide` says
+ * what each page should show; see `lib/proposals/mirror.ts`). Not a new
+ * version; pages that already show it aren't rewritten.
+ */
+export async function setPageDecisions(
+  pageIds: string[],
+  decide: (page: WikiPage) => Pick<WikiPage, "proposal" | "consent">
+) {
+  const wanted = new Set(pageIds);
+  const stale = (page: WikiPage) => {
+    if (!wanted.has(page.id)) return null;
+    const next = decide(page);
+    return differs(page.proposal, next.proposal) || differs(page.consent, next.consent)
+      ? next
+      : null;
+  };
+  if (!(await readPages()).some(stale)) return;
+  await mutate((pages) => ({
+    page: null,
+    pages: pages.map((page) => {
+      const next = stale(page);
+      return next ? { ...page, proposal: next.proposal, consent: next.consent } : page;
+    }),
+  }));
 }
 
 /** When a circle is deleted, the Board keeps its pages (as with its documents), and no page is shown only to it any more. */

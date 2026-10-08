@@ -17,7 +17,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. A page moves through three stages — **Draft**, **Proposed** (put to its circle for consent), **Consented** — and any member of a circle (or the Board, for any circle) records when the circle consented to a page or file, and who consented.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. **Proposals** are their own records — put to a circle, about pages and files, held in documents — and a circle consents to one **at a meeting**: the meeting's notes record who was there, and its **Consent** button records the circle, the meeting, who was there, and who recorded it. Pages and files show where their proposals stand: **Draft**, **Proposed**, **Consented**.
 - 🐞 **Bugs & ideas** – A ladybug in the corner of every page sends the admins a bug report or a feature request, with the page it came from.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -315,9 +315,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **One section for pages and files** (`/documents`, **Documents** in the menu). Its list and search
   cover both written pages (a book icon and a **Page** label) and uploaded files (a file icon and
   their type), filtered and sorted together (`GET /api/documents?pages=1` returns them as `items`,
-  each `kind` "page" or "file"; the **Type** filter can keep to **Written pages**, **All files**,
-  or one type of file). The one **New** button offers **Write a page** (a title and its circle,
-  then the editor), **Upload a file**, or **Add a link**. The **Map** button shows how pages link. `/wiki` (and
+  each `kind` "page", "file" or "proposal"; the **Type** filter can keep to **Written pages**, **All
+  files**, **Proposals** (`/proposals` opens it), or one type of file). The one **New** button offers
+  **Write a page** (a title and its circle, then the editor), **Meeting notes** (a page for one of a
+  circle's meetings: its day, then the editor; named "Land Care Circle meeting, Oct 8, 2026" until
+  given another title), **A proposal**, **Upload a file**, or **Add a link**. The **Map** button shows how pages link. `/wiki` (and
   `/wiki?keeper=…`, `?new=…`) now lead here; pages keep their `/wiki/<slug>` addresses. A rule of
   thumb: anything people will keep improving is best written as a page; a fixed record, or anything
   from outside, uploaded as a file.
@@ -345,31 +347,56 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   the list spans circles, date, and who uploaded the current version; Download, versions, and — for
   its managers — Edit, New version, and Delete are icons at the end of that line that appear on
   hover (always, on touch screens). A description shows below.
-- **Consent** – one rule for pages and files (`canRecordConsent` in `lib/circles/consent.ts`):
-  anyone in the circle, anyone on the Board (for any circle), and admins record when the circle
-  consented, with the date (the meeting date by default, for a file), and **who consented** — the
-  circle's members ticked (or **All members**), and anyone else added by name; Community's are
-  recorded by the Board. A consented document carries a **Consented** badge and, beneath it, the
-  record: "Consented Oct 3, 2026 by Ada Ash and Ben Birch · recorded by Cara Cedar" (records from
-  before who consented was asked show the date and who recorded them). Consent belongs to the version consented: a newer version (or an edit to a page)
-  shows **Changed since consent** until the circle consents again, and a file's version history
-  marks the consented one. **Consented only** filters the list; search finds consented documents by
-  the word "consented". The same people can withdraw a record of consent.
-- **Proposals** – a proposal is a page waiting for consent, not a separate thing. A page is a
-  **Draft**, **Proposed**, or **Consented** (`pageStage` in `lib/wiki/consent.ts`), shown as a
-  pill under its title. Anyone who can edit it can **Propose for consent** (optionally with the day
-  it's to be decided) or **Withdraw proposal**; recording consent ends the proposal. Editing a
-  consented page makes it a draft again ("changed since consent"); proposing that is a **Proposed
-  change**. Concerns are raised as comments on the words they're about. Proposing notifies no one.
-  The Documents list's stage filter shows **Proposed (waiting for consent)** pages, search finds
-  them by "proposed", and an Information module on a circle page can show **Proposals waiting for
-  consent** (the soonest to be decided first). The dashboard's **Waiting for consent** card lists
-  the proposals of the circles you're in — and Community's, for everyone — when there are any
-  (`components/wiki/your-proposals.tsx`; "And N more" opens `/documents?stage=proposed`). (`PATCH /api/wiki/pages/<slug>` with
-  `proposal: {decideOn}` or `null`; stored on the page as `proposal`.)
-  (`PUT`/`DELETE /api/documents/<id>/consent`, `PATCH /api/wiki/pages/<slug>` with `consent` —
-  each with `date` and `consentedBy`; stored with the document or page as `consent`, with
-  `consentedBy` and `recordedBy`.)
+- **Proposals** (`lib/proposals`, `/proposals/<id>`) – something put to a circle for its consent:
+  a title, the proposal itself (Markdown), the **documents it's about** (pages or files, found by
+  title — "adopt this policy"), and the day it's to be decided, if known. Whoever can start a
+  circle's documents can put a proposal to it (any resident, for Community); everyone at CVC can
+  see proposals. It's **Proposed** until the circle consents — or until it's **Withdrawn** (and
+  perhaps **proposed again**); whoever proposed it, the circle's members, the Board, and admins
+  change, withdraw, or delete it (a consented one can't be changed: a new proposal changes it).
+  Proposals are made from the Documents **New** menu, a page's or file's **Propose for consent**,
+  or the editor's **Add a proposal** (the handshake), which puts it in the page — a new one (about
+  that page, unless it's meeting notes) or one already waiting — as `::proposal{id="…"}` on a line
+  of its own: a card with the proposal, the documents it's about, where it stands, and what you can
+  do. Its own page also lists the pages that hold it. The circle's members hear of a new proposal,
+  and of its consent (topic "Proposals to your circles…"; everyone, for Community's).
+- **Consent is given at a meeting** (`canRecordConsent` in `lib/circles/consent.ts`: anyone in the
+  circle, anyone on the Board — for any circle — and admins; the Board records Community's).
+  - **In a meeting's notes** (a page with a meeting day — set with **Who's present** — kept by
+    the circle): a **Proposals** box under the title lists those consented at this meeting and
+    those still waiting for the circle's consent, each with **Consent**; a proposal card in the
+    notes has **Consent at this meeting**. Consenting there records the meeting, who was there
+    (from the notes; asked for first if they don't say yet, and saved to them), the circle, and
+    who recorded it, with an optional note ("with the amendment that…").
+  - **Anywhere else** — a proposal's page or card, a page's or file's **Record consent** — asks
+    **at which meeting**: the circle's notes and minutes with a date (files with a meeting date
+    count, and then who was there is asked for), the latest first, or **a meeting with no notes
+    here yet** (its day and who was there; notes named for the circle and the day are started for
+    it). A page or file with no open proposal gets one made for it there and then.
+  - Each person present is recorded as a member of the circle or not (guests and other residents),
+    shown as "Present: Cara Cedar and Dev Dogwood · also there: Sam (guest)". The documents a
+    proposal is about are consented **at their current versions**: a page edited (or a file given a
+    new version) afterwards shows **Changed since consent** until a new proposal is consented.
+    **Withdraw consent** (for a record made by mistake) puts the proposal back to waiting.
+  - Pages and files show their stage — a pill under a page's title (**Draft**, **Proposed** — the
+    day to decide — or **Consented**, with a link to the proposal), a badge on a file — and the
+    record: "Consented Oct 8, 2026 at Land Care Circle meeting, Oct 8, 2026 by Cara Cedar and Dev
+    Dogwood · recorded by Dev Dogwood". They keep a copy of where their proposals stand (`proposal`
+    and `consent`, each with its `proposalId`), so lists and filters read the document alone.
+    Records from before proposals (consent recorded on a page or file with a date and who
+    consented, without a meeting) still show and can be withdrawn; new ones can't be made that way
+    (`PUT /api/documents/<id>/consent` answers 410).
+  - The Documents list's stage filter (**Proposed**, **Consented**) covers pages, files, and
+    proposals; search finds proposals by their words (and site search lists them); an
+    Information module on a circle page can show **Proposals waiting for consent**; the
+    dashboard's **Waiting for consent** card lists the open proposals of the circles you're in —
+    and Community's — when there are any ("And N more" opens `/documents?stage=proposed`).
+  - API: `GET`/`POST /api/proposals` (list — `circle`, `status`, `q` — or put one to a circle; with
+    `consent`, consented at once), `GET`/`PATCH`/`DELETE /api/proposals/<id>` (`status`:
+    "withdrawn" or "proposed"), `POST`/`DELETE /api/proposals/<id>/consent` (`meeting`: `{kind:
+    "page"|"file", id}` or `{kind: "new", date}`; `present` when the notes don't say; `note`),
+    `GET /api/proposals/meetings?circle=`. Stored in `proposals/proposals.json`; when a circle is
+    deleted its proposals not yet consented go to the Board.
 - **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
   settings (nothing is inherited): **who can see it** — everyone (the default), only its parent
   circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the
@@ -572,12 +599,16 @@ from then on, so re-importing the directory never overwrites circle changes.
   specific to the circles that need one — today only the Chicken Tenders — so there's no button to
   add one elsewhere; a new one is set up with `PUT /api/admin/schedules` (with `ADMIN_TOKEN`).
   Stored in `circles/schedules/<id>.json`.
-- **Meeting notes** are written as pages in Documents (there's no separate Meetings module, and
-  no proposals or consent reviews any more; `/circles/<id>/meetings/…` and `…/proposals/…` lead
-  to the circle). In the page editor's toolbar:
-  - **Who's present** (the people icon) – the page's circle's members as chips to tick (**All
-    members present**), plus **Add someone** for any other resident, or a guest by name. Saved as
-    the page's `present` and shown under its title ("Present: …"); it isn't a new version.
+- **Meeting notes** are written as pages in Documents (**New → Meeting notes**; there's no separate
+  Meetings module; `/circles/<id>/meetings/…` leads to the circle and `…/proposals/<id>` to the
+  proposal). Proposals to the circle are consented in them (see Documents → Consent is given at a
+  meeting). In the page editor's toolbar:
+  - **Who's present** (the people icon) – the meeting's day (which makes the page a meeting's
+    notes), and the page's circle's members as chips to tick (**All members present**), plus **Add
+    someone** for any other resident, or a guest by name. Saved as the page's `meetingDate` and
+    `present`, shown under its title ("Meeting Oct 8, 2026 · Present: …"); it isn't a new version.
+    Notes from before pages had a meeting day count as dated the day they were started.
+  - **Add a proposal** (the handshake) – a new proposal, or one already waiting, put in the notes.
   - **Transcript** – at the end of every page, folded away like this: "Transcript · N words".
     While editing, its line has **Record** and **Pause** (the toolbar's microphone records too):
     what's said is written down by the browser's own speech recognition (Chrome, Edge, Safari —

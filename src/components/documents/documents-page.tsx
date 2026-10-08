@@ -80,6 +80,7 @@ export function DocumentsPage() {
           initialCircle={params.get("circle") ?? ""}
           startUpload={params.get("upload") === "1"}
           initialStage={params.get("stage") ?? ""}
+          initialKind={params.get("kind") ?? ""}
           newPage={
             requested !== null
               ? { title: requested, from: params.get("from") ?? undefined }

@@ -56,20 +56,20 @@ describe("byDecision", () => {
   });
 });
 
-describe("recording consent to a page", () => {
-  it("says who consented", () => {
-    expect(pageUpdateSchema.safeParse({ consent: { date: "2026-10-03" } }).success).toBe(false);
-    expect(
-      pageUpdateSchema.safeParse({ consent: { date: "2026-10-03", consentedBy: [] } }).success
-    ).toBe(false);
+describe("consent on a page", () => {
+  it("is recorded through a proposal now: the page only takes withdrawing an old record", () => {
     expect(
       pageUpdateSchema.safeParse({
-        consent: {
-          date: "2026-10-03",
-          consentedBy: [{ personId: "000000000003", name: "Cara Cedar" }, { name: "Sam" }],
-        },
+        consent: { date: "2026-10-03", consentedBy: [{ name: "Cara Cedar" }] },
       }).success
-    ).toBe(true);
+    ).toBe(false);
+    expect(pageUpdateSchema.safeParse({ proposal: { decideOn: null } }).success).toBe(false);
     expect(pageUpdateSchema.safeParse({ consent: null }).success).toBe(true);
+    expect(pageUpdateSchema.safeParse({ proposal: null }).success).toBe(true);
+  });
+  it("takes a meeting's day", () => {
+    expect(pageUpdateSchema.safeParse({ meetingDate: "2026-10-08" }).success).toBe(true);
+    expect(pageUpdateSchema.safeParse({ meetingDate: "Oct 8" }).success).toBe(false);
+    expect(pageUpdateSchema.safeParse({ meetingDate: null }).success).toBe(true);
   });
 });

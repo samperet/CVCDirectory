@@ -14,6 +14,7 @@ const KINDS: SearchKind[] = [
   "wiki",
   "forum",
   "documents",
+  "proposals",
   "tasks",
   "resources",
   "library",

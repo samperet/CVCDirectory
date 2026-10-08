@@ -16,11 +16,16 @@ import { Card } from "@/components/ui/card";
 import { useCircles } from "@/components/directory/use-directory";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Loading } from "@/components/ui/status";
+import { useQuery } from "@tanstack/react-query";
+import { proposalsQuery } from "@/components/proposals/data";
+import { ProposalCards } from "@/components/proposals/proposal-list";
 
 /**
  * The pages a filter picks, of those you can see: chosen ones in their
- * order, a circle's by title, a circle's proposals (the soonest to be
- * decided first, then the newest), or the most recently edited first.
+ * order, a circle's by title, a circle's pages proposed before proposals
+ * were their own (the soonest to be decided first, then the newest — the
+ * proposals themselves are listed beside them), or the most recently
+ * edited first.
  */
 export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPageSummary[] {
   if (filter.kind === "pages") {
@@ -29,7 +34,12 @@ export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPage
   }
   if (filter.kind === "proposed")
     return pages
-      .filter((page) => page.keeper === filter.circleId && pageStage(page) === "proposed")
+      .filter(
+        (page) =>
+          page.keeper === filter.circleId &&
+          pageStage(page) === "proposed" &&
+          !page.proposal?.proposalId
+      )
       .sort(byDecision);
   if (filter.kind === "circle")
     return pages
@@ -66,6 +76,11 @@ export function InformationModule({
   const circles = useCircles();
   const [adding, setAdding] = useState(false);
   const info = module.info;
+  const proposedTo = info?.filter.kind === "proposed" ? info.filter.circleId : null;
+  const proposals = useQuery({
+    ...proposalsQuery({ circle: proposedTo ?? "", status: "proposed" }),
+    enabled: !!proposedTo,
+  }).data?.proposals;
   if (!info) return null;
   const all = data?.pages ?? [];
   const pages = pagesFor(info.filter, all);
@@ -87,6 +102,7 @@ export function InformationModule({
           </Button>
         ) : null}
       </div>
+      {proposals?.length ? <ProposalCards proposals={proposals} /> : null}
       {isLoading ? (
         <Loading />
       ) : pages.length ? (
@@ -98,7 +114,7 @@ export function InformationModule({
           circleNames={circleNames}
           narrow={narrow}
         />
-      ) : (
+      ) : info.filter.kind === "proposed" && proposals?.length ? null : (
         <p className="text-sm text-muted">
           {info.filter.kind === "proposed"
             ? "Nothing is waiting for consent."

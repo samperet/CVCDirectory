@@ -1,4 +1,5 @@
 import type { NamedPerson } from "@/lib/people";
+import type { MeetingRef } from "@/lib/proposals/shared";
 
 /**
  * Where a page stands with its parent circle — a policy or an agreement the
@@ -9,6 +10,12 @@ import type { NamedPerson } from "@/lib/people";
  * consent) until it's proposed again or the circle consents to the new
  * version. A proposal is a page — or a change to a consented one — waiting
  * for consent; recording consent ends it. Safe for the browser.
+ *
+ * Proposals are their own records now (`lib/proposals`): when one is about
+ * a page, the page's `proposal` and `consent` are copies of where that
+ * proposal stands (`proposalId` says which), so a page shows its stage on
+ * its own. Records without a `proposalId` are from before proposals, when
+ * consent was recorded on the page directly (without a meeting).
  */
 export interface PageConsent {
   /** The day the circle consented (YYYY-MM-DD). */
@@ -20,6 +27,9 @@ export interface PageConsent {
   recordedAt: string;
   /** The page's `updatedAt` when consent was recorded: the version consented to. */
   version: string;
+  /** The proposal this consent came through, and the meeting it was given at. */
+  proposalId?: string;
+  meeting?: MeetingRef;
 }
 
 export type ConsentState = "consented" | "changed" | null;
@@ -40,6 +50,10 @@ export interface PageProposal {
   at: string;
   /** The day the circle means to decide (YYYY-MM-DD), if there is one. */
   decideOn?: string | null;
+  /** The proposal it's part of, what that's called, and the circle it's put to. */
+  proposalId?: string;
+  title?: string;
+  circleId?: string;
 }
 
 export type PageStage = "draft" | "proposed" | "consented";

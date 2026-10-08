@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
         ? []
         : [
             {
+              id: page.id,
               circleId: page.keeper,
               circleName:
                 ctx.directory.circles.find((circle) => circle.id === page.keeper)?.name ?? "",

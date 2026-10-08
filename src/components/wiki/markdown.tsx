@@ -25,6 +25,7 @@ import {
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
 import { WikiTag } from "@/components/wiki/wiki-tag";
 import { EmbedBlock, EmbedChain } from "@/components/wiki/embed-block";
+import { ProposalBlock } from "@/components/proposals/proposal-card";
 import { cn } from "@/lib/utils";
 import { useCircles } from "@/components/directory/use-directory";
 
@@ -115,10 +116,12 @@ const components: Components = {
   ),
   hr: () => <hr className="border-border" />,
   mark: ({ node: _node, className, ...props }) => <mark className={className} {...props} />,
-  // A poll the page holds (`::poll{id="…"}`), or another page shown in it (`::embed{page="…"}`).
+  // A poll the page holds (`::poll{id="…"}`), a proposal (`::proposal{id="…"}`), or another page shown in it (`::embed{page="…"}`).
   div: ({ node: _node, ...props }) => {
     const data = props as Record<string, unknown>;
     if (typeof data["data-poll"] === "string") return <WikiPollBlock pollId={data["data-poll"]} />;
+    if (typeof data["data-proposal"] === "string")
+      return <ProposalBlock proposalId={data["data-proposal"]} />;
     if (typeof data["data-embed"] === "string")
       return (
         <EmbedBlock
@@ -257,10 +260,14 @@ export function WikiMarkdown({
 
 const plainComponents: Components = {
   ...components,
-  // Polls and embedded pages need an account: left out.
+  // Polls, proposals, and embedded pages need an account: left out.
   div: ({ node: _node, ...props }) => {
     const data = props as Record<string, unknown>;
-    if (typeof data["data-poll"] === "string" || typeof data["data-embed"] === "string")
+    if (
+      typeof data["data-poll"] === "string" ||
+      typeof data["data-proposal"] === "string" ||
+      typeof data["data-embed"] === "string"
+    )
       return null;
     return <div {...props} />;
   },

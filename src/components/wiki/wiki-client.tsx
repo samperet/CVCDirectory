@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 import { Select } from "@/components/ui/select";
+import { shortDate, todayInVermont } from "@/lib/time";
 
 /** The wiki's pages that you can see (and the circles you can start pages for). */
 export function useWikiPages() {
@@ -28,12 +29,15 @@ export function NewPageForm({
   from,
   keeper: preferred,
   lockKeeper = false,
+  meeting = false,
   onCancel,
 }: {
   initialTitle?: string;
   from?: string;
   keeper?: string;
   lockKeeper?: boolean;
+  /** Notes for a meeting: its day is asked for, and the title starts as the circle's and the day's. */
+  meeting?: boolean;
   onCancel: () => void;
 }) {
   const router = useRouter();
@@ -48,11 +52,25 @@ export function NewPageForm({
     usable ||
     (keepers.some((circle) => isCommunity(circle.id)) ? COMMUNITY_ID : keepers[0]?.id) ||
     "";
+  const today = todayInVermont();
+  const [meetingDate, setMeetingDate] = useState(today);
+  const keeperName = keepers.find((circle) => circle.id === keeper)?.name ?? "";
+  // A meeting's notes are named for the circle and the day until a title is typed.
+  const [typed, setTyped] = useState(false);
+  const shownTitle =
+    meeting && !typed && keeperName
+      ? `${keeperName} meeting, ${shortDate(meetingDate, true)}`
+      : title;
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ page: WikiPage }>("/api/wiki/pages", {
         method: "POST",
-        body: JSON.stringify({ title, body: "", ...(from && !chosen ? { from } : { keeper }) }),
+        body: JSON.stringify({
+          title: shownTitle,
+          body: "",
+          ...(from && !chosen ? { from } : { keeper }),
+          ...(meeting ? { meetingDate } : {}),
+        }),
       }),
     onSuccess: ({ page }) => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
@@ -70,15 +88,30 @@ export function NewPageForm({
       className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        if (title.trim()) create.mutate();
+        if (shownTitle.trim()) create.mutate();
       }}
     >
+      {meeting ? (
+        <label className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+          The meeting is on
+          <Input
+            type="date"
+            value={meetingDate}
+            onChange={(event) => setMeetingDate(event.target.value || today)}
+            className="h-9 w-auto bg-white"
+            aria-label="The meeting's day"
+          />
+        </label>
+      ) : null}
       <Input
         autoFocus
         placeholder="Page title, e.g. How we run meetings"
-        value={title}
+        value={shownTitle}
         maxLength={120}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(e) => {
+          setTyped(true);
+          setTitle(e.target.value);
+        }}
         className="bg-white"
         aria-label="Page title"
       />
@@ -99,8 +132,11 @@ export function NewPageForm({
         </label>
       ) : null}
       <div className="flex gap-2">
-        <Button type="submit" disabled={!title.trim() || create.isPending || (!from && !keeper)}>
-          {create.isPending ? "Adding…" : "Add page"}
+        <Button
+          type="submit"
+          disabled={!shownTitle.trim() || create.isPending || (!from && !keeper)}
+        >
+          {create.isPending ? "Adding…" : meeting ? "Start the notes" : "Add page"}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

@@ -1,28 +1,35 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronDown, Link2, Plus, Upload } from "lucide-react";
+import { BookOpen, ChevronDown, Handshake, Link2, NotebookPen, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { NewPageForm } from "@/components/wiki/wiki-client";
 
 /**
  * The Documents list's one "New" button: **Write a page** (a title, then the
- * editor), **Upload a file**, or **Add a link** (a Google Doc, say). Each
- * may be missing for someone who can't do it; with none, there's no button.
+ * editor), **Meeting notes** (a page for a meeting: its day, then the
+ * editor), **A proposal** (put to a circle for consent), **Upload a file**,
+ * or **Add a link** (a Google Doc, say). Each may be missing for someone who
+ * can't do it; with none, there's no button.
  */
 export function NewMenu({
   canWrite,
   canUpload,
   onUpload,
   onWrite,
+  onMeeting,
+  onPropose,
   onLink,
 }: {
+  /** Start pages, meeting notes, and proposals. */
   canWrite: boolean;
   /** Upload files and add links. */
   canUpload: boolean;
   onUpload: () => void;
   onWrite: () => void;
+  onMeeting: () => void;
+  onPropose: () => void;
   onLink: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -81,6 +88,38 @@ export function NewMenu({
               </span>
             </button>
           ) : null}
+          {canWrite ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={choose(onMeeting)}
+              className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
+            >
+              <NotebookPen className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span>
+                <span className="block text-sm font-medium text-foreground">Meeting notes</span>
+                <span className="block text-xs text-muted">
+                  Who&apos;s there, what&apos;s decided — proposals consented on the spot
+                </span>
+              </span>
+            </button>
+          ) : null}
+          {canWrite ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={choose(onPropose)}
+              className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
+            >
+              <Handshake className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span>
+                <span className="block text-sm font-medium text-foreground">A proposal</span>
+                <span className="block text-xs text-muted">
+                  Put to a circle for consent at a meeting
+                </span>
+              </span>
+            </button>
+          ) : null}
           {canUpload ? (
             <button
               type="button"
@@ -125,6 +164,7 @@ export function WritePageDialog({
   from,
   circleId,
   preferredCircle,
+  meeting = false,
   onClose,
 }: {
   initialTitle?: string;
@@ -133,23 +173,33 @@ export function WritePageDialog({
   circleId?: string;
   /** The circle chosen at first (the list's circle filter), which can be changed. */
   preferredCircle?: string;
+  /** Notes for a meeting. */
+  meeting?: boolean;
   onClose: () => void;
 }) {
   return (
     <Dialog
-      title="Write a page"
-      icon={<BookOpen className="h-5 w-5 text-primary" />}
+      title={meeting ? "Meeting notes" : "Write a page"}
+      icon={
+        meeting ? (
+          <NotebookPen className="h-5 w-5 text-primary" />
+        ) : (
+          <BookOpen className="h-5 w-5 text-primary" />
+        )
+      }
       onClose={onClose}
     >
       <p className="text-sm text-muted">
-        Give it a title; you&apos;ll write it next. Everyone it&apos;s open to can improve it, and
-        its circle can record when it consented to it.
+        {meeting
+          ? "Notes for one of a circle's meetings: say who's there with the people button in the editor; proposals to the circle can be consented right in the notes."
+          : "Give it a title; you'll write it next. Everyone it's open to can improve it, and it can be proposed to its circle for consent."}
       </p>
       <NewPageForm
         initialTitle={initialTitle}
         from={from}
         keeper={circleId ?? (preferredCircle || undefined)}
         lockKeeper={!!circleId}
+        meeting={meeting}
         onCancel={onClose}
       />
     </Dialog>

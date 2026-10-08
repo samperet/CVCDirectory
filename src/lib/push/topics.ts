@@ -15,6 +15,7 @@ export const TOPICS = {
   documents: "New and updated documents in circles",
   circles: "Requests to join your circles, and answers to yours",
   polls: "New polls",
+  proposals: "Proposals to your circles, and when they're consented",
   wiki: "Comments on wiki pages you've written or commented on",
   tasks: "Tasks given to you, and comments on tasks you're part of",
   groups: "New messages in your circles' forums",

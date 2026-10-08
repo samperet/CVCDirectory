@@ -1,10 +1,11 @@
 import { POLL_DIRECTIVE } from "@/lib/polls/wiki";
+import { PROPOSAL_DIRECTIVE } from "@/lib/proposals/shared";
 import { EMBED_DIRECTIVE } from "./sections";
 import { unmark } from "./links";
 
 /**
  * A page's opening, as plain text: links by their words, polls by their
- * questions, collapsible sections by their titles, embedded pages as "↳ Title",
+ * questions (proposals left out), collapsible sections by their titles, embedded pages as "↳ Title",
  * highlighted text as the text; no images, headings, or markup.
  */
 export function excerptOf(markdown: string, length = 400, polls: Map<string, string> = new Map()) {
@@ -20,6 +21,7 @@ export function excerptOf(markdown: string, length = 400, polls: Map<string, str
       const question = polls.get((id ?? short ?? "").toLowerCase());
       return question ? `Poll: ${question}` : "";
     })
+    .replace(PROPOSAL_DIRECTIVE, "")
     .replace(
       /^[ \t]*:::\s*details(?:\[([^\]\n]*)\])?(?:\{[^}\n]*?title="([^"\n]*)"[^}\n]*\})?.*$/gm,
       (_m, label?: string, title?: string) => title ?? label ?? ""

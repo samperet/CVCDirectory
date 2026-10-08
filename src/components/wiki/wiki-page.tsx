@@ -20,6 +20,9 @@ import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { PagePerson, WikiPage } from "@/lib/wiki/store";
 import { PresentDialog, PresentLine } from "@/components/wiki/present-dialog";
+import { MeetingProposals } from "@/components/proposals/meeting-proposals";
+import { ProposalHostContext } from "@/components/proposals/proposal-card";
+import { meetingDateOf, type MeetingOption } from "@/lib/proposals/shared";
 import { PageTranscript } from "@/components/wiki/transcript-section";
 import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
@@ -213,10 +216,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
   // Who was present (meeting notes), chosen from the editor's toolbar.
   const [choosingPresent, setChoosingPresent] = useState(false);
   const setPresent = useMutation({
-    mutationFn: (present: PagePerson[]) =>
+    mutationFn: ({ present, meetingDate }: { present: PagePerson[]; meetingDate: string }) =>
       apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
         method: "PATCH",
-        body: JSON.stringify({ present }),
+        body: JSON.stringify({ present, meetingDate }),
       }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
@@ -289,6 +292,36 @@ export function WikiPageClient({ slug }: { slug: string }) {
       }
     }
   };
+
+  // Meeting notes: proposals to the circle can be consented here.
+  const meetingDate = page ? meetingDateOf(page) : null;
+  const meeting = useMemo<MeetingOption | null>(
+    () =>
+      page && meetingDate
+        ? {
+            kind: "page",
+            id: page.id,
+            title: page.title,
+            date: meetingDate,
+            present: page.present ?? [],
+            href: `/wiki/${page.slug}`,
+          }
+        : null,
+    [page, meetingDate]
+  );
+  const host = useMemo(
+    () => (meeting && page ? { meeting, circleId: page.keeper } : null),
+    [meeting, page]
+  );
+  const meetingPanel =
+    meeting && page ? (
+      <MeetingProposals
+        meeting={meeting}
+        circleId={page.keeper}
+        circleName={circle?.name ?? "The circle"}
+        canConsent={canConsent}
+      />
+    ) : null;
 
   const back = <BackLink href="/documents" label="Documents" />;
   if (isLoading) return <Loading />;
@@ -368,7 +401,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
           onPresent={() => setChoosingPresent(true)}
           headerExtras={
             <>
-              <PresentLine present={page.present} />
+              <PresentLine present={page.present} meetingDate={page.meetingDate} />
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <StagePill page={page} />
               </div>
@@ -382,6 +415,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                   onSaved={saved}
                 />
               ) : null}
+              {meetingPanel}
             </>
           }
           tools={
@@ -439,8 +473,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
           <PresentDialog
             circleId={circleId}
             present={page.present ?? []}
+            meetingDate={meetingDate}
             saving={setPresent.isPending}
-            onSave={(present) => setPresent.mutate(present)}
+            onSave={(present, date) => setPresent.mutate({ present, meetingDate: date })}
             onClose={() => setChoosingPresent(false)}
           />
         ) : null}
@@ -501,7 +536,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 </>
               ) : null}
             </p>
-            <PresentLine present={page.present} />
+            <PresentLine present={page.present} meetingDate={page.meetingDate} />
             <div className="flex flex-wrap items-center justify-center gap-2">
               <StagePill page={page} />
               {othersEditing.length ? (
@@ -533,6 +568,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 onSaved={saved}
               />
             ) : null}
+            {meetingPanel}
           </header>
 
           <div className="document-body w-full">
@@ -549,7 +585,14 @@ export function WikiPageClient({ slug }: { slug: string }) {
             ) : null}
 
             <div ref={article} onClick={onArticleClick}>
-              <WikiMarkdown source={page.body} circleId={circleId} pages={pages} pageId={page.id} />
+              <ProposalHostContext.Provider value={host}>
+                <WikiMarkdown
+                  source={page.body}
+                  circleId={circleId}
+                  pages={pages}
+                  pageId={page.id}
+                />
+              </ProposalHostContext.Provider>
             </div>
           </div>
           <PageTranscript transcript={page.transcript} />

@@ -35,6 +35,7 @@ import {
   Eraser,
   FilePlus2,
   Globe,
+  Handshake,
   Highlighter,
   LayoutList,
   Link2,
@@ -90,6 +91,10 @@ import { wikiLinkPlugin } from "@/components/wiki/wiki-link-node";
 import { captureCursor, editorBridgePlugin, restoreCursor } from "@/components/wiki/editor-cursor";
 import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
 import { NewPollDialog } from "@/components/polls/new-poll-dialog";
+import { AddProposalDialog } from "@/components/proposals/add-proposal-dialog";
+import { proposalQuery } from "@/components/proposals/data";
+import { ProposalStatusPill } from "@/components/proposals/proposal-bits";
+import { proposalDirective as proposalLine } from "@/lib/proposals/shared";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
 import { EmbedPageDialog } from "@/components/wiki/embed-page-dialog";
 import { EmbedBlock } from "@/components/wiki/embed-block";
@@ -354,6 +359,56 @@ const pollDirective: DirectiveDescriptor<LeafDirective> = {
   attributes: ["id"],
   hasChildren: false,
   Editor: PollDirectiveEditor,
+};
+
+/** A proposal in the page, while editing: its title, circle, and where it stands, and a × to take it out. */
+function ProposalDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
+  const remove = useLexicalNodeRemove();
+  const id = (mdastNode.attributes?.id ?? "").toLowerCase();
+  const { data, error } = useQuery({ ...proposalQuery(id), enabled: !!id });
+  const proposal = data?.proposal;
+  return (
+    <div
+      className="my-2 flex items-start gap-2 rounded-lg border border-border border-l-4 border-l-primary bg-accent/40 px-3 py-2"
+      contentEditable={false}
+    >
+      <Handshake className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">
+          {proposal ? proposal.title : error ? "A proposal that's no longer available" : "Proposal"}
+        </p>
+        {proposal ? (
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            To {proposal.circleName}
+            <ProposalStatusPill
+              size="xs"
+              status={proposal.status}
+              decideOn={proposal.decideOn}
+              consentDate={proposal.consent?.meeting.date}
+            />
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={remove}
+        className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
+        aria-label="Take the proposal out of the page"
+        title="Take out of the page (the proposal itself stays)"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+const proposalDirective: DirectiveDescriptor<LeafDirective> = {
+  name: "proposal",
+  type: "leafDirective",
+  testNode: (node) => node.type === "leafDirective" && node.name === "proposal",
+  attributes: ["id"],
+  hasChildren: false,
+  Editor: ProposalDirectiveEditor,
 };
 
 /** Another page (or a section of it) shown in this one: what it is, a preview on request, and a × to take it out. */
@@ -707,6 +762,9 @@ export const RichEditor = forwardRef<
     pageId: string;
     /** The page's address (for its photos and polls). */
     pageSlug: string;
+    /** Its title, and whether it's a meeting's notes (for a proposal added to it). */
+    pageTitle: string;
+    meetingNotes: boolean;
     onChange: (markdown: string) => void;
     onError: () => void;
     /** A new page was linked with @: it's made when this page is saved. */
@@ -725,6 +783,8 @@ export const RichEditor = forwardRef<
     circleName,
     pageId,
     pageSlug,
+    pageTitle,
+    meetingNotes,
     onChange,
     onError,
     onCreatePage,
@@ -740,6 +800,7 @@ export const RichEditor = forwardRef<
   const editor = useRef<MDXEditorMethods>(null);
   const lexical = useRef<LexicalEditor | null>(null);
   const [polling, setPolling] = useState(false);
+  const [proposing, setProposing] = useState(false);
   const [addingDocument, setAddingDocument] = useState(false);
   const [embedding, setEmbedding] = useState(false);
   // Documents go into the circle's documents, so only while it has them turned on.
@@ -841,6 +902,7 @@ export const RichEditor = forwardRef<
               detailsDirective,
               calloutDirective,
               pollDirective,
+              proposalDirective,
               embedDirective,
               markDirective,
               textDirectives,
@@ -887,6 +949,9 @@ export const RichEditor = forwardRef<
                 <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
                   <BarChart3 className="h-5 w-5" />
                 </ButtonWithTooltip>
+                <ButtonWithTooltip title="Add a proposal" onClick={() => setProposing(true)}>
+                  <Handshake className="h-5 w-5" />
+                </ButtonWithTooltip>
                 <Separator />
                 <ButtonWithTooltip
                   title="Who's present"
@@ -924,6 +989,18 @@ export const RichEditor = forwardRef<
             setEmbedding(false);
             if (kind === "link") insertLink(markdown);
             else insert(markdown);
+          }}
+        />
+      ) : null}
+      {proposing ? (
+        <AddProposalDialog
+          circleId={circleId}
+          circleName={circleName}
+          page={{ id: pageId, title: pageTitle, meeting: meetingNotes }}
+          onClose={() => setProposing(false)}
+          onChosen={(id) => {
+            setProposing(false);
+            insert(`\n${proposalLine(id)}\n`);
           }}
         />
       ) : null}

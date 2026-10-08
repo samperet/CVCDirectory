@@ -14,11 +14,13 @@ import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { occurrences, searchTerms, snippetFor } from "@/lib/search";
 import { excerptOf } from "@/lib/wiki/excerpt";
 import { unmark } from "@/lib/wiki/links";
+import { listProposals } from "@/lib/proposals/store";
+import { STATUS_LABELS } from "@/lib/proposals/shared";
 
 /**
  * Search across the whole site — people (with their bios and skills),
- * circles, documents, the forum, wiki pages, tasks, resources, and the loan
- * library — for residents. Every term of the query must match somewhere in
+ * circles, documents, proposals, the forum, wiki pages, tasks, resources,
+ * and the loan library — for residents. Every term of the query must match somewhere in
  * a result; a match in a title counts most.
  */
 
@@ -28,6 +30,7 @@ export type SearchKind =
   | "wiki"
   | "forum"
   | "documents"
+  | "proposals"
   | "tasks"
   | "resources"
   | "library";
@@ -56,6 +59,7 @@ const LABELS: Record<SearchKind, string> = {
   wiki: "Pages",
   forum: "Forum",
   documents: "Documents",
+  proposals: "Proposals",
   tasks: "Tasks",
   resources: "Resources",
   library: "Loan library",
@@ -113,8 +117,8 @@ export async function searchSite(
   const circles = directory.circles;
   const circleName = (id: string) => circles.find((circle) => circle.id === id)?.name ?? "";
 
-  const [skills, documents, types, forum, recommendations, loans, wikis, tasks] = await Promise.all(
-    [
+  const [skills, documents, types, forum, recommendations, loans, wikis, proposals, tasks] =
+    await Promise.all([
       listSkills(),
       listDocuments(),
       readTypeMap(),
@@ -122,13 +126,13 @@ export async function searchSite(
       listRecommendations(),
       listLoanItems(),
       readPages().then((pages) => visiblePages(viewer, directory, pages)),
+      listProposals(),
       Promise.all(
         circles
           .filter((circle) => featureEnabled(circle, "tasks"))
           .map(async (circle) => ({ circle, tasks: await listTasks(circle.id) }))
       ),
-    ]
-  );
+    ]);
 
   const skillsOf = new Map<string, string[]>();
   for (const skill of skills)
@@ -183,6 +187,19 @@ export async function searchSite(
     },
     // The page as plain text: links by their words; no photos, polls, or markup.
     body: excerptOf(page.body, 50_000),
+  }));
+
+  const proposalResults = collect(proposals, terms, (proposal) => ({
+    fields: [
+      [proposal.title, 20],
+      [proposal.body, 1],
+    ],
+    result: {
+      title: proposal.title,
+      href: `/proposals/${proposal.id}`,
+      meta: `Proposal · ${circleName(proposal.circleId)} · ${STATUS_LABELS[proposal.status]}`,
+    },
+    body: proposal.body || undefined,
   }));
 
   const taskResults = tasks.flatMap(({ circle, tasks: list }) =>
@@ -273,6 +290,7 @@ export async function searchSite(
     ["wiki", wikiResults],
     ["forum", forumResults],
     ["documents", documentResults],
+    ["proposals", proposalResults],
     ["tasks", taskResults],
     ["resources", resourceResults],
     ["library", libraryResults],

@@ -9,6 +9,7 @@ import {
   Download,
   Eye,
   History,
+  Hourglass,
   Link2,
   Pencil,
   Trash2,
@@ -36,8 +37,18 @@ import { ON_HOVER } from "@/components/ui/hover";
 import { useConfirm } from "@/components/ui/confirm";
 import { DetailsFields, type DetailsForm } from "@/components/documents/details-fields";
 import { shortDate } from "@/lib/time";
-import type { NamedPerson } from "@/lib/people";
-import { ConsentDialog, ConsentRecord, consentSummary } from "@/components/circles/consent-record";
+import { ConsentRecord, consentSummary } from "@/components/circles/consent-record";
+import { ConsentDialog } from "@/components/proposals/consent-dialog";
+import { ProposalFormDialog } from "@/components/proposals/proposal-form";
+import {
+  changeProposal,
+  createProposal,
+  recordConsent,
+  useProposalsChanged,
+  withdrawConsent,
+  type ConsentDraft,
+  type ProposalDraft,
+} from "@/components/proposals/data";
 
 /**
  * One document in the list: its details, versions, consent record, and what
@@ -95,9 +106,20 @@ export function Highlighted({ text, terms }: { text: string; terms: string[] }) 
   );
 }
 
-/** "Consented" while the consented version is current; "Changed since consent" after a newer version. */
+/** "Proposed" while a proposal about it waits; "Consented" while the consented version is current; "Changed since consent" after a newer version. */
 function ConsentBadge({ doc }: { doc: DocumentListing }) {
   const state = consentState(doc);
+  if (doc.proposal && state !== "consented")
+    return (
+      <Link
+        href={`/proposals/${doc.proposal.proposalId}`}
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sun/30 px-2 py-0.5 font-semibold text-foreground hover:underline"
+        title={`Proposed by ${doc.proposal.by.name}: ${doc.proposal.title}`}
+        data-file-stage="proposed"
+      >
+        <Hourglass className="h-3.5 w-3.5" aria-hidden /> Proposed
+      </Link>
+    );
   if (!state || !doc.consent) return null;
   if (state === "consented") {
     return (
@@ -159,8 +181,9 @@ export function DocumentRow({
   const [newLink, setNewLink] = useState<string | null>(null);
   const newLinkCheck = useLinkCheck(newLink ?? "");
   const consent = consentState(doc);
-  const today = new Date().toLocaleDateString("en-CA");
   const [consenting, setConsenting] = useState(false);
+  const [proposing, setProposing] = useState(false);
+  const proposalsChanged = useProposalsChanged();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["documents"] });
   const circleTypes = useCircleTypes(doc.circleId).data?.types ?? [];
   const editTypes = circleTypes.some((type) => type.id === doc.type)
@@ -205,16 +228,23 @@ export function DocumentRow({
       }),
   });
 
+  // Consent comes through a proposal, at a meeting: the open one about this document, or one made for it there and then.
   const markConsented = useMutation({
-    mutationFn: (record: { date: string; consentedBy: NamedPerson[] }) =>
-      apiFetch(`/api/documents/${doc.id}/consent`, {
-        method: "PUT",
-        body: JSON.stringify(record),
-      }),
+    mutationFn: (draft: ConsentDraft) =>
+      doc.proposal
+        ? recordConsent(doc.proposal.proposalId, draft)
+        : createProposal({
+            circleId: doc.circleId,
+            title: doc.title,
+            body: "",
+            documents: [{ kind: "file", id: doc.id }],
+            decideOn: null,
+            consent: draft,
+          }),
     onSuccess: () => {
       setConsenting(false);
-      toast({ title: "Marked consented" });
-      refresh();
+      toast({ title: "Consent recorded" });
+      proposalsChanged();
     },
     onError: (err: Error) =>
       toast({
@@ -223,10 +253,34 @@ export function DocumentRow({
         variant: "destructive",
       }),
   });
+  const propose = useMutation({
+    mutationFn: (draft: ProposalDraft) => createProposal(draft),
+    onSuccess: ({ proposal }) => {
+      setProposing(false);
+      toast({ title: `Proposed to ${proposal.circleName}` });
+      proposalsChanged();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Could not propose it", description: err.message, variant: "destructive" }),
+  });
+  const withdrawProposal = useMutation({
+    mutationFn: () => changeProposal(doc.proposal!.proposalId, { status: "withdrawn" }),
+    onSuccess: () => {
+      toast({ title: "Proposal withdrawn" });
+      proposalsChanged();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Could not withdraw it", description: err.message, variant: "destructive" }),
+  });
+  // Consent from a proposal is withdrawn there; a record from before proposals, on the document.
   const withdraw = useMutation({
-    mutationFn: () => apiFetch(`/api/documents/${doc.id}/consent`, { method: "DELETE" }),
+    mutationFn: () =>
+      doc.consent?.proposalId
+        ? withdrawConsent(doc.consent.proposalId)
+        : apiFetch(`/api/documents/${doc.id}/consent`, { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Consent withdrawn" });
+      proposalsChanged();
       refresh();
     },
     onError: (err: Error) =>
@@ -313,7 +367,13 @@ export function DocumentRow({
     <div
       className={cn(
         "ml-auto flex shrink-0 items-center",
-        mode === "view" && !replacing && !consenting && !previewing && newLink === null && ON_HOVER
+        mode === "view" &&
+          !replacing &&
+          !consenting &&
+          !proposing &&
+          !previewing &&
+          newLink === null &&
+          ON_HOVER
       )}
     >
       {link?.previewUrl ? (
@@ -377,11 +437,44 @@ export function DocumentRow({
             type="button"
             onClick={() => setConsenting((open) => !open)}
             className={cn(action, consenting && "bg-accent text-foreground")}
-            aria-label="Mark consented"
+            aria-label="Record consent"
             aria-expanded={consenting}
-            title={consent === "changed" ? "Mark this version consented" : "Mark consented"}
+            title={consent === "changed" ? "Record consent to this version" : "Record consent"}
           >
             <BadgeCheck className="h-4 w-4" />
+          </button>
+        )
+      ) : null}
+      {doc.canWritePage && consent !== "consented" ? (
+        doc.proposal ? (
+          <button
+            type="button"
+            onClick={async () => {
+              if (
+                await confirm({
+                  title: `Withdraw the proposal “${doc.proposal!.title}”?`,
+                  body: "It's no longer waiting for consent. It can be proposed again later.",
+                  confirmLabel: "Withdraw",
+                })
+              )
+                withdrawProposal.mutate();
+            }}
+            disabled={withdrawProposal.isPending}
+            className={cn(action, "text-[#7a5200]")}
+            aria-label="Withdraw the proposal"
+            title="Withdraw the proposal"
+          >
+            <Hourglass className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setProposing(true)}
+            className={cn(action, proposing && "bg-accent text-foreground")}
+            aria-label="Propose for consent"
+            title="Propose for consent"
+          >
+            <Hourglass className="h-4 w-4" />
           </button>
         )
       ) : null}
@@ -549,16 +642,24 @@ export function DocumentRow({
       ) : null}
       {consenting ? (
         <ConsentDialog
-          circleId={doc.circleId}
+          circleId={doc.proposal?.circleId ?? doc.circleId}
           circleName={doc.circleName || "The circle"}
-          initialDate={doc.meetingDate && doc.meetingDate <= today ? doc.meetingDate : today}
-          note={`Consent is to version ${version.number}, the file as it is now; a new version needs the circle's consent again.`}
-          submitLabel={
-            consent === "changed" ? `Mark version ${version.number} consented` : "Mark consented"
-          }
+          title={doc.proposal?.title ?? doc.title}
           saving={markConsented.isPending}
-          onSave={(record) => markConsented.mutate(record)}
+          onSubmit={(draft) => markConsented.mutate(draft)}
           onClose={() => setConsenting(false)}
+        />
+      ) : null}
+      {proposing ? (
+        <ProposalFormDialog
+          heading="Propose for consent"
+          initial={{ circleId: doc.circleId, title: doc.title, body: "", decideOn: null }}
+          initialDocuments={[{ kind: "file", id: doc.id, title: doc.title }]}
+          circleName={doc.circleName || "The circle"}
+          submitLabel="Propose"
+          saving={propose.isPending}
+          onSubmit={(draft) => propose.mutate(draft)}
+          onClose={() => setProposing(false)}
         />
       ) : null}
       {doc.description && !compact ? (

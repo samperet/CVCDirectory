@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 
-/** Circles' proposals have gone (meeting notes are written as pages in Documents now): old links lead to the circle. */
-export default function OldProposals({ params }: { params: { id: string } }) {
-  redirect(`/circles/${params.id}`);
+/** A circle's proposals are listed with its documents; a proposal's own page is `/proposals/<id>`. */
+export default function CircleProposals({ params }: { params: { id: string; rest?: string[] } }) {
+  const id = params.rest?.[0];
+  redirect(
+    id && /^[0-9a-f-]{36}$/i.test(id)
+      ? `/proposals/${id}`
+      : `/documents?circle=${params.id}&kind=proposals`
+  );
 }

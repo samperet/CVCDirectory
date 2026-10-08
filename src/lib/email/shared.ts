@@ -22,6 +22,7 @@ export const DEFAULT_EMAIL_PREFERENCES: Preferences = {
   documents: false,
   circles: true,
   polls: true,
+  proposals: true,
   wiki: true,
   tasks: true,
   // Circle forum messages are app notifications only.
