@@ -14,6 +14,7 @@ export const MODULE_TYPES = [
   "tasks",
   "forum",
   "log",
+  "finances",
   "documents",
   "text",
 ] as const;
@@ -101,7 +102,8 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
  * A circle's page is built from modules, each a size wide. Information
  * modules show a chosen set of wiki pages, and Custom Text modules the
  * circle's own formatted words (there can be several of each); the others
- * (members, the duty schedule, tasks, the log, documents) appear once each.
+ * (members, the duty schedule, tasks, the log, finances, documents) appear
+ * once each.
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
   information: "Information",
@@ -110,6 +112,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   tasks: "Tasks",
   forum: "Forum",
   log: "Log",
+  finances: "Finances",
   documents: "Documents",
   text: "Custom Text",
 };
@@ -139,6 +142,17 @@ export const LOG_POSTER_LABELS: Record<LogPosters, string> = {
   anyone: "Any resident",
 };
 
+/**
+ * Who can see a circle's Finances: everyone at CVC, or only its members and
+ * the Board (admins always can). Only those — never everyone — change them.
+ */
+export const FINANCE_VIEWERS = ["everyone", "members"] as const;
+export type FinanceViewers = (typeof FINANCE_VIEWERS)[number];
+export const FINANCE_VIEWER_LABELS: Record<FinanceViewers, string> = {
+  everyone: "Everyone at CVC",
+  members: "The circle's members and the Board",
+};
+
 export interface CircleModule {
   id: string;
   type: ModuleType;
@@ -151,6 +165,8 @@ export interface CircleModule {
   tasks?: { add: TaskAdders };
   /** A Log module's setting: who can post updates (unset: the circle's members). */
   log?: { post: LogPosters };
+  /** A Finances module's setting: who can see it (unset: everyone at CVC). */
+  finances?: { view: FinanceViewers };
   /** A Custom Text module's words, as Markdown (the wiki's formatting), and its background (unset: white). */
   text?: { body: string; background?: TextBackground };
 }

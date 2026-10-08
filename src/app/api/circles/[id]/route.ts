@@ -66,5 +66,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   await deleteJson(`meetings/${params.id}.json`);
   await deleteCircleLog(params.id);
   await deleteCircleGroups(params.id);
+  // Its finances (expenses, budgets, receipts) are kept, as money records: a circle started again
+  // under the same name finds them on its Finances module.
   return NextResponse.json({ ok: true });
 }

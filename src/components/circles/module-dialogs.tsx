@@ -19,6 +19,7 @@ import {
   Search,
   Settings2,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import {
@@ -63,6 +64,7 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   tasks: ListChecks,
   forum: MessagesSquare,
   log: ScrollText,
+  finances: Wallet,
   documents: FileText,
   text: Type,
 };
@@ -76,6 +78,7 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   forum:
     "Conversations and polls for the circle's members, who get an app notification for each new message.",
   log: "Short updates, with replies — a small forum of the circle's own that never notifies or emails anyone.",
+  finances: "Track the circle's spending against its budget, with receipts.",
   documents:
     "The circle's documents — pages written here and files uploaded — searchable, with New to add one.",
   text: "Your own words, formatted — headings, lists, links, highlights, tables. Add as many as you like.",
@@ -281,6 +284,10 @@ export function LogSettings({
 export const describeTasks = (module: CircleModule) =>
   module.tasks?.add === "anyone" ? "Any resident can add tasks" : "Members add tasks";
 
+/** Who can see a Finances module, in a few words. */
+export const describeFinances = (module: CircleModule) =>
+  module.finances?.view === "members" ? "Members and the Board see it" : "Everyone at CVC sees it";
+
 /** What an Information module shows, in a few words. */
 export function describeFilter(filter: InfoFilter, circleName: (id: string) => string | undefined) {
   if (filter.kind === "pages")
@@ -308,7 +315,17 @@ export function AddModuleDialog({
   onClose: () => void;
 }) {
   const offered = (
-    ["information", "text", "members", "schedule", "tasks", "forum", "log", "documents"] as const
+    [
+      "information",
+      "text",
+      "members",
+      "schedule",
+      "tasks",
+      "forum",
+      "log",
+      "finances",
+      "documents",
+    ] as const
   ).filter((type) => {
     if (REPEATABLE_MODULES.includes(type)) return true;
     if (modules.some((module) => module.type === type)) return false;
