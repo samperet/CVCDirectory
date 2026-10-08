@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
  * tour"). Finishing or skipping it is remembered on the account
  * (`POST /api/auth/tour`, and this device, in case that can't be saved).
  * It never opens by itself while an admin is viewing the app as someone, or
- * on the sign-in page or a new member's form. While it talks about the ladybug, the
+ * on the sign-in page, a new member's form, or a page made for printing. While it talks about the ladybug, the
  * ladybug is lifted above the tour's shade and ringed; the home-screen tip
  * gives this device's way of adding the app, and is left out when it's
  * already added.
@@ -51,8 +51,8 @@ const seenHere = (userId: string) => {
   }
 };
 
-/** Pages where the tour doesn't open by itself: signing in, and a new member's form. */
-const QUIET = /^\/(join|login)\//;
+/** Pages where the tour doesn't open by itself: signing in, a new member's form, and printing. */
+const QUIET = /^\/(join|login)\/|\/print$/;
 
 export function TourProvider({ children }: { children: ReactNode }) {
   const { user, viewAs } = useSession();

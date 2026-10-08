@@ -47,9 +47,16 @@ export async function readBody<S extends ZodTypeAny>(
     : { error: problem(parsed.error.errors.map((err) => err.message).join(", ")) };
 }
 
-/** The 429 to return when this address has made too many `key` requests lately — else null. */
-export const throttled = (request: NextRequest, key: string, message = "Too many requests") =>
-  rateLimit(`${key}:${request.ip ?? "anonymous"}`) ? null : problem(message, 429);
+/**
+ * The 429 to return when this address has made too many `key` requests lately
+ * (more than `max` a minute, 30 unless given) — else null.
+ */
+export const throttled = (
+  request: NextRequest,
+  key: string,
+  message = "Too many requests",
+  max?: number
+) => (rateLimit(`${key}:${request.ip ?? "anonymous"}`, max) ? null : problem(message, 429));
 
 /** "<What> not found", 404 — for something named in the URL that isn't there. */
 export const notFound = (what: string) => problem(`${what} not found`, 404);

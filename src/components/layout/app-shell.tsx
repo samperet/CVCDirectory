@@ -169,8 +169,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <TourProvider>
-      <div className="flex min-h-screen flex-col bg-background">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+      {/* Printed, a page is just its content: no header, navigation, footer, or ladybug. */}
+      <div className="flex min-h-screen flex-col bg-background print:block print:min-h-0 print:bg-white">
+        <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur print:hidden">
           {viewAs ? (
             // An admin viewing the app as a resident: always visible, with the way out.
             <div className="bg-sun text-foreground" role="status">
@@ -291,7 +292,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ) : null}
         </header>
-        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6">
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 md:px-6 print:block print:max-w-none print:p-0">
           {children}
         </main>
         <AppreciationsFooter />

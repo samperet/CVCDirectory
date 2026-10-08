@@ -61,6 +61,9 @@ Email (optional; see App & Notifications):
   3,000 a month).
 - `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
   (default `gpt-image-1`).
+- `ANTHROPIC_API_KEY` – Reads photos of the printed duty calendar, for the egg log (see Duty
+  schedules); without it, counts are typed in. Locally, `EGG_READER_TEST=1` (ignored on Vercel)
+  answers from `.data/egg-reader-fixture.json` instead.
 
 ### Installation
 
@@ -572,6 +575,35 @@ from then on, so re-importing the directory never overwrites circle changes.
   specific to the circles that need one — today only the Chicken Tenders — so there's no button to
   add one elsewhere; a new one is set up with `PUT /api/admin/schedules` (with `ADMIN_TOKEN`).
   Stored in `circles/schedules/<id>.json`.
+  - **Printing** – **Print calendar** (anyone can) offers the twelve months from this one (in
+    Vermont), the three after this month chosen to start with, and opens
+    `/circles/<id>/schedule/print?months=2026-11,2026-12,2027-01` (up to twelve) in a new tab,
+    which prints by itself: one month to a US Letter page, landscape, black and grey only, with
+    who's on duty each day (swaps and cover included, nothing before the schedule starts). It's
+    made to be photographed: a black square near each corner, the month in large type and a code
+    such as `EGGS 2026-11`, and on every day a box the same size in the same place for that day's
+    count. The app's header, footer and the page's toolbar aren't printed.
+  - **The egg log** – what a schedule counts each day (`dailyCount`: "Eggs" unless **Edit
+    rotation** names something else; left empty, there are no boxes, log, or photo reading). Each
+    day's count shows in the calendar, with this month's total and average a day, last month's,
+    the last twelve months, and **Download CSV** (`date,count,recorded by`). Anyone signed in sees
+    them; whoever may change days records them — in a day's editor, or with **Record eggs**: a
+    month typed in, or read from a photo. Counts are whole numbers from 0 to 500, for today and
+    days gone by (`GET`/`PUT /api/circles/<id>/eggs` with `{ counts: { "2026-11-05": 12 }, photoId? }`
+    — null clears a day; `?format=csv` for the CSV).
+  - **Reading a photo** – **Take a photo of the calendar** (or choose one) resizes it to 2576 px
+    on its long side and sends it to `POST /api/circles/<id>/eggs/read`, which keeps it and asks
+    Claude (`claude-opus-5-5`, through the Anthropic SDK, with structured output) for the month
+    and the number in each day's box (`lib/schedules/egg-reader.ts`, which describes the printed
+    page). What was read comes back to be checked, never saved by itself: the month's boxes filled
+    in under the photo, those it wasn't sure of marked, a count that differs from the one
+    recorded saying what it was; **Save counts** sends the days that changed. Needs
+    `ANTHROPIC_API_KEY` — without it, counts are typed in. Locally, `EGG_READER_TEST=1` answers
+    from `.data/egg-reader-fixture.json` instead of the API.
+  - Stored in `circles/eggs/<circleId>.json` (each day's count, who recorded it, when, and
+    whether from a photo; the newest 4000 days and the last 100 photos), the photos as
+    `circles/eggs/<circleId>/photos/<id>.jpg`, shown to anyone signed in at
+    `/api/circles/<id>/eggs/photos/<id>`.
 - **Meeting notes** are written as pages in Documents (there's no separate Meetings module, and
   no proposals or consent reviews any more; `/circles/<id>/meetings/…` and `…/proposals/…` lead
   to the circle). In the page editor's toolbar:

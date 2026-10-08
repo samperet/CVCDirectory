@@ -4,7 +4,8 @@ import { todayInVermont } from "@/lib/time";
  * Duty rotations for circles (e.g. the Chicken Tenders' daily chicken and
  * compost duty). A schedule assigns each weekday to one household, or to
  * several that take turns week by week, and continues indefinitely. One-off
- * changes — swaps, cover while someone is away — are recorded per date.
+ * changes — swaps, cover while someone is away — are recorded per date. A
+ * schedule can also keep a daily count (the eggs collected; see `eggs.ts`).
  *
  * Dates are plain calendar dates ("2026-09-01"); day arithmetic is done in UTC
  * so time zones and daylight-saving changes never shift a date. "Today" is
@@ -73,7 +74,22 @@ export interface DutySchedule {
   weekdays: string[][];
   overrides: Record<string, DutyOverride>;
   instructions: DutyInstructions[];
+  /**
+   * What's counted each day ("Eggs"): a box on each day of the printed
+   * calendar, and a log of the counts. Absent means "Eggs"; empty turns the
+   * count off. Read it with `dailyCountOf`.
+   */
+  dailyCount?: string | null;
   updatedAt?: string;
+}
+
+/** What a schedule counts each day when it doesn't say. */
+export const DEFAULT_DAILY_COUNT = "Eggs";
+
+/** The name of the schedule's daily count ("Eggs"), or null when it keeps none. */
+export function dailyCountOf(schedule: Pick<DutySchedule, "dailyCount">): string | null {
+  if (schedule.dailyCount === undefined) return DEFAULT_DAILY_COUNT;
+  return schedule.dailyCount?.trim() || null;
 }
 
 export interface Duty {

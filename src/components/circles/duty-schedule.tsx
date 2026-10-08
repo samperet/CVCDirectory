@@ -7,8 +7,10 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Image as ImageIcon,
   Pencil,
   Phone,
+  Printer,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
@@ -20,13 +22,24 @@ import {
   MONTH_NAMES,
   WEEKDAYS,
   addDays,
+  dailyCountOf,
   dutyFor,
   memberNames,
   monthGrid,
   todayIso,
   upcomingTurns,
 } from "@/lib/schedules/rotation";
+import { MAX_COUNT, type EggDay, type EggLogResponse } from "@/lib/schedules/eggs";
 import { ScheduleEditor } from "@/components/circles/schedule-editor";
+import {
+  CountIcon,
+  DayCount,
+  EggSummary,
+  eggsQuery,
+  useEggLog,
+} from "@/components/circles/egg-log";
+import { EggRecorder } from "@/components/circles/egg-recorder";
+import { PrintCalendarDialog } from "@/components/circles/print-calendar-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -112,49 +125,102 @@ function HouseholdChip({
   );
 }
 
-/** Change who's on duty for one day: a swap, cover while someone's away, or flag that it needs cover. */
+/** What the day editor knows about the day's count, when the schedule keeps one. */
+interface DayCountInfo {
+  label: string;
+  day: EggDay | null;
+  canRecord: boolean;
+}
+
+/**
+ * Change who's on duty for one day — a swap, cover while someone's away, or
+ * flag that it needs cover — and, for a day gone by, its count (the eggs).
+ * Only what changed is saved.
+ */
 function DayEditor({
   circleId,
   schedule,
   duty,
+  counting,
   onDone,
 }: {
   circleId: string;
   schedule: DutySchedule;
   duty: Duty;
+  counting: DayCountInfo | null;
   onDone: () => void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [householdId, setHouseholdId] = useState(duty.householdId ?? "");
   const [note, setNote] = useState(duty.override?.note ?? "");
+  const recorded = counting?.day ? String(counting.day.count) : "";
+  const [count, setCount] = useState(recorded);
   const regular = schedule.households.find((household) => household.id === duty.regularId);
+  const countable = !!counting?.canRecord && duty.date <= todayIso();
+  const countWrong =
+    count.trim() !== "" && (!/^\d{1,3}$/.test(count.trim()) || Number(count) > MAX_COUNT);
+  const dutyChanged =
+    householdId !== (duty.householdId ?? "") || note.trim() !== (duty.override?.note ?? "");
+  const countChanged = countable && !countWrong && count.trim() !== recorded;
+  const dayUrl = `/api/circles/${circleId}/schedule/days/${duty.date}`;
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: scheduleKey(circleId) });
+    void queryClient.invalidateQueries({ queryKey: eggsQuery(circleId).queryKey });
+  };
+  const failed = (err: Error) => {
+    refresh();
+    toast({
+      title: "Could not update the schedule",
+      description: err.message,
+      variant: "destructive",
+    });
+  };
 
   const save = useMutation({
-    mutationFn: (body: { householdId: string | null; note: string } | null) =>
-      apiFetch<ScheduleResponse>(`/api/circles/${circleId}/schedule/days/${duty.date}`, {
-        method: body ? "PUT" : "DELETE",
-        body: body ? JSON.stringify(body) : undefined,
-      }),
+    mutationFn: async () => {
+      const schedule = dutyChanged
+        ? await apiFetch<ScheduleResponse>(dayUrl, {
+            method: "PUT",
+            body: JSON.stringify({ householdId: householdId || null, note }),
+          })
+        : null;
+      const log = countChanged
+        ? await apiFetch<EggLogResponse>(`/api/circles/${circleId}/eggs`, {
+            method: "PUT",
+            body: JSON.stringify({
+              counts: { [duty.date]: count.trim() === "" ? null : Number(count) },
+            }),
+          })
+        : null;
+      return { schedule, log };
+    },
+    onSuccess: ({ schedule, log }) => {
+      if (schedule) queryClient.setQueryData(scheduleKey(circleId), schedule);
+      if (log) queryClient.setQueryData(eggsQuery(circleId).queryKey, log);
+      toast({ title: `Updated ${shortDay(duty.date)}` });
+      onDone();
+    },
+    onError: failed,
+  });
+  const backToRegular = useMutation({
+    mutationFn: () => apiFetch<ScheduleResponse>(dayUrl, { method: "DELETE" }),
     onSuccess: (response) => {
       queryClient.setQueryData(scheduleKey(circleId), response);
       toast({ title: `Updated ${shortDay(duty.date)}` });
       onDone();
     },
-    onError: (err: Error) =>
-      toast({
-        title: "Could not update the schedule",
-        description: err.message,
-        variant: "destructive",
-      }),
+    onError: failed,
   });
+  const busy = save.isPending || backToRegular.isPending;
 
   return (
     <form
       className="flex flex-col gap-3 rounded-lg border border-border bg-accent/50 p-4"
       onSubmit={(event) => {
         event.preventDefault();
-        save.mutate({ householdId: householdId || null, note });
+        if (dutyChanged || countChanged) save.mutate();
+        else onDone();
       }}
     >
       <div>
@@ -192,8 +258,48 @@ function DayEditor({
           aria-label="Note"
         />
       </div>
+      {counting && countable ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+          <label className="flex items-center gap-2">
+            <CountIcon label={counting.label} className="h-4 w-4 text-muted" />
+            {counting.label} collected
+            <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={3}
+              autoComplete="off"
+              value={count}
+              onChange={(event) => setCount(event.target.value)}
+              className={cn(
+                "h-9 w-20 bg-white text-center tabular-nums",
+                countWrong && "border-destructive"
+              )}
+              aria-invalid={countWrong || undefined}
+            />
+          </label>
+          {countWrong ? (
+            <span className="text-xs text-destructive">A whole number from 0 to {MAX_COUNT}</span>
+          ) : counting.day ? (
+            <span className="flex items-center gap-1 text-xs text-muted">
+              {counting.day.via === "photo" ? "Read from a photo" : "Typed in"} by{" "}
+              {counting.day.by.name}
+              {counting.day.photoId ? (
+                <a
+                  href={`/api/circles/${circleId}/eggs/photos/${counting.day.photoId}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-0.5 font-medium text-secondary-foreground hover:underline"
+                >
+                  <ImageIcon className="h-3 w-3" aria-hidden /> See the photo
+                </a>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={save.isPending}>
+        <Button type="submit" size="sm" disabled={busy || countWrong}>
           {save.isPending ? "Saving…" : "Save"}
         </Button>
         {duty.override ? (
@@ -201,8 +307,8 @@ function DayEditor({
             type="button"
             size="sm"
             variant="outline"
-            disabled={save.isPending}
-            onClick={() => save.mutate(null)}
+            disabled={busy}
+            onClick={() => backToRegular.mutate()}
           >
             Back to regular
           </Button>
@@ -219,7 +325,10 @@ function DayEditor({
  * A circle's duty rotation as a month calendar that runs on indefinitely,
  * with today's and tomorrow's duty up top, the viewer's own next turns, a
  * legend of households (with members' phone numbers from the directory), and
- * the duty instructions for the current season.
+ * the duty instructions for the current season. **Print calendar** prints
+ * months of it to hang up; a schedule that keeps a daily count (the eggs)
+ * shows each day's count, a summary, and — for those who may change days —
+ * **Record eggs**, from a photo of the printed calendar or typed in.
  */
 export function DutyScheduleModule({
   circleId,
@@ -236,10 +345,15 @@ export function DutyScheduleModule({
   }));
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [recording, setRecording] = useState(false);
   const wide = useWideScreen();
 
   const { data, isLoading, error } = useCircleSchedule(circleId);
   const schedule = data?.schedule ?? null;
+  const counting = schedule ? dailyCountOf(schedule) : null;
+  const eggs = useEggLog(circleId, !!counting);
+  const eggLog = counting ? eggs.data : undefined;
 
   const colorOf = useMemo(
     () =>
@@ -367,9 +481,19 @@ export function DutyScheduleModule({
         {inMonth && started(date) ? (
           <HouseholdChip household={household} color={colorOf.get(duty.householdId ?? "") ?? ""} />
         ) : null}
+        {inMonth && eggLog?.days[date] ? (
+          <DayCount label={eggLog.label} count={eggLog.days[date].count} className="mt-auto" />
+        ) : null}
       </Tag>
     );
   };
+
+  /** What the day editor shows of a day's count. */
+  const countingFor = (date: string) =>
+    eggLog
+      ? { label: eggLog.label, day: eggLog.days[date] ?? null, canRecord: eggLog.canRecord }
+      : null;
+  const unit = eggLog?.label.toLowerCase();
 
   const monthDays = days.filter((date) => date.startsWith(monthPrefix) && started(date));
 
@@ -380,16 +504,62 @@ export function DutyScheduleModule({
           <SectionHeading toggle={<ModuleToggle />}>{schedule.title}</SectionHeading>
           <p className="text-sm text-muted">
             {data.canChangeDays
-              ? "Tap a day to record a swap or cover."
+              ? `Tap a day to record a swap or cover${
+                  eggLog?.canRecord ? `, or that day's ${unit}` : ""
+                }.`
               : "Households on the rotation can record swaps and cover."}
           </p>
         </div>
-        {data.canEdit ? (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(true)}>
-            <Pencil className="h-4 w-4" /> Edit rotation
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPrinting(true)}>
+            <Printer className="h-4 w-4" aria-hidden /> Print calendar
           </Button>
-        ) : null}
+          {eggLog?.canRecord && !recording ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => {
+                setSelected(null);
+                setRecording(true);
+              }}
+            >
+              <CountIcon label={eggLog.label} className="h-4 w-4" /> Record {unit}
+            </Button>
+          ) : null}
+          {data.canEdit ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="h-4 w-4" /> Edit rotation
+            </Button>
+          ) : null}
+        </div>
       </div>
+      {printing ? (
+        <PrintCalendarDialog
+          circleId={circleId}
+          today={today}
+          counting={counting}
+          onClose={() => setPrinting(false)}
+        />
+      ) : null}
+      {recording && eggLog?.canRecord ? (
+        <EggRecorder
+          circleId={circleId}
+          log={eggLog}
+          today={today}
+          month={monthPrefix}
+          onDone={(saved) => {
+            setRecording(false);
+            if (saved)
+              setMonth({ year: Number(saved.slice(0, 4)), month: Number(saved.slice(5, 7)) });
+          }}
+        />
+      ) : null}
 
       <div className="grid gap-4 rounded-lg border border-border bg-accent/40 p-4 sm:grid-cols-2">
         {summaryFor(today, `Today · ${shortDay(today)}`)}
@@ -502,6 +672,13 @@ export function DutyScheduleModule({
                     {duty.override?.note ? (
                       <span className="truncate text-xs text-muted">{duty.override.note}</span>
                     ) : null}
+                    {eggLog?.days[date] ? (
+                      <DayCount
+                        label={eggLog.label}
+                        count={eggLog.days[date].count}
+                        className="ml-auto shrink-0 text-xs"
+                      />
+                    ) : null}
                   </button>
                   {!wide && selected === date && selectedDuty ? (
                     <div className="p-3">
@@ -510,6 +687,7 @@ export function DutyScheduleModule({
                         circleId={circleId}
                         schedule={schedule}
                         duty={selectedDuty}
+                        counting={countingFor(date)}
                         onDone={() => setSelected(null)}
                       />
                     </div>
@@ -530,10 +708,13 @@ export function DutyScheduleModule({
             circleId={circleId}
             schedule={schedule}
             duty={selectedDuty}
+            counting={countingFor(selectedDuty.date)}
             onDone={() => setSelected(null)}
           />
         ) : null}
       </div>
+
+      {eggLog ? <EggSummary circleId={circleId} log={eggLog} today={today} /> : null}
 
       <div className="flex flex-col gap-2">
         <h3 className="text-base font-semibold text-foreground">Households</h3>
