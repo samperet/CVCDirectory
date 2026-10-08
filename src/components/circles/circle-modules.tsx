@@ -57,6 +57,8 @@ const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   information: " Its pages stay in Documents.",
   tasks: " The circle's tasks are kept, and come back if you add Tasks again.",
   log: " The circle's updates are kept, and come back if you add Log again.",
+  finances:
+    " The circle's expenses, budgets, and receipts are kept, and come back if you add Finances again.",
   forum: " The circle's conversations are kept; add Forum again to see them here.",
   documents: " The circle's documents are kept, and come back if you add Documents again.",
   text: " Its words go with it.",
@@ -324,7 +326,8 @@ export function ModuleEditor({
             {module.type === "information" ||
             module.type === "text" ||
             module.type === "tasks" ||
-            module.type === "log" ? (
+            module.type === "log" ||
+            module.type === "finances" ? (
               <button
                 type="button"
                 className={cn(control, "w-auto gap-1.5 px-2.5 text-sm")}

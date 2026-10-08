@@ -5,6 +5,7 @@ import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { deleteCircleLog } from "@/lib/log/store";
 import { deleteCircleGroups } from "@/lib/groups/store";
+import { deleteCircleFinances } from "@/lib/finances/store";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -63,5 +64,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   await deleteJson(`meetings/${params.id}.json`);
   await deleteCircleLog(params.id);
   await deleteCircleGroups(params.id);
+  // Its expenses, budgets, and receipts go with it.
+  await deleteCircleFinances(params.id);
   return NextResponse.json({ ok: true });
 }

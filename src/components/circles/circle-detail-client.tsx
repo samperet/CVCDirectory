@@ -28,9 +28,13 @@ import {
   describeText,
   describeLog,
   describeFilter,
+  describeFinances,
   describeTasks,
 } from "@/components/circles/module-dialogs";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
+import { FinancesModule } from "@/components/finances/finances-module";
+import { FinancesSettings } from "@/components/finances/finances-settings";
+import { todayInVermont } from "@/lib/time";
 import { InformationModule } from "@/components/circles/information-module";
 import { ForumModule } from "@/components/groups/forum-module";
 import { LogModule } from "@/components/circles/log-module";
@@ -97,6 +101,8 @@ export function CircleDetailClient({ id }: { id: string }) {
   const [dialog, setDialog] = useState<
     { kind: "add" } | { kind: "settings"; module: CircleModule } | null
   >(null);
+  // The year the Finances module shows, which its Settings start from too.
+  const [financeYear, setFinanceYear] = useState(() => todayInVermont().slice(0, 4));
   const saveEdit = useCircleMutation(
     (changes: Record<string, unknown>) =>
       apiFetch(`/api/circles/${id}`, { method: "PATCH", body: JSON.stringify(changes) }),
@@ -203,6 +209,20 @@ export function CircleDetailClient({ id }: { id: string }) {
             <Card>
               <LogModule circleId={circle.id} />
             </Card>
+          ),
+        };
+      case "finances":
+        return {
+          title,
+          icon: icon(module),
+          detail: describeFinances(module),
+          content: (
+            <FinancesModule
+              circle={circle}
+              module={module}
+              year={financeYear}
+              onYear={setFinanceYear}
+            />
           ),
         };
       case "text":
@@ -395,6 +415,17 @@ export function CircleDetailClient({ id }: { id: string }) {
           ) : dialog?.kind === "settings" && dialog.module.type === "tasks" ? (
             <TasksSettings
               module={dialog.module}
+              onClose={() => setDialog(null)}
+              onSave={(module) => {
+                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                setDialog(null);
+              }}
+            />
+          ) : dialog?.kind === "settings" && dialog.module.type === "finances" ? (
+            <FinancesSettings
+              circle={circle}
+              module={dialog.module}
+              year={financeYear}
               onClose={() => setDialog(null)}
               onSave={(module) => {
                 setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));

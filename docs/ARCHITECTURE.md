@@ -24,7 +24,8 @@ browser component ──apiFetch──▶ /api/... route ──▶ lib/<feature>
 ```
 
 - `src/lib/api-client.ts` `apiFetch` throws the route's `detail` as an `Error`, so a mutation's
-  `onError` can show it in a toast as it is.
+  `onError` can show it in a toast as it is; `statusOf(error)` gives its HTTP status (a query
+  that's answered 403 or 404 needn't be retried).
 - `src/lib/http.ts`: `problem(detail, status)` (RFC 9457 body), `readBody(request, schema)`,
   `throttled(request, key)`, and the wording helpers `notFound(what)`, `forbidden(detail)`,
   `full(detail)`.
@@ -63,6 +64,7 @@ Main documents (see each store's `KEY`):
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
 | `logs/<circleId>.json` | Circle logs: short updates and replies, never notified | `lib/log` |
+| `circles/finances/<circleId>.json`, `circles/finances/<circleId>/receipts/<expenseId>` | A circle's Finances: expenses (whole cents) and a budget per year; each expense's receipt (photo or PDF) | `lib/finances` |
 | `feedback/reports.json` | Bug reports and feature requests from the ladybug | `lib/feedback` |
 | `onboarding/invitations.json`, `onboarding/resources.json` | The Secretary's new member invitations (and their answers), and what welcome pages list | `lib/onboarding` |
 | `forum/index.json`, `forum/threads/<id>.json`, `forum/topics.json` | Forum | `lib/forum` |
@@ -111,7 +113,9 @@ dialog, `#comment-<id>` links), `CommentForm`, `CommentByline`; features pass wh
 
 A circle's page is a list of **modules** (`src/lib/circles/layout.ts`): Information (wiki pages by
 a filter, any number of them), Members, a duty schedule, Tasks (with a "who can add"
-setting), Documents (the circle's pages and files). `modulesFor(circle, …)` returns the saved `circle.modules`, or derives a page
+setting), Log, Finances (with a "who can see" setting that its API reads from the saved circle —
+`hasFinances`/`financeViewers` in `lib/circles/features.ts`), Documents (the circle's pages and
+files). `modulesFor(circle, …)` returns the saved `circle.modules`, or derives a page
 from the older `layout`/`features`/`infoView` fields for circles that never saved one. Saving
 modules also sets `features.tasks`/`features.documents`, which gate those APIs
 (`lib/circles/features.ts`). Rendering: `components/circles/circle-modules.tsx` (`CircleModules`
@@ -162,8 +166,9 @@ field) or `todayInVermont()` too, not the device's zone.
 ## The client
 
 - React Query everywhere; keys: `["directory"]`, `["wiki"]`, `["wiki-page", slug]`, `["tasks", circleId]`,
-  `["task", circleId, number]`, `["documents", …]`, `["forum", …]`, `["auth", "me"]`. Invalidate by
-  prefix after a mutation.
+  `["task", circleId, number]`, `["documents", …]`, `["forum", …]`, `["finances", circleId, year]`,
+  `["auth", "me"]`. Invalidate by prefix after a mutation (circle changes refresh `["finances"]`
+  too: who can see and change them follows the circle).
 - `components/directory/use-directory.ts`: `useDirectory()`, `useCircles()` — the shared directory
   query most pages need.
 - `components/layout/back-link.tsx`: "← …" links go back to the page you came from (a trail in

@@ -23,7 +23,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { BOARD_ID, isCommunity, sitsOnBoard } from "@/lib/circles/ids";
 import { MembersModule, ROLES } from "@/components/circles/members-module";
 
-/** Circle mutations all refresh the shared directory query. */
+/**
+ * Circle mutations all refresh the shared directory query — and circles'
+ * finances, since who can see and change those follows the circle's members
+ * and its Finances module's setting.
+ */
 export function useCircleMutation<T>(
   request: (input: T) => Promise<unknown>,
   errorTitle: string,
@@ -36,6 +40,7 @@ export function useCircleMutation<T>(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["directory"] });
       queryClient.invalidateQueries({ queryKey: ["circle-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["finances"] });
       onDone?.();
     },
     onError: (err: Error) =>

@@ -47,6 +47,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/time.ts` | `TIME_ZONE` (Vermont), `todayInVermont`, `timeAgo` |
 | `src/lib/email/` | Sending (`deliver.ts`: Brevo, then Resend as backup), the free-plan quotas, the shared email layout, notification emails, test mode |
 | `src/lib/groups/` | Circle forums: conversations and polls, with app notifications to the circle's members |
+| `src/lib/finances/` | A circle's Finances module: expenses in whole cents (`parseMoney`/`formatMoney` in `shared.ts`), budgets, receipts, the CSV export; who can see it is the module's setting (`access.ts`) |
 
 ## Conventions that matter
 

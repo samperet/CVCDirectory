@@ -9,6 +9,7 @@ import {
   MODULE_SIZES,
   TASK_ADDERS,
   LOG_POSTERS,
+  FINANCE_VIEWERS,
   MAX_TEXT_MODULE,
   REPEATABLE_MODULES,
   TEXT_BACKGROUNDS,
@@ -72,6 +73,7 @@ const moduleSchema = z
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
     tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
     log: z.object({ post: z.enum(LOG_POSTERS) }).optional(),
+    finances: z.object({ view: z.enum(FINANCE_VIEWERS) }).optional(),
     text: z
       .object({
         body: z
@@ -96,14 +98,19 @@ const moduleSchema = z
     (module) => module.type === "log" || !module.log,
     "Only a Log module says who can post to it"
   )
+  .refine(
+    (module) => module.type === "finances" || !module.finances,
+    "Only a Finances module says who can see it"
+  )
   .refine((module) => module.type === "text" || !module.text, "Only Custom Text modules hold text")
   .transform(
-    ({ title, info, tasks, log, text, ...module }): CircleModule => ({
+    ({ title, info, tasks, log, finances, text, ...module }): CircleModule => ({
       ...module,
       ...(title ? { title } : {}),
       ...(info ? { info } : {}),
       ...(tasks ? { tasks } : {}),
       ...(log ? { log } : {}),
+      ...(finances ? { finances } : {}),
       ...(text ? { text } : {}),
     })
   );
@@ -121,7 +128,7 @@ export const modulesSchema = z
       .filter((module) => !REPEATABLE_MODULES.includes(module.type))
       .map((module) => module.type);
     return new Set(others).size === others.length;
-  }, "Members, the duty schedule, tasks, the forum, the log, and documents can each appear once");
+  }, "Members, the duty schedule, tasks, the forum, the log, finances, and documents can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),

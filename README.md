@@ -471,7 +471,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **A circle's page** – is built from **modules**: **Information** and **Custom Text** (as many of
   each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Forum** (see Circle forums), **Log**, and **Documents** (each of those once). One **Edit** button (the
+  there is one, **Tasks**, **Forum** (see Circle forums), **Log**, **Finances**, and **Documents** (each of those once). One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
   in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
@@ -498,7 +498,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     can start pages for the circle.
   - Removing **Tasks** or **Documents** turns them off for the circle (its existing tasks and
     documents are kept, and return when the module is added back). With Documents off, no new
-    documents can be added; its existing ones stay searchable.
+    documents can be added; its existing ones stay searchable. Removing **Finances** keeps the
+    circle's expenses, budgets, and receipts, out of reach (its API answers 404) until it's added
+    back.
   - A circle that hasn't saved its page yet shows what it had before: an Information module with
     all of its own pages, Members, its duty schedule, and Tasks and Documents unless they
     were turned off (from the older `layout`, `features`, and `infoView`).
@@ -597,6 +599,42 @@ from then on, so re-importing the directory never overwrites circle changes.
   Log module on the circle's page (`GET`/`POST /api/circles/<id>/log`,
   `PATCH`/`DELETE …/log/<entryId>`, with `people` alongside `body`; stored in
   `logs/<circleId>.json`, using the shared comment rules; deleted with the circle).
+- **Finances** – a circle module (any circle, Community included) that tracks the circle's spending
+  against a budget for each year, with receipts. Its members, the Board, and admins (on Community,
+  which has no members, just the Board and admins) **Add expense**, edit and delete them, **Set a
+  budget**, and record who's been paid back. Its **Settings** say who can see it — **Everyone at
+  CVC** (the default) or **The circle's members and the Board** (admins always can); the server
+  reads that setting, so anyone else gets a 403 and the module just says who can see it. The
+  Settings also set the budget for a year (an amount and an optional note; clearing the amount
+  removes it), saved straight away rather than with the page.
+  - The module shows a year at a time (the years with expenses or a budget, and this one):
+    "Spent $1,234.56 of $2,000.00 for 2026" over a bar that turns amber past 90% and red over the
+    budget (or "Spent $1,234.56 in 2026" and **Set a budget**), the year's totals by category, and
+    **Owed** — what each person who paid out of their own pocket hasn't had back yet, from any
+    year. Then the year's expenses, newest first: date, description, category, payee, who paid
+    ("Owed to Ada Ash" until they're paid back, then "Reimbursed Oct 8"; or "Circle funds" —
+    nobody to pay back), the amount (a refund or credit is negative, shown with its minus in
+    green), and the receipt. Each row's parts sit in columns when the module is wide and stack into
+    lines when it's narrow or on a phone (by the module's own width, so any module size works).
+    **Download CSV** saves the year's expenses (`land-care-circle-expenses-2026.csv`: date,
+    description, category, payee, paid by, amount, reimbursed on, receipt yes/no; oldest first,
+    quoted where needed, text that could run as a spreadsheet formula defused).
+  - An expense has a date (today in Vermont to start with; up to a year ahead), an amount typed
+    as people do ("12", "12.5", "$1,234.56", "-3.00"; stored as whole cents, never $0, within
+    $100,000 either way), a description, a category (suggesting the circle's own), a payee, who
+    paid (the person adding it to start with, any resident or anyone by name, or the circle's
+    funds), whether they've been reimbursed and when, and a receipt: **Take a photo** (on phones)
+    or **Choose a file** — a photo, shrunk to JPEG in the browser, or a PDF up to 10 MB (one over
+    4 MB is sent in pieces, as a request can't carry more). Receipts are served only to those who
+    can see the module. Up to 5,000 expenses per circle. Nothing here notifies anyone or appears in
+    search.
+  - `GET /api/circles/<id>/finances?year=` (the year's budget, expenses, totals, categories, the
+    years, `canEdit`, `view`), `POST …/finances/expenses`, `PATCH`/`DELETE …/expenses/<expenseId>`,
+    `PUT`/`GET`/`DELETE …/expenses/<expenseId>/receipt` (the raw file as the body),
+    `PUT …/finances/budget` (`{ year, amount | null, note }`), `GET …/finances/export?year=` —
+    404 without a Finances module on the circle's page. Stored in `circles/finances/<circleId>.json`
+    with receipts at `circles/finances/<circleId>/receipts/<expenseId>`; removing the module keeps
+    them, deleting the circle deletes them.
 - Icons are stored as binary objects (`circles/icons/<id>`, metadata in `circles/icons.json`) and
   served only to signed-in residents. In the directory, residents show the icons of their circles
   as badges linking to each circle's page.

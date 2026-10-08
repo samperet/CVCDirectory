@@ -375,3 +375,65 @@ mark.wiki-mark {
   width: auto;
   min-width: 13rem;
 }
+
+/*
+ * The Finances module (`components/finances/`), laid out by its own width — whatever size the
+ * circle gave it, beside Members or not — rather than the screen's. Narrow (and on phones), each
+ * expense is stacked lines: what and how much; when, its category, payee and receipt; who paid,
+ * with the edit and delete buttons. With room, the date gets a column; with more, who paid does
+ * too, and the totals sit side by side.
+ */
+.finances-body {
+  container-type: inline-size;
+}
+.expense-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main amount"
+    "paid actions";
+  gap: 0.375rem 0.75rem;
+  align-items: start;
+}
+.expense-row > [data-date] {
+  grid-area: date;
+  display: none;
+}
+.expense-row > [data-main] {
+  grid-area: main;
+}
+.expense-row > [data-amount] {
+  grid-area: amount;
+}
+.expense-row > [data-paid] {
+  grid-area: paid;
+}
+.expense-row > [data-actions] {
+  grid-area: actions;
+}
+@container (min-width: 30rem) {
+  .finances-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 34rem) {
+  .expense-row {
+    grid-template-columns: 3.5rem minmax(0, 1fr) 7rem auto;
+    grid-template-areas:
+      "date main amount actions"
+      ".    paid .      actions";
+  }
+  .expense-row > [data-date] {
+    display: block;
+  }
+  .expense-row [data-date-inline] {
+    display: none;
+  }
+}
+@container (min-width: 50rem) {
+  .expense-row {
+    grid-template-columns: 3.5rem minmax(0, 1fr) minmax(0, 11rem) 7rem auto;
+    grid-template-areas: "date main paid amount actions";
+    align-items: center;
+  }
+}
