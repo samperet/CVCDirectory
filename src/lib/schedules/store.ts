@@ -1,9 +1,19 @@
 import { z } from "zod";
 import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
 import { isCircleId } from "@/lib/circles/icons";
-import { DutyOverride, DutySchedule, isIsoDate } from "./rotation";
+import {
+  DEFAULT_DAILY_COUNT,
+  DutyOverride,
+  DutySchedule,
+  dailyCountOf,
+  isIsoDate,
+} from "./rotation";
 
-/** A circle's duty rotation, one document per circle. */
+/**
+ * A circle's duty rotation, one document per circle (`circles/schedules/<id>.json`).
+ * Its daily count (what's counted, e.g. "Eggs") is kept here; the counts
+ * themselves are in `egg-store.ts`.
+ */
 
 const householdId = z.string().regex(/^[a-z0-9-]{1,40}$/, "Invalid household id");
 const isoDate = z.string().refine(isIsoDate, "Use a date like 2026-09-01");
@@ -45,6 +55,14 @@ export const scheduleSetupSchema = z
         })
       )
       .max(6),
+    // What's counted each day, printed on the calendar ("EGGS 2026-11"): words only; "" turns it off.
+    dailyCount: z
+      .string()
+      .trim()
+      .max(30, "Keep the daily count's name to 30 characters")
+      .regex(/^[\p{L}\p{N} '’-]*$/u, "Name the daily count with letters and numbers only")
+      .nullable()
+      .optional(),
   })
   .superRefine((value, ctx) => {
     const ids = new Set(value.households.map((household) => household.id));
@@ -76,10 +94,16 @@ function key(circleId: string) {
   return `circles/schedules/${circleId}.json`;
 }
 
+/** A stored schedule as the app uses it; an older one without a daily count counts eggs. */
 function normalize(raw: unknown): DutySchedule | null {
   const doc = raw as DutySchedule | null;
   return doc?.households
-    ? { ...doc, overrides: doc.overrides ?? {}, instructions: doc.instructions ?? [] }
+    ? {
+        ...doc,
+        overrides: doc.overrides ?? {},
+        instructions: doc.instructions ?? [],
+        dailyCount: dailyCountOf(doc) ?? "",
+      }
     : null;
 }
 
@@ -98,7 +122,10 @@ function pruneOverrides(overrides: Record<string, DutyOverride>, households: { i
   return Object.fromEntries(kept);
 }
 
-/** Save the rotation, keeping existing one-off changes unless new ones are given. */
+/**
+ * Save the rotation, keeping existing one-off changes unless new ones are
+ * given — and the daily count's name unless a new one is.
+ */
 export async function saveSchedule(
   circleId: string,
   setup: z.infer<typeof scheduleSetupSchema>,
@@ -108,6 +135,10 @@ export async function saveSchedule(
     const existing = normalize(raw);
     const schedule: DutySchedule = {
       ...setup,
+      dailyCount:
+        setup.dailyCount === undefined
+          ? existing?.dailyCount ?? DEFAULT_DAILY_COUNT
+          : setup.dailyCount ?? "",
       overrides: pruneOverrides(overrides ?? existing?.overrides ?? {}, setup.households),
       updatedAt: new Date().toISOString(),
     };

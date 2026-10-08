@@ -42,15 +42,16 @@ export async function prepareSquareImage(
 
 /**
  * Downscale a photo in the browser so its longest side is at most `maxSide`,
- * re-encoded as JPEG. Re-encoding also drops embedded metadata such as the
- * camera's GPS location.
+ * re-encoded as JPEG (at `quality`). Re-encoding also drops embedded metadata
+ * such as the camera's GPS location.
  */
-export async function preparePhoto(file: File, maxSide = 2400): Promise<Blob> {
+export async function preparePhoto(file: Blob, maxSide = 2400, quality = 0.85): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
   } catch {
-    throw new Error(`“${file.name}” couldn't be read as an image. Try a JPEG or PNG.`);
+    const name = file instanceof File ? `“${file.name}”` : "That photo";
+    throw new Error(`${name} couldn't be read as an image. Try a JPEG or PNG.`);
   }
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -66,7 +67,7 @@ export async function preparePhoto(file: File, maxSide = 2400): Promise<Blob> {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Couldn't prepare the image."))),
       "image/jpeg",
-      0.85
+      quality
     )
   );
 }

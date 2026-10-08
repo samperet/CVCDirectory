@@ -135,7 +135,7 @@ export function AppreciationsFooter() {
   };
 
   return (
-    <footer className="mt-12 border-t border-border bg-surface">
+    <footer className="mt-12 border-t border-border bg-surface print:hidden">
       {/* Room on the right for the ladybug (fixed in the corner), so it never covers the button. */}
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-4 sm:flex-row sm:pr-16 md:px-6 md:pr-16">
         <div

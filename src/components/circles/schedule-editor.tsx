@@ -188,8 +188,9 @@ function MonthToggles({
 
 /**
  * Set up or change a circle's rotation: households and their members, who
- * takes each weekday (several households alternate week by week), and the
- * duty instructions. One-off swaps and cover are kept.
+ * takes each weekday (several households alternate week by week), the duty
+ * instructions, and what's counted each day (the eggs; empty for nothing).
+ * One-off swaps and cover are kept.
  */
 export function ScheduleEditor({
   circleId,
@@ -262,6 +263,8 @@ export function ScheduleEditor({
     },
     onSuccess: (response) => {
       queryClient.setQueryData(["circle-schedule", circleId], response);
+      // What's counted may have changed its name, or been turned on or off.
+      void queryClient.invalidateQueries({ queryKey: ["circle-eggs", circleId] });
       toast({ title: "Schedule saved" });
       onDone();
     },
@@ -305,6 +308,21 @@ export function ScheduleEditor({
           />
         </label>
       </div>
+
+      <label className="flex flex-col gap-1 text-sm font-medium text-foreground sm:max-w-md">
+        Counted each day
+        <Input
+          value={draft.dailyCount ?? ""}
+          maxLength={30}
+          placeholder="e.g. Eggs"
+          onChange={(event) => update({ dailyCount: event.target.value })}
+          className="bg-white sm:max-w-xs"
+        />
+        <span className="text-xs font-normal text-muted">
+          Each day on the printed calendar gets a box for it, and the counts are kept here. Leave it
+          empty to count nothing.
+        </span>
+      </label>
 
       <section className="flex flex-col gap-3">
         <h3 className="text-base font-semibold text-foreground">Households</h3>
