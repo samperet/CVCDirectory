@@ -1,95 +1,131 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { askClaude, readerPrompt } from "./egg-reader";
+import { askOpenAI, readEggPhoto, readerPrompt, PAGE_READING_SCHEMA } from "./egg-reader";
 
 /**
- * The photo reader's request and how its answers are taken, through the SDK
- * with a `fetch` that never leaves the machine: what is sent (the model, the
- * fallback opt-in, structured output, the photo before the words), and what
- * becomes of a reading, a refusal, an answer that isn't the shape asked for,
- * and the API's errors.
+ * The photo reader's request and how its answers are taken, with a `fetch`
+ * that never leaves the machine: what is sent (the model, the photo before
+ * the words, structured output, nothing kept by OpenAI), and what becomes of
+ * a reading, a refusal, an answer cut short or of the wrong shape, and
+ * OpenAI's errors — a quick failure tried once more, the key never logged.
  */
 
 const photo = { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]) };
 const page = { label: "Eggs", month: "2026-09", today: "2026-10-08" };
+const KEY = "sk-test-key-1234";
 
 type Sent = { url: string; headers: Headers; body: Record<string, unknown> };
+type Answer = { status: number; body: unknown } | Error;
 
-function clientAnswering(status: number, answer: unknown, sent: Sent[] = []) {
-  const fetch = async (url: string | URL | Request, init?: RequestInit) => {
+/** A `fetch` answering each request with the next of `answers` (the last again once they run out). */
+function fetchAnswering(answers: Answer[], sent: Sent[] = []) {
+  return (async (url: string | URL | Request, init?: RequestInit) => {
     sent.push({
       url: String(url),
       headers: new Headers(init?.headers),
       body: JSON.parse(String(init?.body)),
     });
-    return new Response(JSON.stringify(answer), {
-      status,
-      headers: { "content-type": "application/json", "request-id": "req_test" },
+    const answer = answers[Math.min(sent.length, answers.length) - 1];
+    if (answer instanceof Error) throw answer;
+    return new Response(JSON.stringify(answer.body), {
+      status: answer.status,
+      headers: { "content-type": "application/json" },
     });
-  };
-  return new Anthropic({ apiKey: "test-key", fetch, maxRetries: 0 });
+  }) as typeof fetch;
 }
 
-const message = (
-  text: string | null,
-  stopReason = "end_turn",
-  extra: Record<string, unknown> = {}
-) => ({
-  id: "msg_test",
-  type: "message",
-  role: "assistant",
-  model: "claude-opus-5-5",
-  content: [
-    { type: "thinking", thinking: "", signature: "sig" },
-    ...(text === null ? [] : [{ type: "text", text }]),
-  ],
-  stop_reason: stopReason,
-  stop_sequence: null,
-  stop_details: null,
-  usage: { input_tokens: 1200, output_tokens: 400 },
-  ...extra,
+/** A response from the Responses API: the model's reasoning, then its message. */
+const response = (content: Record<string, unknown>[], extra: Record<string, unknown> = {}) => ({
+  status: 200,
+  body: {
+    id: "resp_test",
+    object: "response",
+    status: "completed",
+    model: "gpt-5.6-sol",
+    output: [
+      { id: "rs_test", type: "reasoning", summary: [] },
+      { id: "msg_test", type: "message", role: "assistant", status: "completed", content },
+    ],
+    usage: { input_tokens: 6800, output_tokens: 900 },
+    ...extra,
+  },
+});
+const answered = (text: string, extra?: Record<string, unknown>) =>
+  response([{ type: "output_text", text, annotations: [] }], extra);
+const failing = (status: number, code: string | null, type = "invalid_request_error") => ({
+  status,
+  body: {
+    error: {
+      message: `Incorrect API key provided: ${KEY.slice(0, 6)}***`,
+      type,
+      param: null,
+      code,
+    },
+  },
 });
 
-afterEach(() => vi.restoreAllMocks());
+const ask = (answers: Answer[], sent?: Sent[]) =>
+  askOpenAI(photo, page, { key: KEY, fetch: fetchAnswering(answers, sent), retryAfterMs: 0 });
+const quiet = () => {
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  return vi.spyOn(console, "error").mockImplementation(() => {});
+};
 
-describe("askClaude", () => {
-  it("asks for structured output from the photo, with the fallback opt-in", async () => {
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+describe("askOpenAI", () => {
+  it("asks for structured output from the photo, and for nothing to be kept", async () => {
     const sent: Sent[] = [];
-    const client = clientAnswering(
-      200,
-      message(JSON.stringify({ month: "2026-09", days: [], note: null })),
-      sent
-    );
-    await askClaude(client, photo, page);
+    await ask([answered(JSON.stringify({ month: "2026-09", days: [], note: null }))], sent);
     expect(sent).toHaveLength(1);
     const [{ url, headers, body }] = sent;
-    expect(url).toMatch(/\/v1\/messages\?beta=true$/);
-    expect(headers.get("anthropic-beta")?.split(",")).toContain("server-side-fallback-2026-07-01");
-    expect(body.model).toBe("claude-opus-5-5");
-    expect(body.max_tokens).toBe(16000);
-    expect(body.fallbacks).toBe("default");
-    const config = body.output_config as {
-      effort: string;
-      format: { type: string; schema: { required: string[] } };
-    };
-    expect(config.effort).toBe("medium");
-    expect(config.format.type).toBe("json_schema");
-    expect(config.format.schema.required).toEqual(["month", "days", "note"]);
-    // Thinking is always on for this model; sampling and forced tools aren't accepted.
-    for (const absent of ["thinking", "temperature", "top_p", "tool_choice", "tools", "betas"])
-      expect(body).not.toHaveProperty(absent);
-    const messages = body.messages as { role: string; content: Record<string, unknown>[] }[];
-    expect(messages).toHaveLength(1);
-    expect(messages[0].role).toBe("user");
-    expect(messages[0].content[0]).toEqual({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: "image/jpeg",
-        data: Buffer.from(photo.bytes).toString("base64"),
+    expect(url).toBe("https://api.openai.com/v1/responses");
+    expect(headers.get("authorization")).toBe(`Bearer ${KEY}`);
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(body.model).toBe("gpt-5.6-sol");
+    expect(body.store).toBe(false);
+    expect(body.max_output_tokens).toBe(16000);
+    expect(body.text).toEqual({
+      format: {
+        type: "json_schema",
+        name: "egg_counts",
+        strict: true,
+        schema: PAGE_READING_SCHEMA,
       },
     });
-    expect(messages[0].content[1]).toEqual({ type: "text", text: readerPrompt(page) });
+    // Its usual reasoning, and no sampling settings or tools.
+    for (const absent of ["reasoning", "temperature", "top_p", "tools", "previous_response_id"])
+      expect(body).not.toHaveProperty(absent);
+    const input = body.input as { role: string; content: Record<string, unknown>[] }[];
+    expect(input).toHaveLength(1);
+    expect(input[0].role).toBe("user");
+    expect(input[0].content).toEqual([
+      {
+        type: "input_image",
+        image_url: `data:image/jpeg;base64,${Buffer.from(photo.bytes).toString("base64")}`,
+        detail: "auto",
+      },
+      { type: "input_text", text: readerPrompt(page) },
+    ]);
+  });
+
+  it("asks in a schema strict mode accepts: every field required, nothing else allowed", () => {
+    const objects: Record<string, unknown>[] = [];
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") return;
+      const schema = node as Record<string, unknown>;
+      if (schema.type === "object") objects.push(schema);
+      Object.values(schema).forEach(walk);
+    };
+    walk(PAGE_READING_SCHEMA);
+    expect(objects).toHaveLength(2);
+    for (const object of objects) {
+      expect(object.additionalProperties).toBe(false);
+      expect(object.required).toEqual(Object.keys(object.properties as object));
+    }
   });
 
   it("checks what was read", async () => {
@@ -102,12 +138,7 @@ describe("askClaude", () => {
       ],
       note: "The last row is in shadow.",
     };
-    const result = await askClaude(
-      clientAnswering(200, message(JSON.stringify(answer))),
-      photo,
-      page
-    );
-    expect(result).toEqual({
+    expect(await ask([answered(JSON.stringify(answer))])).toEqual({
       ok: true,
       reading: {
         month: "2026-09",
@@ -120,41 +151,99 @@ describe("askClaude", () => {
     });
   });
 
-  it("takes a refusal, or an answer of the wrong shape, as a photo it couldn't read", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const refused = message(null, "refusal", {
-      stop_details: { type: "refusal", category: null, explanation: null },
-    });
-    expect(await askClaude(clientAnswering(200, refused), photo, page)).toEqual({
+  it("takes a refusal, an answer cut short, or one of the wrong shape as a photo it couldn't read", async () => {
+    quiet();
+    const unreadable = { ok: false, reason: "unreadable" };
+    expect(
+      await ask([response([{ type: "refusal", refusal: "I can't help with that." }])])
+    ).toEqual(unreadable);
+    expect(
+      await ask([
+        answered('{"month": "2026-09", "da', {
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+        }),
+      ])
+    ).toEqual(unreadable);
+    expect(await ask([answered('{"month": "2026-09", "da')])).toEqual(unreadable);
+    expect(await ask([answered('{"month": 9, "days": [], "note": null}')])).toEqual(unreadable);
+    expect(await ask([response([])])).toEqual(unreadable);
+    expect(await ask([{ status: 200, body: { status: "completed", output: [] } }])).toEqual(
+      unreadable
+    );
+    expect(
+      await ask([{ status: 200, body: { status: "failed", error: { code: "server_error" } } }])
+    ).toEqual({ ok: false, reason: "failed" });
+    expect(await ask([{ status: 200, body: "<html>Bad gateway</html>" }])).toEqual({
       ok: false,
-      reason: "unreadable",
+      reason: "failed",
     });
-    expect(
-      await askClaude(clientAnswering(200, message('{"month": "2026-09", "da')), photo, page)
-    ).toEqual({ ok: false, reason: "unreadable" });
-    expect(
-      await askClaude(
-        clientAnswering(200, message('{"month": 9, "days": [], "note": null}')),
-        photo,
-        page
-      )
-    ).toEqual({ ok: false, reason: "unreadable" });
   });
 
-  it("tells the API's errors apart by their classes", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const failing = (status: number) =>
-      clientAnswering(status, { type: "error", error: { type: "error", message: "no" } });
-    expect(await askClaude(failing(401), photo, page)).toEqual({
+  it("tells OpenAI's errors apart, trying a quick failure once more", async () => {
+    const error = quiet();
+    const outcome = async (answers: Answer[]) => {
+      const sent: Sent[] = [];
+      const result = await ask(answers, sent);
+      return [result.ok ? "ok" : result.reason, sent.length];
+    };
+    expect(await outcome([failing(401, "invalid_api_key")])).toEqual(["not_configured", 1]);
+    expect(await outcome([failing(403, "unsupported_country_region_territory")])).toEqual([
+      "not_configured",
+      1,
+    ]);
+    expect(await outcome([failing(429, "insufficient_quota", "insufficient_quota")])).toEqual([
+      "not_configured",
+      1,
+    ]);
+    expect(await outcome([failing(429, "rate_limit_exceeded", "requests")])).toEqual(["busy", 2]);
+    expect(await outcome([failing(503, null, "server_error")])).toEqual(["busy", 2]);
+    expect(await outcome([failing(500, null, "server_error")])).toEqual(["failed", 2]);
+    expect(await outcome([failing(400, "invalid_image_format")])).toEqual(["failed", 1]);
+    expect(await outcome([failing(404, "model_not_found")])).toEqual(["failed", 1]);
+    const again = answered(JSON.stringify({ month: "2026-09", days: [], note: null }));
+    expect(await outcome([failing(503, null, "server_error"), again])).toEqual(["ok", 2]);
+    // The kind of failure, the status, and OpenAI's code are logged — never the key or OpenAI's message.
+    const lines = error.mock.calls.map((call) => call.join(" "));
+    expect(lines).toContain(
+      "[eggs] reading a photo failed: OpenAI refused the request, invalid_api_key (401)"
+    );
+    for (const line of lines) {
+      expect(line).not.toContain(KEY.slice(0, 6));
+      expect(line).not.toContain("Incorrect API key");
+    }
+  });
+
+  it("gives up when it takes too long, and tries once more without a connection", async () => {
+    quiet();
+    const sent: Sent[] = [];
+    const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    expect(await ask([timeout], sent)).toEqual({ ok: false, reason: "timeout" });
+    expect(sent).toHaveLength(1);
+    const offline: Sent[] = [];
+    expect(await ask([new TypeError("fetch failed")], offline)).toEqual({
       ok: false,
-      reason: "not_configured",
+      reason: "failed",
     });
-    expect(await askClaude(failing(429), photo, page)).toEqual({ ok: false, reason: "busy" });
-    expect(await askClaude(failing(529), photo, page)).toEqual({ ok: false, reason: "busy" });
-    expect(await askClaude(failing(500), photo, page)).toEqual({ ok: false, reason: "failed" });
-    expect(await askClaude(failing(400), photo, page)).toEqual({ ok: false, reason: "failed" });
-    // Only the kind of failure and its status are logged — never the key.
-    for (const [line] of error.mock.calls) expect(String(line)).not.toContain("test-key");
+    expect(offline).toHaveLength(2);
+  });
+});
+
+describe("readEggPhoto", () => {
+  it("reads with OPENAI_KEY, on the model OPENAI_VISION_MODEL names", async () => {
+    vi.stubEnv("EGG_READER_TEST", "");
+    vi.stubEnv("OPENAI_KEY", "");
+    const sent: Sent[] = [];
+    vi.stubGlobal(
+      "fetch",
+      fetchAnswering([answered(JSON.stringify({ month: "2026-09", days: [], note: null }))], sent)
+    );
+    expect(await readEggPhoto(photo, page)).toEqual({ ok: false, reason: "not_configured" });
+    expect(sent).toHaveLength(0);
+    vi.stubEnv("OPENAI_KEY", KEY);
+    vi.stubEnv("OPENAI_VISION_MODEL", "gpt-6.1-sol");
+    expect(await readEggPhoto(photo, page)).toMatchObject({ ok: true });
+    expect(sent[0].headers.get("authorization")).toBe(`Bearer ${KEY}`);
+    expect(sent[0].body.model).toBe("gpt-6.1-sol");
   });
 });

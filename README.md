@@ -59,11 +59,11 @@ Email (optional; see App & Notifications):
 - `BREVO_DAILY_LIMIT` / `BREVO_MONTHLY_LIMIT` – Brevo's allowance (default 300 a day, 9,000 a
   month); `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – Resend's (default: its free 100 a day,
   3,000 a month).
-- `OPENAI_KEY` – Draws new circles' icons (see Circles); `OPENAI_IMAGE_MODEL` picks the model
-  (default `gpt-image-1`).
-- `ANTHROPIC_API_KEY` – Reads photos of the printed duty calendar, for the egg log (see Duty
-  schedules); without it, counts are typed in. Locally, `EGG_READER_TEST=1` (ignored on Vercel)
-  answers from `.data/egg-reader-fixture.json` instead.
+- `OPENAI_KEY` – Draws new circles' icons (see Circles; `OPENAI_IMAGE_MODEL` picks the model,
+  default `gpt-image-2.5-flare`) and reads photos of the printed duty calendar for the egg log (see
+  Duty schedules; `OPENAI_VISION_MODEL`, default `gpt-5.6-sol`). Without it, new circles start
+  without an icon and egg counts are typed in. Locally, `ICON_TEST_FAKE=1` and
+  `EGG_READER_TEST=1` (both ignored on Vercel) stand in for OpenAI.
 
 ### Installation
 
@@ -622,13 +622,13 @@ from then on, so re-importing the directory never overwrites circle changes.
     — null clears a day; `?format=csv` for the CSV).
   - **Reading a photo** – **Take a photo of the calendar** (or choose one) resizes it to 2576 px
     on its long side and sends it to `POST /api/circles/<id>/eggs/read`, which keeps it and asks
-    Claude (`claude-opus-5-5`, through the Anthropic SDK, with structured output) for the month
-    and the number in each day's box (`lib/schedules/egg-reader.ts`, which describes the printed
-    page). What was read comes back to be checked, never saved by itself: the month's boxes filled
-    in under the photo, those it wasn't sure of marked, a count that differs from the one
-    recorded saying what it was; **Save counts** sends the days that changed. Needs
-    `ANTHROPIC_API_KEY` — without it, counts are typed in. Locally, `EGG_READER_TEST=1` answers
-    from `.data/egg-reader-fixture.json` instead of the API.
+    OpenAI (`gpt-5.6-sol` through the Responses API: the photo at full size, structured output,
+    nothing kept by OpenAI) for the month and the number in each day's box
+    (`lib/schedules/egg-reader.ts`, which describes the printed page). What was read comes back
+    to be checked, never saved by itself: the month's boxes filled in under the photo, those it
+    wasn't sure of marked, a count that differs from the one recorded saying what it was; **Save
+    counts** sends the days that changed. Needs `OPENAI_KEY` — without it, counts are typed in.
+    Locally, `EGG_READER_TEST=1` answers from `.data/egg-reader-fixture.json` instead of the API.
   - Stored in `circles/eggs/<circleId>.json` (each day's count, who recorded it, when, and
     whether from a photo; the newest 4000 days and the last 100 photos), the photos as
     `circles/eggs/<circleId>/photos/<id>.jpg`, shown to anyone signed in at
@@ -704,9 +704,9 @@ from then on, so re-importing the directory never overwrites circle changes.
   as badges linking to each circle's page.
 - **New circles get an icon drawn for them** – right after a circle or club is created, the page
   asks `POST /api/circles/<id>/icon/generate`, which sends OpenAI's image model (`OPENAI_KEY`,
-  `OPENAI_IMAGE_MODEL`, default `gpt-image-1`) up to six of the other circles' icons as references
-  with a prompt naming the new circle and its description, asking for a matching icon with no
-  text (`lib/circles/icon-generator.ts`). It takes about a minute: the circle's page shows
+  `OPENAI_IMAGE_MODEL`, default `gpt-image-2.5-flare`) up to six of the other circles' icons as
+  references with a prompt naming the new circle and its description, asking for a matching icon
+  with no text (`lib/circles/icon-generator.ts`). It takes about a minute: the circle's page shows
   **Drawing…** over its icon, and the icon appears when it's ready (a 1024px WebP). Only a circle
   without an icon gets one, so an uploaded icon is never replaced; its members can change it as
   before. Without `OPENAI_KEY` nothing happens. Locally, `ICON_TEST_FAKE=1` skips OpenAI (it

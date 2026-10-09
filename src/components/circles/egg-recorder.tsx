@@ -24,7 +24,8 @@ import { cn } from "@/lib/utils";
  * in, boxes the reader wasn't sure of are marked, and a count that differs
  * from the one recorded says what it was. Nothing is saved until **Save
  * counts**, which sends only the days that changed (with the photo they came
- * from). The photo is resized here first, to the 2576 px the reader can use.
+ * from). The photo is resized here first, to 2576 px on its long side: sharp
+ * enough for the reader to make out every box, and quick to send.
  */
 
 const READ_SIDE = 2576;

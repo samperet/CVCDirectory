@@ -56,7 +56,7 @@ export interface EggLogResponse extends EggLog {
   /** What's counted ("Eggs"). */
   label: string;
   canRecord: boolean;
-  /** Whether photos of the calendar can be read (`ANTHROPIC_API_KEY` is set). */
+  /** Whether photos of the calendar can be read (`OPENAI_KEY` is set). */
   readerReady: boolean;
 }
 

@@ -1,31 +1,35 @@
 import { promises as fs } from "fs";
 import path from "path";
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-// The SDK's structured-output helper takes a zod 4 schema (zod 3.25 includes it as "zod/v4").
-import * as z from "zod/v4";
+import { z } from "zod";
 import { WEEKDAYS, weekdayOf } from "./rotation";
 import { daysInMonth, monthLabel } from "./print";
 import { validateReading, type EggReading } from "./eggs";
 
 /**
  * Reading a photo of the printed duty calendar (`/circles/<id>/schedule/print`)
- * with Claude, through the official SDK: it's told how the page is printed
- * and asked for the number written in each day's box, as structured output.
- * What it says is then checked (`validateReading`) and only ever offered for
- * review — nothing read is saved until a person has looked at it.
+ * with OpenAI's model: it's told how the page is printed and asked for the
+ * number written in each day's box, as structured output. What it says is
+ * then checked (`validateReading`) and only ever offered for review — nothing
+ * read is saved until a person has looked at it.
  *
- * The request is `client.beta.messages.parse` to `claude-opus-5-5` (whose
- * thinking is always on: effort "medium", no sampling settings) with
- * structured output (`zodOutputFormat`) and the server-side fallback for
- * requests its safeguards decline (`fallbacks: "default"`). A refusal, or an
- * answer that isn't the shape asked for, is a photo that couldn't be read;
- * the API's errors are told apart by the SDK's error classes and logged by
- * kind and status only.
+ * The request is `POST /v1/responses` (plain `fetch`, as for circles' icons)
+ * to `gpt-5.6-sol` — `OPENAI_VISION_MODEL` picks another — at its usual
+ * reasoning effort, with:
+ * - the photo at full size (`detail: "auto"`, which for this model is the
+ *   photo as sent: handwriting in small boxes needs every pixel);
+ * - the answer in a strict JSON schema (`PAGE_READING_SCHEMA`);
+ * - `store: false`, so OpenAI doesn't keep the photo (households' names are
+ *   on it) or what was read.
+ * A refusal, an answer cut short, or one that isn't the shape asked for is a
+ * photo that couldn't be read. A quick failure (rate limited, overloaded, no
+ * connection) is tried once more. Failures are logged by status and OpenAI's
+ * error code only — never the key, nor OpenAI's message, which can quote
+ * part of it.
  *
- * Needs `ANTHROPIC_API_KEY`; without it photos aren't read (`readerReady`)
- * and counts are typed in instead. Locally, `EGG_READER_TEST=1` (ignored on
- * Vercel) skips the API and answers from `.data/egg-reader-fixture.json`:
+ * Needs `OPENAI_KEY` (the key that draws circles' icons); without it photos
+ * aren't read (`readerReady`) and counts are typed in instead. Locally,
+ * `EGG_READER_TEST=1` (ignored on Vercel) skips the API and answers from
+ * `.data/egg-reader-fixture.json`:
  *
  *   { "month": "2026-09" | null,
  *     "days": [{ "day": 1, "count": 12, "unsure": false }, …],
@@ -37,42 +41,62 @@ import { validateReading, type EggReading } from "./eggs";
  * `.data/egg-reader-last.json` (the prompt and the image's size).
  */
 
-const MODEL = "claude-opus-5-5";
-// The photo reading's time on Vercel (the route's maxDuration is 120 seconds).
+const API = "https://api.openai.com/v1/responses";
+const MODEL = "gpt-5.6-sol";
+// The photo reading's time on Vercel, a second try included (the route's maxDuration is 120 seconds).
 const TIME_LIMIT_MS = 110_000;
+// The model's reasoning counts towards this, as well as its answer.
+const MAX_OUTPUT_TOKENS = 16_000;
+// The pause before trying a quick failure again.
+const RETRY_AFTER_MS = 1500;
 
 const testDir = () =>
   process.env.EGG_READER_TEST && !process.env.VERCEL ? path.join(process.cwd(), ".data") : null;
 
 /** Whether photos of the calendar can be read. */
-export const readerReady = () => !!process.env.ANTHROPIC_API_KEY || testDir() !== null;
+export const readerReady = () => !!process.env.OPENAI_KEY || testDir() !== null;
 
-/** What the model answers: the page's month, and each day's box. Checked again by `validateReading`. */
-const PageReading = z.object({
-  month: z
-    .string()
-    .nullable()
-    .describe(
-      "The month the page is for, as YYYY-MM, from its header or its code; null if unreadable"
-    ),
-  days: z.array(
-    z.object({
-      day: z.number().int().describe("The day of the month whose box this is"),
-      count: z
-        .number()
-        .int()
-        .nullable()
-        .describe("The number written in that day's box; null when the box is empty"),
-      unsure: z
-        .boolean()
-        .describe("True when the writing is hard to read and the count is a guess"),
-    })
-  ),
-  note: z
-    .string()
-    .nullable()
-    .describe("Anything the person checking these counts should know, in a sentence; else null"),
-});
+/**
+ * What the model answers: the page's month, and each day's box. A strict
+ * schema (every field required, nothing else allowed), so the answer is
+ * always this shape; checked again by `validateReading`.
+ */
+export const PAGE_READING_SCHEMA = {
+  type: "object",
+  properties: {
+    month: {
+      type: ["string", "null"],
+      description:
+        "The month the page is for, as YYYY-MM, from its header or its code; null if unreadable",
+    },
+    days: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          day: { type: "integer", description: "The day of the month whose box this is" },
+          count: {
+            type: ["integer", "null"],
+            description: "The number written in that day's box; null when the box is empty",
+          },
+          unsure: {
+            type: "boolean",
+            description: "True when the writing is hard to read and the count is a guess",
+          },
+        },
+        required: ["day", "count", "unsure"],
+        additionalProperties: false,
+      },
+    },
+    note: {
+      type: ["string", "null"],
+      description:
+        "Anything the person checking these counts should know, in a sentence; else null",
+    },
+  },
+  required: ["month", "days", "note"],
+  additionalProperties: false,
+};
 
 /** What the reader is told: how the page is printed, the month expected, and what to read. */
 export function readerPrompt({
@@ -117,13 +141,15 @@ export type ReaderResult =
   | { ok: true; reading: Omit<EggReading, "photoId"> }
   | { ok: false; reason: ReaderFailure };
 
+type Page = { label: string; month: string; today: string };
+
 /**
  * Read the counts written on a photo of the page for (probably) `month`.
  * Takes a while: often ten seconds to a minute.
  */
 export async function readEggPhoto(
   photo: { bytes: Uint8Array },
-  page: { label: string; month: string; today: string }
+  page: Page
 ): Promise<ReaderResult> {
   const test = testDir();
   if (test)
@@ -133,105 +159,165 @@ export async function readEggPhoto(
       month: page.month,
       today: page.today,
     });
-  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, reason: "not_configured" };
-  return askClaude(new Anthropic({ timeout: 100_000 }), photo, page);
+  const key = process.env.OPENAI_KEY;
+  if (!key) return { ok: false, reason: "not_configured" };
+  return askOpenAI(photo, page, { key, model: process.env.OPENAI_VISION_MODEL || MODEL });
 }
 
-/** The request itself, through `client` (tests hand it one that never leaves the machine). */
-export async function askClaude(
-  client: Anthropic,
+/**
+ * The request itself, with `key` — and, in tests, a `fetch` that never leaves
+ * the machine (and no pause before trying again).
+ */
+export async function askOpenAI(
   photo: { bytes: Uint8Array },
-  { label, month, today }: { label: string; month: string; today: string }
+  page: Page,
+  {
+    key,
+    model = MODEL,
+    fetch = globalThis.fetch,
+    retryAfterMs = RETRY_AFTER_MS,
+  }: { key: string; model?: string; fetch?: typeof globalThis.fetch; retryAfterMs?: number }
 ): Promise<ReaderResult> {
-  const prompt = readerPrompt({ label, month, today });
-  try {
-    const response = await client.beta.messages.parse(
-      {
-        model: MODEL,
-        max_tokens: 16000,
-        // A request the model's safeguards decline is retried on the model Anthropic recommends.
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: { effort: "medium", format: zodOutputFormat(PageReading) },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: Buffer.from(photo.bytes).toString("base64"),
-                },
-              },
-              { type: "text", text: prompt },
-            ],
-          },
-        ],
+  const request = {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_image",
+              image_url: `data:image/jpeg;base64,${Buffer.from(photo.bytes).toString("base64")}`,
+              detail: "auto",
+            },
+            { type: "input_text", text: readerPrompt(page) },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "egg_counts",
+          strict: true,
+          schema: PAGE_READING_SCHEMA,
+        },
       },
-      { signal: AbortSignal.timeout(TIME_LIMIT_MS) }
-    );
-    if (response.stop_reason === "refusal") {
-      console.warn("[eggs] the photo reader declined", response.stop_details?.category ?? "");
-      return { ok: false, reason: "unreadable" };
-    }
-    if (!response.parsed_output) {
-      console.warn("[eggs] the photo reader gave no counts", response.stop_reason);
-      return { ok: false, reason: "unreadable" };
-    }
-    return {
-      ok: true,
-      reading: validateReading(response.parsed_output, { expected: month, today }),
-    };
+      max_output_tokens: MAX_OUTPUT_TOKENS,
+      store: false,
+    }),
+    // One time limit for both tries.
+    signal: AbortSignal.timeout(TIME_LIMIT_MS),
+  };
+  let tried = await attempt(fetch, request, page);
+  if (tried.again && !request.signal.aborted) {
+    await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+    tried = await attempt(fetch, request, page);
+  }
+  return tried.result;
+}
+
+/** One try: what came of it, and whether trying again might help. */
+async function attempt(
+  fetch: typeof globalThis.fetch,
+  request: RequestInit,
+  page: Page
+): Promise<{ result: ReaderResult; again: boolean }> {
+  const failed = (reason: ReaderFailure, again = false) => ({
+    result: { ok: false as const, reason },
+    again,
+  });
+  let response: Response;
+  try {
+    response = await fetch(API, request);
   } catch (error) {
-    return { ok: false, reason: failureOf(error) };
+    const name = (error as { name?: unknown } | null)?.name;
+    if (name === "TimeoutError" || name === "AbortError") {
+      log("took too long");
+      return failed("timeout");
+    }
+    log("no connection");
+    return failed("failed", true);
+  }
+  if (!response.ok) {
+    const code = await errorCode(response);
+    log(`OpenAI refused the request${code ? `, ${code}` : ""}`, response.status);
+    // A key that's wrong, or an account without credit, needs someone to set it up.
+    if (response.status === 401 || response.status === 403 || code === "insufficient_quota")
+      return failed("not_configured");
+    if (response.status === 429 || response.status === 503) return failed("busy", true);
+    return failed("failed", response.status >= 500);
+  }
+  return { result: readingOf(await response.json().catch(() => null), page), again: false };
+}
+
+/** The parts of OpenAI's response that are used. */
+type OpenAIResponse = {
+  status?: string;
+  incomplete_details?: { reason?: string } | null;
+  error?: { code?: string } | null;
+  output?: { type: string; content?: { type: string; text?: string }[] }[];
+};
+
+/** The answer, as far as `validateReading` relies on it (it checks each day). */
+const Answer = z.object({
+  month: z.string().nullable(),
+  days: z.array(z.unknown()),
+  note: z.string().nullable(),
+});
+
+/** What was read, checked — or why the photo couldn't be read. */
+function readingOf(response: unknown, { month, today }: Page): ReaderResult {
+  const body = response as OpenAIResponse | null;
+  if (body?.status !== "completed") {
+    // Cut short (`incomplete`: out of tokens, or filtered) is a photo that couldn't be read;
+    // failed on OpenAI's side, or no answer at all, is a failure.
+    console.warn(
+      "[eggs] the photo reader didn't finish:",
+      body?.status ?? "no answer",
+      body?.incomplete_details?.reason ?? body?.error?.code ?? ""
+    );
+    return { ok: false, reason: body?.status === "incomplete" ? "unreadable" : "failed" };
+  }
+  const parts = (body.output ?? [])
+    .filter((item) => item.type === "message")
+    .flatMap((item) => item.content ?? []);
+  if (parts.some((part) => part.type === "refusal")) {
+    console.warn("[eggs] the photo reader declined");
+    return { ok: false, reason: "unreadable" };
+  }
+  const text = parts.map((part) => (part.type === "output_text" ? part.text ?? "" : "")).join("");
+  const answer = parseAnswer(text);
+  if (!answer) {
+    console.warn("[eggs] the photo reader gave no counts");
+    return { ok: false, reason: "unreadable" };
+  }
+  return { ok: true, reading: validateReading(answer, { expected: month, today }) };
+}
+
+function parseAnswer(text: string) {
+  try {
+    const parsed = Answer.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
   }
 }
 
-/** What went wrong, from the SDK's error classes; logged by kind and status only. */
-function failureOf(error: unknown): ReaderFailure {
-  const log = (kind: string, status?: number) =>
-    console.error(`[eggs] reading a photo failed: ${kind}${status ? ` (${status})` : ""}`);
-  if (error instanceof Anthropic.APIUserAbortError) {
-    log("took too long");
-    return "timeout";
-  }
-  if (error instanceof Anthropic.APIConnectionTimeoutError) {
-    log("timed out");
-    return "timeout";
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    log("no connection");
-    return "failed";
-  }
-  if (
-    error instanceof Anthropic.AuthenticationError ||
-    error instanceof Anthropic.PermissionDeniedError
-  ) {
-    log("the API key was refused", error.status);
-    return "not_configured";
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    log("rate limited", error.status);
-    return "busy";
-  }
-  if (error instanceof Anthropic.APIError) {
-    log("the API refused the request", error.status);
-    return error.status === 529 ? "busy" : "failed";
-  }
-  if (error instanceof Anthropic.AnthropicError) {
-    // The answer wasn't the structured output asked for (cut off, or not JSON).
-    log("the answer couldn't be read");
-    return "unreadable";
-  }
-  if (error instanceof Error && error.name === "TimeoutError") {
-    log("took too long");
-    return "timeout";
-  }
-  log("unexpected error");
-  return "failed";
-}
+/** OpenAI's code for an error ("insufficient_quota", "rate_limit_exceeded", …) — never its message. */
+const errorCode = (response: Response): Promise<string> =>
+  response
+    .json()
+    .then((body) => {
+      const code = body?.error?.code ?? body?.error?.type;
+      return typeof code === "string" ? code.slice(0, 60) : "";
+    })
+    .catch(() => "");
+
+/** A failure, logged by what went wrong (with OpenAI's code) and the status only. */
+const log = (kind: string, status?: number) =>
+  console.error(`[eggs] reading a photo failed: ${kind}${status ? ` (${status})` : ""}`);
 
 /** The local stand-in for the API (`EGG_READER_TEST`). */
 async function readFixture(

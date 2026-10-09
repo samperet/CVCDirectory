@@ -7,7 +7,7 @@ import { iconKey, readCircleIcons } from "./icons";
 
 /**
  * A new circle's icon, drawn by OpenAI's image model (`OPENAI_KEY`;
- * `OPENAI_IMAGE_MODEL`, default gpt-image-1) in the style of the other
+ * `OPENAI_IMAGE_MODEL`, default gpt-image-2.5-flare) in the style of the other
  * circles' icons, which it's given as references — so the set stays of a
  * piece. Without other icons it's drawn from the description alone.
  * Locally, `ICON_TEST_FAKE` (ignored on Vercel) skips OpenAI and uses one
@@ -90,7 +90,7 @@ export async function generateCircleIcon(
 
   const key = process.env.OPENAI_KEY;
   if (!key) return { ok: false, reason: "not_configured" };
-  const model = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1";
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-flare";
   const options = {
     model,
     prompt,
