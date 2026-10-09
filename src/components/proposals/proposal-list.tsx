@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { Handshake } from "lucide-react";
 import type { ProposalListing } from "@/lib/proposals/shared";
-import { shortDate } from "@/lib/time";
 import { Highlighted } from "@/components/documents/document-row";
-import { ProposalStatusPill } from "./proposal-bits";
+import { ProposalStatusPill, dayOf } from "./proposal-bits";
 
 /**
  * Proposals in lists: a row in the Documents list (beside pages and files —
@@ -54,9 +53,7 @@ export function ProposalListingRow({
             />
             {showCircle ? <span className="font-medium">{proposal.circleName}</span> : null}
             <span>by {proposal.proposedBy}</span>
-            <span className="whitespace-nowrap">
-              {shortDate(proposal.createdAt.slice(0, 10), true)}
-            </span>
+            <span className="whitespace-nowrap">{dayOf(proposal.createdAt)}</span>
           </p>
           {text ? (
             <p className="line-clamp-2 pl-8 text-sm text-foreground-light">

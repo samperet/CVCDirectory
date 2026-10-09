@@ -22,23 +22,28 @@ import { currentVersion, type DocumentRecord } from "@/lib/documents/types";
 import { shortDate, todayInVermont } from "@/lib/time";
 import { canConsentProposal, canEditProposal } from "./access";
 import { fileMirror, pageMirror } from "./mirror";
-import { listProposals, type Failure } from "./store";
+import { addSnapshots, listProposals, replaceSnapshots, type Failure } from "./store";
+import { discardSnapshots, takeSnapshots } from "./snapshots";
 import {
   meetingDateOf,
   proposalIdsIn,
+  snapshotOf,
   type DocumentRef,
+  type DocumentSnapshot,
   type MeetingOption,
   type MeetingRef,
   type Proposal,
+  type ProposalDocument,
   type ProposalListing,
   type ProposalView,
 } from "./shared";
 
 /**
  * The proposals routes' helpers: who's asking, what a proposal looks like
- * to them (its documents named, the pages that hold it, what they may do),
- * the meetings it could be consented at, keeping the documents it's about
- * up to date with where it stands, and telling people about it.
+ * to them (its documents named, with their snapshots; the pages that hold
+ * it; what they may do), taking its documents' snapshots, the meetings it
+ * could be consented at, keeping the documents it's about up to date with
+ * where it stands, and telling people about it.
  */
 
 export type ProposalSession = { user: CommunityUser; actor: Actor; directory: DirectoryDocument };
@@ -73,6 +78,8 @@ export function proposalProblem(reason: Failure) {
       return problem("That proposal isn't waiting for consent", 409);
     case "consented":
       return problem("A consented proposal can't be changed — make a new proposal instead", 409);
+    case "not_attached":
+      return problem("That document isn't one the proposal is about", 409);
   }
 }
 
@@ -93,7 +100,132 @@ export function memberIdsOf(
   );
 }
 
-/** A proposal as the reader sees it. */
+/** The version of a document now (a page's last save, a file's version number); null if it's gone. */
+function versionNow(ref: DocumentRef, pages: WikiPage[], documents: DocumentRecord[]) {
+  if (ref.kind === "page") return pages.find((page) => page.id === ref.id)?.updatedAt ?? null;
+  const doc = documents.find((entry) => entry.id === ref.id);
+  return doc ? String(currentVersion(doc).number) : null;
+}
+
+/** Whether a document has changed since the proposal's snapshot of it was taken (false without one, or once it's gone). */
+export function changedSinceSnapshot(
+  proposal: Proposal,
+  ref: DocumentRef,
+  pages: WikiPage[],
+  documents: DocumentRecord[]
+) {
+  const snapshot = snapshotOf(proposal, ref);
+  const now = versionNow(ref, pages, documents);
+  return !!snapshot && now !== null && now !== snapshot.version;
+}
+
+/**
+ * Whether you may see a snapshot: a file's, anyone signed in (as with
+ * documents); a page's, whoever can see the page — or, once it's gone,
+ * whoever could have seen it as it was.
+ */
+export function canSeeSnapshot(
+  snapshot: DocumentSnapshot,
+  ctx: ProposalSession,
+  pages: WikiPage[]
+) {
+  if (snapshot.kind === "file") return true;
+  const page = pages.find((entry) => entry.id === snapshot.id);
+  if (page) return canViewPage(ctx.user, ctx.directory, page);
+  return (
+    !!snapshot.page &&
+    canViewPage(ctx.user, ctx.directory, { ...snapshot.page, edit: { kind: "keeper" } })
+  );
+}
+
+/** Where a snapshot opens: a page's or a link's on its own page, a file's as the file. */
+export const snapshotHref = (proposalId: string, snapshot: DocumentSnapshot) =>
+  snapshot.kind === "file" && !snapshot.file?.link
+    ? `/api/proposals/${proposalId}/snapshots/${snapshot.snapshotId}/file`
+    : `/proposals/${proposalId}/snapshots/${snapshot.snapshotId}`;
+
+/** One of a proposal's documents as the reader sees it: as it is now, and its snapshot. */
+export function documentShown(
+  proposal: Proposal,
+  ref: DocumentRef,
+  ctx: ProposalSession,
+  pages: WikiPage[],
+  documents: DocumentRecord[]
+): ProposalDocument {
+  const { user, directory } = ctx;
+  const kept = snapshotOf(proposal, ref);
+  const snapshot =
+    kept && canSeeSnapshot(kept, ctx, pages)
+      ? {
+          snapshotId: kept.snapshotId,
+          title: kept.title,
+          takenAt: kept.takenAt,
+          href: snapshotHref(proposal.id, kept),
+        }
+      : null;
+  const changed = changedSinceSnapshot(proposal, ref, pages, documents);
+  const { kind, id } = ref;
+  if (kind === "page") {
+    const page = pages.find((entry) => entry.id === id);
+    if (page && canViewPage(user, directory, page))
+      return {
+        kind,
+        id,
+        title: page.title,
+        href: `/wiki/${page.slug}`,
+        circleName: circleNameOf(directory, page.keeper),
+        missing: false,
+        snapshot,
+        changed,
+      };
+    // A page that's gone is still there, as it was, in its snapshot.
+    return snapshot && !page
+      ? {
+          kind,
+          id,
+          title: kept!.title,
+          href: null,
+          circleName: "",
+          missing: true,
+          snapshot,
+          changed,
+        }
+      : {
+          kind,
+          id,
+          title: "A page that's gone or private",
+          href: null,
+          circleName: "",
+          missing: true,
+          snapshot: null,
+          changed: false,
+        };
+  }
+  const doc = documents.find((entry) => entry.id === id);
+  if (doc)
+    return {
+      kind,
+      id,
+      title: doc.title,
+      href: `/api/documents/${doc.id}/file`,
+      circleName: circleNameOf(directory, doc.circleId),
+      missing: false,
+      snapshot,
+      changed,
+    };
+  return {
+    kind,
+    id,
+    title: snapshot ? kept!.title : "A document that's gone",
+    href: null,
+    circleName: "",
+    missing: true,
+    snapshot,
+    changed,
+  };
+}
+
+/** A proposal as the reader sees it (with only the snapshots they may see). */
 export function viewOf(
   proposal: Proposal,
   ctx: ProposalSession,
@@ -103,37 +235,13 @@ export function viewOf(
   const { user, directory } = ctx;
   return {
     ...proposal,
+    snapshots: (proposal.snapshots ?? []).filter((snapshot) =>
+      canSeeSnapshot(snapshot, ctx, pages)
+    ),
     circleName: circleNameOf(directory, proposal.circleId),
-    documentsShown: proposal.documents.map((ref) => {
-      if (ref.kind === "page") {
-        const page = pages.find((entry) => entry.id === ref.id);
-        return page && canViewPage(user, directory, page)
-          ? {
-              ...ref,
-              title: page.title,
-              href: `/wiki/${page.slug}`,
-              circleName: circleNameOf(directory, page.keeper),
-              missing: false,
-            }
-          : {
-              ...ref,
-              title: "A page that's gone or private",
-              href: null,
-              circleName: "",
-              missing: true,
-            };
-      }
-      const doc = documents.find((entry) => entry.id === ref.id);
-      return doc
-        ? {
-            ...ref,
-            title: doc.title,
-            href: `/api/documents/${doc.id}/file`,
-            circleName: circleNameOf(directory, doc.circleId),
-            missing: false,
-          }
-        : { ...ref, title: "A document that's gone", href: null, circleName: "", missing: true };
-    }),
+    documentsShown: proposal.documents.map((ref) =>
+      documentShown(proposal, ref, ctx, pages, documents)
+    ),
     appearsIn: visiblePages(user, directory, pages)
       .filter((page) => proposalIdsIn(page.body).includes(proposal.id))
       .map((page) => ({ slug: page.slug, title: page.title })),
@@ -336,21 +444,70 @@ export async function checkDocuments(refs: DocumentRef[], ctx: ProposalSession) 
   return missing ? problem("One of those documents no longer exists", 404) : null;
 }
 
-/** The versions of a proposal's documents now (a page's last save, a file's version number). */
-export function documentVersions(
-  refs: DocumentRef[],
+/**
+ * The versions of its documents a proposal is consented at: each one's
+ * snapshot's — what was proposed — or, for one that has none (it couldn't
+ * be copied), its version now.
+ */
+export function consentedVersions(
+  proposal: Proposal,
   pages: WikiPage[],
   documents: DocumentRecord[]
 ): (DocumentRef & { version: string })[] {
-  return refs.flatMap((ref) => {
-    if (ref.kind === "page") {
-      const page = pages.find((entry) => entry.id === ref.id);
-      return page ? [{ ...ref, version: page.updatedAt }] : [];
-    }
-    const doc = documents.find((entry) => entry.id === ref.id);
-    return doc ? [{ ...ref, version: String(currentVersion(doc).number) }] : [];
+  return proposal.documents.flatMap(({ kind, id }) => {
+    const version =
+      snapshotOf(proposal, { kind, id })?.version ?? versionNow({ kind, id }, pages, documents);
+    return version ? [{ kind, id, version }] : [];
   });
 }
+
+/**
+ * Snapshots of the documents a proposal is about that have none — just
+ * attached, or attached before snapshots were kept — taken now (unless it's
+ * consented). The proposal as it is then.
+ */
+export async function ensureSnapshots(proposal: Proposal, actor: Actor): Promise<Proposal> {
+  if (proposal.status === "consented") return proposal;
+  const missing = proposal.documents.filter((ref) => !snapshotOf(proposal, ref));
+  if (!missing.length) return proposal;
+  const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
+  const taken = await takeSnapshots(missing, actor, { pages, documents });
+  if (!taken.length) return proposal;
+  const result = await addSnapshots(proposal.id, taken);
+  const held = result.ok ? result.proposal : proposal;
+  // Another request may have taken some first: theirs stay.
+  await discardSnapshots(
+    taken.filter(
+      (snapshot) => !held.snapshots?.some((kept) => kept.snapshotId === snapshot.snapshotId)
+    )
+  );
+  return held;
+}
+
+/** Take these documents' snapshots again, from their current versions ("use the current version"). */
+export async function retakeSnapshots(
+  proposal: Proposal,
+  actor: Actor,
+  refs: DocumentRef[]
+): Promise<{ ok: true; proposal: Proposal } | { ok: false; reason: Failure }> {
+  const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
+  const taken = await takeSnapshots(refs, actor, { pages, documents });
+  if (!taken.length) return { ok: true, proposal };
+  const result = await replaceSnapshots(proposal.id, actor, taken);
+  if (!result.ok) {
+    await discardSnapshots(taken);
+    return result;
+  }
+  await discardSnapshots(result.replaced);
+  return { ok: true, proposal: result.proposal };
+}
+
+/** The documents a proposal is about that have changed since their snapshots were taken. */
+export const changedDocuments = (
+  proposal: Proposal,
+  pages: WikiPage[],
+  documents: DocumentRecord[]
+) => proposal.documents.filter((ref) => changedSinceSnapshot(proposal, ref, pages, documents));
 
 /** Who hears about a circle's proposals: its members (everyone, for Community). */
 async function audienceOf(directory: DirectoryDocument, circleId: string) {

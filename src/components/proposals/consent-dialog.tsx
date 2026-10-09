@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, CalendarPlus, FileText, NotebookPen } from "lucide-react";
+import { BadgeCheck, CalendarPlus, FileText, History, NotebookPen } from "lucide-react";
 import type { NamedPerson } from "@/lib/people";
 import type { MeetingOption } from "@/lib/proposals/shared";
 import { shortDate, todayInVermont } from "@/lib/time";
+import { listNames } from "@/lib/text";
 import { CirclePeopleField } from "@/components/directory/circle-people-field";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loading } from "@/components/ui/status";
 import { cn } from "@/lib/utils";
-import { meetingsQuery, type ConsentDraft } from "./data";
+import { meetingsQuery, proposalQuery, type ConsentDraft } from "./data";
 
 /**
  * Recording a circle's consent to a proposal, which needs a meeting: in a
@@ -23,8 +24,14 @@ import { meetingsQuery, type ConsentDraft } from "./data";
  * there comes from the notes when they say, otherwise it's asked for (and
  * saved to the notes). An optional note says anything to keep with it. The
  * server records who recorded it.
+ *
+ * Consent is to the documents as proposed — their snapshots. When one has
+ * changed since its snapshot was taken, it's asked whether the circle
+ * consented to it as proposed or as it is now (a new snapshot is taken).
  */
 export function ConsentDialog({
+  proposalId,
+  preferCurrent = false,
   circleId,
   circleName,
   title,
@@ -33,6 +40,10 @@ export function ConsentDialog({
   onSubmit,
   onClose,
 }: {
+  /** The proposal consented to, when there is one already (to see whether its documents have changed). */
+  proposalId?: string;
+  /** Where a document has changed since its snapshot, choose "as it is now" to start with. */
+  preferCurrent?: boolean;
   circleId: string;
   circleName: string;
   /** What's being consented to. */
@@ -45,6 +56,10 @@ export function ConsentDialog({
 }) {
   const today = todayInVermont();
   const meetings = useQuery({ ...meetingsQuery(circleId), enabled: !fixed });
+  const proposal = useQuery({ ...proposalQuery(proposalId ?? "-"), enabled: !!proposalId }).data
+    ?.proposal;
+  const changed = (proposal?.documentsShown ?? []).filter((doc) => doc.snapshot && doc.changed);
+  const [asNow, setAsNow] = useState(preferCurrent);
   const options = fixed ? [fixed] : meetings.data?.meetings ?? [];
   const [chosen, setChosen] = useState<string | null>(fixed ? `${fixed.kind}:${fixed.id}` : null);
   const [newDate, setNewDate] = useState(today);
@@ -63,6 +78,7 @@ export function ConsentDialog({
       meeting: isNew ? { kind: "new", date: newDate } : { kind: current!.kind, id: current!.id },
       ...(needsPresent ? { present } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
+      ...(changed.length && asNow ? { current: true } : {}),
     });
   };
 
@@ -191,6 +207,49 @@ export function ConsentDialog({
           </fieldset>
         ) : null}
 
+        {changed.length ? (
+          <fieldset
+            className="flex flex-col gap-1.5 rounded-lg border border-sun/40 bg-sun/10 px-3 py-2.5 text-sm text-foreground"
+            data-consent-changed
+          >
+            <legend className="sr-only">Which version the circle consented to</legend>
+            <p className="flex items-start gap-1.5">
+              <History className="mt-0.5 h-4 w-4 shrink-0 text-[#7a5200]" aria-hidden />
+              <span>
+                {listNames(changed.map((doc) => `“${doc.title}”`))}{" "}
+                {changed.length === 1
+                  ? "has changed since its snapshot was"
+                  : "have changed since their snapshots were"}{" "}
+                taken for the proposal.
+              </span>
+            </p>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="version"
+                checked={!asNow}
+                onChange={() => setAsNow(false)}
+                className="h-4 w-4 accent-primary"
+              />
+              {changed.length === 1
+                ? "Consent to it as proposed (the snapshot)"
+                : "Consent to them as proposed (the snapshots)"}
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="version"
+                checked={asNow}
+                onChange={() => setAsNow(true)}
+                className="h-4 w-4 accent-primary"
+              />
+              {changed.length === 1
+                ? "Consent to it as it is now (a new snapshot is taken)"
+                : "Consent to them as they are now (new snapshots are taken)"}
+            </label>
+          </fieldset>
+        ) : null}
+
         <label className="flex flex-col gap-1 text-sm text-foreground">
           A note to keep with it (if any)
           <Textarea
@@ -203,8 +262,8 @@ export function ConsentDialog({
           />
         </label>
         <p className="text-xs text-muted">
-          The documents it&apos;s about are consented as they are now; you&apos;re recorded as the
-          one who recorded it.
+          The documents it&apos;s about are consented as proposed — as their snapshots have them;
+          you&apos;re recorded as the one who recorded it.
         </p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeText, splitBlocks } from "./merge";
+import { compareText, mergeText, splitBlocks } from "./merge";
 
 const base = "# Title\n\nPara one.\n\nPara two.\n\nPara three.\n";
 
@@ -105,5 +105,31 @@ describe("mergeText", () => {
       `${base.replace("Para two.", "Two B.")}\nMore.\n`
     );
     expect(result.conflicts).toHaveLength(1);
+  });
+});
+
+describe("compareText", () => {
+  it("keeps what's the same, and shows what was taken out and put in, in reading order", () => {
+    const before = "# Mowing\n\nMow monthly.\n\n- east field\n- west field\n\nThanks.";
+    const after =
+      "# Mowing\n\nMow twice a month.\n\n- east field\n- west field\n\nAsk Ben first.\n\nThanks.";
+    expect(compareText(before, after)).toEqual([
+      { change: "same", text: "# Mowing" },
+      { change: "removed", text: "Mow monthly." },
+      { change: "added", text: "Mow twice a month." },
+      { change: "same", text: "- east field\n- west field" },
+      { change: "added", text: "Ask Ben first." },
+      { change: "same", text: "Thanks." },
+    ]);
+  });
+  it("is all the same for the same text, and all new from nothing", () => {
+    expect(compareText("One.\n\nTwo.", "One.\n\nTwo.").every((b) => b.change === "same")).toBe(
+      true
+    );
+    expect(compareText("", "One.\n\nTwo.")).toEqual([
+      { change: "added", text: "One." },
+      { change: "added", text: "Two." },
+    ]);
+    expect(compareText("Gone.", "")).toEqual([{ change: "removed", text: "Gone." }]);
   });
 });

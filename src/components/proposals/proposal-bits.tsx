@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { BadgeCheck, CircleSlash, Hourglass, Users } from "lucide-react";
 import { namesOf } from "@/lib/people";
-import { shortDate } from "@/lib/time";
+import { shortDate, todayInVermont } from "@/lib/time";
 import type { ProposalConsent, ProposalStatus } from "@/lib/proposals/shared";
 import { Pill } from "@/components/ui/pill";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils";
  * the circle, the meeting (linked to its notes or minutes), who was there
  * (the circle's members, then anyone else), and who recorded it.
  */
+
+/** The day (in Vermont) of a timestamp, as "Oct 2, 2026". */
+export const dayOf = (iso: string) => shortDate(todayInVermont(new Date(iso)), true);
 
 export function ProposalStatusPill({
   status,

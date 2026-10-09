@@ -6,7 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { BadgeCheck, CircleDashed, History, Hourglass } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { WikiPage } from "@/lib/wiki/store";
-import { consentState, pageStage } from "@/lib/wiki/consent";
+import { changedSinceProposed, consentState, pageStage } from "@/lib/wiki/consent";
 import { shortDate } from "@/lib/time";
 import { Pill } from "@/components/ui/pill";
 import { ActionLink } from "@/components/ui/action-link";
@@ -19,6 +19,7 @@ import {
   changeProposal,
   createProposal,
   recordConsent,
+  retakeSnapshot,
   useProposalsChanged,
   withdrawConsent,
   type ConsentDraft,
@@ -94,6 +95,26 @@ export function StagePill({
   );
 }
 
+/** For a proposed page edited since: what's proposed is the page as it was (the proposal's snapshot). */
+export function EditedSinceProposed({
+  page,
+}: {
+  page: Pick<WikiPage, "consent" | "proposal" | "updatedAt">;
+}) {
+  if (pageStage(page) !== "proposed" || !page.proposal?.proposalId || !changedSinceProposed(page))
+    return null;
+  return (
+    <Link
+      href={`/proposals/${page.proposal.proposalId}`}
+      className="text-xs font-medium text-[#7a5200] underline-offset-2 hover:underline"
+      title="What's proposed is the page as it was when it was proposed: the proposal's snapshot of it"
+      data-edited-since-proposed
+    >
+      Edited since it was proposed
+    </Link>
+  );
+}
+
 /** Where the page's stage comes from: a link to its proposal, or — for consent — the meeting. */
 export function StageSource({ page }: { page: Pick<WikiPage, "consent" | "proposal"> }) {
   const proposalId = page.proposal?.proposalId ?? page.consent?.proposalId;
@@ -118,6 +139,8 @@ export function StageSource({ page }: { page: Pick<WikiPage, "consent" | "propos
  * proposal about it, or — when there's none — a proposal made for it there
  * and then). Withdrawing a proposal, or consent recorded by mistake, acts
  * on the proposal; records from before proposals are withdrawn on the page.
+ * A page edited since it was proposed says so — what's proposed is its
+ * snapshot — and the circle's members can **propose this version** instead.
  */
 export function StageControls({
   page,
@@ -182,6 +205,11 @@ export function StageControls({
     },
     onError: fail("Could not change that"),
   });
+  const retake = useMutation({
+    mutationFn: () => retakeSnapshot(openProposal!, { kind: "page", id: page.id }),
+    onSuccess: () => done("This version is proposed now"),
+    onError: fail("Could not change that"),
+  });
   const withdraw = useMutation({
     mutationFn: (what: "proposal" | "consent") =>
       what === "proposal"
@@ -212,10 +240,16 @@ export function StageControls({
     if (fromProposal) withdraw.mutate(what);
     else legacy.mutate(what === "proposal" ? { proposal: null } : { consent: null });
   };
-  const busy = legacy.isPending || withdraw.isPending;
+  const busy = legacy.isPending || withdraw.isPending || retake.isPending;
+  const editedSince = stage === "proposed" && !!openProposal && changedSinceProposed(page);
   return (
     <span className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
       <StageSource page={page} />
+      {editedSince && canConsent ? (
+        <ActionLink disabled={busy} onClick={() => retake.mutate()}>
+          Propose this version
+        </ActionLink>
+      ) : null}
       {stage === "draft" && canEdit ? (
         <ActionLink onClick={() => setDialog("propose")}>Propose for consent</ActionLink>
       ) : null}
@@ -253,6 +287,8 @@ export function StageControls({
       ) : null}
       {dialog === "consent" ? (
         <ConsentDialog
+          proposalId={openProposal ?? undefined}
+          preferCurrent={state === "changed"}
           circleId={page.proposal?.circleId ?? page.keeper}
           circleName={circleName}
           title={page.proposal?.title ?? page.title}

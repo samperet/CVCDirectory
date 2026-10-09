@@ -4,7 +4,8 @@
  * whole code fences and `:::` sections — and a three-way merge (from the
  * version both started from) keeps every block either side changed. Only
  * when both changed the same block differently is it a clash: mine stays in
- * place, and theirs is reported so the person can choose.
+ * place, and theirs is reported so the person can choose. The same blocks
+ * show what changed between two versions (`compareText`).
  */
 
 export interface MergeConflict {
@@ -167,6 +168,34 @@ export function mergeText(base: string, mine: string, theirs: string): MergeResu
   // When one side didn't change anything, the result is exactly the other (spacing and all).
   const text = mine === theirs || base === theirs ? mine : base === mine ? theirs : joinBlocks(out);
   return { text, conflicts, mineAt };
+}
+
+/** A block of a page in a comparison of two versions: in both, only the earlier, or only the later. */
+export interface ComparedBlock {
+  change: "same" | "removed" | "added";
+  text: string;
+}
+
+/**
+ * Two versions of a page compared block by block (paragraphs, headings,
+ * lists…, as `splitBlocks` makes them), in reading order: each block kept,
+ * taken out (only in `before`), or put in (only in `after`). A block that was
+ * edited shows as taken out, then put in.
+ */
+export function compareText(before: string, after: string): ComparedBlock[] {
+  const A = splitBlocks(before);
+  const B = splitBlocks(after);
+  const out: ComparedBlock[] = [];
+  let a = 0;
+  let b = 0;
+  for (const [i, j] of [...matchPairs(A, B), [A.length, B.length] as [number, number]]) {
+    while (a < i) out.push({ change: "removed", text: A[a++] });
+    while (b < j) out.push({ change: "added", text: B[b++] });
+    if (i < A.length) out.push({ change: "same", text: A[i] });
+    a = i + 1;
+    b = j + 1;
+  }
+  return out;
 }
 
 /** Where each block starts in the text (the blocks of `splitBlocks`), for keeping a caret in plain-text editing. */

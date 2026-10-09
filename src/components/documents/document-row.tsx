@@ -642,6 +642,7 @@ export function DocumentRow({
       ) : null}
       {consenting ? (
         <ConsentDialog
+          proposalId={doc.proposal?.proposalId}
           circleId={doc.proposal?.circleId ?? doc.circleId}
           circleName={doc.circleName || "The circle"}
           title={doc.proposal?.title ?? doc.title}

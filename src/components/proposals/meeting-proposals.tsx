@@ -120,6 +120,7 @@ export function MeetingProposals({
       ) : null}
       {consenting ? (
         <ConsentDialog
+          proposalId={consenting.id}
           circleId={circleId}
           circleName={circleName}
           title={consenting.title}

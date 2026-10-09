@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { createContext, useContext, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { BadgeCheck, BookOpen, FileText, Handshake } from "lucide-react";
-import type { MeetingOption, ProposalView } from "@/lib/proposals/shared";
+import { BadgeCheck, BookOpen, Camera, FileText, Handshake } from "lucide-react";
+import type { MeetingOption, ProposalDocument, ProposalView } from "@/lib/proposals/shared";
 import { PROPOSAL_DIRECTIVE } from "@/lib/proposals/shared";
-import { shortDate } from "@/lib/time";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
@@ -15,12 +14,13 @@ import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { ConsentDialog } from "./consent-dialog";
 import { ProposalFormDialog } from "./proposal-form";
-import { ProposalConsentRecord, ProposalStatusPill } from "./proposal-bits";
+import { ProposalConsentRecord, ProposalStatusPill, dayOf } from "./proposal-bits";
 import {
   changeProposal,
   deleteProposal,
   proposalQuery,
   recordConsent,
+  retakeSnapshot,
   useProposalsChanged,
   withdrawConsent,
   type ConsentDraft,
@@ -33,7 +33,8 @@ import {
  * circle's meetings, **Consent at this meeting** (who was there comes from
  * the notes); elsewhere, **Record consent** at a meeting chosen then; and
  * change, withdraw, propose again, withdraw consent, or delete, for those
- * who may.
+ * who may. Each document it's about shows its snapshot — the document as
+ * proposed — and whether it has changed since.
  */
 
 /** The meeting whose notes are being shown, if they're a meeting's: proposals in them can be consented there. */
@@ -181,6 +182,7 @@ export function ProposalActions({
       ) : null}
       {dialog === "consent" ? (
         <ConsentDialog
+          proposalId={proposal.id}
           circleId={proposal.circleId}
           circleName={proposal.circleName}
           title={proposal.title}
@@ -215,33 +217,117 @@ export function ProposalActions({
   );
 }
 
-/** The documents a proposal is about, as links. */
+/**
+ * The documents a proposal is about: each as it is now (linked), its
+ * snapshot — the document as proposed, which is what's consented — and,
+ * when it has changed since, **Use the current version** for those who may
+ * change the proposal while it waits for consent.
+ */
 export function ProposalDocuments({ proposal }: { proposal: ProposalView }) {
+  const confirm = useConfirm();
+  const { toast } = useToast();
+  const changed = useProposalsChanged();
+  const retake = useMutation({
+    mutationFn: (doc: ProposalDocument) =>
+      retakeSnapshot(proposal.id, { kind: doc.kind, id: doc.id }),
+    onSuccess: (_result, doc) => {
+      toast({ title: `The proposal now has “${doc.title}” as it is now` });
+      changed();
+    },
+    onError: (err: Error) =>
+      toast({
+        title: "Could not take a new snapshot",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
   if (!proposal.documentsShown.length) return null;
+  const canRetake = proposal.status !== "consented" && proposal.canEdit;
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1" data-proposal-documents>
       <p className="text-xs font-semibold text-muted">About</p>
-      <ul className="flex flex-col gap-1">
+      <ul className="flex flex-col gap-1.5">
         {proposal.documentsShown.map((doc) => (
-          <li key={`${doc.kind}:${doc.id}`} className="flex items-center gap-1.5 text-sm">
-            {doc.kind === "page" ? (
-              <BookOpen className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            ) : (
-              <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            )}
-            {doc.href ? (
-              <Link
-                href={doc.href}
-                className="min-w-0 break-words font-medium text-foreground hover:underline"
-                {...(doc.kind === "file" ? { target: "_blank", rel: "noopener" } : {})}
+          <li
+            key={`${doc.kind}:${doc.id}`}
+            className="flex flex-col gap-0.5"
+            data-proposal-document={doc.id}
+          >
+            <span className="flex items-center gap-1.5 text-sm">
+              {doc.kind === "page" ? (
+                <BookOpen className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              ) : (
+                <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              )}
+              {doc.href ? (
+                <Link
+                  href={doc.href}
+                  className="min-w-0 break-words font-medium text-foreground hover:underline"
+                  {...(doc.kind === "file" ? { target: "_blank", rel: "noopener" } : {})}
+                >
+                  {doc.title}
+                </Link>
+              ) : (
+                <span className="min-w-0 break-words text-muted">{doc.title}</span>
+              )}
+              {doc.missing && doc.snapshot ? (
+                <span className="text-xs text-muted">· no longer in Documents</span>
+              ) : doc.circleName && doc.circleName !== proposal.circleName ? (
+                <span className="text-xs text-muted">· {doc.circleName}</span>
+              ) : null}
+            </span>
+            {doc.snapshot ? (
+              <span
+                className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pl-[22px] text-xs text-muted"
+                data-snapshot={doc.snapshot.snapshotId}
               >
-                {doc.title}
-              </Link>
-            ) : (
-              <span className="text-muted">{doc.title}</span>
-            )}
-            {doc.circleName && doc.circleName !== proposal.circleName ? (
-              <span className="text-xs text-muted">· {doc.circleName}</span>
+                <Camera className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <Link
+                  href={doc.snapshot.href}
+                  className="font-medium text-secondary-foreground underline-offset-2 hover:underline"
+                  {...(doc.snapshot.href.startsWith("/api/")
+                    ? { target: "_blank", rel: "noopener" }
+                    : {})}
+                >
+                  Snapshot from {dayOf(doc.snapshot.takenAt)}
+                </Link>
+                {doc.changed ? (
+                  <span
+                    className="text-[#7a5200]"
+                    title={`${
+                      doc.kind === "page"
+                        ? "The page has been saved"
+                        : "A newer version has been added"
+                    } since the snapshot was taken — ${
+                      proposal.status === "consented" ? "what was consented" : "what's proposed"
+                    } is the snapshot`}
+                    data-changed
+                  >
+                    · changed since
+                  </span>
+                ) : null}
+                {doc.changed && canRetake ? (
+                  <ActionLink
+                    disabled={retake.isPending}
+                    onClick={async () => {
+                      if (
+                        await confirm({
+                          title: `Use “${doc.title}” as it is now?`,
+                          body: `The proposal's snapshot from ${dayOf(
+                            doc.snapshot!.takenAt
+                          )} is replaced by a new one of the ${
+                            doc.kind === "page" ? "page" : "document"
+                          } as it is now.`,
+                          confirmLabel: "Use the current version",
+                        })
+                      )
+                        retake.mutate(doc);
+                    }}
+                  >
+                    Use the current version
+                  </ActionLink>
+                ) : null}
+              </span>
             ) : null}
           </li>
         ))}
@@ -260,7 +346,7 @@ export function ProposalByline({ proposal }: { proposal: ProposalView }) {
       </span>
       <span aria-hidden>·</span>
       <span>
-        by {proposal.proposedBy.name}, {shortDate(proposal.createdAt.slice(0, 10), true)}
+        by {proposal.proposedBy.name}, {dayOf(proposal.createdAt)}
       </span>
     </p>
   );

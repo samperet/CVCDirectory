@@ -8,13 +8,15 @@ import type {
   MeetingOption,
   ProposalListing,
   ProposalView,
+  SnapshotView,
 } from "@/lib/proposals/shared";
 
 /**
  * Proposals in the browser: one query per proposal (each card in a page
- * asks for its own), the list (with the circles you can propose to), and a
- * circle's meetings. Anything that changes a proposal refreshes proposals,
- * pages, and documents — their stages come from it.
+ * asks for its own), the list (with the circles you can propose to), a
+ * circle's meetings, and a proposal's snapshots. Anything that changes a
+ * proposal refreshes proposals, pages, and documents — their stages come
+ * from it.
  */
 
 export type ProposalsResponse = {
@@ -44,6 +46,13 @@ export const proposalCirclesQuery = () => ({
   staleTime: 60_000,
 });
 
+/** One of a proposal's snapshots (refreshed with proposals). */
+export const snapshotQuery = (proposalId: string, snapshotId: string) => ({
+  queryKey: ["proposals", "snapshot", proposalId.toLowerCase(), snapshotId.toLowerCase()],
+  queryFn: () =>
+    apiFetch<SnapshotView>(`/api/proposals/${proposalId}/snapshots/${snapshotId}`),
+});
+
 export const meetingsQuery = (circleId: string) => ({
   queryKey: ["proposals", "meetings", circleId],
   queryFn: () =>
@@ -59,11 +68,16 @@ export type ProposalDraft = {
   decideOn: string | null;
 };
 
-/** Consent as it's recorded: at which meeting (or new notes for one on a day), who was there if the notes don't say, and a note. */
+/**
+ * Consent as it's recorded: at which meeting (or new notes for one on a day),
+ * who was there if the notes don't say, a note, and — with `current` — to
+ * the documents as they are now rather than as proposed (their snapshots).
+ */
 export type ConsentDraft = {
   meeting: { kind: "page" | "file"; id: string } | { kind: "new"; date: string };
   present?: NamedPerson[];
   note?: string;
+  current?: boolean;
 };
 
 /** Refresh everything a proposal's change shows up in. */
@@ -96,6 +110,13 @@ export const recordConsent = (id: string, consent: ConsentDraft) =>
   apiFetch<{ proposal: ProposalView }>(`/api/proposals/${id}/consent`, {
     method: "POST",
     body: JSON.stringify(consent),
+  });
+
+/** Take a document's snapshot again, from its current version. */
+export const retakeSnapshot = (id: string, document: DocumentRef) =>
+  apiFetch<{ proposal: ProposalView }>(`/api/proposals/${id}/snapshots`, {
+    method: "POST",
+    body: JSON.stringify(document),
   });
 
 export const withdrawConsent = (id: string) =>

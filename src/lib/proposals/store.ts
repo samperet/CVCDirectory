@@ -3,13 +3,16 @@ import { z } from "zod";
 import { mutateJson, readJson } from "@/lib/storage";
 import { namedPeopleSchema } from "@/lib/people";
 import type { Actor } from "@/lib/auth/actor";
-import type {
-  DocumentRef,
-  MeetingRef,
-  PresentPerson,
-  Proposal,
-  ProposalConsent,
-  ProposalPerson,
+import {
+  sameDocument,
+  snapshotOf,
+  type DocumentRef,
+  type DocumentSnapshot,
+  type MeetingRef,
+  type PresentPerson,
+  type Proposal,
+  type ProposalConsent,
+  type ProposalPerson,
 } from "./shared";
 
 /**
@@ -20,6 +23,12 @@ import type {
  * consented one stays as it was consented, unless the consent is withdrawn
  * (it's proposed again). Deleting is for proposals that were never
  * consented. Who may do each is decided by the routes (`access.ts`).
+ *
+ * Each also lists its documents' snapshots (`snapshots`: what each was when
+ * attached; the copies themselves are kept by `snapshots.ts`, outside this
+ * document). They're added for documents that have none, kept while their
+ * document stays on the proposal, and replaced only on request, all while it
+ * isn't consented; a consented proposal's stay as they were consented.
  */
 
 const KEY = "proposals/proposals.json";
@@ -80,11 +89,13 @@ export const consentInputSchema = z.object({
     .max(500, "Keep the note to 500 characters")
     .optional()
     .transform((value) => value || null),
+  /** Consent to the documents as they are now: those changed since their snapshots are snapshotted again first. */
+  current: z.boolean().optional(),
 });
 
 export type ProposalInput = z.infer<typeof proposalInputSchema>;
 export type ProposalUpdate = z.infer<typeof proposalUpdateSchema>;
-export type Failure = "not_found" | "full" | "not_open" | "consented";
+export type Failure = "not_found" | "full" | "not_open" | "consented" | "not_attached";
 export type Result = { ok: true; proposal: Proposal } | { ok: false; reason: Failure };
 
 const personOf = (actor: Pick<Actor, "userId" | "personId" | "name">): ProposalPerson => ({
@@ -107,7 +118,7 @@ export async function getProposal(id: string): Promise<Proposal | null> {
   return (await listProposals()).find((proposal) => proposal.id === wanted) ?? null;
 }
 
-/** Change one proposal; `change` returns the new proposal, or why it can't. */
+/** Change one proposal; `change` returns the new proposal (the same one for no change), or why it can't. */
 function mutateOne(id: string, change: (proposal: Proposal) => Proposal | Failure) {
   return mutateJson<Result>(KEY, (raw) => {
     const proposals = normalize(raw);
@@ -115,6 +126,7 @@ function mutateOne(id: string, change: (proposal: Proposal) => Proposal | Failur
     if (index === -1) return { write: false, result: { ok: false, reason: "not_found" } };
     const next = change(proposals[index]);
     if (typeof next === "string") return { write: false, result: { ok: false, reason: next } };
+    if (next === proposals[index]) return { write: false, result: { ok: true, proposal: next } };
     const all = [...proposals];
     all[index] = next;
     return { value: { proposals: all }, result: { ok: true, proposal: next } };
@@ -138,6 +150,8 @@ export function createProposal(
       title: input.title,
       body: input.body,
       documents: dedupe(input.documents),
+      // Taken once it's saved (`snapshots.ts`).
+      snapshots: [],
       decideOn: input.decideOn,
       status: "proposed",
       proposedBy: by,
@@ -168,12 +182,21 @@ export function updateProposal(
     const by = personOf(editor);
     const now = new Date().toISOString();
     const status = update.status ?? proposal.status;
+    const documents = update.documents !== undefined ? dedupe(update.documents) : null;
     return {
       ...proposal,
       ...(update.circleId !== undefined ? { circleId: update.circleId } : {}),
       ...(update.title !== undefined ? { title: update.title } : {}),
       ...(update.body !== undefined ? { body: update.body } : {}),
-      ...(update.documents !== undefined ? { documents: dedupe(update.documents) } : {}),
+      ...(documents
+        ? {
+            documents,
+            // A document taken off takes its snapshot with it.
+            snapshots: (proposal.snapshots ?? []).filter((snapshot) =>
+              documents.some((ref) => sameDocument(ref, snapshot))
+            ),
+          }
+        : {}),
       ...(update.decideOn !== undefined ? { decideOn: update.decideOn } : {}),
       status,
       withdrawn:
@@ -185,6 +208,64 @@ export function updateProposal(
       updatedBy: by,
       updatedAt: now,
     };
+  });
+}
+
+/** Add snapshots for documents the proposal is about and has none of (it isn't consented). */
+export function addSnapshots(id: string, snapshots: DocumentSnapshot[]) {
+  return mutateOne(id, (proposal) => {
+    if (proposal.status === "consented") return "consented";
+    const added = snapshots.filter(
+      (snapshot, index) =>
+        proposal.documents.some((ref) => sameDocument(ref, snapshot)) &&
+        !snapshotOf(proposal, snapshot) &&
+        snapshots.findIndex((other) => sameDocument(other, snapshot)) === index
+    );
+    if (!added.length) return proposal;
+    return { ...proposal, snapshots: [...(proposal.snapshots ?? []), ...added] };
+  });
+}
+
+/**
+ * Documents' snapshots taken again ("use the current version"), while the
+ * proposal isn't consented: each new one takes the place of its document's
+ * old one, which comes back in `replaced` (for its copy to be discarded).
+ */
+export function replaceSnapshots(
+  id: string,
+  editor: Pick<Actor, "userId" | "personId" | "name">,
+  snapshots: DocumentSnapshot[]
+) {
+  type Replaced =
+    | { ok: true; proposal: Proposal; replaced: DocumentSnapshot[] }
+    | { ok: false; reason: Failure };
+  return mutateJson<Replaced>(KEY, (raw) => {
+    const proposals = normalize(raw);
+    const index = proposals.findIndex((proposal) => proposal.id === id.toLowerCase());
+    const fail = (reason: Failure) => ({
+      write: false as const,
+      result: { ok: false as const, reason },
+    });
+    if (index === -1) return fail("not_found");
+    const proposal = proposals[index];
+    if (proposal.status === "consented") return fail("consented");
+    if (
+      !snapshots.every((snapshot) => proposal.documents.some((ref) => sameDocument(ref, snapshot)))
+    )
+      return fail("not_attached");
+    const old = proposal.snapshots ?? [];
+    const replaced = old.filter((kept) =>
+      snapshots.some((snapshot) => sameDocument(snapshot, kept))
+    );
+    const next: Proposal = {
+      ...proposal,
+      snapshots: [...old.filter((kept) => !replaced.includes(kept)), ...snapshots],
+      updatedBy: personOf(editor),
+      updatedAt: new Date().toISOString(),
+    };
+    const all = [...proposals];
+    all[index] = next;
+    return { value: { proposals: all }, result: { ok: true, proposal: next, replaced } };
   });
 }
 

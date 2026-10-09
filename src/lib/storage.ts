@@ -414,6 +414,45 @@ export async function deleteBinary(key: string): Promise<void> {
   await fs.rm(`${localFilePath(key)}.type`, { force: true });
 }
 
+async function copyInR2(from: string, to: string): Promise<boolean> {
+  const { CopyObjectCommand } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  try {
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: config.bucket,
+        CopySource: encodeURI(`${config.bucket}/${from}`),
+        Key: to,
+      })
+    );
+    return true;
+  } catch (error) {
+    const name = (error as { name?: string })?.name;
+    if (name === "NoSuchKey" || name === "NotFound") return false;
+    throw error;
+  }
+}
+
+/**
+ * Copy a binary object to another key — within R2, so a large file never
+ * passes through the server (should R2 refuse the copy, it's read and
+ * written again instead). False when there's nothing at `from`.
+ */
+export async function copyBinary(from: string, to: string): Promise<boolean> {
+  if (isPersistent()) {
+    try {
+      return await copyInR2(from, to);
+    } catch (error) {
+      console.warn("[r2] copy failed; copying through the server", (error as Error)?.name);
+    }
+  }
+  const object = await readBinary(from);
+  if (!object) return false;
+  await writeBinary(to, object);
+  return true;
+}
+
 /**
  * Write to R2 or fail. Unlike writeJson, this never degrades to the local
  * file store: for imports and other writes that must not silently land in

@@ -15,7 +15,8 @@ import {
   announceConsent,
   announceProposal,
   checkDocuments,
-  documentVersions,
+  consentedVersions,
+  ensureSnapshots,
   listingOf,
   memberIdsOf,
   proposalProblem,
@@ -84,9 +85,10 @@ const createSchema = proposalInputSchema.extend({
 
 /**
  * Put a proposal to a circle (those who can start the circle's documents);
- * its members hear about it. With `consent`, the circle has already
- * consented at a meeting: it's recorded straight away (by its members, the
- * Board, or an admin), and they hear that instead.
+ * its members hear about it. A snapshot of each document it's about is taken
+ * as it's saved. With `consent`, the circle has already consented at a
+ * meeting: it's recorded straight away (by its members, the Board, or an
+ * admin), and they hear that instead.
  */
 export async function POST(request: NextRequest) {
   const limited = throttled(request, "proposals");
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
 
   const created = await createProposal(ctx.actor, input);
   if (!created.ok) return proposalProblem(created.reason);
-  let proposal = created.proposal;
+  let proposal = await ensureSnapshots(created.proposal, ctx.actor);
   if (consent && meeting) {
     const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
     const result = await consentToProposal(proposal.id, {
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
       present: markMembers(meeting.present, memberIdsOf(ctx.directory, proposal.circleId)),
       note: consent.note,
       submittedBy: ctx.actor,
-      documents: documentVersions(proposal.documents, pages, documents),
+      documents: consentedVersions(proposal, pages, documents),
     });
     if (!result.ok) return proposalProblem(result.reason);
     proposal = result.proposal;

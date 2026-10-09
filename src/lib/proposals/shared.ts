@@ -1,4 +1,5 @@
 import type { NamedPerson } from "@/lib/people";
+import type { PageView } from "@/lib/wiki/store";
 
 /**
  * Proposals — types and pure helpers, safe for the browser.
@@ -14,6 +15,12 @@ import type { NamedPerson } from "@/lib/people";
  * consented at the versions they were then. A document can hold proposals
  * (`::proposal{id="…"}` on a line of its own), so meeting notes show the
  * proposals they decided.
+ *
+ * Each document a proposal is about is copied when it's attached — a
+ * **snapshot** (`DocumentSnapshot`; see `snapshots.ts`) — so what's proposed,
+ * and then consented, is the document as it was then, whatever happens to it
+ * after. While the proposal waits for consent, a document that has changed
+ * can have its snapshot taken again ("use the current version").
  */
 
 export type ProposalStatus = "proposed" | "consented" | "withdrawn";
@@ -67,6 +74,33 @@ export interface ProposalConsent {
   documents: (DocumentRef & { version: string })[];
 }
 
+/**
+ * A copy of a document as it was when it was attached to a proposal: a
+ * page's title and text, a file itself, or — for a link — where it went and
+ * the text it had. The copy is kept apart (`snapshots.ts`); this says what
+ * it is.
+ */
+export interface DocumentSnapshot extends DocumentRef {
+  /** Where its copy is kept. */
+  snapshotId: string;
+  /** The version copied: a page's last save (`updatedAt`), a file's version number. */
+  version: string;
+  /** What the document was called then. */
+  title: string;
+  takenAt: string;
+  takenBy: ProposalPerson;
+  /** A page's keeper and who could see it then (so its copy is seen by no one else, even once it's gone). */
+  page?: { keeper: string; view: PageView };
+  /** A file's name, size and type — or, for a link, where it went. */
+  file?: {
+    fileName: string;
+    size: number;
+    contentType: string;
+    viewable: boolean;
+    link?: { url: string; kind: string };
+  };
+}
+
 export interface Proposal {
   id: string;
   /** The circle asked to consent. */
@@ -74,6 +108,8 @@ export interface Proposal {
   title: string;
   body: string;
   documents: DocumentRef[];
+  /** A snapshot of each document, taken when it was attached (proposals from before snapshots have none). */
+  snapshots?: DocumentSnapshot[];
   /** The day the circle means to decide (YYYY-MM-DD), if there is one. */
   decideOn: string | null;
   status: ProposalStatus;
@@ -92,6 +128,10 @@ export interface ProposalDocument extends DocumentRef {
   circleName: string;
   /** Gone, or one the reader can't see. */
   missing: boolean;
+  /** Its snapshot, and where to see it (none for documents attached before snapshots were kept). */
+  snapshot: { snapshotId: string; title: string; takenAt: string; href: string } | null;
+  /** It has changed since its snapshot was taken (a page saved again, a newer version of a file). */
+  changed: boolean;
 }
 
 /** A proposal as it's shown on its own or in a document: names filled in, and what the reader may do. */
@@ -135,6 +175,24 @@ export interface MeetingOption {
   href: string;
 }
 
+/** A snapshot as it's opened (`GET /api/proposals/<id>/snapshots/<snapshotId>`). */
+export interface SnapshotView {
+  snapshot: DocumentSnapshot;
+  proposal: Pick<Proposal, "id" | "title" | "circleId" | "status"> & { circleName: string };
+  /** A page's text as it was (Markdown). */
+  body: string | null;
+  /** A link's text as it was (plain), if it could be read. */
+  text: string | null;
+  /** Who had last saved the page, and when (as it was then). */
+  edited: { by: string; at: string } | null;
+  /** Where to open a file's copy. */
+  fileHref: string | null;
+  /** The document as it is now, if it's still there: where it is, whether it has changed, and a page's text now. */
+  current: { title: string; href: string; changed: boolean; body: string | null } | null;
+  /** Whether you can take the snapshot again from the current version (the proposal waits for consent). */
+  canRetake: boolean;
+}
+
 /** A proposal held in a page: `::proposal{id="…"}` on a line of its own. */
 export const PROPOSAL_DIRECTIVE =
   /^[ \t]*::proposal\{[^}\n]*?(?:id="?([0-9a-f-]{36})"?|#([0-9a-f-]{36}))[^}\n]*\}[ \t]*$/gim;
@@ -152,6 +210,10 @@ export function proposalIdsIn(markdown: string): string[] {
 export const proposalDirective = (id: string) => `::proposal{id="${id}"}`;
 
 export const sameDocument = (a: DocumentRef, b: DocumentRef) => a.kind === b.kind && a.id === b.id;
+
+/** A proposal's snapshot of one of its documents, if it has one. */
+export const snapshotOf = (proposal: Pick<Proposal, "snapshots">, ref: DocumentRef) =>
+  proposal.snapshots?.find((snapshot) => sameDocument(snapshot, ref)) ?? null;
 
 /** The day a proposal is "for": when it was consented, else the day it was proposed. */
 export const proposalDate = (proposal: Pick<Proposal, "consent" | "createdAt">) =>

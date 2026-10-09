@@ -11,11 +11,14 @@ import {
 } from "@/lib/proposals/store";
 import {
   announceConsent,
-  documentVersions,
+  changedDocuments,
+  consentedVersions,
+  ensureSnapshots,
   memberIdsOf,
   proposalProblem,
   proposalSession,
   resolveMeeting,
+  retakeSnapshots,
   savePresent,
   syncDocuments,
   viewOf,
@@ -44,7 +47,9 @@ async function load(id: string) {
  * that has none yet. Who was there comes from the notes, or from `present`
  * (saved to the notes too); each is marked as in the circle or not. You are
  * recorded as having recorded it. The documents it's about are consented
- * at their current versions; the circle and whoever proposed it hear.
+ * as their snapshots have them — as proposed — or, with `current`, as they
+ * are now (those changed since are snapshotted again first). The circle and
+ * whoever proposed it hear.
  */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "proposals");
@@ -61,13 +66,21 @@ export async function POST(request: NextRequest, { params }: Params) {
     found
   );
   if ("error" in meeting) return problem(meeting.error);
+  // Documents attached before snapshots were kept are snapshotted now.
+  let proposal = await ensureSnapshots(found.proposal, found.actor);
   const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
-  const result = await consentToProposal(found.proposal.id, {
+  const stale = parsed.data.current ? changedDocuments(proposal, pages, documents) : [];
+  if (stale.length) {
+    const retaken = await retakeSnapshots(proposal, found.actor, stale);
+    if (!retaken.ok) return proposalProblem(retaken.reason);
+    proposal = retaken.proposal;
+  }
+  const result = await consentToProposal(proposal.id, {
     meeting: meeting.meeting,
-    present: markMembers(meeting.present, memberIdsOf(found.directory, found.proposal.circleId)),
+    present: markMembers(meeting.present, memberIdsOf(found.directory, proposal.circleId)),
     note: parsed.data.note,
     submittedBy: found.actor,
-    documents: documentVersions(found.proposal.documents, pages, documents),
+    documents: consentedVersions(proposal, pages, documents),
   });
   if (!result.ok) return proposalProblem(result.reason);
   await savePresent(meeting, found);

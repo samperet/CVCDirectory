@@ -1,6 +1,6 @@
 import type { PageConsent, PageProposal } from "@/lib/wiki/consent";
 import type { DocumentConsent, DocumentProposal } from "@/lib/documents/types";
-import { sameDocument, type DocumentRef, type Proposal } from "./shared";
+import { sameDocument, snapshotOf, type DocumentRef, type Proposal } from "./shared";
 
 /**
  * What a page or file shows of the proposals about it — pure, for tests.
@@ -8,7 +8,8 @@ import { sameDocument, type DocumentRef, type Proposal } from "./shared";
  * `consent`, each with a `proposalId`), so everything that shows a
  * document's stage keeps working from the document alone:
  *
- * - `proposal`: the newest open proposal about it;
+ * - `proposal`: the newest open proposal about it (for a page, with the
+ *   version its snapshot holds);
  * - `consent`: the latest consent given to a proposal about it (the latest
  *   meeting), at the version it was consented at; those who consented are
  *   the circle's members who were there.
@@ -59,6 +60,7 @@ export function pageMirror(
   const ref: DocumentRef = { kind: "page", id: page.id };
   const open = openFor(ref, proposals);
   const done = consentedFor(ref, proposals);
+  const proposed = open ? snapshotOf(open, ref)?.version : undefined;
   return {
     proposal: open
       ? {
@@ -68,6 +70,7 @@ export function pageMirror(
           proposalId: open.id,
           title: open.title,
           circleId: open.circleId,
+          ...(proposed ? { version: proposed } : {}),
         }
       : page.proposal && !page.proposal.proposalId
         ? page.proposal

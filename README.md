@@ -17,7 +17,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. **Proposals** are their own records — put to a circle, about pages and files, held in documents — and a circle consents to one **at a meeting**: the meeting's notes record who was there, and its **Consent** button records the circle, the meeting, who was there, and who recorded it. Pages and files show where their proposals stand: **Draft**, **Proposed**, **Consented**.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. **Proposals** are their own records — put to a circle, about pages and files (each kept as a **snapshot** of how it was when attached), held in documents — and a circle consents to one **at a meeting**: the meeting's notes record who was there, and its **Consent** button records the circle, the meeting, who was there, and who recorded it. Pages and files show where their proposals stand: **Draft**, **Proposed**, **Consented**.
 - 🐞 **Bugs & ideas** – A ladybug in the corner of every page sends the admins a bug report or a feature request, with the page it came from.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -363,6 +363,22 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   of its own: a card with the proposal, the documents it's about, where it stands, and what you can
   do. Its own page also lists the pages that hold it. The circle's members hear of a new proposal,
   and of its consent (topic "Proposals to your circles…"; everyone, for Community's).
+- **Snapshots** (`lib/proposals/snapshots.ts`) – each document a proposal is about is copied when
+  it's attached, so what's proposed — and then consented — is the document as it was then,
+  whatever happens to it after: a page's title and text, a file itself (copied within storage), a
+  link's text (a shared Google file's, read then). Under each document a proposal shows **Snapshot
+  from Oct 8, 2026** — a page's or link's opens at `/proposals/<id>/snapshots/<snapshotId>`, a
+  file's as the file — and **changed since** once the page is saved again or the file has a newer
+  version. The snapshot's page says whether the document has changed since; for a page,
+  **Show what's changed** compares them block by block (what's been taken out, struck through, and
+  put in). While the proposal waits for consent, whoever may change it can **Use the current
+  version** (a new snapshot replaces the old); a page edited since it was proposed says so under its
+  title ("Edited since it was proposed"), with **Propose this version** for the circle's members.
+  A document taken off a proposal takes its snapshot with it, and deleting a proposal deletes its
+  snapshots; a consented proposal's are kept for good — even once the documents are deleted (the
+  proposal still lists them, "no longer in Documents", with their snapshots). A page's snapshot is
+  seen by whoever can see the page (or could, once it's gone). Proposals from before snapshots get
+  them when they're next changed or consented.
 - **Consent is given at a meeting** (`canRecordConsent` in `lib/circles/consent.ts`: anyone in the
   circle, anyone on the Board — for any circle — and admins; the Board records Community's).
   - **In a meeting's notes** (a page with a meeting day — set with **Who's present** — kept by
@@ -378,9 +394,12 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     it). A page or file with no open proposal gets one made for it there and then.
   - Each person present is recorded as a member of the circle or not (guests and other residents),
     shown as "Present: Cara Cedar and Dev Dogwood · also there: Sam (guest)". The documents a
-    proposal is about are consented **at their current versions**: a page edited (or a file given a
-    new version) afterwards shows **Changed since consent** until a new proposal is consented.
-    **Withdraw consent** (for a record made by mistake) puts the proposal back to waiting.
+    proposal is about are consented **as proposed** — at their snapshots' versions. When one has
+    changed since its snapshot, the consent dialog says so and asks whether the circle consented to
+    it **as proposed** or **as it is now** (a new snapshot is taken first; a page's **Consent to this
+    version** starts at that). A page edited (or a file given a new version) after the version
+    consented shows **Changed since consent** until a new proposal is consented. **Withdraw
+    consent** (for a record made by mistake) puts the proposal back to waiting.
   - Pages and files show their stage — a pill under a page's title (**Draft**, **Proposed** — the
     day to decide — or **Consented**, with a link to the proposal), a badge on a file — and the
     record: "Consented Oct 8, 2026 at Land Care Circle meeting, Oct 8, 2026 by Cara Cedar and Dev
@@ -397,9 +416,14 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   - API: `GET`/`POST /api/proposals` (list — `circle`, `status`, `q` — or put one to a circle; with
     `consent`, consented at once), `GET`/`PATCH`/`DELETE /api/proposals/<id>` (`status`:
     "withdrawn" or "proposed"), `POST`/`DELETE /api/proposals/<id>/consent` (`meeting`: `{kind:
-    "page"|"file", id}` or `{kind: "new", date}`; `present` when the notes don't say; `note`),
-    `GET /api/proposals/meetings?circle=`. Stored in `proposals/proposals.json`; when a circle is
-    deleted its proposals not yet consented go to the Board.
+    "page"|"file", id}` or `{kind: "new", date}`; `present` when the notes don't say; `note`;
+    `current: true` to consent to the documents as they are now), `POST
+    /api/proposals/<id>/snapshots` (`{kind, id}`: use the current version), `GET
+    /api/proposals/<id>/snapshots/<snapshotId>` (the snapshot, its copy, and the document now) and
+    `…/file` (a file's copy), `GET /api/proposals/meetings?circle=`. Stored in
+    `proposals/proposals.json`, the snapshots' copies as `proposals/snapshots/<snapshotId>.json` (a
+    page's or link's) and `proposals/snapshots/<snapshotId>` (a file's); when a circle is deleted
+    its proposals not yet consented go to the Board.
 - **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
   settings (nothing is inherited): **who can see it** — everyone (the default), only its parent
   circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the

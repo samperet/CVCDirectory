@@ -40,7 +40,7 @@ import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
-import { StageControls, StagePill } from "@/components/wiki/page-consent";
+import { EditedSinceProposed, StageControls, StagePill } from "@/components/wiki/page-consent";
 import { ConsentRecord } from "@/components/circles/consent-record";
 import { consentState } from "@/lib/wiki/consent";
 import { useToast } from "@/components/ui/use-toast";
@@ -404,6 +404,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               <PresentLine present={page.present} meetingDate={page.meetingDate} />
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <StagePill page={page} />
+                <EditedSinceProposed page={page} />
               </div>
               {canConsent || canEdit ? (
                 <StageControls
@@ -539,6 +540,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
             <PresentLine present={page.present} meetingDate={page.meetingDate} />
             <div className="flex flex-wrap items-center justify-center gap-2">
               <StagePill page={page} />
+              <EditedSinceProposed page={page} />
               {othersEditing.length ? (
                 <Pill tone="live" data-live-editors>
                   <Pencil className="h-3 w-3" aria-hidden />{" "}

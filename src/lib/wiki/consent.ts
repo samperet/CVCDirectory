@@ -54,7 +54,15 @@ export interface PageProposal {
   proposalId?: string;
   title?: string;
   circleId?: string;
+  /** The page's version in the proposal's snapshot (its `updatedAt` then): what's proposed. */
+  version?: string;
 }
+
+/** A page edited since the proposal about it took its snapshot (so what's proposed isn't the page as it is). */
+export const changedSinceProposed = (page: {
+  proposal?: PageProposal | null;
+  updatedAt: string;
+}) => !!page.proposal?.version && page.proposal.version !== page.updatedAt;
 
 export type PageStage = "draft" | "proposed" | "consented";
 

@@ -63,7 +63,8 @@ Main documents (see each store's `KEY`):
 | `circles/eggs/<circleId>.json` + `circles/eggs/<circleId>/photos/<id>.jpg` | A duty schedule's daily counts (the eggs: per day, who and how), and the photos of the printed calendar sent to be read | `lib/schedules` (`egg-store.ts`) |
 | `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/comments/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
-| `proposals/proposals.json` | Proposals: what's put to which circle, about which documents, and its consent at a meeting | `lib/proposals` |
+| `proposals/proposals.json` | Proposals: what's put to which circle, about which documents (with their snapshots' details), and its consent at a meeting | `lib/proposals` |
+| `proposals/snapshots/<snapshotId>.json`, `proposals/snapshots/<snapshotId>` | Snapshots' copies: a page's title and text, or a link's text; a file itself. Written once, never changed | `lib/proposals` (`snapshots.ts`) |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
 | `logs/<circleId>.json` | Circle logs: short updates and replies, never notified | `lib/log` |
 | `circles/finances/<circleId>.json`, `circles/finances/<circleId>/receipts/<expenseId>` | A circle's Finances: expenses (whole cents) and a budget per year; each expense's receipt (photo or PDF) | `lib/finances` |
@@ -143,7 +144,13 @@ circle and about documents (pages or files). A circle consents to one **at a mee
 page with `meetingDate`, or older notes with `present`) or minutes (a file with a meeting date), or
 new notes started for the day — recording the meeting, who was there (each marked as a member or
 not), the circle, who recorded it, and the documents' versions (a page's `updatedAt`, a file's
-version number). Pages and files keep a copy of where their proposals stand — `page.proposal` /
+version number). Each document is **snapshotted** when it's attached (`snapshots.ts`: the copy is
+kept on its own, its details in the proposal's `snapshots`), and consent is to the snapshots'
+versions — what was proposed — unless the recorder chooses the documents as they are now
+(`current`, which snapshots them again first). `ensureSnapshots()` takes any missing after every
+create, change, and consent (so proposals from before snapshots get theirs); `retakeSnapshots()`
+replaces them ("use the current version"); copies no proposal holds are discarded, and a consented
+proposal's are never changed. Pages and files keep a copy of where their proposals stand — `page.proposal` /
 `page.consent` (`lib/wiki/consent.ts`), `doc.proposal` / `doc.consent` — each with a `proposalId`,
 computed by `lib/proposals/mirror.ts` and written by `syncDocuments()` after every change, so
 `consentState()` ("changed" once a page is edited again) and `pageStage()` (draft, proposed,

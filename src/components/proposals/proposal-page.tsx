@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CornerDownRight } from "lucide-react";
 import { PROPOSAL_DIRECTIVE } from "@/lib/proposals/shared";
-import { shortDate } from "@/lib/time";
 import { BackLink } from "@/components/layout/back-link";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { useCircles } from "@/components/directory/use-directory";
@@ -13,7 +12,7 @@ import { Loading, NotFoundCard } from "@/components/ui/status";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { proposalQuery } from "./data";
-import { ProposalConsentRecord, ProposalStatusPill } from "./proposal-bits";
+import { ProposalConsentRecord, ProposalStatusPill, dayOf } from "./proposal-bits";
 import { ProposalActions, ProposalDocuments } from "./proposal-card";
 
 /**
@@ -59,8 +58,7 @@ export function ProposalPage({ id }: { id: string }) {
             {proposal.title}
           </h1>
           <p className="text-sm text-muted">
-            Proposed by {proposal.proposedBy.name} ·{" "}
-            {shortDate(proposal.createdAt.slice(0, 10), true)}
+            Proposed by {proposal.proposedBy.name} · {dayOf(proposal.createdAt)}
           </p>
           <ProposalStatusPill
             status={proposal.status}
@@ -75,8 +73,7 @@ export function ProposalPage({ id }: { id: string }) {
             />
           ) : proposal.withdrawn ? (
             <p className="text-xs text-muted">
-              Withdrawn by {proposal.withdrawn.by.name} ·{" "}
-              {shortDate(proposal.withdrawn.at.slice(0, 10), true)}
+              Withdrawn by {proposal.withdrawn.by.name} · {dayOf(proposal.withdrawn.at)}
             </p>
           ) : null}
         </header>

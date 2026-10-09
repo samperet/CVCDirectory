@@ -12,11 +12,13 @@ import {
 import {
   announceProposal,
   checkDocuments,
+  ensureSnapshots,
   proposalProblem,
   proposalSession,
   syncDocuments,
   viewOf,
 } from "@/lib/proposals/http";
+import { discardSnapshots } from "@/lib/proposals/snapshots";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +49,9 @@ export async function GET(_request: Request, { params }: Params) {
  * Change a proposal that hasn't been consented — its title, text, circle
  * (one you can propose to), documents, the day to decide — or withdraw it,
  * or propose a withdrawn one again (whoever proposed it, the circle's
- * members, the Board, admins). Proposing again tells the circle again.
+ * members, the Board, admins). A document taken off takes its snapshot with
+ * it; one added has its snapshot taken. Proposing again tells the circle
+ * again.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "proposals");
@@ -75,14 +79,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
   const result = await updateProposal(proposal.id, found.actor, update);
   if (!result.ok) return proposalProblem(result.reason);
-  await syncDocuments([...proposal.documents, ...result.proposal.documents]);
-  if (proposal.status === "withdrawn" && result.proposal.status === "proposed")
-    await announceProposal(result.proposal, found);
+  await discardSnapshots(
+    (proposal.snapshots ?? []).filter(
+      (old) => !result.proposal.snapshots?.some((kept) => kept.snapshotId === old.snapshotId)
+    )
+  );
+  const updated = await ensureSnapshots(result.proposal, found.actor);
+  await syncDocuments([...proposal.documents, ...updated.documents]);
+  if (proposal.status === "withdrawn" && updated.status === "proposed")
+    await announceProposal(updated, found);
   const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
-  return NextResponse.json({ proposal: viewOf(result.proposal, found, pages, documents) });
+  return NextResponse.json({ proposal: viewOf(updated, found, pages, documents) });
 }
 
-/** Delete a proposal that was never consented (whoever can change it). Pages holding it show it's gone. */
+/** Delete a proposal that was never consented (whoever can change it), and its snapshots. Pages holding it show it's gone. */
 export async function DELETE(_request: Request, { params }: Params) {
   const found = await load(params.id);
   if ("error" in found) return found.error;
@@ -93,6 +103,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     );
   const result = await deleteProposal(found.proposal.id);
   if (!result.ok) return proposalProblem(result.reason);
+  await discardSnapshots(result.proposal.snapshots ?? []);
   await syncDocuments(found.proposal.documents);
   return NextResponse.json({ ok: true });
 }
