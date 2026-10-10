@@ -123,8 +123,8 @@ dialog, `#comment-<id>` links), `CommentForm`, `CommentByline`; features pass wh
 
 ## Circles and their pages
 
-A circle's page is a list of **modules** (`src/lib/circles/layout.ts`): Information (wiki pages by
-a filter, any number of them), Members, a duty schedule, Tasks (with a "who can add"
+A circle's page is a list of **modules** (`src/lib/circles/layout.ts`): Filtered Documents (type
+`information`: wiki pages by a filter, any number of them), Members, a duty schedule, Tasks (with a "who can add"
 setting), Log, Finances (with a "who can see" setting that its API reads from the saved circle —
 `hasFinances`/`financeViewers` in `lib/circles/features.ts`), Documents (the circle's pages and
 files). `modulesFor(circle, …)` returns the saved `circle.modules`, or derives a page
@@ -245,5 +245,6 @@ field) or `todayInVermont()` too, not the device's zone.
 | keeper | parent circle | The circle a wiki page belongs to |
 | perspective | alternative version ("Eve's version") | Someone's own copy of a page, compared with it and perhaps made the page (a page's *versions*, unqualified, are its history) |
 | module (formerly section) | module | One block of a circle's page |
+| `information` module | Filtered Documents | A module showing the pages that match its filter (called Information until October 2026) |
 | `HIGHLIGHT_COLORS` / `:mark[…]` | highlight | Coloured words in a wiki page (pages themselves no longer have colours) |
 | `COMMUNITY_ID` / `BOARD_ID` | Community / the Board | The two built-in circles |

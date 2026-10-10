@@ -219,7 +219,7 @@ export function CircleModules({
 /**
  * Editing the page: each module as a small card — dragged into place (or
  * moved with its arrows, on phones), sized for wider screens, set up (an
- * Information module's pages), or removed. Members stays in its column on
+ * Filtered Documents module's pages), or removed. Members stays in its column on
  * the right: it can be removed, but not moved or sized.
  */
 export function ModuleEditor({

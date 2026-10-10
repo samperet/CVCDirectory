@@ -56,10 +56,11 @@ export const filterCircle = (filter: InfoFilter) =>
   filter.kind === "pages" ? undefined : filter.circleId;
 
 /**
- * An Information module on a circle's page: the wiki pages it was set to
- * show (only those the reader can see), as cards, in full, or titles only.
- * When it lists this circle's own pages, whoever can start pages for the
- * circle can add one here.
+ * A Filtered Documents module on a circle's page: the pages that match what
+ * it was set to show (chosen ones, a circle's, proposals waiting for
+ * consent, the latest edited), as cards, in full, or titles only. When it
+ * lists this circle's own pages, whoever can start pages for the circle can
+ * add one here.
  */
 export function InformationModule({
   circle,
@@ -98,7 +99,7 @@ export function InformationModule({
         </SectionHeading>
         {canAdd && ownPages ? (
           <Button className="gap-1" onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4" /> Add Information
+            <Plus className="h-4 w-4" /> Add a page
           </Button>
         ) : null}
       </div>
@@ -119,7 +120,7 @@ export function InformationModule({
           {info.filter.kind === "proposed"
             ? "Nothing is waiting for consent."
             : canAdd && ownPages
-              ? "Nothing here yet — add the first piece of information."
+              ? "Nothing here yet — add the first page."
               : "Nothing here yet."}
         </p>
       )}

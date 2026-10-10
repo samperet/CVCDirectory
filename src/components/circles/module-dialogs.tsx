@@ -56,7 +56,7 @@ import { useCircles } from "@/components/directory/use-directory";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented";
 
-/** Adding a module to a circle's page, and setting up an Information module's pages. */
+/** Adding a module to a circle's page, and setting up which pages a Filtered Documents module shows. */
 
 export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   information: BookOpen,
@@ -73,7 +73,7 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
 
 const MODULE_HINTS: Record<ModuleType, string> = {
   information:
-    "Written pages shown right on the circle's page: chosen ones, all of a circle's, or the latest edited. Add as many as you like.",
+    "Show documents that match certain criteria — chosen pages, all of a circle's, its proposals waiting for consent, or the latest edited — right on the circle's page. Add as many as you like.",
   members: "Who's in the circle, and joining it.",
   schedule: "The circle's duty schedule.",
   tasks: "The circle's tasks.",
@@ -110,7 +110,7 @@ const newId = (type: ModuleType, taken: CircleModule[]) =>
     ? type
     : `${type}-${Math.random().toString(36).slice(2, 8)}`;
 
-/** A new Information module: this circle's pages, as cards. */
+/** A new Filtered Documents module: this circle's pages, as cards. */
 export const newInformationModule = (circle: Circle, taken: CircleModule[]): CircleModule => ({
   id: newId("information", taken),
   type: "information",
@@ -207,7 +207,7 @@ export function TextSettings({
           {tooLong ? (
             <p className="text-xs text-destructive">
               That&apos;s longer than {MAX_TEXT_MODULE.toLocaleString()} characters — for something
-              this long, write a page and show it with an Information module.
+              this long, write a page and show it with a Filtered Documents module.
             </p>
           ) : null}
         </div>
@@ -292,7 +292,7 @@ export const describeTasks = (module: CircleModule) =>
 export const describeFinances = (module: CircleModule) =>
   module.finances?.view === "members" ? "Members and the Board see it" : "Everyone at CVC sees it";
 
-/** What an Information module shows, in a few words. */
+/** What a Filtered Documents module shows, in a few words. */
 export function describeFilter(filter: InfoFilter, circleName: (id: string) => string | undefined) {
   if (filter.kind === "pages")
     return filter.pageIds.length === 1 ? "1 chosen page" : `${filter.pageIds.length} chosen pages`;
@@ -304,7 +304,7 @@ export function describeFilter(filter: InfoFilter, circleName: (id: string) => s
   } pages`;
 }
 
-/** Choosing what to add: Information and Custom Text any number of times; the others when they're not on the page. */
+/** Choosing what to add: Filtered Documents and Custom Text any number of times; the others when they're not on the page. */
 export function AddModuleDialog({
   circle,
   modules,
@@ -445,7 +445,7 @@ const FILTER_KINDS: [InfoFilter["kind"], string][] = [
 ];
 
 /**
- * Setting up an Information module: its title, which pages it shows
+ * Setting up a Filtered Documents module: its title, which pages it shows
  * (chosen ones, all of a circle's, its proposals waiting for consent, or
  * the latest edited), and how.
  */
@@ -526,7 +526,7 @@ export function InformationSettings({
 
   return (
     <Dialog
-      title="Information settings"
+      title="Filtered Documents settings"
       icon={<Settings2 className="h-5 w-5 text-primary" aria-hidden />}
       onClose={onClose}
     >
@@ -549,7 +549,7 @@ export function InformationSettings({
             value={title}
             maxLength={60}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Information"
+            placeholder="Filtered Documents"
             className="bg-white"
           />
         </label>

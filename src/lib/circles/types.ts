@@ -50,7 +50,7 @@ export interface Circle {
   features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
   /** How its page is laid out (see `src/lib/circles/layout.ts`); unset is the default. */
   layout?: SectionLayout[];
-  /** How its Information section shows pages; unset is "summary". */
+  /** How its Filtered Documents module shows pages; unset is "summary". */
   infoView?: InfoView;
   /** Its page, as modules (see `modulesFor`); unset means as `layout`, `features`, and `infoView` describe. */
   modules?: CircleModule[];

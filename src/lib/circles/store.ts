@@ -89,7 +89,7 @@ const moduleSchema = z
   })
   .refine(
     (module) => (module.type === "information") === !!module.info,
-    "Information modules (only) choose which pages they show"
+    "Filtered Documents modules (only) choose which pages they show"
   )
   .refine(
     (module) => module.type === "tasks" || !module.tasks,
@@ -116,7 +116,7 @@ const moduleSchema = z
     })
   );
 
-/** The page's modules, in order: any number of Information and Custom Text modules, the others once each. */
+/** The page's modules, in order: any number of Filtered Documents and Custom Text modules, the others once each. */
 export const modulesSchema = z
   .array(moduleSchema)
   .max(MAX_MODULES, `Up to ${MAX_MODULES} modules`)

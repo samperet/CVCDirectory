@@ -455,7 +455,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     (`PUT /api/documents/<id>/consent` answers 410).
   - The Documents list's stage filter (**Proposed**, **Consented**) covers pages, files, and
     proposals; search finds proposals by their words (and site search lists them); an
-    Information module on a circle page can show **Proposals waiting for consent**; the
+    Filtered Documents module on a circle page can show **Proposals waiting for consent**; the
     dashboard's **Waiting for consent** card lists the open proposals of the circles you're in —
     and Community's — when there are any ("And N more" opens `/documents?stage=proposed`).
   - API: `GET`/`POST /api/proposals` (list — `circle`, `status`, `q` — or put one to a circle; with
@@ -485,8 +485,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   **History** (earlier versions to view or restore). Pages don't nest: they connect by **links** and **embeds** (each page lists what's
   **Linked from** it). Documents lists every page, with a search and a filter by
   circle (`/documents?circle=<circleId>`); **New → Write a page** asks which of your circles keeps it. A circle's
-  **Add Information** starts a page with that circle as its parent (so it shows in the circle's
-  Information); **@ new
+  Filtered Documents module's **Add a page** starts a page with that circle as its parent (so it
+  shows in the module); **@ new
   page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the
   page it was started from. Pages are Markdown, edited in a **visual editor**
   ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple toolbar: headings, bold/italic,
@@ -592,7 +592,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   or an admin; authors edit and delete their own (admins any). The page's writers and the thread's
   participants are notified (the "wiki" notification setting). Stored page by page in
   `wiki/comments/<pageId>.json`; a page's comments go with it.
-- **A circle's page** – is built from **modules**: **Information** and **Custom Text** (as many of
+- **A circle's page** – is built from **modules**: **Filtered Documents** and **Custom Text** (as many of
   each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
   there is one, **Tasks**, **Forum** (see Circle forums), **Log**, **Finances**, and **Documents** (each of those once). One **Edit** button (the
@@ -612,20 +612,21 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     checklists, links, tables, collapsible sections, dividers) under a heading of its choosing, on
     a background it picks (white unless it chooses mint, yellow, peach, pink, lavender or blue), and
     shown formatted as on the wiki. It's saved with the page (`module.text.body`, Markdown, up to
-    20,000 characters; `module.text.background`); for anything longer, write a page and show it with an Information module.
-  - An **Information module** has a title ("Information" unless given one) and **Settings**:
-    which pages it shows — **Specific pages** (up to 12, searched by title, shown in the order
-    chosen), **All pages of a circle** (any circle, by title), or **Recently edited** (3–12, from
-    one circle or the whole wiki, newest first) — and how: **Full**, **Summary** (cards with their
-    opening lines; the first six, then **+N more**), or **Titles only**. Each reader sees only the
-    pages they can. A module listing this circle's own pages has **Add Information** for whoever
-    can start pages for the circle.
+    20,000 characters; `module.text.background`); for anything longer, write a page and show it with a Filtered Documents module.
+  - A **Filtered Documents module** (called Information until October 2026; its type is still
+    `information`) shows documents that match certain criteria. It has a title ("Filtered
+    Documents" unless given one) and **Settings**: which pages it shows — **Specific pages** (up
+    to 12, searched by title, shown in the order chosen), **All pages of a circle** (any circle, by
+    title), **Proposals waiting for consent**, or **Recently edited** (3–12, from one circle or
+    the whole wiki, newest first) — and how: **Full**, **Summary** (cards with their opening
+    lines; the first six, then **+N more**), or **Titles only**. A module listing this circle's
+    own pages has **Add a page** for whoever can start pages for the circle.
   - Removing **Tasks** or **Documents** turns them off for the circle (its existing tasks and
     documents are kept, and return when the module is added back). With Documents off, no new
     documents can be added; its existing ones stay searchable. Removing **Finances** keeps the
     circle's expenses, budgets, and receipts, out of reach (its API answers 404) until it's added
     back.
-  - A circle that hasn't saved its page yet shows what it had before: an Information module with
+  - A circle that hasn't saved its page yet shows what it had before: a Filtered Documents module with
     all of its own pages, Members, its duty schedule, and Tasks and Documents unless they
     were turned off (from the older `layout`, `features`, and `infoView`).
 - **Bulk upload** – on `/documents`, **Upload documents** takes up to 50 files at once for one circle,

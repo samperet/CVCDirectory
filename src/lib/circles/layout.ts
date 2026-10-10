@@ -64,7 +64,7 @@ export const SIZE_NAMES: Record<ModuleSize, string> = {
   full: "Full width",
 };
 
-/** How the Information section shows its pages: in full, as cards with their opening lines, or as a list of titles. */
+/** How a Filtered Documents module shows its pages: in full, as cards with their opening lines, or as a list of titles. */
 export const INFO_VIEWS = ["full", "summary", "titles"] as const;
 export type InfoView = (typeof INFO_VIEWS)[number];
 export const INFO_VIEW_LABELS: Record<InfoView, string> = {
@@ -100,14 +100,15 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
 }
 
 /**
- * A circle's page is built from modules, each a size wide. Information
- * modules show a chosen set of wiki pages, and Custom Text modules the
- * circle's own formatted words (there can be several of each); the others
- * (members, the duty schedule, tasks, the log, finances, documents, sub
- * groups) appear once each.
+ * A circle's page is built from modules, each a size wide. Filtered
+ * Documents modules (type `information`, from when they were called
+ * Information) show the pages that match what they're set to, and Custom
+ * Text modules the circle's own formatted words (there can be several of
+ * each); the others (members, the duty schedule, tasks, the log, finances,
+ * documents, sub groups) appear once each.
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
-  information: "Information",
+  information: "Filtered Documents",
   members: "Members",
   schedule: "Duty schedule",
   tasks: "Tasks",
@@ -119,7 +120,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   subgroups: "Sub groups",
 };
 
-/** Which pages an Information module shows: chosen ones (in order), all of a circle's, a circle's proposals waiting for consent, or the most recently edited (of a circle, or the whole wiki). */
+/** Which pages a Filtered Documents module shows: chosen ones (in order), all of a circle's, a circle's proposals waiting for consent, or the most recently edited (of a circle, or the whole wiki). */
 export type InfoFilter =
   | { kind: "pages"; pageIds: string[] }
   | { kind: "circle"; circleId: string }
@@ -159,9 +160,9 @@ export interface CircleModule {
   id: string;
   type: ModuleType;
   size: ModuleSize;
-  /** A heading of its own (Information modules); unset is the type's name. */
+  /** A heading of its own (Filtered Documents and Custom Text modules); unset is the type's name. */
   title?: string;
-  /** Which pages an Information module shows, and how. */
+  /** Which pages a Filtered Documents module shows, and how. */
   info?: { filter: InfoFilter; view: InfoView };
   /** A Tasks module's setting: who can add tasks (unset: the circle's members). */
   tasks?: { add: TaskAdders };
@@ -194,7 +195,7 @@ export const TEXT_BACKGROUND_STYLES: Record<TextBackground, { label: string; col
   blue: { label: "Blue", color: "#e5f0fc" },
 };
 
-/** Custom Text modules (and Information ones) can appear any number of times; the others once. */
+/** Custom Text and Filtered Documents modules can appear any number of times; the others once. */
 export const REPEATABLE_MODULES: ModuleType[] = ["information", "text"];
 export const MAX_TEXT_MODULE = 20_000;
 
@@ -207,8 +208,8 @@ export const moduleTitle = (module: Pick<CircleModule, "type" | "title">, schedu
 
 /**
  * The page's modules: those the circle saved — or, until it saves any, its
- * sections as they were (in their order and sizes): Information as all of
- * the circle's own pages, shown as it chose; Members (but not on
+ * sections as they were (in their order and sizes): Filtered Documents as
+ * all of the circle's own pages, shown as it chose; Members (but not on
  * Community, which is everyone); the duty schedule if it has one; Tasks
  * and Documents unless it turned them off.
  */

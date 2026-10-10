@@ -67,7 +67,7 @@ describe("modulesFor", () => {
 describe("moduleTitle", () => {
   it("prefers the module's own title, then a schedule's name, then the type's name", () => {
     expect(moduleTitle({ type: "information", title: "Stove" })).toBe("Stove");
-    expect(moduleTitle({ type: "information", title: "  " })).toBe("Information");
+    expect(moduleTitle({ type: "information", title: "  " })).toBe("Filtered Documents");
     expect(moduleTitle({ type: "schedule" }, "Chicken duty")).toBe("Chicken duty");
     expect(moduleTitle({ type: "schedule" })).toBe("Duty schedule");
   });
@@ -75,7 +75,7 @@ describe("moduleTitle", () => {
 
 describe("rowSpans", () => {
   it("lays modules in rows and widens the last of each row to fill it", () => {
-    // Information (two thirds) alone now that Members has its own column: full width.
+    // Filtered Documents (two thirds) alone now that Members has its own column: full width.
     expect(rowSpans(["large", "full", "full"])).toEqual([6, 6, 6]);
     expect(rowSpans(["large", "small", "medium", "medium"])).toEqual([4, 2, 3, 3]);
     expect(rowSpans(["small", "small", "large"])).toEqual([2, 4, 6]);

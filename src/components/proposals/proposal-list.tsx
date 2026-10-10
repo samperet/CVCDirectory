@@ -11,7 +11,7 @@ import { ProposalStatusPill, dayOf } from "./proposal-bits";
  * Proposals in lists: a row in the Documents list (beside pages and files —
  * a handshake for an icon, where it stands, its circle, who proposed it, and
  * its opening words or the passage a search matched), and cards for a
- * circle's page (the Information module's "proposals waiting for consent").
+ * circle's page (a Filtered Documents module's "proposals waiting for consent").
  */
 
 export function ProposalListingRow({

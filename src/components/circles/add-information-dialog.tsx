@@ -12,9 +12,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
 /**
- * Add information to a circle: name it, and it becomes a
- * wiki page with the circle as its parent (so it shows in the circle's
- * Information) — then it opens for writing.
+ * Add a page to a circle (from a Filtered Documents module listing its
+ * pages): name it, and it becomes a wiki page with the circle as its parent
+ * (so it shows in the module) — then it opens for writing.
  */
 export function AddInformationDialog({
   circle,
@@ -43,7 +43,7 @@ export function AddInformationDialog({
   });
   return (
     <Dialog
-      title="Add Information"
+      title="Add a page"
       icon={<BookOpen className="h-5 w-5 text-primary" aria-hidden />}
       onClose={onClose}
     >
