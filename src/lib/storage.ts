@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { promises as fs } from "fs";
+import { createReadStream, promises as fs } from "fs";
 import path from "path";
 
 /**
@@ -451,6 +451,142 @@ export async function copyBinary(from: string, to: string): Promise<boolean> {
   if (!object) return false;
   await writeBinary(to, object);
   return true;
+}
+
+// --- Streams (big files: document exports) -----------------------------------
+
+/**
+ * A binary object's bytes as they arrive, for passing a big file on without
+ * holding it whole; null when there's nothing there.
+ */
+export async function readBinaryStream(key: string): Promise<AsyncIterable<Uint8Array> | null> {
+  if (isPersistent()) {
+    try {
+      const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+      const config = r2Config()!;
+      const client = await getS3Client();
+      const result = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+      return (result.Body as AsyncIterable<Uint8Array> | undefined) ?? null;
+    } catch (error) {
+      const name = (error as { name?: string })?.name;
+      if (name === "NoSuchKey" || name === "NotFound") return null;
+      noteDegraded("read", error);
+    }
+  }
+  try {
+    await fs.access(localFilePath(key));
+  } catch {
+    return null;
+  }
+  return createReadStream(localFilePath(key));
+}
+
+/** R2 takes a big object in parts, each (but the last) the same size, at least 5 MiB. */
+const PART_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Write a binary object from bytes as they're made, never holding it whole:
+ * to R2 in 8 MiB parts (a multipart upload; a small object in one write),
+ * or to the local file. Unlike writeBinary it never falls back to local
+ * storage — a failure is the caller's. Returns the bytes written.
+ */
+export async function writeBinaryStream(
+  key: string,
+  chunks: AsyncIterable<Uint8Array>,
+  contentType: string
+): Promise<number> {
+  if (!isPersistent()) return writeStreamToFile(key, chunks, contentType);
+  const s3 = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  const target = { Bucket: config.bucket, Key: key };
+  const parts: { ETag: string; PartNumber: number }[] = [];
+  const pending: Uint8Array[] = [];
+  let pendingBytes = 0;
+  let total = 0;
+  let uploadId: string | undefined;
+  // The first `bytes` of what's waiting, as one piece.
+  const take = (bytes: number) => {
+    const piece = new Uint8Array(bytes);
+    for (let filled = 0; filled < bytes; ) {
+      const head = pending[0];
+      const need = bytes - filled;
+      if (head.length <= need) {
+        piece.set(head, filled);
+        filled += head.length;
+        pending.shift();
+      } else {
+        piece.set(head.subarray(0, need), filled);
+        pending[0] = head.subarray(need);
+        filled += need;
+      }
+    }
+    pendingBytes -= bytes;
+    return piece;
+  };
+  const upload = async (body: Uint8Array) => {
+    uploadId ??= (
+      await client.send(
+        new s3.CreateMultipartUploadCommand({ ...target, ContentType: contentType })
+      )
+    ).UploadId;
+    const PartNumber = parts.length + 1;
+    const { ETag } = await client.send(
+      new s3.UploadPartCommand({ ...target, UploadId: uploadId, PartNumber, Body: body })
+    );
+    parts.push({ ETag: ETag!, PartNumber });
+  };
+  try {
+    for await (const chunk of chunks) {
+      pending.push(chunk);
+      pendingBytes += chunk.length;
+      total += chunk.length;
+      while (pendingBytes >= PART_BYTES) await upload(take(PART_BYTES));
+    }
+    const rest = take(pendingBytes);
+    if (!uploadId) {
+      await client.send(
+        new s3.PutObjectCommand({ ...target, Body: rest, ContentType: contentType })
+      );
+      return total;
+    }
+    if (rest.length) await upload(rest);
+    await client.send(
+      new s3.CompleteMultipartUploadCommand({
+        ...target,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      })
+    );
+    return total;
+  } catch (error) {
+    if (uploadId)
+      await client
+        .send(new s3.AbortMultipartUploadCommand({ ...target, UploadId: uploadId }))
+        .catch(() => undefined);
+    throw error;
+  }
+}
+
+async function writeStreamToFile(
+  key: string,
+  chunks: AsyncIterable<Uint8Array>,
+  contentType: string
+): Promise<number> {
+  const filePath = localFilePath(key);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const handle = await fs.open(filePath, "w");
+  let total = 0;
+  try {
+    for await (const chunk of chunks) {
+      await handle.write(chunk);
+      total += chunk.length;
+    }
+  } finally {
+    await handle.close();
+  }
+  await fs.writeFile(`${filePath}.type`, contentType, "utf-8");
+  return total;
 }
 
 /**

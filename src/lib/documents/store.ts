@@ -111,9 +111,14 @@ async function textStamp(): Promise<string> {
   return raw?.textUpdatedAt ?? "";
 }
 
+/** Every document's searchable text (its current version's), by its id. */
+export async function getDocumentTexts(): Promise<Record<string, string>> {
+  return readTexts(await textStamp());
+}
+
 /** A document's searchable text (its current version's), or "" if none was found in it. */
 export async function getDocumentText(id: string): Promise<string> {
-  return (await readTexts(await textStamp()))[id] ?? "";
+  return (await getDocumentTexts())[id] ?? "";
 }
 
 type Failure = "not_found" | "full" | "conflict";

@@ -6,6 +6,7 @@ import type { PageListing } from "@/lib/wiki/listing";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Highlighted } from "@/components/documents/document-row";
 import { ConsentRecord, consentSummary } from "@/components/circles/consent-record";
+import { RowChoice } from "@/components/documents/export";
 
 /**
  * A written page in the Documents list, beside uploaded files: a book
@@ -13,7 +14,8 @@ import { ConsentRecord, consentSummary } from "@/components/circles/consent-reco
  * stage (proposed or consented; drafts aren't labelled), circle, and when
  * it was last edited, then its opening lines — or, in a search, the passage
  * that matched. Its title opens the page. In a circle's Documents module
- * (`compact`), just the book and the title.
+ * (`compact`), just the book and the title. While documents are being
+ * chosen for an export, the book is a box to tick.
  */
 export function PageListingRow({
   page,
@@ -30,7 +32,11 @@ export function PageListingRow({
   return (
     <li className={compact ? "flex flex-col py-2" : "flex flex-col gap-1 py-4"} data-listing="page">
       <div className="flex items-start gap-3">
-        <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+        <RowChoice
+          item={{ kind: "page", id: page.id }}
+          title={page.title}
+          icon={<BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />}
+        />
         <Link
           href={`/wiki/${page.slug}`}
           className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"

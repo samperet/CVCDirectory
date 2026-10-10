@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Handshake } from "lucide-react";
 import type { ProposalListing } from "@/lib/proposals/shared";
 import { Highlighted } from "@/components/documents/document-row";
+import { RowChoice } from "@/components/documents/export";
 import { ProposalStatusPill, dayOf } from "./proposal-bits";
 
 /**
@@ -31,7 +32,11 @@ export function ProposalListingRow({
       data-listing="proposal"
     >
       <div className="flex items-start gap-3">
-        <Handshake className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+        <RowChoice
+          item={{ kind: "proposal", id: proposal.id }}
+          title={proposal.title}
+          icon={<Handshake className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />}
+        />
         <Link
           href={`/proposals/${proposal.id}`}
           className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"

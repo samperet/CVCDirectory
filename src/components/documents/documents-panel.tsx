@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, BadgeCheck, MessagesSquare, Search, Tags, X } from "lucide-react";
+import { ArrowUpDown, Download, MessagesSquare, Search, Tags, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { BulkUpload } from "@/components/documents/bulk-upload";
 import { DocumentListing } from "@/lib/documents/types";
@@ -20,6 +20,12 @@ import { TypesEditor } from "@/components/documents/types-editor";
 import { PageListingRow } from "@/components/documents/page-row";
 import { NewMenu, WritePageDialog } from "@/components/documents/new-menu";
 import { LinkDialog } from "@/components/documents/link-dialog";
+import {
+  ExportBar,
+  ExportChoiceProvider,
+  useExportChoice,
+  type ExportItem,
+} from "@/components/documents/export";
 import type { PageListing } from "@/lib/wiki/listing";
 import type { ProposalListing } from "@/lib/proposals/shared";
 import { ProposalListingRow } from "@/components/proposals/proposal-list";
@@ -88,7 +94,8 @@ function ForumResult({ hit, terms }: { hit: ForumSearchHit; terms: string[] }) {
  * (and its members can add more); on the Documents page it covers every
  * circle, with a circle filter, and its search takes in the forum too. One
  * **New** button writes a page or uploads a file; the Type filter can keep
- * to pages, to files, or to one type of file.
+ * to pages, to files, or to one type of file. **Export** chooses documents
+ * to download as a zip (`export.tsx`).
  */
 export function DocumentsPanel({
   circleId,
@@ -173,6 +180,7 @@ export function DocumentsPanel({
   const [editingTypes, setEditingTypes] = useState<string | null>(null);
   const [bulk, setBulk] = useState(false);
   const [linking, setLinking] = useState(false);
+  const exportChoice = useExportChoice();
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 250);
@@ -339,6 +347,15 @@ export function DocumentsPanel({
             <Tags className="h-4 w-4" /> Edit types
           </Button>
         ) : null}
+        <Button
+          variant="outline"
+          className="gap-1.5"
+          onClick={exportChoice.choosing ? exportChoice.stop : exportChoice.start}
+          aria-pressed={exportChoice.choosing}
+          title="Download documents as a zip"
+        >
+          <Download className="h-4 w-4" /> Export
+        </Button>
         <NewMenu
           canWrite={canWrite}
           canUpload={circleId ? canUpload : uploadCircles.length > 0}
@@ -424,60 +441,78 @@ export function DocumentsPanel({
         />
       ) : null}
 
-      {isLoading ? (
-        <Loading>Loading documents…</Loading>
-      ) : error ? (
-        <p className="text-sm text-foreground">{(error as Error).message}</p>
-      ) : data && data.items?.length ? (
-        <>
-          {filtered ? (
-            <p className={cn("text-xs text-muted", isFetching && "opacity-60")}>
-              {data.total} {data.total === 1 ? "document" : "documents"}
-              {debounced ? ` matching “${debounced}”` : ""}
-              {data.total > data.items.length ? ` (showing the best ${data.items.length})` : ""}
-            </p>
-          ) : null}
-          <ul className={cn("divide-y divide-border", isFetching && "opacity-60")}>
-            {data.items.map((item) =>
-              item.kind === "proposal" ? (
-                <ProposalListingRow
-                  key={`proposal-${item.id}-${item.updatedAt}`}
-                  proposal={item}
-                  terms={terms}
-                  showCircle={!circleId}
-                  compact={!!circleId}
-                />
-              ) : item.kind === "page" ? (
-                <PageListingRow
-                  key={`page-${item.id}-${item.updatedAt}`}
-                  page={item}
-                  terms={terms}
-                  showCircle={!circleId}
-                  compact={!!circleId}
-                />
-              ) : (
-                <DocumentRow
-                  key={`${item.id}-${item.updatedAt}`}
-                  doc={item}
-                  terms={terms}
-                  showCircle={!circleId}
-                  compact={!!circleId}
-                />
-              )
-            )}
-          </ul>
-        </>
-      ) : (
-        <p className="text-sm text-muted">
-          {filtered
-            ? "No documents match."
-            : circleId
-              ? canUpload || canWrite
-                ? "No documents yet — add the first one with New."
-                : "No documents yet."
-              : "No documents yet."}
-        </p>
-      )}
+      <ExportChoiceProvider value={exportChoice}>
+        {exportChoice.choosing ? (
+          <ExportBar
+            choice={exportChoice}
+            listed={(data?.items ?? []).map(({ kind, id }): ExportItem => ({ kind, id }))}
+            circle={circleId ?? (circle || undefined)}
+            allLabel={
+              circleId
+                ? `Export all of ${circleName ?? "this circle"}'s`
+                : circle
+                  ? `Export all of ${
+                      circles?.find((entry) => entry.id === circle)?.name ?? "the circle"
+                    }'s`
+                  : "Export all documents"
+            }
+          />
+        ) : null}
+        {isLoading ? (
+          <Loading>Loading documents…</Loading>
+        ) : error ? (
+          <p className="text-sm text-foreground">{(error as Error).message}</p>
+        ) : data && data.items?.length ? (
+          <>
+            {filtered ? (
+              <p className={cn("text-xs text-muted", isFetching && "opacity-60")}>
+                {data.total} {data.total === 1 ? "document" : "documents"}
+                {debounced ? ` matching “${debounced}”` : ""}
+                {data.total > data.items.length ? ` (showing the best ${data.items.length})` : ""}
+              </p>
+            ) : null}
+            <ul className={cn("divide-y divide-border", isFetching && "opacity-60")}>
+              {data.items.map((item) =>
+                item.kind === "proposal" ? (
+                  <ProposalListingRow
+                    key={`proposal-${item.id}-${item.updatedAt}`}
+                    proposal={item}
+                    terms={terms}
+                    showCircle={!circleId}
+                    compact={!!circleId}
+                  />
+                ) : item.kind === "page" ? (
+                  <PageListingRow
+                    key={`page-${item.id}-${item.updatedAt}`}
+                    page={item}
+                    terms={terms}
+                    showCircle={!circleId}
+                    compact={!!circleId}
+                  />
+                ) : (
+                  <DocumentRow
+                    key={`${item.id}-${item.updatedAt}`}
+                    doc={item}
+                    terms={terms}
+                    showCircle={!circleId}
+                    compact={!!circleId}
+                  />
+                )
+              )}
+            </ul>
+          </>
+        ) : (
+          <p className="text-sm text-muted">
+            {filtered
+              ? "No documents match."
+              : circleId
+                ? canUpload || canWrite
+                  ? "No documents yet — add the first one with New."
+                  : "No documents yet."
+                : "No documents yet."}
+          </p>
+        )}
+      </ExportChoiceProvider>
 
       {searchingForum && forum.data ? (
         <section

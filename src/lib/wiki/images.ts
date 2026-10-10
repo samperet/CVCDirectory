@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { deleteBinary, mutateJson, readBinary, writeBinary } from "@/lib/storage";
+import { deleteBinary, mutateJson, readBinary, readJson, writeBinary } from "@/lib/storage";
 
 /**
  * Photos in a circle's wiki pages. Each is stored on its own
@@ -13,7 +13,7 @@ const MAX_IMAGES = 2000;
 
 export const isImageId = (id: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
-const imageKey = (circleId: string, id: string) => `wiki-images/${circleId}/${id}`;
+export const imageKey = (circleId: string, id: string) => `wiki-images/${circleId}/${id}`;
 const listKey = (circleId: string) => `wiki-images/${circleId}.json`;
 export const wikiImageUrl = (circleId: string, id: string) =>
   `/api/circles/${circleId}/wiki/images/${id}`;
@@ -51,4 +51,12 @@ export async function saveWikiImage(
 
 export function readWikiImage(circleId: string, id: string) {
   return readBinary(imageKey(circleId, id));
+}
+
+/** A circle's photos: each one's id and type (for an export of its pages). */
+export async function listWikiImages(circleId: string) {
+  return normalize(await readJson(listKey(circleId))).map(({ id, contentType }) => ({
+    id,
+    contentType,
+  }));
 }

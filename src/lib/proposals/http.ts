@@ -20,7 +20,9 @@ import { canEditPage, canViewPage, visiblePages } from "@/lib/wiki/access";
 import { listDocuments, setDocumentDecisions } from "@/lib/documents/store";
 import { currentVersion, type DocumentRecord } from "@/lib/documents/types";
 import { shortDate, todayInVermont } from "@/lib/time";
-import { canConsentProposal, canEditProposal } from "./access";
+import { canConsentProposal, canEditProposal, canSeeSnapshot } from "./access";
+
+export { canSeeSnapshot };
 import { fileMirror, pageMirror } from "./mirror";
 import { addSnapshots, listProposals, replaceSnapshots, type Failure } from "./store";
 import { discardSnapshots, takeSnapshots } from "./snapshots";
@@ -117,25 +119,6 @@ export function changedSinceSnapshot(
   const snapshot = snapshotOf(proposal, ref);
   const now = versionNow(ref, pages, documents);
   return !!snapshot && now !== null && now !== snapshot.version;
-}
-
-/**
- * Whether you may see a snapshot: a file's, anyone signed in (as with
- * documents); a page's, whoever can see the page — or, once it's gone,
- * whoever could have seen it as it was.
- */
-export function canSeeSnapshot(
-  snapshot: DocumentSnapshot,
-  ctx: ProposalSession,
-  pages: WikiPage[]
-) {
-  if (snapshot.kind === "file") return true;
-  const page = pages.find((entry) => entry.id === snapshot.id);
-  if (page) return canViewPage(ctx.user, ctx.directory, page);
-  return (
-    !!snapshot.page &&
-    canViewPage(ctx.user, ctx.directory, { ...snapshot.page, edit: { kind: "keeper" } })
-  );
 }
 
 /** Where a snapshot opens: a page's or a link's on its own page, a file's as the file. */

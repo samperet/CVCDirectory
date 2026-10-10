@@ -43,7 +43,9 @@ browser component ──apiFetch──▶ /api/... route ──▶ lib/<feature>
 `/tmp/.data` on Vercel) when the `R2_*` variables are missing, so the app runs locally with no setup.
 
 - `readJson(key)` / `writeJson(key, value)` / `deleteJson(key)`; `readBinary`/`writeBinary` for
-  files and images; `presignedDownloadUrl` for document downloads.
+  files and images; `presignedDownloadUrl` for document downloads; `copyBinary` (within R2) for
+  proposals' snapshots of files; `readBinaryStream`/`writeBinaryStream` for big files never held
+  whole — the latter a multipart upload in equal 8 MiB parts, as R2 requires (document exports).
 - **`mutateJson(key, change)`** reads with an ETag and writes only if unchanged, retrying a few
   times — safe across several server instances. **Every store writes through it.** `change` is
   synchronous and may run more than once, so it does no I/O; a no-write result is `{ write: false }`.
@@ -65,6 +67,7 @@ Main documents (see each store's `KEY`):
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `proposals/proposals.json` | Proposals: what's put to which circle, about which documents (with their snapshots' details), and its consent at a meeting | `lib/proposals` |
 | `proposals/snapshots/<snapshotId>.json`, `proposals/snapshots/<snapshotId>` | Snapshots' copies: a page's title and text, or a link's text; a file itself. Written once, never changed | `lib/proposals` (`snapshots.ts`) |
+| `exports/index.json`, `exports/<id>.zip` | Documents exported as a zip (written in parts by `writeBinaryStream`), kept a day for whoever made them; older ones deleted when the next is made | `lib/documents` (`export.ts`) |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
 | `logs/<circleId>.json` | Circle logs: short updates and replies, never notified | `lib/log` |
 | `circles/finances/<circleId>.json`, `circles/finances/<circleId>/receipts/<expenseId>` | A circle's Finances: expenses (whole cents) and a budget per year; each expense's receipt (photo or PDF) | `lib/finances` |

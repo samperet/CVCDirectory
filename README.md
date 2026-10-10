@@ -326,6 +326,21 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `/wiki?keeper=…`, `?new=…`) now lead here; pages keep their `/wiki/<slug>` addresses. A rule of
   thumb: anything people will keep improving is best written as a page; a fixed record, or anything
   from outside, uploaded as a file.
+- **Export** – the **Export** button (on the Documents page and in a circle's Documents section)
+  turns each row's icon into a box to tick: tick some, or the box for **all those listed**, and
+  **Download zip** — or **Export all documents** (all of a circle's, on its page or with the circle
+  filter). The zip has a folder per circle: written pages as Markdown files (details first, as
+  front matter; `[[links]]` to pages and files in the zip made relative, others to the app;
+  collapsible sections as `<details>`, callouts and embedded pages quoted, highlights as `<mark>`,
+  polls with their votes, proposals in a page quoted with where they stand, photos in `images/`,
+  a meeting's transcript at the end), files as their latest version, links as a note of where they
+  go (with a Google file's text), and proposals (in `Proposals/`) as Markdown with their documents
+  and consent; a README lists everything by circle, and anything that couldn't be included. Only
+  what the reader can see goes in. The zip is made into storage — each file streamed through, in
+  8 MiB parts — and downloads from there, so neither size nor connection speed is limited by how
+  long a request may last (`POST /api/documents/export` with `{items}` or `{all, circle?}`, then
+  `GET /api/documents/export/<id>`; `lib/documents/export.ts`, `export-markdown.ts`). Up to 2 GB
+  of files at a time; an export is kept a day, for whoever made it.
 - **Turn into a page** – a file with text (Word, PDF, slides, text) has a book icon among its
   actions, for anyone who can start pages in its circle: its text becomes a page with the file's
   title, kept by the file's circle and opening with a link back to the file, which stays as it is.

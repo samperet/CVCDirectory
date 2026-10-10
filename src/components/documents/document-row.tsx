@@ -38,6 +38,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { DetailsFields, type DetailsForm } from "@/components/documents/details-fields";
 import { shortDate } from "@/lib/time";
 import { ConsentRecord, consentSummary } from "@/components/circles/consent-record";
+import { RowChoice } from "@/components/documents/export";
 import { ConsentDialog } from "@/components/proposals/consent-dialog";
 import { ProposalFormDialog } from "@/components/proposals/proposal-form";
 import {
@@ -587,10 +588,16 @@ export function DocumentRow({
       {/* The title on its own line, never cut off; its details and actions on the line below
           (in a circle's module, just the title, with the actions beside it). */}
       <div className="flex items-start gap-3">
-        <FileIcon
-          contentType={version.contentType}
-          link={version.link?.kind}
-          className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+        <RowChoice
+          item={{ kind: "file", id: doc.id }}
+          title={doc.title}
+          icon={
+            <FileIcon
+              contentType={version.contentType}
+              link={version.link?.kind}
+              className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+            />
+          }
         />
         <a
           href={version.link?.url ?? fileUrl(doc)}
