@@ -216,7 +216,7 @@ export function LoginClient() {
                 </button>
               </div>
               <p className="text-center text-xs text-muted">
-                The link and code work once, for 30 minutes. Nothing there? Check your spam folder.
+                The link and code work once, for a day. Nothing there? Check your spam folder.
               </p>
             </form>
           ) : (

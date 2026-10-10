@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, VIEW_AS_COOKIE, authSecret } from "@/lib/auth/secret";
+import {
+  SESSION_COOKIE,
+  SESSION_RENEW_AFTER_MS,
+  SESSION_TTL_MS,
+  VIEW_AS_COOKIE,
+  authSecret,
+  sessionCookieAttributes,
+} from "@/lib/auth/secret";
 
 /**
  * Signed-out visitors see only the sign-in page. Every other page redirects
@@ -9,6 +16,10 @@ import { SESSION_COOKIE, VIEW_AS_COOKIE, authSecret } from "@/lib/auth/secret";
  *
  * While an admin is viewing the app as another resident, every change is
  * refused here, so viewing as someone can never post or edit in their name.
+ *
+ * Each visit renews the session (once it's a day old) for another 400 days,
+ * so residents stay signed in as long as they keep coming back — except on
+ * the sign-in and sign-out routes, which set the cookie themselves.
  */
 
 /** Requests allowed to change things while viewing as someone: ending the view, and signing out. */
@@ -58,26 +69,51 @@ function constantTimeEqual(a: string, b: string) {
   return diff === 0;
 }
 
-async function hasValidSession(value: string | undefined): Promise<boolean> {
-  if (!value) return false;
+type Session = { userId: string; expiresAt: number };
+
+async function validSession(value: string | undefined): Promise<Session | null> {
+  if (!value) return null;
   try {
     authSecret();
   } catch {
     console.error("[auth] middleware has no session signing key; set AUTH_SECRET");
-    return false; // no signing key configured: nobody is signed in
+    return null; // no signing key configured: nobody is signed in
   }
   const lastDot = value.lastIndexOf(".");
-  if (lastDot === -1) return false;
+  if (lastDot === -1) return null;
   const payload = value.slice(0, lastDot);
   const [userId, expiresAtRaw] = payload.split(".");
   const expiresAt = Number(expiresAtRaw);
-  if (!userId || !Number.isFinite(expiresAt) || expiresAt < Date.now()) return false;
-  return constantTimeEqual(value.slice(lastDot + 1), await hmacHex(payload));
+  if (!userId || !Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+  return constantTimeEqual(value.slice(lastDot + 1), await hmacHex(payload))
+    ? { userId, expiresAt }
+    : null;
+}
+
+/** On to the page or route — with the session renewed, if it's a day old and this may. */
+async function onward(request: NextRequest, session: Session | null) {
+  const response = NextResponse.next();
+  const { pathname } = request.nextUrl;
+  const settingItself = pathname.startsWith("/api/auth/") || pathname.startsWith("/login");
+  if (
+    session &&
+    !settingItself &&
+    session.expiresAt - Date.now() < SESSION_TTL_MS - SESSION_RENEW_AFTER_MS
+  ) {
+    const payload = `${session.userId}.${Date.now() + SESSION_TTL_MS}`;
+    response.cookies.set(
+      SESSION_COOKIE,
+      `${payload}.${await hmacHex(payload)}`,
+      sessionCookieAttributes()
+    );
+  }
+  return response;
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  const session = await validSession(request.cookies.get(SESSION_COOKIE)?.value);
+  if (PUBLIC_PATHS.has(pathname)) return onward(request, session);
   // A sign-in link, and the page it opens (the token is the key; using it takes a POST).
   if (/^\/(api\/auth\/link|login)\/[A-Za-z0-9_-]{20,64}$/.test(pathname))
     return NextResponse.next();
@@ -86,7 +122,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   // A new member's welcome page, before they can sign in: its signed token is the key.
   if (/^\/(api\/)?join\/[\w.-]+(\/|$)/.test(pathname)) return NextResponse.next();
-  if (await hasValidSession(request.cookies.get(SESSION_COOKIE)?.value)) {
+  if (session) {
     if (
       request.cookies.has(VIEW_AS_COOKIE) &&
       !READ_METHODS.has(request.method) &&
@@ -103,7 +139,7 @@ export async function middleware(request: NextRequest) {
         { status: 403 }
       );
     }
-    return NextResponse.next();
+    return onward(request, session);
   }
 
   if (pathname.startsWith("/api/")) {

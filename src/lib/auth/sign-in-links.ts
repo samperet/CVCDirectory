@@ -4,18 +4,19 @@ import { authSecret } from "./secret";
 
 /**
  * Sign-in by email: each request makes a link and a six-digit code, sent to
- * the resident's directory address. Either one signs in, once, within 30
- * minutes — the link on the device that opens it, the code typed on the
- * device that asked (for an app added to a phone's home screen, which
- * doesn't share the browser's sign-in). Only keyed hashes of the token and
- * code are stored. A resident can ask for a few links an hour, and five
- * wrong codes spoil their open links, so a code can't be guessed. Signing in
- * clears that person's other links — they're spent, and so is the count.
+ * the resident's directory address. Either one signs in, once, within a day
+ * (so yesterday's email still works) — the link on the device that opens
+ * it, the code typed on the device that asked (for an app added to a
+ * phone's home screen, which doesn't share the browser's sign-in). Only
+ * keyed hashes of the token and code are stored. A resident can ask for a
+ * few links an hour, and five wrong codes spoil their open links, so a code
+ * can't be guessed. Signing in clears that person's other links — they're
+ * spent, and so is the count.
  */
 
 // "-2": the count started over on 2026-10-05 (the first file is left as it was).
 const KEY = "auth/sign-in-links-2.json";
-export const LINK_TTL_MS = 30 * 60 * 1000;
+export const LINK_TTL_MS = 24 * 60 * 60 * 1000;
 export const MAX_LINKS_PER_HOUR = 5;
 export const MAX_CODE_ATTEMPTS = 5;
 

@@ -6,6 +6,26 @@ export const SESSION_COOKIE = "cvc_session";
 /** Set while an admin is viewing the app as another resident (read-only). */
 export const VIEW_AS_COOKIE = "cvc_view_as";
 
+/**
+ * How long a session lasts: 400 days, the longest a browser keeps a cookie.
+ * Each visit renews it (at most once a day, in the middleware), so residents
+ * stay signed in for as long as they keep coming back.
+ */
+export const SESSION_TTL_MS = 400 * 24 * 60 * 60 * 1000;
+/** A session is renewed on a visit once it's this old. */
+export const SESSION_RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/** The session cookie's attributes (the sign-in routes and the middleware set it alike). */
+export function sessionCookieAttributes() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: Math.floor(SESSION_TTL_MS / 1000),
+  };
+}
+
 const DEV_SECRET = "cvc-directory-insecure-dev-secret";
 
 /**

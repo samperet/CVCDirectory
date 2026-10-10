@@ -107,7 +107,7 @@ contact details or unit numbers.
 
 - The email (`POST /api/auth/link`) goes to the resident's address **in the directory**, never one
   typed in; the page shows it half-hidden (`c•••@example.org`). It holds a **link** and a
-  **six-digit code**. Either signs in, once, within 30 minutes: the link on whatever device opens
+  **six-digit code**. Either signs in, once, within a day: the link on whatever device opens
   it (`/login/<token>`), the code typed on the device that asked (`POST /api/auth/code`) — for an
   app added to a phone's home screen, which doesn't share the browser's sign-in.
 - Opening a link signs in straight away and goes on to the dashboard (or wherever the link was
@@ -155,8 +155,9 @@ contact details or unit numbers.
   use the Fraunces serif (`font-display`), and the signed-in dashboard greets residents by first name
   on the same green band.
 
-Session cookies last 90 days and are
-signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SECRET_ACCESS_KEY`
+Session cookies last 400 days — the longest a browser keeps one — and each visit renews them (once
+they're a day old, in the middleware), so residents stay signed in for as long as they keep coming
+back; signing out ends it. They're signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SECRET_ACCESS_KEY`
 (never the public development default), and with neither it refuses to create sessions. Setting
 `AUTH_SECRET` explicitly is still recommended.
 

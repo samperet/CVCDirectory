@@ -1,19 +1,24 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { CommunityUser, getUser, getUserForPerson } from "./users";
-import { SESSION_COOKIE, VIEW_AS_COOKIE, authSecret } from "./secret";
+import {
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+  VIEW_AS_COOKIE,
+  authSecret,
+  sessionCookieAttributes,
+} from "./secret";
 import { isAdmin } from "./admins";
 import { loadAdmins } from "./admin-store";
 import { readDirectory } from "@/lib/directory/store";
 
 /**
  * Session cookies are `userId.expiresAtMs.hmac` signed with AUTH_SECRET, and
- * are issued only after a resident signs in with an emailed link or code. Set
+ * are issued only after a resident signs in with an emailed link or code.
+ * They last 400 days and each visit renews them (`SESSION_TTL_MS`). Set
  * AUTH_SECRET in production so sessions cannot be forged with the public
- * fallback secret. The edge middleware verifies the same format.
+ * fallback secret. The edge middleware verifies (and renews) the same format.
  */
-
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 90;
 
 function sign(payload: string) {
   return createHmac("sha256", authSecret()).update(payload).digest("hex");
@@ -47,14 +52,7 @@ export function parseSessionValue(value: string | undefined): string | null {
 }
 
 export function sessionCookieOptions() {
-  return {
-    name: SESSION_COOKIE,
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
-  };
+  return { name: SESSION_COOKIE, ...sessionCookieAttributes() };
 }
 
 export function sessionCookieName() {

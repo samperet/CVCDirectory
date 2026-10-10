@@ -48,10 +48,11 @@ export function sendSignInEmail(
 ) {
   const site = siteUrl();
   const link = `${site}/login/${token}`;
-  const minutes = LINK_TTL_MS / 60_000;
+  const hours = LINK_TTL_MS / 3_600_000;
+  const lifetime = hours === 24 ? "a day" : hours >= 1 ? `${hours} hours` : `${hours * 60} minutes`;
   const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
   const first = person.displayName.split(/\s+/)[0];
-  const note = `The button and code work once, for ${minutes} minutes. If you didn't ask to sign in, ignore this email — nobody can sign in without it.`;
+  const note = `The button and code work once, for ${lifetime}. If you didn't ask to sign in, ignore this email — nobody can sign in without it.`;
   const html = `<div style="text-align:center;padding:12px 0 4px">
 <img src="${escapeHtml(
     `${site}/CVC.png`
