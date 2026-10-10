@@ -8,6 +8,7 @@ import {
 } from "./store";
 import { vapidKeys, vapidSubject } from "./vapid";
 import { emailNotification } from "@/lib/email/send";
+import { PUSH_ONLY_TOPICS } from "@/lib/email/shared";
 
 type Message = {
   topic: Topic;
@@ -20,7 +21,7 @@ type Message = {
   onlyUserIds?: string[];
   /** Deliver regardless of preferences, by push only (the "send a test" button; bug reports, to the admins). */
   ignorePreferences?: boolean;
-  /** Push only, never emailed (circle forum messages). */
+  /** Push only, never emailed (as for every push-only topic). */
   skipEmail?: boolean;
 };
 
@@ -31,10 +32,14 @@ type Message = {
  * the person who posted it. `onlyUserIds` narrows it (e.g. to a discussion's
  * participants). Never throws and never takes long: a notification that
  * can't be delivered must not break or stall the post that caused it. A
- * test push (`ignorePreferences`) isn't emailed.
+ * test push (`ignorePreferences`), one marked `skipEmail`, and one on a
+ * push-only topic (`PUSH_ONLY_TOPICS`) aren't emailed — whatever a resident
+ * once saved.
  */
 export async function notify(message: Message) {
-  await Promise.all([push(message), message.ignorePreferences ? null : emailNotification(message)]);
+  const email =
+    !message.ignorePreferences && !message.skipEmail && !PUSH_ONLY_TOPICS.includes(message.topic);
+  await Promise.all([push(message), email ? emailNotification(message) : null]);
 }
 
 async function push(message: Message) {

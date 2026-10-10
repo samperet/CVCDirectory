@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { Bug, Lightbulb } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -53,7 +54,11 @@ export function LadybugButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-30 grid h-11 w-11 place-items-center rounded-full border border-border bg-surface shadow-elev transition hover:-translate-y-0.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden"
+        className={cn(
+          "fixed bottom-4 right-4 z-30 grid h-11 w-11 place-items-center rounded-full border border-border bg-surface shadow-elev transition hover:-translate-y-0.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring print:hidden",
+          // On a phone it would cover a conversation's Send button.
+          pathname.startsWith("/messages/") && "max-md:hidden"
+        )}
         aria-label="Report a bug or request a feature"
         title="Report a bug or request a feature"
         data-ladybug

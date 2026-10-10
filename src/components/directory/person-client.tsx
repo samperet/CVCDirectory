@@ -7,7 +7,19 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "@/components/layout/back-link";
-import { Cake, Eye, Home, LogOut, Mail, Merge, Pencil, Phone, Split, Trash2 } from "lucide-react";
+import {
+  Cake,
+  Eye,
+  Home,
+  LogOut,
+  Mail,
+  Merge,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Split,
+  Trash2,
+} from "lucide-react";
 import { PersonSkills } from "@/components/skills/person-skills";
 import { apiFetch } from "@/lib/api-client";
 import { useSession, useViewAs } from "@/lib/auth/client";
@@ -15,6 +27,7 @@ import { unitsOf } from "@/lib/directory/households";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { RoleTag, digits, membershipsByPerson } from "@/components/directory/directory-client";
 import { Avatar } from "@/components/profile/avatar";
+import { useOnline } from "@/components/chat/presence";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
@@ -29,8 +42,9 @@ export function PersonClient({ personId: requested }: { personId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useSession();
+  const { user, viewAs: viewing } = useSession();
   const viewAs = useViewAs();
+  const isOnline = useOnline();
   const [combining, setCombining] = useState("");
   const { data, isLoading, error } = useDirectoryQuery();
   // An old link to an entry that's since been combined into one profile opens that profile.
@@ -126,7 +140,12 @@ export function PersonClient({ personId: requested }: { personId: string }) {
 
       <Card className="flex flex-col gap-5">
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
-          <Avatar name={person.displayName} photoUrl={person.photoUrl} size={96} />
+          <Avatar
+            name={person.displayName}
+            photoUrl={person.photoUrl}
+            size={96}
+            online={isOnline(person.id)}
+          />
           <div className="flex flex-col items-center gap-1.5 sm:items-start">
             <h1 className="text-2xl font-semibold text-foreground">{person.displayName}</h1>
             <p className="text-sm text-muted">
@@ -135,6 +154,13 @@ export function PersonClient({ personId: requested }: { personId: string }) {
                 : `Unit ${person.unit}`}
             </p>
             <RoleTag person={person} />
+            {!isMe && !viewing ? (
+              <Button asChild size="sm" className="mt-1 gap-1.5">
+                <Link href={`/messages/${person.id}`} data-message-person>
+                  <MessageCircle className="h-4 w-4" /> Message
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
 

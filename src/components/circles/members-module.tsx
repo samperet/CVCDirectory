@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api-client";
 import type { Person } from "@/lib/directory/types";
 import type { Circle, CircleApplication, CircleSeat, JoinPolicy } from "@/lib/circles/types";
 import { Avatar } from "@/components/profile/avatar";
+import { useOnline } from "@/components/chat/presence";
 import { DutyScheduleModule, useCircleSchedule } from "@/components/circles/duty-schedule";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import {
@@ -97,6 +98,7 @@ function MemberRow({
   canManage: boolean;
 }) {
   const confirm = useConfirm();
+  const isOnline = useOnline();
   const [editing, setEditing] = useState(false);
   const [position, setPosition] = useState(seat.position ?? "");
   const [termEnds, setTermEnds] = useState(seat.termEnds ?? "");
@@ -119,7 +121,12 @@ function MemberRow({
   return (
     <li className="flex flex-col gap-2 py-2.5">
       <div className="flex items-center gap-2.5">
-        <Avatar name={name} photoUrl={person?.photoUrl} size={32} />
+        <Avatar
+          name={name}
+          photoUrl={person?.photoUrl}
+          size={32}
+          online={isOnline(seat.personId)}
+        />
         <div className="min-w-0 flex-1">
           {seat.personId ? (
             <Link

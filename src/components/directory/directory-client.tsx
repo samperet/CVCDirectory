@@ -20,6 +20,7 @@ import { MONTHS } from "@/lib/profiles/months";
 import { cn } from "@/lib/utils";
 import { sentence } from "@/lib/text";
 import { Avatar } from "@/components/profile/avatar";
+import { useOnline } from "@/components/chat/presence";
 import { useSession } from "@/lib/auth/client";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -315,6 +316,7 @@ export function AddPerson({
 /** The directory as a list: each unit, then the people in it. Details (phone, email, birthday) are on each person's page. */
 function Residents({ people, circles }: { people: Person[]; circles: Circle[] }) {
   const { user } = useSession();
+  const isOnline = useOnline();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   // People listed as not living on site (e.g. owners who rent their unit out) are hidden unless asked for.
@@ -412,7 +414,12 @@ function Residents({ people, circles }: { people: Person[]; circles: Circle[] })
                         href={`/directory/${person.id}`}
                         className="group flex items-center gap-2 rounded-full pr-1 hover:text-foreground"
                       >
-                        <Avatar name={person.displayName} photoUrl={person.photoUrl} size={28} />
+                        <Avatar
+                          name={person.displayName}
+                          photoUrl={person.photoUrl}
+                          size={28}
+                          online={isOnline(person.id)}
+                        />
                         <span className="font-medium text-foreground underline-offset-4 group-hover:underline">
                           {person.displayName}
                         </span>

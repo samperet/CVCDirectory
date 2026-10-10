@@ -58,7 +58,7 @@ export function UserMenu() {
         aria-label={`Account menu for ${user.name}`}
       >
         <Avatar name={user.name} photoUrl={user.photoUrl} size={24} />
-        <span>{user.name}</span>
+        <span className="max-w-[6rem] truncate sm:max-w-[10rem]">{user.name}</span>
       </Button>
 
       {open ? (

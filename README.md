@@ -224,6 +224,29 @@ session is, so admin status is checked server-side on every request; the user me
 
 Authors always come from the signed-in session, never from the request body.
 
+## Messages & who's online
+
+- **Who's online** – a green dot on residents' pictures (the directory, their page, circles'
+  Members, Messages) while they have the app open. Each signed-in tab checks in every minute while
+  it's being looked at, and once more as it closes, which takes you off at once; anyone not heard
+  from for three minutes is offline. Everyone is shown (there's no hiding). One document,
+  `presence/online.json`; a check-in soon after the last isn't written again
+  (`lib/presence/store.ts`; `POST /api/presence` answers who's online and your unread count, `GET`
+  only who's online — what an admin viewing as someone gets).
+- **Messages** (`/messages`, the speech bubble in the header, with how many conversations are
+  unread) – private messages between two residents: **Online now**, **New message** to anyone in
+  the directory, and your conversations; `/messages/<personId>` is a conversation (beside the list
+  on wide screens), and a resident's page has **Message**. Enter sends (Shift+Enter for a new
+  line); you can delete your own messages (for both of you). While it's open the page asks every
+  few seconds whether anything's new and reads a conversation again only when it has changed; a
+  conversation you're looking at is marked read. Each conversation keeps its last 500 messages
+  (`chat/conversations/<a>-<b>.json`, the two person ids sorted), and each person has a list of
+  theirs (`chat/people/<personId>.json`: who with, the last message, when they read it) — gone
+  when they leave the directory. The other person gets a push notification (topic **Messages**,
+  never emailed), which opens the conversation. Messages are private: an admin viewing the app as
+  someone can't read theirs (`lib/chat`; `GET /api/chat`, `GET`/`POST
+  /api/chat/with/<personId>`, `DELETE …/<messageId>`).
+
 ## Directory & Skills
 
 - **Directory** (`/directory`) – a list of units, each with its residents stacked beneath (and
@@ -787,7 +810,8 @@ from then on, so re-importing the directory never overwrites circle changes.
   about under **Email me about** on their profile; until they do, they get discussions, replies,
   circle requests, tasks, polls, and comments on their pages (not photos, appreciations,
   recommendations, the loan library, or documents). Nobody is emailed about their own posts, and
-  a circle's Log never emails. Every email links to the thing itself and has a **Stop them** link
+  a circle's Log never emails; circle forum messages and private messages are app notifications
+  only (`PUSH_ONLY_TOPICS`), whatever was once saved. Every email links to the thing itself and has a **Stop them** link
   (and a one-click `List-Unsubscribe` header) that turns that topic off without signing in — a
   token signed with the app's secret. Choices live in `email/preferences.json`, by person id.
 - **Test mode** – admins open **Email** in the account menu (`/admin/email`). Test mode starts

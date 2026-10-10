@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { createReadStream, promises as fs } from "fs";
 import path from "path";
+import type { S3Client } from "@aws-sdk/client-s3";
 
 /**
  * Shared JSON-document storage. Documents live in Cloudflare R2 (S3-compatible
@@ -208,19 +209,28 @@ function describeConfigOnce(config: R2Config) {
   );
 }
 
+/** One client per server, reused: a new one for each call would open new connections each time. */
+let cachedClient: { account: string; s3: S3Client } | null = null;
+
 async function getS3Client() {
-  const { S3Client } = await import("@aws-sdk/client-s3");
+  const { S3Client: Client } = await import("@aws-sdk/client-s3");
   const config = r2Config();
   if (!config) throw new Error("R2 is not configured");
   describeConfigOnce(config);
-  return new S3Client({
-    region: "auto",
-    endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-    },
-  });
+  const account = `${config.accountId}:${config.accessKeyId}`;
+  if (cachedClient?.account !== account)
+    cachedClient = {
+      account,
+      s3: new Client({
+        region: "auto",
+        endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: config.accessKeyId,
+          secretAccessKey: config.secretAccessKey,
+        },
+      }),
+    };
+  return cachedClient.s3;
 }
 
 async function readJsonFromR2(key: string): Promise<unknown | null> {

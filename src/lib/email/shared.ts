@@ -25,12 +25,13 @@ export const DEFAULT_EMAIL_PREFERENCES: Preferences = {
   proposals: true,
   wiki: true,
   tasks: true,
-  // Circle forum messages are app notifications only.
+  // Circle forum messages and private messages are app notifications only.
   groups: false,
+  messages: false,
 };
 
 /** Topics that are never emailed as notifications (and aren't offered under "Email me about"). */
-export const PUSH_ONLY_TOPICS: Topic[] = ["groups"];
+export const PUSH_ONLY_TOPICS: Topic[] = ["groups", "messages"];
 
 export const emailPreferencesFor = (saved: Partial<Preferences> | undefined): Preferences => ({
   ...DEFAULT_EMAIL_PREFERENCES,

@@ -78,6 +78,8 @@ Main documents (see each store's `KEY`):
 | `push/subscriptions.json`, `push/preferences.json`, `auth/*` | Devices, notification choices, accounts, sign-in links (hashed), sign-in log | `lib/push`, `lib/auth` |
 | `email/settings.json`, `email/preferences.json`, `email/log.json`, `email/quota.json` | Test mode and allowed addresses, each person's email choices, recent sends, the free-plan counts (per sender: Brevo, Resend) | `lib/email` |
 | `groups/<circleId>/index.json`, `groups/<circleId>/threads/<id>.json`, `groups/<circleId>/polls/<id>.json` | Circle forums: conversations, their messages, polls | `lib/groups` |
+| `presence/online.json` | Who's online: each person's last check-in (gone three minutes after it) | `lib/presence` |
+| `chat/conversations/<a>-<b>.json`, `chat/people/<personId>.json` | Private messages between two people (their last 500); each person's list of conversations and what they've read | `lib/chat` |
 
 ## Who's who
 

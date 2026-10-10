@@ -24,6 +24,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   wiki: true,
   tasks: true,
   groups: true,
+  messages: true,
 };
 
 export interface PushSubscriptionRecord {

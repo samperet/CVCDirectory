@@ -19,6 +19,7 @@ export const TOPICS = {
   wiki: "Comments on wiki pages you've written or commented on",
   tasks: "Tasks given to you, and comments on tasks you're part of",
   groups: "New messages in your circles' forums",
+  messages: "Messages sent to you",
 } as const;
 
 export type Topic = keyof typeof TOPICS;

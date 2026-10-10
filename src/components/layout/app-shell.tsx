@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { MessagesButton, PresenceHeartbeat } from "@/components/chat/presence";
 import {
   Menu,
   Search,
@@ -205,6 +206,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             <div className="flex min-w-0 items-center gap-2 xl:hidden">
               <SearchButton active={pathname === "/search"} open={searching} onOpen={openSearch} />
+              {viewAs ? null : <MessagesButton active={pathname.startsWith("/messages")} />}
               <UserMenu />
               <Button
                 variant="outline"
@@ -254,6 +256,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   )}
               </nav>
               <SearchButton active={pathname === "/search"} open={searching} onOpen={openSearch} />
+              {viewAs ? null : <MessagesButton active={pathname.startsWith("/messages")} />}
               <UserMenu />
             </div>
           </div>
@@ -297,6 +300,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
         <AppreciationsFooter />
         <LadybugButton />
+        <PresenceHeartbeat />
         {searching && user ? <SearchPalette onClose={closeSearch} /> : null}
       </div>
     </TourProvider>

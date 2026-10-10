@@ -2,6 +2,7 @@ import { removeUsersForPerson } from "@/lib/auth/users";
 import { removePersonFromCircles } from "@/lib/circles/store";
 import { deleteProfile, photoKey, updateProfile } from "@/lib/profiles/store";
 import { removeUserPush } from "@/lib/push/store";
+import { deleteChatIndex } from "@/lib/chat/store";
 import { deleteBinary } from "@/lib/storage";
 import { removePerson } from "./people-store";
 import { unitsOf } from "./households";
@@ -35,14 +36,15 @@ async function removeEntry(entryId: string, importedCircles: Circle[]) {
   await removePerson(entryId);
   await removePersonFromCircles(importedCircles, entryId);
   await removeUserPush(await removeUsersForPerson(entryId));
+  await deleteChatIndex(entryId);
   if (await deleteProfile(entryId)) await deleteBinary(photoKey(entryId));
 }
 
 /**
  * Remove someone from the directory: every entry of their profile. They
  * leave every circle, their account closes (ending any session, so they
- * can't sign in), and their profile, photo, and notifications go too. What
- * they posted stays, under their name.
+ * can't sign in), and their profile, photo, notifications, and list of
+ * conversations go too. What they posted (and sent) stays, under their name.
  */
 export async function removeFromDirectory(
   directory: DirectoryDocument,
