@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listDocuments } from "@/lib/documents/store";
 import { listPages } from "@/lib/wiki/store";
-import { visiblePages } from "@/lib/wiki/access";
 import { wikiSession } from "@/lib/wiki/http";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +9,7 @@ const PAGES = 8;
 const DOCUMENTS = 5;
 
 /**
- * What typing @ in a wiki page finds: the pages you can see (those kept by
+ * What typing @ in a wiki page finds: the pages (those kept by
  * `circle`, the page's keeper, first), and document titles, best matches
  * first — leaving out `page`, the one being written.
  */
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
   };
 
   const all = await listPages();
-  const pages = visiblePages(ctx.user, ctx.directory, all)
+  const pages = all
     .flatMap((page) => {
       const score = page.id === pageId ? null : rank(page.title, page.keeper === circleId);
       return score === null

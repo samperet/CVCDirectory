@@ -1,21 +1,19 @@
 import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
 import { problem } from "@/lib/http";
-import { canEditPage, canManagePage, canViewPage } from "./access";
+import { canEditPage, canManagePage } from "./access";
 import { getPage, isSlug, type Failure, type WikiPage } from "./store";
 import type { Failure as CommentFailure } from "./comments";
 import type { Actor } from "@/lib/auth/actor";
-import { userIdsForPeople } from "@/lib/auth/users";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { Circle } from "@/lib/circles/types";
 import type { CommunityUser } from "@/lib/auth/users";
-import { BOARD_ID, COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 import { canRecordConsent } from "@/lib/circles/consent";
 
 /**
- * The wiki's routes: who's asking (any signed-in resident), and — for a
- * page — whether they can see it, edit it, or look after it (see
- * `access.ts`). A page someone can't see is "not found" to them.
+ * The wiki's routes: who's asking (any signed-in resident, who can see
+ * every page), and — for a page — whether they can edit it or look after it
+ * (see `access.ts`).
  */
 
 type Session = {
@@ -45,8 +43,7 @@ export async function pageContext(
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx;
   const page: WikiPage | null = isSlug(slug) ? await getPage(slug) : null;
-  if (!page || !canViewPage(ctx.user, ctx.directory, page))
-    return { error: wikiProblem("not_found") };
+  if (!page) return { error: wikiProblem("not_found") };
   const canEdit = canEditPage(ctx.user, ctx.directory, page);
   const canManage = canManagePage(ctx.user, ctx.directory, page);
   if (need === "edit" && !canEdit)
@@ -84,22 +81,4 @@ export function commentProblem(reason: CommentFailure) {
     case "full":
       return problem("This page has as many comments as it can hold", 409);
   }
-}
-
-/** Who should hear about a page: everyone (null), or — for a page not everyone can see — those who can. */
-export async function pageAudience(
-  directory: DirectoryDocument,
-  page: Pick<WikiPage, "keeper" | "view">
-): Promise<string[] | null> {
-  if (page.view.kind === "everyone" || isCommunity(page.keeper)) return null;
-  const circles = new Set([
-    page.keeper,
-    BOARD_ID,
-    ...(page.view.kind === "circles" ? page.view.circles : []),
-  ]);
-  if (circles.has(COMMUNITY_ID)) return null;
-  const people = directory.circles
-    .filter((circle) => circles.has(circle.id))
-    .flatMap((circle) => circle.seats.map((seat) => seat.personId));
-  return userIdsForPeople(people);
 }

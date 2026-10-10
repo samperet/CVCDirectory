@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BadgeCheck, BookOpen, Hourglass, Lock } from "lucide-react";
+import { BadgeCheck, BookOpen, Hourglass } from "lucide-react";
 import type { PageListing } from "@/lib/wiki/listing";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Highlighted } from "@/components/documents/document-row";
@@ -43,12 +43,6 @@ export function PageListingRow({
         >
           <Highlighted text={page.title} terms={terms} />
         </Link>
-        {page.restricted ? (
-          <Lock
-            className="mt-1 h-3.5 w-3.5 shrink-0 text-muted"
-            aria-label="Not everyone can see this page"
-          />
-        ) : null}
       </div>
       {compact ? null : (
         <>

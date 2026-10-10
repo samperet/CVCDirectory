@@ -297,7 +297,7 @@ function embedLines(attributes: string, from: From, ctx: ExportContext, depth: n
   const section = attribute(attributes, "section");
   const link = parseWikiLink(target, ctx.circles);
   const page = link.kind === "page" ? findPage(ctx, link.title) : undefined;
-  if (!page) return ["*(A page shown here that's gone, or that you can't see.)*"];
+  if (!page) return ["*(A page shown here that's gone.)*"];
   const href = hrefFor(ctx, from.path, "page", page.id, `/wiki/${page.slug}`);
   const heading = `*From [${escapeLabel(
     section ? `${page.title} › ${section}` : page.title
@@ -470,7 +470,7 @@ export function proposalMarkdown(
       const snapshot = snapshotOf(proposal, ref);
       const inExport = ctx.pathOf(ref.kind, ref.id);
       const shown = !document
-        ? "A document that's gone, or that you can't see"
+        ? "A document that's gone"
         : inExport || document.appPath
           ? `[${escapeLabel(document.title)}](${hrefFor(
               ctx,

@@ -3,7 +3,7 @@ import { fileKey, getDocument } from "@/lib/documents/store";
 import { currentVersion } from "@/lib/documents/types";
 import { notFound, problem, throttled } from "@/lib/http";
 import { joinContext, onboardingProblem } from "@/lib/onboarding/http";
-import { welcomeResources } from "@/lib/onboarding/resources";
+import { openToNewcomers, welcomeResources } from "@/lib/onboarding/resources";
 import { linkExpired } from "@/lib/onboarding/shared";
 import { contentDisposition, presignedDownloadUrl, readBinary } from "@/lib/storage";
 import { getPageById } from "@/lib/wiki/store";
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (resource.kind === "page") {
     const page = await getPageById(resource.pageId);
-    if (!page || page.view.kind !== "everyone") return notFound("Page");
+    if (!page || !openToNewcomers(page)) return notFound("Page");
     return NextResponse.json(
       { title: page.title, body: page.body, updatedAt: page.updatedAt },
       { headers: { "Cache-Control": "private, no-store" } }

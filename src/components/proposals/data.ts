@@ -49,8 +49,7 @@ export const proposalCirclesQuery = () => ({
 /** One of a proposal's snapshots (refreshed with proposals). */
 export const snapshotQuery = (proposalId: string, snapshotId: string) => ({
   queryKey: ["proposals", "snapshot", proposalId.toLowerCase(), snapshotId.toLowerCase()],
-  queryFn: () =>
-    apiFetch<SnapshotView>(`/api/proposals/${proposalId}/snapshots/${snapshotId}`),
+  queryFn: () => apiFetch<SnapshotView>(`/api/proposals/${proposalId}/snapshots/${snapshotId}`),
 });
 
 export const meetingsQuery = (circleId: string) => ({

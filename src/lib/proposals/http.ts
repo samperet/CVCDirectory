@@ -16,13 +16,11 @@ import {
   updatePage,
   type WikiPage,
 } from "@/lib/wiki/store";
-import { canEditPage, canViewPage, visiblePages } from "@/lib/wiki/access";
+import { canEditPage } from "@/lib/wiki/access";
 import { listDocuments, setDocumentDecisions } from "@/lib/documents/store";
 import { currentVersion, type DocumentRecord } from "@/lib/documents/types";
 import { shortDate, todayInVermont } from "@/lib/time";
-import { canConsentProposal, canEditProposal, canSeeSnapshot } from "./access";
-
-export { canSeeSnapshot };
+import { canConsentProposal, canEditProposal } from "./access";
 import { fileMirror, pageMirror } from "./mirror";
 import { addSnapshots, listProposals, replaceSnapshots, type Failure } from "./store";
 import { discardSnapshots, takeSnapshots } from "./snapshots";
@@ -135,22 +133,21 @@ export function documentShown(
   pages: WikiPage[],
   documents: DocumentRecord[]
 ): ProposalDocument {
-  const { user, directory } = ctx;
+  const { directory } = ctx;
   const kept = snapshotOf(proposal, ref);
-  const snapshot =
-    kept && canSeeSnapshot(kept, ctx, pages)
-      ? {
-          snapshotId: kept.snapshotId,
-          title: kept.title,
-          takenAt: kept.takenAt,
-          href: snapshotHref(proposal.id, kept),
-        }
-      : null;
+  const snapshot = kept
+    ? {
+        snapshotId: kept.snapshotId,
+        title: kept.title,
+        takenAt: kept.takenAt,
+        href: snapshotHref(proposal.id, kept),
+      }
+    : null;
   const changed = changedSinceSnapshot(proposal, ref, pages, documents);
   const { kind, id } = ref;
   if (kind === "page") {
     const page = pages.find((entry) => entry.id === id);
-    if (page && canViewPage(user, directory, page))
+    if (page)
       return {
         kind,
         id,
@@ -162,7 +159,7 @@ export function documentShown(
         changed,
       };
     // A page that's gone is still there, as it was, in its snapshot.
-    return snapshot && !page
+    return snapshot
       ? {
           kind,
           id,
@@ -176,7 +173,7 @@ export function documentShown(
       : {
           kind,
           id,
-          title: "A page that's gone or private",
+          title: "A page that's gone",
           href: null,
           circleName: "",
           missing: true,
@@ -208,7 +205,7 @@ export function documentShown(
   };
 }
 
-/** A proposal as the reader sees it (with only the snapshots they may see). */
+/** A proposal as the reader sees it: its documents as they are now, and what they may do with it. */
 export function viewOf(
   proposal: Proposal,
   ctx: ProposalSession,
@@ -218,14 +215,11 @@ export function viewOf(
   const { user, directory } = ctx;
   return {
     ...proposal,
-    snapshots: (proposal.snapshots ?? []).filter((snapshot) =>
-      canSeeSnapshot(snapshot, ctx, pages)
-    ),
     circleName: circleNameOf(directory, proposal.circleId),
     documentsShown: proposal.documents.map((ref) =>
       documentShown(proposal, ref, ctx, pages, documents)
     ),
-    appearsIn: visiblePages(user, directory, pages)
+    appearsIn: pages
       .filter((page) => proposalIdsIn(page.body).includes(proposal.id))
       .map((page) => ({ slug: page.slug, title: page.title })),
     canEdit: canEditProposal(user, directory, proposal),
@@ -281,7 +275,7 @@ export function meetingsOf(
   documents: DocumentRecord[]
 ): MeetingOption[] {
   const today = todayInVermont();
-  const fromPages: MeetingOption[] = visiblePages(ctx.user, ctx.directory, pages)
+  const fromPages: MeetingOption[] = pages
     .filter((page) => page.keeper === circleId)
     .flatMap((page) => {
       const date = meetingDateOf(page);
@@ -362,8 +356,7 @@ export async function resolveMeeting(
   }
   if (choice.kind === "page") {
     const page = (await readPages()).find((entry) => entry.id === choice.id);
-    if (!page || !canViewPage(ctx.user, ctx.directory, page))
-      return { error: "Those meeting notes no longer exist" };
+    if (!page) return { error: "Those meeting notes no longer exist" };
     if (page.keeper !== circleId)
       return { error: `Choose a meeting of ${circleName} — the circle the proposal is to` };
     const date = meetingDateOf(page);
@@ -415,13 +408,13 @@ export async function savePresent(
   await updatePage(notes.slug, ctx.actor, { present: meeting.present });
 }
 
-/** Check the documents a proposal is about exist (and, for pages, that you can see them). */
+/** Check the documents a proposal is about exist. */
 export async function checkDocuments(refs: DocumentRef[], ctx: ProposalSession) {
   if (!refs.length) return null;
   const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
   const missing = refs.some((ref) =>
     ref.kind === "page"
-      ? !pages.some((page) => page.id === ref.id && canViewPage(ctx.user, ctx.directory, page))
+      ? !pages.some((page) => page.id === ref.id)
       : !documents.some((doc) => doc.id === ref.id)
   );
   return missing ? problem("One of those documents no longer exists", 404) : null;

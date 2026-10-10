@@ -10,7 +10,6 @@ import { categorySlug } from "@/lib/resources/slug";
 import { listSkills } from "@/lib/skills/store";
 import { listTasks } from "@/lib/tasks/store";
 import { readPages } from "@/lib/wiki/store";
-import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { occurrences, searchTerms, snippetFor } from "@/lib/search";
 import { excerptOf } from "@/lib/wiki/excerpt";
 import { unmark } from "@/lib/wiki/links";
@@ -109,7 +108,6 @@ function collect<T>(
 export async function searchSite(
   query: string,
   directory: DirectoryDocument,
-  viewer: WikiViewer,
   perGroup = 5
 ): Promise<SearchGroup[]> {
   const terms = searchTerms(query);
@@ -125,7 +123,7 @@ export async function searchSite(
       searchForum(query),
       listRecommendations(),
       listLoanItems(),
-      readPages().then((pages) => visiblePages(viewer, directory, pages)),
+      readPages(),
       listProposals(),
       Promise.all(
         circles

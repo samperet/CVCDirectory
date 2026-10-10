@@ -9,7 +9,6 @@ import {
   CornerDownRight,
   History as HistoryIcon,
   ListTree,
-  Lock,
   MessageSquarePlus,
   Pencil,
   RotateCcw,
@@ -35,9 +34,10 @@ import {
   useQuoteHighlights,
 } from "@/components/wiki/wiki-comments";
 import { WikiEditor } from "@/components/wiki/wiki-editor";
+import { RehomeDialog } from "@/components/wiki/rehome-dialog";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
-import { PageSettings, viewLabel } from "@/components/wiki/page-settings";
+import { PageSettings } from "@/components/wiki/page-settings";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { EditedSinceProposed, StageControls, StagePill } from "@/components/wiki/page-consent";
@@ -139,7 +139,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
   const { user } = useSession();
   const circles = useCircles();
   const key = wikiPageQuery(slug).queryKey;
-  const { data, isLoading, error } = useQuery(wikiPageQuery(slug));
+  const { data, isLoading, error, refetch } = useQuery(wikiPageQuery(slug));
   // The circle that keeps it.
   const circleId = data?.page.keeper ?? "";
   const circle = circles?.find((entry) => entry.id === circleId);
@@ -232,15 +232,26 @@ export function WikiPageClient({ slug }: { slug: string }) {
         variant: "destructive",
       }),
   });
+  // Moving the page to another circle: to one you're in, at once. Only a circle's members can
+  // move pages to it, so for one you're not in a dialog offers to join it first (`rehoming`).
+  const [rehoming, setRehoming] = useState<string | null>(null);
+  const rehomeTo = rehoming ? circles?.find((entry) => entry.id === rehoming) : undefined;
+  const circleName = (id: string) =>
+    circles?.find((entry) => entry.id === id)?.name ?? "the circle";
   const rehome = useMutation({
-    mutationFn: (keeper: string) =>
+    mutationFn: ({ keeper }: { keeper: string; joined?: boolean }) =>
       apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
         method: "PATCH",
         body: JSON.stringify({ keeper }),
       }),
-    onSuccess: ({ page: updated }) => {
+    onSuccess: ({ page: updated }, { keeper, joined }) => {
+      setRehoming(null);
       saved(updated);
-      toast({ title: "Parent circle changed" });
+      toast({
+        title: joined
+          ? `You've joined ${circleName(keeper)}, and the page is theirs now`
+          : "Parent circle changed",
+      });
     },
     onError: (err: Error) =>
       toast({
@@ -249,6 +260,12 @@ export function WikiPageClient({ slug }: { slug: string }) {
         variant: "destructive",
       }),
   });
+  // Where you can move it may have changed since the page was loaded (you've been let into a circle): asked again first.
+  const moveTo = async (keeper: string) => {
+    const allowed = (response?: PageResponse) => response?.canMoveTo?.includes(keeper) ?? true;
+    if (allowed(data) || allowed((await refetch()).data)) rehome.mutate({ keeper });
+    else setRehoming(keeper);
+  };
   const remove = useMutation({
     mutationFn: () => apiFetch(`/api/wiki/pages/${slug}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -426,7 +443,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                   Parent circle
                   <Select
                     value={page.keeper}
-                    onChange={(event) => rehome.mutate(event.target.value)}
+                    onChange={(event) => void moveTo(event.target.value)}
                     disabled={rehome.isPending}
                     className="h-8 max-w-[12rem] rounded-md px-1.5 text-xs"
                   >
@@ -458,7 +475,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
             </>
           }
           onDone={(updated) => {
-            // The editor's copy has the text; settings changed while editing (parent circle, who can see it, consent) are newer here.
+            // The editor's copy has the text; settings changed while editing (parent circle, who can edit it, consent) are newer here.
             saved({
               ...page,
               title: updated.title,
@@ -478,6 +495,22 @@ export function WikiPageClient({ slug }: { slug: string }) {
             saving={setPresent.isPending}
             onSave={(present, date) => setPresent.mutate({ present, meetingDate: date })}
             onClose={() => setChoosingPresent(false)}
+          />
+        ) : null}
+        {rehoming && rehomeTo ? (
+          <RehomeDialog
+            pageTitle={page.title}
+            circle={rehomeTo}
+            moving={rehome.isPending}
+            onJoined={() => rehome.mutate({ keeper: rehoming, joined: true })}
+            onAsked={() => {
+              setRehoming(null);
+              toast({
+                title: `You've asked to join ${rehomeTo.name}`,
+                description: `Once one of its members says yes, you can move “${page.title}” there.`,
+              });
+            }}
+            onClose={() => setRehoming(null)}
           />
         ) : null}
       </div>
@@ -525,17 +558,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
               >
                 {shortDate(page.updatedAt, true)}
               </time>
-              {page.view.kind !== "everyone" ? (
-                <>
-                  <span aria-hidden>·</span>
-                  <span
-                    className="inline-flex items-center gap-0.5"
-                    title={viewLabel(page.view, circles)}
-                  >
-                    <Lock className="h-3 w-3" aria-hidden /> {viewLabel(page.view, circles)}
-                  </span>
-                </>
-              ) : null}
             </p>
             <PresentLine present={page.present} meetingDate={page.meetingDate} />
             <div className="flex flex-wrap items-center justify-center gap-2">

@@ -4,11 +4,11 @@ import { wikiSession } from "@/lib/wiki/http";
 
 export const dynamic = "force-dynamic";
 
-/** The wiki map: how the pages you can see connect — to their parent circles, and by their links. */
+/** The wiki map: how the pages connect — to their parent circles, and by their links. */
 export async function GET() {
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx.error;
-  return NextResponse.json(await buildWikiGraph(ctx.directory, ctx.user), {
+  return NextResponse.json(await buildWikiGraph(ctx.directory), {
     headers: { "Cache-Control": "private, no-store" },
   });
 }

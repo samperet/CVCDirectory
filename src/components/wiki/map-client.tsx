@@ -88,8 +88,7 @@ export function WikiMapClient() {
         <div>
           <SectionHeading icon={Network}>Map</SectionHeading>
           <p className="text-sm text-muted">
-            The wiki&apos;s pages (those you can see) by parent circle, and how they link to each
-            other.
+            The wiki&apos;s pages by parent circle, and how they link to each other.
           </p>
         </div>
         <div className="flex items-center gap-2">

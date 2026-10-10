@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { searchTerms } from "@/lib/search";
+import { possessive } from "@/lib/text";
 import { Loading } from "@/components/ui/status";
 import { Select } from "@/components/ui/select";
 import { DocumentRow, Highlighted } from "@/components/documents/document-row";
@@ -449,7 +450,9 @@ export function DocumentsPanel({
             circle={circleId ?? (circle || undefined)}
             allLabel={
               circleId
-                ? `Export all of ${circleName ?? "this circle"}'s`
+                ? circleName
+                  ? `Export all of ${possessive(circleName)}`
+                  : "Export all of this circle's"
                 : circle
                   ? `Export all of ${
                       circles?.find((entry) => entry.id === circle)?.name ?? "the circle"

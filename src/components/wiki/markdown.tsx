@@ -38,7 +38,7 @@ type LinkData = {
   pageId?: string;
   /** Undefined until the directory loads. */
   circles: CircleRef[] | undefined;
-  /** The wiki's pages (that you can see), once loaded. */
+  /** The wiki's pages, once loaded. */
   pages: WikiPageSummary[] | undefined;
   /** Undefined until loaded (or when the page has no document links). */
   docs: DocRef[] | undefined;

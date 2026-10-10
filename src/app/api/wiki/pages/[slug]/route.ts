@@ -8,7 +8,8 @@ import {
   type WikiPage,
 } from "@/lib/wiki/store";
 import { deletePageComments } from "@/lib/wiki/comments";
-import { pageAudience, pageContext, wikiProblem } from "@/lib/wiki/http";
+import { pageContext, wikiProblem } from "@/lib/wiki/http";
+import { canMovePageTo, circlesYouKeep } from "@/lib/wiki/access";
 import { problem, readBody } from "@/lib/http";
 import { claimAnnouncements, pollIdsIn } from "@/lib/polls/wiki";
 import { userIdsForPeople } from "@/lib/auth/users";
@@ -19,7 +20,11 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { slug: string } };
 
-/** A page, its earlier versions, and whether you can edit it or change its settings. */
+/**
+ * A page, its earlier versions, and whether you can edit it or change its
+ * settings — and, for those who can choose its parent circle, the circles
+ * they can move it to (`canMoveTo`: theirs; for the Board and admins, any).
+ */
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
   if ("error" in ctx) return ctx.error;
@@ -30,6 +35,9 @@ export async function GET(_request: Request, { params }: Params) {
       canEdit: ctx.canEdit,
       canManage: ctx.canManage,
       canConsent: ctx.canConsent,
+      ...(ctx.canManage
+        ? { canMoveTo: circlesYouKeep(ctx.user, ctx.directory).map((circle) => circle.id) }
+        : {}),
     },
     { headers: { "Cache-Control": "private, no-store" } }
   );
@@ -37,12 +45,12 @@ export async function GET(_request: Request, { params }: Params) {
 
 /**
  * Save a new version (title and/or body; its editors), its settings —
- * keeper, who sees it, who edits it (the circle that keeps it, or the
- * Board) — who was present and the meeting's date (meeting notes; its
- * editors), or withdraw a proposal or record of consent from before
- * proposals were their own (consent: the circle's members, the Board).
- * Proposals and consent are now `/api/proposals`. Polls newly in the page
- * are announced.
+ * keeper, who edits it (the circle that keeps it, or the Board; a page moves
+ * only to a circle you're in) — who was present and the meeting's date
+ * (meeting notes; its editors), or withdraw a proposal or record of consent
+ * from before proposals were their own (consent: the circle's members, the
+ * Board). Proposals and consent are now `/api/proposals`. Polls newly in the
+ * page are announced.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await pageContext(params.slug, "edit");
@@ -50,19 +58,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = await readBody(request, pageUpdateSchema);
   if ("error" in parsed) return parsed.error;
   const update = parsed.data;
-  const settings =
-    update.keeper !== undefined || update.view !== undefined || update.edit !== undefined;
+  const settings = update.keeper !== undefined || update.edit !== undefined;
   if (settings && !ctx.canManage)
     return problem(
-      "Only the circle that keeps this page (or the Board) can change who keeps, sees, or edits it",
+      "Only the circle that keeps this page (or the Board) can change who keeps or edits it",
       403
     );
   if (update.consent !== undefined && !ctx.canConsent)
     return problem("Only the circle's members and the Board can withdraw its consent", 403);
-  const known = new Set(ctx.directory.circles.map((circle) => circle.id));
-  if (update.keeper && !known.has(update.keeper)) return problem("That circle doesn't exist", 404);
-  if (update.view?.kind === "circles" && update.view.circles.some((id) => !known.has(id)))
-    return problem("One of those circles doesn't exist", 404);
+  if (update.keeper && update.keeper !== ctx.page.keeper) {
+    const circle = ctx.directory.circles.find((entry) => entry.id === update.keeper);
+    if (!circle) return problem("That circle doesn't exist", 404);
+    if (!canMovePageTo(ctx.user, ctx.directory, ctx.page, circle.id))
+      return problem(`Join ${circle.name} first: only its members can move pages to it`, 403);
+  }
 
   const before = ctx.page;
   const result = await updatePage(params.slug, ctx.actor, update);
@@ -87,14 +96,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const fresh = await claimAnnouncements(
       pollIdsIn(result.page.body).filter((id) => !had.has(id))
     );
-    const audience = await pageAudience(ctx.directory, result.page);
     for (const poll of fresh) {
       const circle = ctx.directory.circles.find((entry) => entry.id === poll.circleId);
-      const members = poll.membersOnly
+      const only = poll.membersOnly
         ? await userIdsForPeople(circle?.seats.map((seat) => seat.personId) ?? [])
         : null;
-      const only =
-        members && audience ? members.filter((id) => audience.includes(id)) : members ?? audience;
       await notify({
         topic: "polls",
         title:

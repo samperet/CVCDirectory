@@ -25,8 +25,8 @@ const exportSchema = z.union([
 
 /**
  * Export documents as a zip (`lib/documents/export.ts`): `items` (pages,
- * files and links, proposals) or `all` (with `circle`, all of a circle's) —
- * as far as you can see them. The zip is made into storage and kept a day;
+ * files and links, proposals) or `all` (with `circle`, all of a circle's).
+ * The zip is made into storage and kept a day;
  * download it from `href` (yours only).
  */
 export async function POST(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   const plan = await planExport(parsed.data, ctx);
   if ("error" in plan)
     return plan.error === "empty"
-      ? problem("There's nothing to export — those documents are gone, or you can't see them", 404)
+      ? problem("There's nothing to export — those documents are gone", 404)
       : problem(
           `That's more than ${formatBytes(MAX_EXPORT_BYTES)} of files — export fewer at a time`,
           413

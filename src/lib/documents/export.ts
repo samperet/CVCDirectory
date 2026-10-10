@@ -8,15 +8,12 @@ import {
   writeBinaryStream,
 } from "@/lib/storage";
 import type { Actor } from "@/lib/auth/actor";
-import type { CommunityUser } from "@/lib/auth/users";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
-import { visiblePages } from "@/lib/wiki/access";
 import { consentState as pageConsentState, pageStage } from "@/lib/wiki/consent";
 import { imageKey, listWikiImages } from "@/lib/wiki/images";
 import { listWikiPolls } from "@/lib/polls/wiki";
 import { listProposals } from "@/lib/proposals/store";
-import { canSeeSnapshot } from "@/lib/proposals/access";
 import { snapshotOf, type DocumentRef, type Proposal } from "@/lib/proposals/shared";
 import { siteUrl } from "@/lib/site-url";
 import { TIME_ZONE, shortDate, todayInVermont } from "@/lib/time";
@@ -44,7 +41,7 @@ import {
 
 /**
  * Exporting documents as a zip: those chosen — or all of them, or all of a
- * circle's — as far as the reader can see them. Written pages, proposals and
+ * circle's. Written pages, proposals and
  * links become Markdown files (`export-markdown.ts`); files are their latest
  * versions as uploaded; photos in pages come along in `images/`; and a
  * README lists everything, by circle. Each circle's documents are in a
@@ -76,7 +73,7 @@ export type ExportChoice =
   | { all: true; circle?: string }
   | { items: { kind: ExportKind; id: string }[] };
 export type ExportFailure = "empty" | "too_big";
-type Session = { user: CommunityUser; actor: Actor; directory: DirectoryDocument };
+type Session = { actor: Actor; directory: DirectoryDocument };
 
 /** One file in the zip: text (compressed), or a stored file read when its turn comes (null: it's missing). */
 interface Entry {
@@ -111,13 +108,13 @@ const vermontDay = (iso: string) => todayInVermont(new Date(iso));
 const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
 
-/** What's in the export: the documents chosen that the reader can see, each named and turned into its file. */
+/** What's in the export: the documents chosen, each named and turned into its file. */
 export async function planExport(
   choice: ExportChoice,
   session: Session
 ): Promise<ExportPlan | { error: ExportFailure }> {
-  const { user, directory, actor } = session;
-  const [allPages, documents, proposals, polls, types, texts] = await Promise.all([
+  const { directory, actor } = session;
+  const [pages, documents, proposals, polls, types, texts] = await Promise.all([
     readPages(),
     listDocuments(),
     listProposals(),
@@ -125,11 +122,10 @@ export async function planExport(
     readTypeMap(),
     getDocumentTexts(),
   ]);
-  const pages = visiblePages(user, directory, allPages);
   const circles = directory.circles.map(({ id, name, code }) => ({ id, name, code }));
   const circleName = (id: string) => circles.find((circle) => circle.id === id)?.name ?? "Other";
 
-  // What's asked for — of what the reader can see.
+  // What's asked for.
   const asked =
     "items" in choice
       ? new Set(choice.items.map((item) => `${item.kind}:${item.id.toLowerCase()}`))
@@ -156,7 +152,7 @@ export async function planExport(
       ? [
           `${plural(asked.size - found, "document")} that ${
             asked.size - found === 1 ? "is" : "are"
-          } gone, or that you can't see`,
+          } gone`,
         ]
       : [];
 
@@ -202,19 +198,12 @@ export async function planExport(
       photoTypes.set(`${circleId}/${image.id}`, image.contentType);
   const photos = new Map<string, { path: string; key: string }>();
 
-  // A proposal as the reader sees it: only the snapshots they may see.
-  const seen = (proposal: Proposal): Proposal => ({
-    ...proposal,
-    snapshots: (proposal.snapshots ?? []).filter((snapshot) =>
-      canSeeSnapshot(snapshot, session, pages)
-    ),
-  });
   const context: ExportContext = {
     siteUrl: siteUrl(),
     circles,
     pages,
     documents: documents.map(({ id, title, circleId }) => ({ id, title, circleId })),
-    proposals: new Map(proposals.map((proposal) => [proposal.id, seen(proposal)])),
+    proposals: new Map(proposals.map((proposal) => [proposal.id, proposal])),
     polls: new Map(
       polls.map((poll) => [
         poll.id,
@@ -245,12 +234,11 @@ export async function planExport(
   }
   for (const proposal of chosenProposals) {
     const path = paths.get(`proposal:${proposal.id}`)!;
-    const shown = seen(proposal);
     entries.push({
       path,
       at: proposal.updatedAt,
-      content: proposalMarkdown(shown, path, context, (ref) =>
-        describe(ref, shown, pages, allPages, documents)
+      content: proposalMarkdown(proposal, path, context, (ref) =>
+        describe(ref, proposal, pages, documents)
       ),
       item: {
         path,
@@ -329,15 +317,13 @@ function describe(
   ref: DocumentRef,
   proposal: Proposal,
   pages: WikiPage[],
-  allPages: WikiPage[],
   documents: DocumentRecord[]
 ): { title: string; appPath: string | null } | null {
   const snapshot = snapshotOf(proposal, ref);
   if (ref.kind === "page") {
     const page = pages.find((entry) => entry.id === ref.id);
     if (page) return { title: page.title, appPath: `/wiki/${page.slug}` };
-    // A page that's there but private stays unnamed; one that's gone is named by its snapshot.
-    if (allPages.some((entry) => entry.id === ref.id)) return null;
+    // One that's gone is named by its snapshot.
     return snapshot ? { title: snapshot.title, appPath: null } : null;
   }
   const doc = documents.find((entry) => entry.id === ref.id);

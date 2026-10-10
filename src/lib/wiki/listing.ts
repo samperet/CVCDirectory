@@ -11,9 +11,8 @@ import type { WikiPage } from "./store";
 
 /**
  * A written page as the Documents list shows it, beside uploaded files:
- * its circle, dates, stage (draft, proposed, consented), opening lines (or, in a search, the passage
- * that matched), and whether only some people can see it. Safe for the
- * browser.
+ * its circle, dates, stage (draft, proposed, consented), and opening lines (or, in a search, the
+ * passage that matched). Safe for the browser.
  */
 export interface PageListing {
   kind: "page";
@@ -35,8 +34,6 @@ export interface PageListing {
   stage: PageStage;
   /** While proposed: the day the circle means to decide, if set. */
   decideOn: string | null;
-  /** Only some people can see it. */
-  restricted: boolean;
   excerpt: string;
   snippet?: string | null;
 }
@@ -67,7 +64,6 @@ export function pageListing(
       : null,
     stage: pageStage(page),
     decideOn: page.proposal?.decideOn ?? null,
-    restricted: page.view.kind !== "everyone",
     excerpt: excerptOf(page.body, 220),
     ...(snippet !== undefined ? { snippet } : {}),
   };

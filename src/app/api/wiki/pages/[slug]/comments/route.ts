@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addComment, commentInputSchema, listComments } from "@/lib/wiki/comments";
-import { commentProblem, pageAudience, pageContext } from "@/lib/wiki/http";
+import { commentProblem, pageContext } from "@/lib/wiki/http";
 import { getHistory } from "@/lib/wiki/store";
 import { excerpt, notify } from "@/lib/push/notify";
 import { readBody, throttled } from "@/lib/http";
@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: Params) {
   );
 }
 
-/** Comment on a passage of the page (`quote`), or reply in a thread (`parentId`): anyone who can see it. */
+/** Comment on a passage of the page (`quote`), or reply in a thread (`parentId`): any resident. */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "wiki-comment");
   if (limited) return limited;
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const result = await addComment(ctx.page.id, ctx.actor, parsed.data);
   if (!result.ok) return commentProblem(result.reason);
 
-  // Tell the people who wrote the page, and the others in this thread (who can still see it).
+  // Tell the people who wrote the page, and the others in this thread.
   const history = await getHistory(ctx.page.id);
   const writers = new Set([
     ctx.page.createdBy.userId,
@@ -38,10 +38,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     ...history.map((version) => version.editedBy.userId),
   ]);
   const inThread = result.thread.map((entry) => entry.authorId);
-  const audience = await pageAudience(ctx.directory, ctx.page);
-  const recipients = Array.from(new Set([...writers, ...inThread])).filter(
-    (id) => !audience || audience.includes(id)
-  );
+  const recipients = Array.from(new Set([...writers, ...inThread]));
   await notify({
     topic: "wiki",
     title: `${ctx.user.name} commented on “${ctx.page.title}”`,

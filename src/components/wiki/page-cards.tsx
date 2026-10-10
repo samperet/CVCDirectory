@@ -177,7 +177,7 @@ export function PageGrid({
   narrow = false,
 }: {
   pages: WikiPageSummary[];
-  /** Every page you can see (for links in pages shown in full). */
+  /** Every page (for links in pages shown in full). */
   all: WikiPageSummary[];
   view: InfoView;
   circleId: string;

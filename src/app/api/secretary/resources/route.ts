@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 /**
  * What new members' welcome pages list (`saved`: false while it's the default,
  * the Living in Community Guide), and what can be added: every document, and
- * every page anyone may read.
+ * every page but those once set to be seen only by some circles.
  */
 async function state(circleNames: Map<string, string>) {
   const [saved, { documents, pages }] = await Promise.all([readResources(), resourceChoices()]);

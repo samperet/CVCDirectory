@@ -1,5 +1,4 @@
 import type { NamedPerson } from "@/lib/people";
-import type { PageView } from "@/lib/wiki/store";
 
 /**
  * Proposals — types and pure helpers, safe for the browser.
@@ -89,8 +88,8 @@ export interface DocumentSnapshot extends DocumentRef {
   title: string;
   takenAt: string;
   takenBy: ProposalPerson;
-  /** A page's keeper and who could see it then (so its copy is seen by no one else, even once it's gone). */
-  page?: { keeper: string; view: PageView };
+  /** A page's keeper then. */
+  page?: { keeper: string };
   /** A file's name, size and type — or, for a link, where it went. */
   file?: {
     fileName: string;
@@ -126,7 +125,7 @@ export interface ProposalDocument extends DocumentRef {
   title: string;
   href: string | null;
   circleName: string;
-  /** Gone, or one the reader can't see. */
+  /** Gone. */
   missing: boolean;
   /** Its snapshot, and where to see it (none for documents attached before snapshots were kept). */
   snapshot: { snapshotId: string; title: string; takenAt: string; href: string } | null;

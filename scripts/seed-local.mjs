@@ -89,7 +89,6 @@ const page = (id, slug, title, body) => ({
   updatedAt: now,
   updatedBy: author,
   keeper: "lcc",
-  view: { kind: "everyone" },
   edit: { kind: "keeper" },
   historyCount: 0,
 });

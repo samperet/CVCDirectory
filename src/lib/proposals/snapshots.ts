@@ -81,7 +81,7 @@ async function takeOne(
       ...base,
       version: page.updatedAt,
       title: page.title,
-      page: { keeper: page.keeper, view: page.view },
+      page: { keeper: page.keeper },
     };
   }
   const doc = documents.find((entry) => entry.id === ref.id);

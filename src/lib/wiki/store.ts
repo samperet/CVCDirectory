@@ -9,11 +9,10 @@ import { namedPeopleSchema, type NamedPerson } from "@/lib/people";
 import { differs } from "@/lib/proposals/mirror";
 
 /**
- * The wiki: one for all of CVC. Every page, written in Markdown, has a
- * keeper — the circle that looks after it — and its own settings for who
- * can see it (everyone, the keeper circle, or chosen circles) and who can
- * edit it (the keeper circle, or anyone). Pages don't nest: they connect by
- * linking to (and embedding) each other.
+ * The wiki: one for all of CVC, every page seen by every resident. Each
+ * page, written in Markdown, has a keeper — the circle that looks after it —
+ * and its own setting for who can edit it (the keeper circle, or anyone).
+ * Pages don't nest: they connect by linking to (and embedding) each other.
  *
  * All pages' current text is in one document (`wiki/pages.json`); each page's
  * earlier versions (the most recent 25) are in their own
@@ -36,7 +35,10 @@ export interface WikiVersion {
   editedBy: WikiAuthor;
 }
 
-/** Who can see a page: everyone, the keeper circle, or the keeper and chosen circles (the Board and admins always can). */
+/**
+ * Who could see a page, from before every page was open to every resident:
+ * no longer set, and read only for welcome links (`onboarding/resources.ts`).
+ */
 export type PageView =
   | { kind: "everyone" }
   | { kind: "keeper" }
@@ -57,7 +59,8 @@ export interface WikiPage {
   updatedBy: WikiAuthor;
   /** The circle that looks after it. */
   keeper: string;
-  view: PageView;
+  /** Who could see it once (see `PageView`): kept on pages from then. */
+  view?: PageView;
   edit: PageEdit;
   /** How many earlier versions it has kept. */
   historyCount: number;
@@ -85,7 +88,6 @@ export type WikiPageSummary = Pick<
   | "updatedAt"
   | "updatedBy"
   | "keeper"
-  | "view"
   | "edit"
   | "consent"
   | "proposal"
@@ -109,14 +111,6 @@ const title = z
 const body = z.string().max(50_000, "Pages must be 50,000 characters or fewer");
 const circleIdSchema = z.string().min(1).max(80);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-08");
-export const viewSchema = z.union([
-  z.object({ kind: z.literal("everyone") }),
-  z.object({ kind: z.literal("keeper") }),
-  z.object({
-    kind: z.literal("circles"),
-    circles: z.array(circleIdSchema).min(1, "Choose at least one circle").max(40),
-  }),
-]);
 export const editSchema = z.union([
   z.object({ kind: z.literal("keeper") }),
   z.object({ kind: z.literal("anyone") }),
@@ -141,7 +135,6 @@ export const pageUpdateSchema = z
     /** Saved as you type: folded into your own recent version rather than adding one to the history each time. */
     autosave: z.boolean().optional(),
     keeper: circleIdSchema.optional(),
-    view: viewSchema.optional(),
     edit: editSchema.optional(),
     /**
      * Withdraw a record of consent, or a proposal, from before proposals were
@@ -164,7 +157,6 @@ export const restoreSchema = z.object({ index: z.number().int().min(0) });
 
 export const isSlug = (slug: string) => /^[a-z0-9-]{1,60}$/.test(slug);
 
-export const DEFAULT_VIEW: PageView = { kind: "everyone" };
 export const DEFAULT_EDIT: PageEdit = { kind: "keeper" };
 
 export const pageSummary = (page: WikiPage): WikiPageSummary => ({
@@ -174,7 +166,6 @@ export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   updatedAt: page.updatedAt,
   updatedBy: page.updatedBy,
   keeper: page.keeper,
-  view: page.view,
   edit: page.edit,
   ...(page.consent ? { consent: page.consent } : {}),
   ...(page.proposal ? { proposal: page.proposal } : {}),
@@ -294,7 +285,6 @@ export function createPage(
     title: string;
     body: string;
     keeper: string;
-    view?: PageView;
     edit?: PageEdit;
     meetingDate?: string;
     present?: PagePerson[];
@@ -324,7 +314,6 @@ export function createPage(
       updatedAt: now,
       updatedBy: by,
       keeper: input.keeper,
-      view: input.view ?? DEFAULT_VIEW,
       edit: input.edit ?? DEFAULT_EDIT,
       historyCount: 0,
       ...(input.meetingDate ? { meetingDate: input.meetingDate } : {}),
@@ -419,7 +408,6 @@ type PageUpdate = {
   baseUpdatedAt?: string;
   autosave?: boolean;
   keeper?: string;
-  view?: PageView;
   edit?: PageEdit;
   consent?: null;
   proposal?: null;
@@ -434,13 +422,12 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its keeper, who can see or edit it, its stage, who was present, and the transcript aren't new versions.
+    // Its keeper, who can edit it, its stage, who was present, and the transcript aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.present ? { present: update.present } : {}),
       ...(update.meetingDate !== undefined ? { meetingDate: update.meetingDate } : {}),
       ...(update.transcript !== undefined ? { transcript: update.transcript } : {}),
       ...(update.keeper ? { keeper: update.keeper } : {}),
-      ...(update.view ? { view: update.view } : {}),
       ...(update.edit ? { edit: update.edit } : {}),
       ...(update.consent === null ? { consent: null } : {}),
       ...(update.proposal === null ? { proposal: null } : {}),
@@ -521,20 +508,13 @@ export async function setPageDecisions(
   }));
 }
 
-/** When a circle is deleted, the Board keeps its pages (as with its documents), and no page is shown only to it any more. */
+/** When a circle is deleted, the Board keeps its pages (as with its documents). */
 export function handOverPages(fromCircleId: string, toCircleId: string) {
   return mutate((pages) => ({
     page: null,
-    pages: pages.map((page) => {
-      const keeper = page.keeper === fromCircleId ? toCircleId : page.keeper;
-      const view: PageView =
-        page.view.kind === "circles"
-          ? page.view.circles.filter((id) => id !== fromCircleId).length
-            ? { kind: "circles", circles: page.view.circles.filter((id) => id !== fromCircleId) }
-            : { kind: "keeper" }
-          : page.view;
-      return keeper === page.keeper && view === page.view ? page : { ...page, keeper, view };
-    }),
+    pages: pages.map((page) =>
+      page.keeper === fromCircleId ? { ...page, keeper: toCircleId } : page
+    ),
   }));
 }
 
@@ -648,7 +628,6 @@ async function migrate(): Promise<WikiPage[]> {
     updatedAt: page.updatedAt,
     updatedBy: page.updatedBy,
     keeper: circle.id,
-    view: DEFAULT_VIEW,
     edit: DEFAULT_EDIT,
     historyCount: Math.min(MAX_HISTORY, page.history?.length ?? 0),
     ...(page.autosaved ? { autosaved: true } : {}),

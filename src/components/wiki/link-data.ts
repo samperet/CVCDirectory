@@ -7,7 +7,7 @@ import type { WikiPage, WikiPageSummary, WikiVersion } from "@/lib/wiki/store";
 
 export type PagesResponse = { pages: WikiPageSummary[]; keepers: { id: string; name: string }[] };
 
-/** The wiki's pages you can see (shared by the wiki home, pages, and links to them), and the circles you can start pages for. */
+/** The wiki's pages (shared by the wiki home, pages, and links to them), and the circles you can start pages for. */
 export const wikiPagesQuery = () => ({
   queryKey: ["wiki"],
   queryFn: () => apiFetch<PagesResponse>("/api/wiki/pages"),
@@ -62,6 +62,8 @@ export type PageResponse = {
   canEdit: boolean;
   canManage: boolean;
   canConsent: boolean;
+  /** For those who can choose its parent circle: the circles they can move it to (theirs; for the Board, any). */
+  canMoveTo?: string[];
 };
 
 /** One page in full, with its history and what you can do with it (shared by the page, embeds, and the editor). */

@@ -51,8 +51,7 @@ export function EmbedBlock({ target, section }: { target: string; section?: stri
   if (!link || link.kind !== "page") return <Notice>Only wiki pages can be shown here.</Notice>;
   if (list.isError) return <Notice>The wiki isn&apos;t available just now.</Notice>;
   if (!summary) {
-    // Either it's gone, or it's a page this reader can't see.
-    return <Notice>“{link.title}” isn&apos;t a page you can see.</Notice>;
+    return <Notice>There&apos;s no page called “{link.title}” any more.</Notice>;
   }
   const pageHref = `/wiki/${summary.slug}`;
   if (repeated || tooDeep) {

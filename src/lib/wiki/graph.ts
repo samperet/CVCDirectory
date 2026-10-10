@@ -2,13 +2,11 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { wikiLinksIn } from "@/lib/wiki/links";
 import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
-import { visiblePages, type WikiViewer } from "@/lib/wiki/access";
 import { excerptOf } from "@/lib/wiki/excerpt";
 
 /**
- * The map of how the wiki connects (for everyone, each seeing the pages
- * they can): every page, the circle it belongs to, the pages it links to
- * (or embeds).
+ * The map of how the wiki connects: every page, the circle it belongs to,
+ * the pages it links to (or embeds).
  */
 
 export type GraphNodeKind = "page" | "circle";
@@ -41,13 +39,10 @@ export interface WikiGraph {
 
 const pageNode = (pageId: string) => `page:${pageId}`;
 
-/** The map as `viewer` sees it: only the pages they can see (and so only the links between those). */
-export async function buildWikiGraph(
-  directory: DirectoryDocument,
-  viewer: WikiViewer
-): Promise<WikiGraph> {
+/** The map: every page, and the links between them. */
+export async function buildWikiGraph(directory: DirectoryDocument): Promise<WikiGraph> {
   const circles = directory.circles;
-  const pages = visiblePages(viewer, directory, await readPages());
+  const pages = await readPages();
 
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];

@@ -198,8 +198,7 @@ export function ExportBar({
       </div>
       <p className="text-xs text-muted">
         Written pages and proposals come as Markdown (.md) files, files as uploaded (their latest
-        version), and links as a note of where they go; a README lists them all, by circle. Only
-        what you can see is included.
+        version), and links as a note of where they go; a README lists them all, by circle.
       </p>
     </div>
   );

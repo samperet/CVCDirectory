@@ -579,7 +579,7 @@ export function InformationSettings({
                         <span
                           className={cn("min-w-0 flex-1 truncate", !page && "italic text-muted")}
                         >
-                          {page?.title ?? "A page you can't see"}
+                          {page?.title ?? "A page that's gone"}
                         </span>
                         <button
                           type="button"
@@ -711,10 +711,8 @@ export function InformationSettings({
           {kind !== "pages" ? (
             <p className="text-xs text-muted">
               {preview.length
-                ? `Shows ${
-                    preview.length === 1 ? "1 page" : `${preview.length} pages`
-                  } now (each reader sees only the pages they can).`
-                : "No pages there yet (or none you can see)."}
+                ? `Shows ${preview.length === 1 ? "1 page" : `${preview.length} pages`} now.`
+                : "No pages there yet."}
             </p>
           ) : null}
         </fieldset>

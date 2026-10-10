@@ -1,5 +1,8 @@
 /** Small helpers for text shown in the app (safe for the browser). */
 
+/** "Land Care Circle's", but "Chicken Tenders'". */
+export const possessive = (name: string) => (/s$/i.test(name) ? `${name}'` : `${name}'s`);
+
 /** "op leader" → "Op leader". */
 export const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 

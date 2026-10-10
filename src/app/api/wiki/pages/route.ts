@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPage, getPageById, pageInputSchema, pageSummary, readPages } from "@/lib/wiki/store";
 import { excerptOf } from "@/lib/wiki/excerpt";
-import { canEditPage, circlesYouKeep, visiblePages } from "@/lib/wiki/access";
+import { canEditPage, circlesYouKeep } from "@/lib/wiki/access";
 import { wikiProblem, wikiSession } from "@/lib/wiki/http";
 import { COMMUNITY_ID } from "@/lib/circles/store";
 import { canUploadTo } from "@/lib/documents/access";
@@ -9,11 +9,11 @@ import { problem, readBody } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
-/** The pages you can see (most recently edited first, each with its opening lines), and the circles you could make a new page's keeper. */
+/** The pages (most recently edited first, each with its opening lines), and the circles you could make a new page's keeper. */
 export async function GET() {
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx.error;
-  const pages = visiblePages(ctx.user, ctx.directory, await readPages())
+  const pages = (await readPages())
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((page) => ({ ...pageSummary(page), excerpt: excerptOf(page.body, 300) }));
   return NextResponse.json(

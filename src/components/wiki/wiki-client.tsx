@@ -13,7 +13,7 @@ import { COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 import { Select } from "@/components/ui/select";
 import { shortDate, todayInVermont } from "@/lib/time";
 
-/** The wiki's pages that you can see (and the circles you can start pages for). */
+/** The wiki's pages (and the circles you can start pages for). */
 export function useWikiPages() {
   return useQuery(wikiPagesQuery());
 }

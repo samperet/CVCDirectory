@@ -255,7 +255,8 @@ Authors always come from the signed-in session, never from the request body.
   the Board Secretary and the admins are notified (the "circles" notifications) with a link to the
   Secretary page.
 - **Welcome resources** – what every welcome page lists, chosen on the Secretary page in order:
-  documents, pages every resident may read, and links, each with an optional note. Until the
+  documents, pages (any but those once set to be seen only by some circles), and links, each
+  with an optional note. Until the
   Secretary saves a list, it's any document or page titled "Living in Community Guide". New
   members open the documents and pages from their welcome link before they can sign in (pages
   read-only, with links into the app as plain text) — only what's on the list, and only while
@@ -335,8 +336,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   polls with their votes, proposals in a page quoted with where they stand, photos in `images/`,
   a meeting's transcript at the end), files as their latest version, links as a note of where they
   go (with a Google file's text), and proposals (in `Proposals/`) as Markdown with their documents
-  and consent; a README lists everything by circle, and anything that couldn't be included. Only
-  what the reader can see goes in. The zip is made into storage — each file streamed through, in
+  and consent; a README lists everything by circle, and anything that couldn't be included. The
+  zip is made into storage — each file streamed through, in
   8 MiB parts — and downloads from there, so neither size nor connection speed is limited by how
   long a request may last (`POST /api/documents/export` with `{items}` or `{all, circle?}`, then
   `GET /api/documents/export/<id>`; `lib/documents/export.ts`, `export-markdown.ts`). Up to 2 GB
@@ -391,8 +392,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   title ("Edited since it was proposed"), with **Propose this version** for the circle's members.
   A document taken off a proposal takes its snapshot with it, and deleting a proposal deletes its
   snapshots; a consented proposal's are kept for good — even once the documents are deleted (the
-  proposal still lists them, "no longer in Documents", with their snapshots). A page's snapshot is
-  seen by whoever can see the page (or could, once it's gone). Proposals from before snapshots get
+  proposal still lists them, "no longer in Documents", with their snapshots). Everyone can see
+  every snapshot, as with the documents. Proposals from before snapshots get
   them when they're next changed or consented.
 - **Consent is given at a meeting** (`canRecordConsent` in `lib/circles/consent.ts`: anyone in the
   circle, anyone on the Board — for any circle — and admins; the Board records Community's).
@@ -439,17 +440,21 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     `proposals/proposals.json`, the snapshots' copies as `proposals/snapshots/<snapshotId>.json` (a
     page's or link's) and `proposals/snapshots/<snapshotId>` (a file's); when a circle is deleted
     its proposals not yet consented go to the Board.
-- **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every page has a **parent circle**, and its own
-  settings (nothing is inherited): **who can see it** — everyone (the default), only its parent
-  circle, or its parent and chosen circles — and **who can edit it** — its parent circle (the
-  default; anyone, for Community's pages) or anyone who can see it. The parent circle's members
-  (and the Board and admins, who can always see and edit everything) change the parent circle and
-  these settings, and can delete the page. A page reads clean: its **Edit** button opens the editor,
-  where the page's tools live — **Parent circle**, **Who can see & edit**, and
-  **History** (earlier versions to view or restore). A page someone can't see is left out everywhere for them:
-  the page list, search, @ search, links ("a page you can't see"), embeds, backlinks, circles'
-  Information modules, and notifications. Pages don't nest: they connect by **links** and **embeds** (each page lists what's
-  **Linked from** it). Documents lists every page you can see, with a search and a filter by
+- **Written pages** (the wiki) – one wiki for all of CVC, its pages listed in Documents. Every
+  resident can see every page. Every page has a **parent circle**, and its own setting for **who
+  can edit it** (nothing is inherited) — its parent circle (the default; anyone, for Community's
+  pages) or any resident. The parent circle's members (and the Board and admins, who can always
+  edit everything) change the parent circle and that setting, and can delete the page. A page
+  moves only to a circle you're in (the Board and admins: any), and the server holds to that
+  (`canMoveTo` in `GET /api/wiki/pages/<slug>`; a 403 otherwise). Choosing one you're not in
+  says you need to join it first and offers the best way in: **Join and move it** (a circle anyone
+  can join), **Ask to join** (one whose members approve, with a note to them; the page stays put
+  until one says yes), or that your request is already waiting. (Pages once set to be seen only
+  by some circles, before every page was open to all, are seen by everyone now; that old setting
+  only keeps them out of welcome links.) A page reads clean: its **Edit** button opens the editor,
+  where the page's tools live — **Parent circle**, **Who can edit**, and
+  **History** (earlier versions to view or restore). Pages don't nest: they connect by **links** and **embeds** (each page lists what's
+  **Linked from** it). Documents lists every page, with a search and a filter by
   circle (`/documents?circle=<circleId>`); **New → Write a page** asks which of your circles keeps it. A circle's
   **Add Information** starts a page with that circle as its parent (so it shows in the circle's
   Information); **@ new

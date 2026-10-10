@@ -244,7 +244,7 @@ describe("a page's own syntax, made plain Markdown", () => {
       `> *From [Maintenance log](${SITE}/wiki/maintenance-log):*\n>\n> **Sep 12**: cleaned.\n>\n> *From [Mowing](Mowing.md):*`
     );
     expect(convertBody('::embed{page="Secret plans"}', from, ctx())).toBe(
-      "*(A page shown here that's gone, or that you can't see.)*"
+      "*(A page shown here that's gone.)*"
     );
   });
 

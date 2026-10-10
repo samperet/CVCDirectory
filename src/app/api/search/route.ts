@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 200);
   const kind = request.nextUrl.searchParams.get("kind") as SearchKind | null;
   if (kind && !KINDS.includes(kind)) return problem("Unknown kind of result");
-  const groups = q ? await searchSite(q, directory, user, kind ? 50 : 5) : [];
+  const groups = q ? await searchSite(q, directory, kind ? 50 : 5) : [];
   return NextResponse.json(
     { q, groups: kind ? groups.filter((group) => group.kind === kind) : groups },
     { headers: { "Cache-Control": "private, no-store" } }

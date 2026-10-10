@@ -61,14 +61,14 @@ const pageOf = (
   slug: string,
   title: string,
   body: string,
-  view = { kind: "everyone" }
+  view?: { kind: string }
 ) => ({
   id,
   slug,
   title,
   body,
   keeper: "lcc",
-  view,
+  ...(view ? { view } : {}),
   edit: { kind: "keeper" },
   createdAt: at,
   createdBy: author,
@@ -229,7 +229,7 @@ describe("exporting documents", () => {
     expect(plan.counts).toEqual({ pages: 2, files: 2, links: 1, proposals: 1 });
   });
 
-  it("keeps to what's chosen, and to what the reader can see", async () => {
+  it("keeps to what's chosen — and every page is anyone's to export", async () => {
     const chosen = await exported({
       items: [
         { kind: "page", id: MOWING },
@@ -247,21 +247,26 @@ describe("exporting documents", () => {
       "(https://cvc-directory.vercel.app/wiki/secret-plans)"
     );
 
-    const seen = await exported(
+    // Eve isn't in Land Care; "Secret plans" was once shown only to it (no longer kept to).
+    const hers = await exported(
       {
         items: [
           { kind: "page", id: SECRET },
           { kind: "page", id: MOWING },
+          { kind: "page", id: "99999999-9999-4999-8999-999999999999" },
         ],
       },
       eve
     );
-    expect(Object.keys(seen.files)).not.toContain("Land Care Circle/Secret plans.md");
-    expect(seen.text("Land Care Circle/Mowing.md")).toContain("and Secret plans.");
-    expect(seen.text("README.md")).toContain("1 document that is gone, or that you can't see");
-    expect(await planExport({ items: [{ kind: "page", id: SECRET }] }, eve)).toEqual({
-      error: "empty",
-    });
+    expect(hers.text("Land Care Circle/Secret plans.md")).toContain("Hush.");
+    expect(hers.text("Land Care Circle/Mowing.md")).toContain("[Secret plans](Secret%20plans.md)");
+    expect(hers.text("README.md")).toContain("1 document that is gone");
+    expect(
+      await planExport(
+        { items: [{ kind: "page", id: "99999999-9999-4999-8999-999999999999" }] },
+        eve
+      )
+    ).toEqual({ error: "empty" });
   });
 
   it("is a circle's alone when asked, and downloaded only by whoever made it, for a day", async () => {

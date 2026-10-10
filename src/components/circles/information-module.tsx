@@ -21,7 +21,7 @@ import { proposalsQuery } from "@/components/proposals/data";
 import { ProposalCards } from "@/components/proposals/proposal-list";
 
 /**
- * The pages a filter picks, of those you can see: chosen ones in their
+ * The pages a filter picks: chosen ones in their
  * order, a circle's by title, a circle's pages proposed before proposals
  * were their own (the soonest to be decided first, then the newest — the
  * proposals themselves are listed beside them), or the most recently

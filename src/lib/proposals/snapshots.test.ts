@@ -43,8 +43,7 @@ const { takeSnapshots, discardSnapshots, readSnapshotContent, snapshotFileKey } 
 );
 const store = await import("./store");
 const { pageMirror } = await import("./mirror");
-const { canSeeSnapshot, changedSinceSnapshot, consentedVersions, documentShown, viewOf } =
-  await import("./http");
+const { changedSinceSnapshot, consentedVersions, documentShown, viewOf } = await import("./http");
 
 const cara = { userId: "u-cara", personId: "000000000003", name: "Cara Cedar" };
 const PAGE = "11111111-1111-4111-8111-111111111111";
@@ -62,7 +61,6 @@ const page = (overrides: Partial<WikiPage> = {}): WikiPage => ({
   updatedAt: "2026-10-02T12:00:00.000Z",
   updatedBy: author,
   keeper: "lcc",
-  view: { kind: "everyone" },
   edit: { kind: "keeper" },
   historyCount: 0,
   ...overrides,
@@ -152,7 +150,7 @@ describe("taking snapshots", () => {
       version: "2026-10-02T12:00:00.000Z",
       title: "Mowing",
       takenBy: cara,
-      page: { keeper: "lcc", view: { kind: "everyone" } },
+      page: { keeper: "lcc" },
     });
     expect(await readSnapshotContent(snapshot.snapshotId)).toEqual({
       title: "Mowing",
@@ -353,34 +351,29 @@ describe("what's shown of a snapshot", () => {
     );
   });
 
-  it("is seen only by those who can see the page — or could, once it's gone", async () => {
+  it("is seen by everyone — even a page once shown only to its circle, and once it's gone", async () => {
     const proposal = await proposed([{ kind: "page", id: PAGE }]);
-    const keeperOnly = page({ view: { kind: "keeper" } });
+    // A setting from before every page was open to every resident: no longer kept to.
+    const once = page({ view: { kind: "keeper" } });
     const [snapshot] = await takeSnapshots(proposal.documents, cara, {
-      pages: [keeperOnly],
+      pages: [once],
       documents: [],
     });
+    expect(snapshot.page).toEqual({ keeper: "lcc" });
     const added = await store.addSnapshots(proposal.id, [snapshot]);
     if (!added.ok) throw new Error("not added");
-    const member = session("000000000003");
     const other = session("000000000009");
-    expect(canSeeSnapshot(snapshot, member, [keeperOnly])).toBe(true);
-    expect(canSeeSnapshot(snapshot, other, [keeperOnly])).toBe(false);
-    // Gone: as it could be seen then.
-    expect(canSeeSnapshot(snapshot, member, [])).toBe(true);
-    expect(canSeeSnapshot(snapshot, other, [])).toBe(false);
     const ref = { kind: "page" as const, id: PAGE };
-    expect(documentShown(added.proposal, ref, other, [keeperOnly], [])).toMatchObject({
-      title: "A page that's gone or private",
-      snapshot: null,
+    expect(documentShown(added.proposal, ref, other, [once], [])).toMatchObject({
+      title: "Mowing",
+      missing: false,
+      snapshot: { snapshotId: snapshot.snapshotId },
     });
-    expect(documentShown(added.proposal, ref, member, [], [])).toMatchObject({
+    expect(documentShown(added.proposal, ref, other, [], [])).toMatchObject({
       title: "Mowing",
       missing: true,
       snapshot: { snapshotId: snapshot.snapshotId },
     });
-    // Nor are its details (its title) in the proposal as they see it.
-    expect(viewOf(added.proposal, other, [keeperOnly], []).snapshots).toEqual([]);
-    expect(viewOf(added.proposal, member, [keeperOnly], []).snapshots).toEqual([snapshot]);
+    expect(viewOf(added.proposal, other, [], []).snapshots).toEqual([snapshot]);
   });
 });
