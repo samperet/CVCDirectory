@@ -70,9 +70,10 @@ function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: bool
       const text = selection.toString().replace(/\s+/g, " ").trim();
       if (!text) return setPrompt(null);
       const rect = range.getBoundingClientRect();
+      // Above the selection — kept on screen when the selection is scrolled out of view.
       setPrompt({
         text,
-        top: Math.max(8, rect.top - 44),
+        top: Math.min(window.innerHeight - 48, Math.max(8, rect.top - 44)),
         left: Math.min(window.innerWidth - 120, Math.max(8, rect.left + rect.width / 2 - 56)),
       });
     };
