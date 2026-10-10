@@ -2,7 +2,7 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, RotateCcw } from "lucide-react";
+import { Check, MessageSquare, RotateCcw } from "lucide-react";
 import { CommentTree } from "@/components/comments/comment-tree";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
@@ -125,7 +125,8 @@ function ThreadCard({
   slug: string;
   canModerate: boolean;
   active: boolean;
-  quoteFound: boolean;
+  /** Whether its passage is on the page as shown (null: the page isn't shown — it's being edited). */
+  quoteFound: boolean | null;
   onActivate: () => void;
   onChanged: () => void;
 }) {
@@ -173,7 +174,11 @@ function ThreadCard({
       )}
       data-thread={root.id}
     >
-      {root.quote ? (
+      {root.quote && quoteFound === null ? (
+        <p className="text-xs italic text-foreground-light">
+          “{root.quote.length > 160 ? `${root.quote.slice(0, 160)}…` : root.quote}”
+        </p>
+      ) : root.quote ? (
         <button
           type="button"
           onClick={onActivate}
@@ -242,9 +247,11 @@ function ThreadCard({
 }
 
 /**
- * A page's comments, as sticky notes: select words on the page (any amount)
- * and a note appears here to write on; reply, resolve. Open threads first;
- * resolved ones folded away. (Older comments on the whole page still show.)
+ * A page's comments: **Add a comment** on the page as a whole, or — while
+ * reading — select words on the page (any amount) and the note is on them.
+ * Each thread is a sticky note: reply, resolve. Open threads first; resolved
+ * ones folded away. While the page is being edited (`locating` off), the
+ * passages comments are on are quoted but not pointed to.
  */
 export function WikiComments({
   circleId,
@@ -257,6 +264,7 @@ export function WikiComments({
   activeId,
   foundIds,
   onActivate,
+  locating = true,
 }: {
   circleId: string;
   slug: string;
@@ -268,6 +276,8 @@ export function WikiComments({
   activeId: string | null;
   foundIds: Set<string>;
   onActivate: (id: string) => void;
+  /** The page is shown, so passages can be found on it (off while it's edited). */
+  locating?: boolean;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -314,7 +324,7 @@ export function WikiComments({
       slug={slug}
       canModerate={canModerate}
       active={activeId === thread.root.id}
-      quoteFound={foundIds.has(thread.root.id)}
+      quoteFound={locating ? foundIds.has(thread.root.id) : null}
       onActivate={() => onActivate(thread.root.id)}
       onChanged={refresh}
     />
@@ -322,20 +332,33 @@ export function WikiComments({
 
   return (
     <section id="comments" className="flex scroll-mt-24 flex-col gap-3" aria-label="Comments">
-      {canComment ? (
-        pendingQuote ? (
-          <div
-            className="sticky-note sticky-note-active flex flex-col gap-2 p-3"
-            data-comment-draft
-          >
-            <p className="text-xs italic text-foreground-light">
-              “{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”
-            </p>
+      <div
+        className={cn(
+          "flex flex-col gap-2 p-3",
+          pendingQuote
+            ? "sticky-note sticky-note-active"
+            : "rounded-lg border border-border bg-surface text-sm"
+        )}
+        data-comment-draft
+      >
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+          <MessageSquare className="h-3.5 w-3.5" aria-hidden /> Comments
+          {open.length ? <span className="font-normal">({open.length})</span> : null}
+        </p>
+        {canComment ? (
+          <>
+            {pendingQuote ? (
+              <p className="text-xs italic text-foreground-light">
+                “{pendingQuote.length > 160 ? `${pendingQuote.slice(0, 160)}…` : pendingQuote}”
+              </p>
+            ) : null}
             <Textarea
               ref={input}
-              rows={3}
+              rows={pendingQuote || text ? 3 : 2}
               aria-label="Your comment"
-              placeholder="Add a comment…"
+              placeholder={
+                pendingQuote ? "Add a comment on these words…" : "Add a comment on this page…"
+              }
               value={text}
               maxLength={2000}
               onChange={(event) => setText(event.target.value)}
@@ -344,23 +367,34 @@ export function WikiComments({
                   post.mutate();
                 if (event.key === "Escape") cancel();
               }}
-              className="border-0 bg-white/60 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-black/20"
+              className={cn(
+                "text-sm",
+                pendingQuote
+                  ? "border-0 bg-white/60 shadow-none focus-visible:ring-1 focus-visible:ring-black/20"
+                  : "bg-white"
+              )}
             />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                disabled={!text.trim() || post.isPending}
-                onClick={() => post.mutate()}
-              >
-                {post.isPending ? "Posting…" : "Comment"}
-              </Button>
-              <Button size="sm" variant="ghost" className="hover:bg-black/5" onClick={cancel}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : null
-      ) : null}
+            {text.trim() || pendingQuote ? (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={!text.trim() || post.isPending}
+                  onClick={() => post.mutate()}
+                >
+                  {post.isPending ? "Posting…" : "Comment"}
+                </Button>
+                <Button size="sm" variant="ghost" className="hover:bg-black/5" onClick={cancel}>
+                  Cancel
+                </Button>
+              </div>
+            ) : locating ? (
+              <p className="text-xs text-muted">Or select words on the page to comment on them.</p>
+            ) : null}
+          </>
+        ) : !threads.length ? (
+          <p className="text-xs text-muted">No comments yet.</p>
+        ) : null}
+      </div>
       {open.length ? <ul className="flex flex-col gap-4">{open.map(card)}</ul> : null}
       {resolved.length ? (
         <div className="flex flex-col gap-2">

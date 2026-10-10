@@ -63,6 +63,7 @@ export function WikiEditor({
   pages,
   tools,
   headerExtras,
+  aside,
   onPresent,
   onDone,
 }: {
@@ -76,6 +77,8 @@ export function WikiEditor({
   tools?: ReactNode;
   /** What the page's header shows under the title besides the date: the consent pill and controls. */
   headerExtras?: ReactNode;
+  /** Beside the page (below it on phones), as when reading it: its comments. */
+  aside?: ReactNode;
   /** The toolbar's **Who's present** (the page keeps who was present). */
   onPresent?: () => void;
   /** Finished editing: the page as it now stands. */
@@ -510,107 +513,119 @@ export function WikiEditor({
         />
       ))}
 
-      <div className="document-sheet" data-page-sheet>
-        {/* The page's head, as when reading it — with the title editable in place. */}
-        <header className="flex flex-col items-center gap-3 border-b border-border/70 px-6 pb-7 pt-9 text-center sm:px-14">
-          {circle ? (
-            <Link
-              href={`/circles/${circleId}`}
-              title={circle.name}
-              className="rounded-full shadow-soft ring-4 ring-white transition hover:scale-105"
-            >
-              <CircleIcon circle={circle} size={72} className="rounded-full" />
-            </Link>
-          ) : null}
-          <TitleField value={title} onChange={setTitle} />
-          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted">
-            {circle ? (
-              <Link href={`/circles/${circleId}`} className="font-medium hover:underline">
-                {circle.name}
-              </Link>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="document-sheet" data-page-sheet>
+            {/* The page's head, as when reading it — with the title editable in place. */}
+            <header className="flex flex-col items-center gap-3 border-b border-border/70 px-6 pb-7 pt-9 text-center sm:px-14">
+              {circle ? (
+                <Link
+                  href={`/circles/${circleId}`}
+                  title={circle.name}
+                  className="rounded-full shadow-soft ring-4 ring-white transition hover:scale-105"
+                >
+                  <CircleIcon circle={circle} size={72} className="rounded-full" />
+                </Link>
+              ) : null}
+              <TitleField value={title} onChange={setTitle} />
+              <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-muted">
+                {circle ? (
+                  <Link href={`/circles/${circleId}`} className="font-medium hover:underline">
+                    {circle.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+                <span aria-hidden>·</span>
+                <time
+                  dateTime={synced.updatedAt}
+                  title={`Last saved ${timeAgo(synced.updatedAt)}`}
+                  data-page-date
+                >
+                  {shortDate(synced.updatedAt, true)}
+                </time>
+              </p>
+              {headerExtras}
+            </header>
+            {mode === "visual" ? (
+              <div
+                onKeyDownCapture={touch}
+                onInputCapture={touch}
+                onPasteCapture={touch}
+                onPointerDownCapture={touch}
+                onDropCapture={touch}
+              >
+                <RichEditor
+                  key={editorKey}
+                  control={rich}
+                  markdown={body}
+                  circleId={circleId}
+                  circleName={circleName}
+                  pageId={initial.id}
+                  pageSlug={initial.slug}
+                  pageTitle={title}
+                  meetingNotes={!!meetingDateOf(initial)}
+                  onChange={setBody}
+                  onCreatePage={onCreatePage}
+                  onTranscribe={toggleTranscript}
+                  transcribing={transcriptOn}
+                  onPresent={onPresent}
+                  onError={() => {
+                    setMode("markdown");
+                    toast({
+                      title: "Opened as plain text",
+                      description: "Part of this page can't be shown in the visual editor.",
+                    });
+                  }}
+                />
+              </div>
             ) : (
-              "—"
+              <div className="p-4 sm:p-8">
+                <MarkdownPane
+                  circleId={circleId}
+                  circleName={circleName}
+                  pageSlug={initial.slug}
+                  pages={pages}
+                  body={body}
+                  getBody={() => bodyRef.current}
+                  setBody={setBody}
+                  touch={touch}
+                  textareaRef={textarea}
+                />
+              </div>
             )}
-            <span aria-hidden>·</span>
-            <time
-              dateTime={synced.updatedAt}
-              title={`Last saved ${timeAgo(synced.updatedAt)}`}
-              data-page-date
-            >
-              {shortDate(synced.updatedAt, true)}
-            </time>
+            {transcriptOn ? (
+              <TranscriptSection
+                initial={latest.current.transcript ?? ""}
+                recordSignal={recordSignal}
+                control={transcript}
+                onRemoved={() => setTranscriptOn(false)}
+                onSave={async (text) => {
+                  await apiFetch(url, {
+                    method: "PATCH",
+                    body: JSON.stringify({ transcript: text }),
+                  });
+                  // Added again later, it starts from what was saved.
+                  latest.current = { ...latest.current, transcript: text };
+                  void queryClient.invalidateQueries({
+                    queryKey: wikiPageQuery(initial.slug).queryKey,
+                  });
+                }}
+              />
+            ) : null}
+          </div>
+
+          <p className="text-center text-xs text-muted">
+            Changes save as you go, and others can edit at the same time. Type @ to link a page or a
+            document — or to start a new page.
           </p>
-          {headerExtras}
-        </header>
-        {mode === "visual" ? (
-          <div
-            onKeyDownCapture={touch}
-            onInputCapture={touch}
-            onPasteCapture={touch}
-            onPointerDownCapture={touch}
-            onDropCapture={touch}
-          >
-            <RichEditor
-              key={editorKey}
-              control={rich}
-              markdown={body}
-              circleId={circleId}
-              circleName={circleName}
-              pageId={initial.id}
-              pageSlug={initial.slug}
-              pageTitle={title}
-              meetingNotes={!!meetingDateOf(initial)}
-              onChange={setBody}
-              onCreatePage={onCreatePage}
-              onTranscribe={toggleTranscript}
-              transcribing={transcriptOn}
-              onPresent={onPresent}
-              onError={() => {
-                setMode("markdown");
-                toast({
-                  title: "Opened as plain text",
-                  description: "Part of this page can't be shown in the visual editor.",
-                });
-              }}
-            />
-          </div>
-        ) : (
-          <div className="p-4 sm:p-8">
-            <MarkdownPane
-              circleId={circleId}
-              circleName={circleName}
-              pageSlug={initial.slug}
-              pages={pages}
-              body={body}
-              getBody={() => bodyRef.current}
-              setBody={setBody}
-              touch={touch}
-              textareaRef={textarea}
-            />
-          </div>
-        )}
-        {transcriptOn ? (
-          <TranscriptSection
-            initial={latest.current.transcript ?? ""}
-            recordSignal={recordSignal}
-            control={transcript}
-            onRemoved={() => setTranscriptOn(false)}
-            onSave={async (text) => {
-              await apiFetch(url, { method: "PATCH", body: JSON.stringify({ transcript: text }) });
-              // Added again later, it starts from what was saved.
-              latest.current = { ...latest.current, transcript: text };
-              void queryClient.invalidateQueries({
-                queryKey: wikiPageQuery(initial.slug).queryKey,
-              });
-            }}
-          />
+        </div>
+        {aside ? (
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-[calc(5rem+var(--docs-bar))] lg:-mx-2 lg:max-h-[calc(100vh-6rem-var(--docs-bar))] lg:overflow-y-auto lg:px-2 lg:pb-4 lg:pt-2">
+            {aside}
+          </aside>
         ) : null}
       </div>
-
-      <p className="text-center text-xs text-muted">
-        Changes save as you go, and others can edit at the same time. Type @ to link a page or a
-        document — or to start a new page.
-      </p>
     </div>
   );
 }

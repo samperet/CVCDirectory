@@ -11,12 +11,12 @@ import {
 import { normalizeComment, type CommentRecord } from "@/lib/comments/shared";
 
 /**
- * Comments on wiki pages, each thread on a passage someone selected (its
- * `quote`, any length, highlighted on the page; a few older ones are on the
- * whole page). A comment and its replies make a thread (one
- * level), which can be resolved (and reopened). Stored page by page
- * (`wiki/comments/<pageId>.json`), following the shared comment rules
- * (`lib/comments/store.ts`); admins moderate.
+ * Comments on wiki pages: each thread on the whole page, or on a passage
+ * someone selected (its `quote`, any length, highlighted on the page). A
+ * comment and its replies make a thread (one level), which can be resolved
+ * (and reopened). Stored page by page (`wiki/comments/<pageId>.json`),
+ * following the shared comment rules (`lib/comments/store.ts`); admins
+ * moderate.
  */
 
 export type WikiComment = CommentRecord & {
@@ -29,33 +29,27 @@ export type WikiComment = CommentRecord & {
 
 const MAX_COMMENTS = 1000;
 
-export const commentInputSchema = z
-  .object({
-    body: z
-      .string()
-      .trim()
-      .min(1, "Write a comment")
-      .max(2000, "Comments must be 2000 characters or fewer"),
-    /** As long as the page (a passage can be a word or the whole thing). */
-    quote: z
-      .string()
-      .trim()
-      .max(50_000)
-      .nullable()
-      .optional()
-      .transform((value) => value || null),
-    parentId: z
-      .string()
-      .uuid()
-      .nullable()
-      .optional()
-      .transform((value) => value ?? null),
-  })
-  // A new thread is on the words someone selected; replies aren't.
-  .refine((input) => input.parentId || input.quote, {
-    message: "Select the words on the page you're commenting on",
-    path: ["quote"],
-  });
+export const commentInputSchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, "Write a comment")
+    .max(2000, "Comments must be 2000 characters or fewer"),
+  /** The passage a new thread is on, as long as the page (a word, or the whole thing); none for the page as a whole. */
+  quote: z
+    .string()
+    .trim()
+    .max(50_000)
+    .nullable()
+    .optional()
+    .transform((value) => value || null),
+  parentId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
+});
 export const commentUpdateSchema = z.union([
   z.object({
     body: z

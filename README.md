@@ -581,11 +581,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   **Show connections** (fading everything else). Clicking a circle also zooms in. **Find** zooms to
   anything. Built from `GET /api/wiki/graph` (`/documents?map=1`;
   `/admin/wiki-map` redirects there).
-- **Wiki comments** – anyone signed in selects words on a page (any amount, a word to the whole
-  page) and comments on them; there's no comment box for the page as a whole. Comments show as
-  square yellow sticky notes beside the page (writers by their initials, their name on hover; reply,
-  edit and delete appear when the pointer is over a note), and the passage is highlighted (clicking
-  either jumps to the other). While reading, "On this page" shows the section you're in in bold.
+- **Wiki comments** – every page has a **Comments** section beside it — while reading it and
+  while editing it (below the page on phones) — whose **Add a comment on this page…** box takes a
+  comment on the page as a whole. While reading, anyone signed in can also select words on the page
+  (any amount, a word to the whole page) and comment on them. Comments show as square yellow sticky
+  notes (writers by their initials, their name on hover; reply, edit and delete appear when the
+  pointer is over a note); a passage's is highlighted on the page (clicking either jumps to the
+  other) and, while editing, quoted on its note. While reading, "On this page" shows the section you're in in bold.
   Threads take replies and can be resolved and reopened by whoever started them, the page's editors,
   or an admin; authors edit and delete their own (admins any). The page's writers and the thread's
   participants are notified (the "wiki" notification setting). Stored page by page in

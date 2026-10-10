@@ -53,6 +53,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { Select } from "@/components/ui/select";
 
 const NO_THREADS: never[] = [];
+const NO_IDS = new Set<string>();
 
 /** A floating "Comment" button over selected text on the page. */
 function useSelectionPrompt(article: React.RefObject<HTMLElement>, enabled: boolean) {
@@ -418,6 +419,21 @@ export function WikiPageClient({ slug }: { slug: string }) {
           page={page}
           pages={pages}
           onPresent={() => setChoosingPresent(true)}
+          aside={
+            <WikiComments
+              circleId={circleId}
+              slug={slug}
+              threads={threads}
+              canComment={!!user && wikiOn}
+              canModerate={canEdit || !!user?.isAdmin}
+              pendingQuote={null}
+              onClearQuote={() => undefined}
+              activeId={activeId}
+              foundIds={NO_IDS}
+              onActivate={setActiveId}
+              locating={false}
+            />
+          }
           headerExtras={
             <>
               <PresentLine present={page.present} meetingDate={page.meetingDate} />
