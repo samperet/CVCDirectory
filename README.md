@@ -687,14 +687,15 @@ from then on, so re-importing the directory never overwrites circle changes.
     `present`, shown under its title ("Meeting Oct 8, 2026 · Present: …"); it isn't a new version.
     Notes from before pages had a meeting day count as dated the day they were started.
   - **Add a proposal** (the handshake) – a new proposal, or one already waiting, put in the notes.
-  - **Transcript** – at the end of every page, folded away like this: "Transcript · N words".
-    While editing, its line has **Record** and **Pause** (the toolbar's microphone records too):
-    what's said is written down by the browser's own speech recognition (Chrome, Edge, Safari —
-    not Firefox; no account or key, no speaker labels; Chrome and Edge send the audio to Google or
-    Microsoft to be recognised) while you keep taking notes in the page, and saved with the page as
-    it comes (the page's `transcript`, not a new version, and searchable). Opened, it shows the
-    whole transcript, with **Copy** and **Clear** while editing. Readers see the same folded line
-    and can open it.
+  - **Transcript** – only on a page someone adds it to: the toolbar's microphone is a toggle
+    that adds it at the end of the page and starts recording (and, toggled off, removes it, asking
+    first if it has words). There it's folded away like this: "Transcript · N words". While
+    editing, its line has **Record** and **Pause**: what's said is written down by the browser's
+    own speech recognition (Chrome, Edge, Safari — not Firefox; no account or key, no speaker
+    labels; Chrome and Edge send the audio to Google or Microsoft to be recognised) while you keep
+    taking notes in the page, and saved with the page as it comes (the page's `transcript`, not a
+    new version, and searchable). Opened, it shows the whole transcript, with **Copy** and
+    **Remove** while editing. Readers see the same folded line and can open it.
 - **Log** – a circle module for short updates, each with replies: a small forum of the circle's
   own, kept apart from the Forum because it **never notifies or emails anyone**. Its **Settings**
   say who can post updates (the circle's members and the Board, or any resident); anyone signed in

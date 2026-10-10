@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { ChevronRight, Copy, Mic, Pause, Trash2 } from "lucide-react";
 import { appendPhrase, useTranscriber } from "@/components/wiki/transcribe";
 import { useToast } from "@/components/ui/use-toast";
@@ -10,10 +10,12 @@ import { cn } from "@/lib/utils";
 /**
  * A page's transcript — what was said while its notes were taken — at the
  * end of the page, folded away: one line saying it's there (and how long it
- * is) until someone opens it. While editing, the same line has **Record** and
- * **Pause** (the browser's own speech recognition: Chrome, Edge, Safari), and
- * what's heard is saved with the page as it comes (`onSave`, a moment after
- * each phrase); opened, it also offers Copy and Clear.
+ * is) until someone opens it. It's there only once someone adds it, with the
+ * editor toolbar's transcript toggle, which starts recording; toggled off
+ * (or **Remove**), it's taken off the page again. While editing, the line has
+ * **Record** and **Pause** (the browser's own speech recognition: Chrome,
+ * Edge, Safari), and what's heard is saved with the page as it comes
+ * (`onSave`, a moment after each phrase); opened, it also offers Copy.
  */
 
 const words = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
@@ -73,17 +75,25 @@ export function PageTranscript({ transcript }: { transcript?: string }) {
   );
 }
 
+/** Taking a transcript off the page (asking first, if it has words). */
+export type TranscriptControl = { remove: () => Promise<void> };
+
 /** Editing a page: its transcript, folded away, with Record and Pause; saved as it fills. */
 export function TranscriptSection({
   initial,
   onSave,
   recordSignal,
+  onRemoved,
+  control,
 }: {
   /** The page's transcript so far (new words are added to it). */
   initial: string;
   onSave: (text: string) => Promise<unknown>;
-  /** Changes when the toolbar's microphone is pressed: start recording. */
+  /** Changes each time the toolbar's toggle adds the transcript (0 if it was there already): start recording. */
   recordSignal: number;
+  /** It's been taken off the page (its words deleted). */
+  onRemoved: () => void;
+  control?: MutableRefObject<TranscriptControl | null>;
 }) {
   const { toast } = useToast();
   const confirm = useConfirm();
@@ -137,14 +147,41 @@ export function TranscriptSection({
     pause.current = !!latest.current.trim();
     start();
   };
-  // The toolbar's microphone: record, and bring the transcript into view.
-  const firstSignal = useRef(recordSignal);
+  // Just added with the toolbar's toggle: record, and bring the transcript into view.
+  const handledSignal = useRef(0);
   useEffect(() => {
-    if (recordSignal === firstSignal.current) return;
-    if (supported) record();
+    if (!recordSignal || recordSignal === handledSignal.current) return;
+    handledSignal.current = recordSignal;
+    record();
+    setOpen(true);
     section.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recordSignal]);
+
+  const remove = async () => {
+    if (
+      latest.current.trim() &&
+      !(await confirm({
+        title: "Remove the page's transcript?",
+        body: "Its words are deleted for everyone. This can't be undone.",
+        confirmLabel: "Remove",
+        destructive: true,
+      }))
+    )
+      return;
+    stop();
+    try {
+      if (savedText.current) await save.current("");
+    } catch {
+      toast({ title: "Couldn't remove the transcript — try again", variant: "destructive" });
+      return;
+    }
+    savedText.current = "";
+    latest.current = "";
+    setText("");
+    onRemoved();
+  };
+  if (control) control.current = { remove };
 
   const count = words(text);
   const button =
@@ -219,8 +256,8 @@ export function TranscriptSection({
             </p>
           )}
           {error ? <p className="px-4 pb-2 text-sm text-destructive">{error}</p> : null}
-          {text.trim() ? (
-            <div className="flex gap-1 border-t border-border px-3 py-1.5">
+          <div className="flex gap-1 border-t border-border px-3 py-1.5">
+            {text.trim() ? (
               <button
                 type="button"
                 className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-accent hover:text-foreground"
@@ -235,27 +272,15 @@ export function TranscriptSection({
               >
                 <Copy className="h-3.5 w-3.5" aria-hidden /> Copy
               </button>
-              <button
-                type="button"
-                className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-accent hover:text-destructive"
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: "Clear the page's transcript?",
-                      body: "It's gone for everyone. This can't be undone.",
-                      confirmLabel: "Clear",
-                      destructive: true,
-                    })
-                  ) {
-                    stop();
-                    setText("");
-                  }
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden /> Clear
-              </button>
-            </div>
-          ) : null}
+            ) : null}
+            <button
+              type="button"
+              className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-accent hover:text-destructive"
+              onClick={() => void remove()}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden /> Remove
+            </button>
+          </div>
         </div>
       </Shell>
     </div>

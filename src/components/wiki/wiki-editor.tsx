@@ -17,7 +17,7 @@ import Link from "next/link";
 import { shortDate, timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
-import { TranscriptSection } from "@/components/wiki/transcript-section";
+import { TranscriptSection, type TranscriptControl } from "@/components/wiki/transcript-section";
 import type { Circle } from "@/lib/circles/types";
 import { useToast } from "@/components/ui/use-toast";
 import { clearDraft, readDraft, writeDraft, type Draft } from "@/components/wiki/draft-storage";
@@ -72,7 +72,7 @@ export function WikiEditor({
   circle?: Pick<Circle, "name" | "iconUrl"> | null;
   page: WikiPage;
   pages: WikiPageSummary[];
-  /** The page's settings (parent circle, colour, who can see it, history), shown in the bar above the page. */
+  /** The page's settings (parent circle, who can edit it, history), shown in the bar above the page. */
   tools?: ReactNode;
   /** What the page's header shows under the title besides the date: the consent pill and controls. */
   headerExtras?: ReactNode;
@@ -127,8 +127,16 @@ export function WikiEditor({
   const remoteNewer = useRef(false);
   const retryAt = useRef(0);
   const rich = useRef<RichEditorHandle | null>(null);
-  // The toolbar's microphone: the transcript at the page's end starts recording.
+  // The transcript at the page's end: there if the page has one, or once the toolbar's toggle adds
+  // it (and starts recording); toggled off, it's removed.
+  const [transcriptOn, setTranscriptOn] = useState(() => !!initial.transcript?.trim());
   const [recordSignal, setRecordSignal] = useState(0);
+  const transcript = useRef<TranscriptControl | null>(null);
+  const toggleTranscript = () => {
+    if (transcriptOn) return void transcript.current?.remove();
+    setTranscriptOn(true);
+    setRecordSignal((n) => n + 1);
+  };
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   const dirty = title !== synced.title || body !== synced.body;
@@ -554,7 +562,8 @@ export function WikiEditor({
               meetingNotes={!!meetingDateOf(initial)}
               onChange={setBody}
               onCreatePage={onCreatePage}
-              onTranscribe={() => setRecordSignal((n) => n + 1)}
+              onTranscribe={toggleTranscript}
+              transcribing={transcriptOn}
               onPresent={onPresent}
               onError={() => {
                 setMode("markdown");
@@ -580,14 +589,22 @@ export function WikiEditor({
             />
           </div>
         )}
-        <TranscriptSection
-          initial={latest.current.transcript ?? ""}
-          recordSignal={recordSignal}
-          onSave={async (transcript) => {
-            await apiFetch(url, { method: "PATCH", body: JSON.stringify({ transcript }) });
-            void queryClient.invalidateQueries({ queryKey: wikiPageQuery(initial.slug).queryKey });
-          }}
-        />
+        {transcriptOn ? (
+          <TranscriptSection
+            initial={latest.current.transcript ?? ""}
+            recordSignal={recordSignal}
+            control={transcript}
+            onRemoved={() => setTranscriptOn(false)}
+            onSave={async (text) => {
+              await apiFetch(url, { method: "PATCH", body: JSON.stringify({ transcript: text }) });
+              // Added again later, it starts from what was saved.
+              latest.current = { ...latest.current, transcript: text };
+              void queryClient.invalidateQueries({
+                queryKey: wikiPageQuery(initial.slug).queryKey,
+              });
+            }}
+          />
+        ) : null}
       </div>
 
       <p className="text-center text-xs text-muted">

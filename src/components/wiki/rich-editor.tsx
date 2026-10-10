@@ -2,6 +2,7 @@
 
 import "@mdxeditor/editor/style.css";
 import {
+  createContext,
   forwardRef,
   useContext,
   useEffect,
@@ -57,6 +58,7 @@ import {
   ListsToggle,
   MDXEditor,
   type MDXEditorMethods,
+  MultipleChoiceToggleGroup,
   NestedLexicalEditor,
   Separator,
   UndoRedo,
@@ -666,6 +668,28 @@ type LinkChoice = "web" | "page" | "upload";
  * page shown in this one), or a new file, uploaded to the circle's documents
  * and linked.
  */
+/** The page has its transcript: the toolbar is set up once, so its toggle reads this. */
+const TranscriptOn = createContext(false);
+
+/** The toolbar's transcript toggle: adds the transcript at the page's end (recording), or removes it. */
+function TranscriptToggle({ onToggle }: { onToggle: () => void }) {
+  const on = useContext(TranscriptOn);
+  return (
+    <span data-transcript-toggle={on ? "on" : "off"}>
+      <MultipleChoiceToggleGroup
+        items={[
+          {
+            title: on ? "Remove the transcript" : "Record a transcript",
+            contents: <Mic className="h-5 w-5" />,
+            active: on,
+            onChange: onToggle,
+          },
+        ]}
+      />
+    </span>
+  );
+}
+
 function LinkMenu({
   canUpload,
   onPage,
@@ -771,8 +795,10 @@ export const RichEditor = forwardRef<
     onCreatePage: (title: string) => void;
     /** The same handle as the ref (refs don't pass through a lazily loaded component). */
     control?: MutableRefObject<RichEditorHandle | null>;
-    /** The toolbar's **Transcribe**: open the transcript beside the page. */
+    /** The toolbar's transcript toggle: add the transcript at the page's end (recording), or remove it. */
     onTranscribe?: () => void;
+    /** The page has its transcript (the toggle shows on). */
+    transcribing?: boolean;
     /** The toolbar's **Who's present**: choose the people present (meeting notes). */
     onPresent?: () => void;
   }
@@ -790,6 +816,7 @@ export const RichEditor = forwardRef<
     onCreatePage,
     control,
     onTranscribe,
+    transcribing = false,
     onPresent,
   },
   ref
@@ -869,152 +896,151 @@ export const RichEditor = forwardRef<
   };
   return (
     <WikiCircleContext.Provider value={wiki}>
-      <MDXEditor
-        ref={editor}
-        markdown={protectWikiLinks(markdown)}
-        onChange={(value) => onChange(normalizeWikiLinks(value))}
-        onError={onError}
-        suppressHtmlProcessing
-        className="wiki-editor"
-        contentEditableClassName="wiki-prose document-body"
-        placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
-        plugins={[
-          headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
-          listsPlugin(),
-          quotePlugin(),
-          thematicBreakPlugin(),
-          linkPlugin(),
-          linkDialogPlugin(),
-          tablePlugin(),
-          imagePlugin({
-            imageUploadHandler: uploadPhoto,
-            disableImageResize: true,
-            disableImageSettingsButton: true,
-          }),
-          codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
-          codeMirrorPlugin({
-            codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" },
-            autoLoadLanguageSupport: false,
-          }),
-          markdownShortcutPlugin(),
-          directivesPlugin({
-            directiveDescriptors: [
-              detailsDirective,
-              calloutDirective,
-              pollDirective,
-              proposalDirective,
-              embedDirective,
-              markDirective,
-              textDirectives,
-              otherDirectives,
-            ],
-          }),
-          wikiLinkPlugin(),
-          editorBridgePlugin({ target: lexical }),
-          contextMenuPlugin(),
-          mentionPlugin({
-            circleId,
-            circleName,
-            pageId,
-            onCreatePage: (title) => createRef.current(title),
-          }),
-          toolbarPlugin({
-            toolbarClassName: "wiki-toolbar",
-            toolbarContents: () => (
-              <>
-                <UndoRedo />
-                <Separator />
-                <StyleSelect />
-                <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
-                <HighlightButton onApply={(markdown) => editor.current?.insertMarkdown(markdown)} />
-                <Separator />
-                <ListsToggle options={["bullet", "number", "check"]} />
-                <Separator />
-                <LinkMenu
-                  canUpload={documentsOn}
-                  onPage={() => setEmbedding(true)}
-                  onUpload={() => setAddingDocument(true)}
-                />
-                <Separator />
-                <InsertImage />
-                <InsertTable />
-                <ButtonWithTooltip
-                  title="Collapsible section"
-                  onClick={() =>
-                    insert(':::details{title="Details"}\nWhat this section hides.\n:::')
-                  }
-                >
-                  <ChevronsUpDown className="h-5 w-5" />
-                </ButtonWithTooltip>
-                <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
-                  <BarChart3 className="h-5 w-5" />
-                </ButtonWithTooltip>
-                <ButtonWithTooltip title="Add a proposal" onClick={() => setProposing(true)}>
-                  <Handshake className="h-5 w-5" />
-                </ButtonWithTooltip>
-                <Separator />
-                <ButtonWithTooltip
-                  title="Who's present"
-                  onClick={() => meeting.current.onPresent?.()}
-                >
-                  <Users className="h-5 w-5" />
-                </ButtonWithTooltip>
-                <ButtonWithTooltip
-                  title="Record a transcript"
-                  onClick={() => meeting.current.onTranscribe?.()}
-                >
-                  <Mic className="h-5 w-5" />
-                </ButtonWithTooltip>
-              </>
-            ),
-          }),
-        ]}
-      />
-      {addingDocument ? (
-        <AddDocumentDialog
-          circle={{ id: circleId, name: circleName }}
-          onClose={() => setAddingDocument(false)}
-          onAdded={(link) => {
-            setAddingDocument(false);
-            insertLink(link);
-          }}
+      <TranscriptOn.Provider value={transcribing}>
+        <MDXEditor
+          ref={editor}
+          markdown={protectWikiLinks(markdown)}
+          onChange={(value) => onChange(normalizeWikiLinks(value))}
+          onError={onError}
+          suppressHtmlProcessing
+          className="wiki-editor"
+          contentEditableClassName="wiki-prose document-body"
+          placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
+          plugins={[
+            headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
+            listsPlugin(),
+            quotePlugin(),
+            thematicBreakPlugin(),
+            linkPlugin(),
+            linkDialogPlugin(),
+            tablePlugin(),
+            imagePlugin({
+              imageUploadHandler: uploadPhoto,
+              disableImageResize: true,
+              disableImageSettingsButton: true,
+            }),
+            codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
+            codeMirrorPlugin({
+              codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" },
+              autoLoadLanguageSupport: false,
+            }),
+            markdownShortcutPlugin(),
+            directivesPlugin({
+              directiveDescriptors: [
+                detailsDirective,
+                calloutDirective,
+                pollDirective,
+                proposalDirective,
+                embedDirective,
+                markDirective,
+                textDirectives,
+                otherDirectives,
+              ],
+            }),
+            wikiLinkPlugin(),
+            editorBridgePlugin({ target: lexical }),
+            contextMenuPlugin(),
+            mentionPlugin({
+              circleId,
+              circleName,
+              pageId,
+              onCreatePage: (title) => createRef.current(title),
+            }),
+            toolbarPlugin({
+              toolbarClassName: "wiki-toolbar",
+              toolbarContents: () => (
+                <>
+                  <UndoRedo />
+                  <Separator />
+                  <StyleSelect />
+                  <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
+                  <HighlightButton
+                    onApply={(markdown) => editor.current?.insertMarkdown(markdown)}
+                  />
+                  <Separator />
+                  <ListsToggle options={["bullet", "number", "check"]} />
+                  <Separator />
+                  <LinkMenu
+                    canUpload={documentsOn}
+                    onPage={() => setEmbedding(true)}
+                    onUpload={() => setAddingDocument(true)}
+                  />
+                  <Separator />
+                  <InsertImage />
+                  <InsertTable />
+                  <ButtonWithTooltip
+                    title="Collapsible section"
+                    onClick={() =>
+                      insert(':::details{title="Details"}\nWhat this section hides.\n:::')
+                    }
+                  >
+                    <ChevronsUpDown className="h-5 w-5" />
+                  </ButtonWithTooltip>
+                  <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
+                    <BarChart3 className="h-5 w-5" />
+                  </ButtonWithTooltip>
+                  <ButtonWithTooltip title="Add a proposal" onClick={() => setProposing(true)}>
+                    <Handshake className="h-5 w-5" />
+                  </ButtonWithTooltip>
+                  <Separator />
+                  <ButtonWithTooltip
+                    title="Who's present"
+                    onClick={() => meeting.current.onPresent?.()}
+                  >
+                    <Users className="h-5 w-5" />
+                  </ButtonWithTooltip>
+                  <TranscriptToggle onToggle={() => meeting.current.onTranscribe?.()} />
+                </>
+              ),
+            }),
+          ]}
         />
-      ) : null}
-      {embedding ? (
-        <EmbedPageDialog
-          circle={{ id: circleId, name: circleName }}
-          pageId={pageId}
-          onClose={() => setEmbedding(false)}
-          onChosen={(markdown, kind) => {
-            setEmbedding(false);
-            if (kind === "link") insertLink(markdown);
-            else insert(markdown);
-          }}
-        />
-      ) : null}
-      {proposing ? (
-        <AddProposalDialog
-          circleId={circleId}
-          circleName={circleName}
-          page={{ id: pageId, title: pageTitle, meeting: meetingNotes }}
-          onClose={() => setProposing(false)}
-          onChosen={(id) => {
-            setProposing(false);
-            insert(`\n${proposalLine(id)}\n`);
-          }}
-        />
-      ) : null}
-      {polling ? (
-        <NewPollDialog
-          circle={{ id: circleId, name: circleName }}
-          pageSlug={pageSlug}
-          onClose={() => setPolling(false)}
-          onCreated={(poll) => {
-            setPolling(false);
-            insert(`\n::poll{id="${poll.id}"}\n`);
-          }}
-        />
-      ) : null}
+        {addingDocument ? (
+          <AddDocumentDialog
+            circle={{ id: circleId, name: circleName }}
+            onClose={() => setAddingDocument(false)}
+            onAdded={(link) => {
+              setAddingDocument(false);
+              insertLink(link);
+            }}
+          />
+        ) : null}
+        {embedding ? (
+          <EmbedPageDialog
+            circle={{ id: circleId, name: circleName }}
+            pageId={pageId}
+            onClose={() => setEmbedding(false)}
+            onChosen={(markdown, kind) => {
+              setEmbedding(false);
+              if (kind === "link") insertLink(markdown);
+              else insert(markdown);
+            }}
+          />
+        ) : null}
+        {proposing ? (
+          <AddProposalDialog
+            circleId={circleId}
+            circleName={circleName}
+            page={{ id: pageId, title: pageTitle, meeting: meetingNotes }}
+            onClose={() => setProposing(false)}
+            onChosen={(id) => {
+              setProposing(false);
+              insert(`\n${proposalLine(id)}\n`);
+            }}
+          />
+        ) : null}
+        {polling ? (
+          <NewPollDialog
+            circle={{ id: circleId, name: circleName }}
+            pageSlug={pageSlug}
+            onClose={() => setPolling(false)}
+            onCreated={(poll) => {
+              setPolling(false);
+              insert(`\n::poll{id="${poll.id}"}\n`);
+            }}
+          />
+        ) : null}
+      </TranscriptOn.Provider>
     </WikiCircleContext.Provider>
   );
 });
