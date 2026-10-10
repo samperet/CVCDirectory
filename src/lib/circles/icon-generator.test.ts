@@ -11,6 +11,8 @@ describe("iconPrompt", () => {
     expect(prompt).toContain("Looking after the hives by the orchard.");
     expect(prompt).toContain("The 4 reference images");
     expect(prompt).toContain("No text");
+    expect(prompt).toContain("round badge");
+    expect(prompt).toContain("fully transparent");
   });
   it("describes a style when there are no references", () => {
     const prompt = iconPrompt({ name: "Water", description: null, kind: "circle" }, 0);

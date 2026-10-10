@@ -813,8 +813,12 @@ from then on, so re-importing the directory never overwrites circle changes.
   asks `POST /api/circles/<id>/icon/generate`, which sends OpenAI's image model (`OPENAI_KEY`,
   `OPENAI_IMAGE_MODEL`, default `gpt-image-2.5-flare`) up to six of the other circles' icons as
   references with a prompt naming the new circle and its description, asking for a matching icon
-  with no text (`lib/circles/icon-generator.ts`). It takes about a minute: the circle's page shows
-  **Drawing…** over its icon, and the icon appears when it's ready (a 1024px WebP). Only a circle
+  with no text — a round badge on a transparent background (`background: transparent`, PNG;
+  `lib/circles/icon-generator.ts`). What comes back is then made round for certain: trimmed to the
+  circle that fills it, everything outside transparent with a soft edge, and saved as a 256px PNG
+  (`roundImage` in `lib/png.ts`, a small PNG reader and writer on Node's zlib). It takes about a
+  minute: the circle's page shows **Drawing…** over its icon, and the icon appears when it's
+  ready. Only a circle
   without an icon gets one, so an uploaded icon is never replaced; its members can change it as
   before. Without `OPENAI_KEY` nothing happens. Locally, `ICON_TEST_FAKE=1` skips OpenAI (it
   reuses a reference and records the prompt in `.data/icon-fake.json`).
