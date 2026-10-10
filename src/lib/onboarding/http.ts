@@ -3,6 +3,7 @@ import { actorOf } from "@/lib/auth/actor";
 import { getSessionUser } from "@/lib/auth/session";
 import { canManageDirectory } from "@/lib/directory/access";
 import { adminPersonIds } from "@/lib/auth/admins";
+import { loadAdmins } from "@/lib/auth/admin-store";
 import { BOARD_ID } from "@/lib/circles/ids";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { readDirectory } from "@/lib/directory/store";
@@ -39,7 +40,8 @@ export function boardSecretary(directory: DirectoryDocument) {
 }
 
 /** Who manages new members: the Board Secretary seat's holders, and the admins (person ids). */
-export function intakeManagers(directory: DirectoryDocument): string[] {
+export async function intakeManagers(directory: DirectoryDocument): Promise<string[]> {
+  await loadAdmins();
   const secretaries = (directory.circles.find((circle) => circle.id === BOARD_ID)?.seats ?? [])
     .filter((seat) => seat.personId && /secretary/i.test(seat.position ?? ""))
     .map((seat) => seat.personId as string);

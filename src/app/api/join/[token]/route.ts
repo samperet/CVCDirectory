@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 async function announceAnswers(invitation: Invitation) {
   const directory = await readDirectory();
   if (!directory) return;
-  const userIds = await userIdsForPeople(intakeManagers(directory));
+  const userIds = await userIdsForPeople(await intakeManagers(directory));
   if (!userIds.length) return;
   const name = invitation.answers
     ? `${invitation.answers.firstName} ${invitation.answers.lastName}`.trim()

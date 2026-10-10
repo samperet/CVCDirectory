@@ -126,6 +126,13 @@ export function UserMenu() {
             ) : null}
             {user.isAdmin ? (
               <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
+                <Link href="/admin/settings" onClick={() => setOpen(false)}>
+                  <ShieldCheck className="h-4 w-4" /> Admin settings
+                </Link>
+              </Button>
+            ) : null}
+            {user.isAdmin ? (
+              <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
                 <Link href="/admin/sign-ins" onClick={() => setOpen(false)}>
                   <History className="h-4 w-4" /> Sign-in log
                 </Link>

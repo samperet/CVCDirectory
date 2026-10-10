@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { CommunityUser, getUser, getUserForPerson } from "./users";
 import { SESSION_COOKIE, VIEW_AS_COOKIE, authSecret } from "./secret";
 import { isAdmin } from "./admins";
+import { loadAdmins } from "./admin-store";
 import { readDirectory } from "@/lib/directory/store";
 
 /**
@@ -64,7 +65,8 @@ export function sessionCookieName() {
 export async function getRealSessionUser(): Promise<CommunityUser | null> {
   const userId = parseSessionValue(cookies().get(SESSION_COOKIE)?.value);
   if (!userId) return null;
-  const user = await getUser(userId);
+  // Admins added in the app are read as the session is, so `isAdmin` knows them.
+  const [user] = await Promise.all([getUser(userId), loadAdmins()]);
   // Sessions from the retired name-only sign-in don't count: only accounts
   // linked to a resident (proven by an emailed link or code) are signed in.
   return user?.personId ? user : null;

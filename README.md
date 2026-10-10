@@ -47,7 +47,7 @@ Accounts and admin:
 
 - `AUTH_SECRET` – Signs session cookies. Set it in production (see Signing In below).
 - `ADMIN_TOKEN` – Enables the admin API (directory import, photo seeding); leave unset to disable it.
-- `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins (see Admins).
+- `ADMIN_PERSON_IDS` – Optional comma-separated directory person ids of extra app admins, beyond those added on Admin settings (see Admins).
 
 Email (optional; see App & Notifications):
 
@@ -163,8 +163,13 @@ signed with `AUTH_SECRET`; when it's unset, production derives a key from `R2_SE
 ## Admins
 
 Admins can do anything a resident can, on anyone's content. Sam Peret is built in
-(`src/lib/auth/admins.ts`); add more by setting `ADMIN_PERSON_IDS` to their directory person ids.
-Admin status is checked server-side on every request, and the user menu shows an "Admin" label.
+(`src/lib/auth/admins.ts`); the rest are managed on **Admin settings** (`/admin/settings`, in the
+user menu): any admin makes a resident an admin, or removes one added there — never the last
+admin. Those set with `ADMIN_PERSON_IDS` in Vercel (directory person ids) are listed there too,
+but changed in Vercel. The added ones are kept in `auth/admins.json` (`lib/auth/admin-store.ts`;
+`GET`/`POST /api/admin/admins`, `DELETE /api/admin/admins/<personId>`) and read as each request's
+session is, so admin status is checked server-side on every request; the user menu shows an
+"Admin" label. The settings page also links the other admin pages.
 
 - **Circles** – edit, manage members of, and delete any circle, as the Board can.
 - **Forum** – edit or delete any post, including a whole discussion after others have replied.

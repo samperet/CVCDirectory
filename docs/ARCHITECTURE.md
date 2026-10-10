@@ -86,7 +86,9 @@ Main documents (see each store's `KEY`):
   ("Secretary", "Op leader", …) is free text, matched with `holdsSeat(…, /secretary/i)`.
 - **The Board** (`BOARD_ID`): its members can manage every circle (`canManageCircle`,
   `sitsOnBoard`). **Community** (`COMMUNITY_ID`) is everyone — no seats, can't be joined or deleted.
-- **Admin**: listed in `ADMIN_PERSON_IDS` (`isAdmin`); passes every check and can "view as" someone.
+- **Admin**: built in, listed in `ADMIN_PERSON_IDS`, or added on Admin settings (`auth/admins.json`,
+  read into memory as the session is: `loadAdmins`) — `isAdmin`; passes every check and can "view
+  as" someone.
 - `canUploadTo(user, directory, circleId)` is the common "may change this circle's things" test:
   its members, the Board, admins — and any resident for Community.
 
