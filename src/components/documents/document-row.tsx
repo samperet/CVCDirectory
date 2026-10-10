@@ -491,8 +491,10 @@ export function DocumentRow({
                 body: `Its text becomes a page anyone in ${
                   doc.circleName || "the circle"
                 } can keep improving. The ${
-                  version.link ? "Google Doc" : "file"
-                } stays as it is, linked from the page.`,
+                  version.link
+                    ? "Google Doc stays as it is, linked from the page."
+                    : "file is kept as it is, as the page's original, linked from it."
+                }`,
                 confirmLabel: "Make the page",
               })
             )

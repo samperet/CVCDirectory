@@ -89,7 +89,15 @@ export interface DocumentRecord {
   consent?: DocumentConsent | null;
   /** Put to the circle for consent: a copy of the open proposal about it (see `lib/proposals`). */
   proposal?: DocumentProposal | null;
+  /** Made into a written page: kept as that page's original, shown with it rather than on its own. */
+  madeInto?: { pageId: string } | null;
 }
+
+/** A file made into a page that's still there: it's shown with the page, not listed on its own. */
+export const shownWithPage = (
+  doc: Pick<DocumentRecord, "madeInto">,
+  livePageIds: ReadonlySet<string>
+) => !!doc.madeInto && livePageIds.has(doc.madeInto.pageId);
 
 /** An open proposal about a document, as the document shows it. */
 export interface DocumentProposal {

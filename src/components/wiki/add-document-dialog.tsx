@@ -3,8 +3,10 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FilePlus2, Upload } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 import { ACCEPTED_EXTENSIONS, formatBytes } from "@/lib/documents/types";
-import { docLinkText } from "@/lib/wiki/links";
+import { docLinkText, pageLinkText } from "@/lib/wiki/links";
+import { convertible } from "@/components/documents/bulk-upload";
 import {
   FileIcon,
   checkFile,
@@ -19,10 +21,15 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 /**
  * Add a document while writing a wiki page: it's uploaded to the circle's
  * documents (like any other), and a link to it goes where the cursor was.
+ * A Word file, PDF, slide deck or text file is made into a page of its own
+ * (the preferred choice, the file kept as its original) and the link is to
+ * that page — unless **The file as it is** is chosen, or it has no text to
+ * bring in.
  */
 export function AddDocumentDialog({
   circle,
@@ -45,7 +52,10 @@ export function AddDocumentDialog({
   const [description, setDescription] = useState("");
   const [progress, setProgress] = useState<{ sent: number; finishing: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [convert, setConvert] = useState<"page" | "file">("page");
+  const [making, setMaking] = useState(false);
   const chosenType = type || types[0]?.id || "";
+  const converting = !!file && convertible(file.name) && convert === "page";
 
   const choose = (picked: File | undefined) => {
     if (!picked) return;
@@ -71,12 +81,31 @@ export function AddDocumentDialog({
         },
         setProgress
       );
+      setMaking(converting);
+      const made = converting
+        ? await apiFetch<{ page: { slug: string; title: string } | null }>(
+            `/api/documents/${document.id}/page`,
+            { method: "POST" }
+          ).catch((err: Error) => ({ page: null, kept: err.message }))
+        : null;
       await queryClient.invalidateQueries({ queryKey: ["documents"] });
-      toast({ title: "Document added", description: `It's in ${circle.name}'s documents too.` });
+      await queryClient.invalidateQueries({ queryKey: ["wiki"] });
+      if (made?.page) {
+        toast({ title: "Page made", description: `“${made.page.title}” is in ${circle.name}.` });
+        return onAdded(pageLinkText(made.page.title));
+      }
+      toast({
+        title: "Document added",
+        description:
+          made && "kept" in made
+            ? `Kept as a file: ${made.kept}`
+            : `It's in ${circle.name}'s documents too.`,
+      });
       // This circle's document comes first for its title, so the plain link finds it.
       onAdded(docLinkText(document.title, circle, circle.id, false));
     } catch (error) {
       setProgress(null);
+      setMaking(false);
       toast({
         title: "Upload failed",
         description: (error as Error).message,
@@ -181,6 +210,28 @@ export function AddDocumentDialog({
                 />
               </label>
             </div>
+            {convertible(file.name) ? (
+              <div className="flex flex-col gap-1.5" data-upload-convert>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-sm font-medium text-foreground">Add it as</span>
+                  <SegmentedControl
+                    label="Add it as"
+                    size="xs"
+                    value={convert}
+                    onChange={(value) => !busy && setConvert(value)}
+                    options={[
+                      { value: "page", label: "A wiki page (recommended)" },
+                      { value: "file", label: "The file as it is" },
+                    ]}
+                  />
+                </div>
+                <p className="text-xs text-muted">
+                  {convert === "page"
+                    ? "Its text becomes a page anyone in the circle can keep improving; the file is kept as the page's original."
+                    : "The file is added as it is, to open or download."}
+                </p>
+              </div>
+            ) : null}
             <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
               Description <span className="sr-only">(optional)</span>
               <Input
@@ -205,19 +256,29 @@ export function AddDocumentDialog({
                 }}
               />
             </div>
-            <p className="text-xs text-muted">{progress.finishing ? "Finishing…" : "Uploading…"}</p>
+            <p className="text-xs text-muted">
+              {making ? "Making the page…" : progress.finishing ? "Finishing…" : "Uploading…"}
+            </p>
           </div>
         ) : null}
 
         <p className="text-xs text-muted">
-          It goes into {circle.name}&apos;s documents, and a link to it goes into this page.
+          {converting
+            ? `The page goes into ${circle.name}'s documents, and a link to it goes into this page.`
+            : `It goes into ${circle.name}'s documents, and a link to it goes into this page.`}
         </p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button type="submit" disabled={!file || !title.trim() || !chosenType || busy}>
-            {busy ? "Uploading…" : "Add document"}
+            {making
+              ? "Making the page…"
+              : busy
+                ? "Uploading…"
+                : converting
+                  ? "Add as a page"
+                  : "Add document"}
           </Button>
         </div>
       </form>

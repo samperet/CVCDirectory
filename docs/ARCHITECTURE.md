@@ -202,7 +202,11 @@ Pages and uploaded files share one **Documents** section (`/documents`; `/wiki` 
 "proposal"; pages listed by `lib/wiki/listing.ts`, searched and sorted like files), shown by
 `DocumentsPanel` with `PageListingRow`, `DocumentRow` and `ProposalListingRow`, and its **New** menu
 (`documents/new-menu.tsx`) writes a page or meeting notes, makes a proposal, or uploads a file. Storage, links and history stay separate. **Turn into a page**
-(`POST /api/documents/<id>/page`) converts a file's text with `lib/documents/to-markdown.ts`.
+(`POST /api/documents/<id>/page`) converts a file's text with `lib/documents/to-markdown.ts`;
+uploads do it straight away unless "as they are" is chosen (`BulkUpload`, `AddDocumentDialog`).
+The file is marked `madeInto: {pageId}` and, while that page exists, left out of the combined
+listing (`?pages=1`) and site search (`shownWithPage`); `GET /api/documents` without `pages=1`
+still returns it, so `[[doc:…]]` links to it resolve.
 
 ## Notifications
 

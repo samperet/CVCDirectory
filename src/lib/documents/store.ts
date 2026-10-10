@@ -226,6 +226,17 @@ export function updateDocument(id: string, update: Partial<DocumentDetails>) {
   });
 }
 
+/** A file made into a written page: from now on it's that page's original (`madeInto`). */
+export function markMadeInto(id: string, pageId: string) {
+  return mutate<DocumentRecord>((documents) => {
+    const index = documents.findIndex((doc) => doc.id === id);
+    if (index === -1) return "not_found";
+    const next = [...documents];
+    next[index] = { ...documents[index], madeInto: { pageId } };
+    return { documents: next, value: next[index] };
+  });
+}
+
 /** Record the circle's consent to a document (to its current version), or withdraw it (null). */
 export function setConsent(id: string, consent: Omit<DocumentConsent, "version"> | null) {
   return mutate<DocumentRecord>((documents) => {

@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Check, RotateCcw, Upload, X } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, BookOpen, Check, RotateCcw, Upload, X } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 import { ACCEPTED_EXTENSIONS, formatBytes } from "@/lib/documents/types";
 import {
   FileIcon,
@@ -18,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
+import { SegmentedControl } from "@/components/ui/segmented";
 
 const MAX_FILES = 50;
 
@@ -32,7 +35,14 @@ interface Row {
   status: Status;
   progress: { sent: number; finishing: boolean } | null;
   error?: string;
+  /** Made into a written page (its address). */
+  page?: { slug: string; title: string };
+  /** Why it couldn't be made into a page, and was kept as a file. */
+  kept?: string;
 }
+
+/** Files whose text can become a written page: Word, PDF, slides, plain text and Markdown. */
+export const convertible = (name: string) => /\.(docx|pdf|pptx|txt|md|markdown)$/i.test(name);
 
 let nextKey = 0;
 
@@ -41,7 +51,11 @@ let nextKey = 0;
  * (choosing the circle), or from a circle's own page (just that circle).
  * Each file gets a title (from its name), a type, and a meeting date (when
  * its name has one), all editable; they upload one after another, and any
- * that fail can be retried.
+ * that fail can be retried. Added as **Wiki pages** (the default), each
+ * Word file, PDF, slide deck or text file is made into a written page anyone
+ * in the circle can keep improving, the file kept as its original; others,
+ * and any with no text to bring in, stay files. **Files as they are**
+ * keeps every one a file.
  */
 export function BulkUpload({
   circles,
@@ -61,6 +75,7 @@ export function BulkUpload({
       : circles[0]?.id ?? ""
   );
   const [rows, setRows] = useState<Row[]>([]);
+  const [convert, setConvert] = useState<"pages" | "files">("pages");
   // On a circle's own page there's only that circle: no need to choose.
   const single = circles.length === 1;
   const [dragging, setDragging] = useState(false);
@@ -140,7 +155,7 @@ export function BulkUpload({
         progress: { sent: 0, finishing: false },
       });
       try {
-        await uploadDocument(
+        const document = await uploadDocument(
           row.file,
           circleId,
           {
@@ -151,7 +166,16 @@ export function BulkUpload({
           },
           (progress) => update(row.key, { progress })
         );
-        update(row.key, { status: "done", progress: null });
+        let made: Pick<Row, "page" | "kept"> = {};
+        if (convert === "pages" && convertible(row.file.name)) {
+          made = await apiFetch<{ page: { slug: string; title: string } | null }>(
+            `/api/documents/${document.id}/page`,
+            { method: "POST" }
+          )
+            .then(({ page }) => (page ? { page } : {}))
+            .catch((err: Error) => ({ kept: err.message }));
+        }
+        update(row.key, { status: "done", progress: null, ...made });
         succeeded++;
       } catch (err) {
         update(row.key, { status: "failed", progress: null, error: (err as Error).message });
@@ -160,6 +184,7 @@ export function BulkUpload({
     }
     setRunning(false);
     queryClient.invalidateQueries({ queryKey: ["documents"] });
+    queryClient.invalidateQueries({ queryKey: ["wiki"] });
     const circleName = circles.find((circle) => circle.id === circleId)?.name ?? "the circle";
     if (failed) {
       toast({
@@ -222,6 +247,27 @@ export function BulkUpload({
             </Select>
           </label>
         ) : null}
+      </div>
+
+      <div className="flex flex-col gap-1.5" data-upload-convert>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-medium text-foreground">Add them as</span>
+          <SegmentedControl
+            label="Add them as"
+            size="xs"
+            value={convert}
+            onChange={(value) => !running && setConvert(value)}
+            options={[
+              { value: "pages", label: "Wiki pages (recommended)" },
+              { value: "files", label: "Files as they are" },
+            ]}
+          />
+        </div>
+        <p className="text-xs text-muted">
+          {convert === "pages"
+            ? "Converted: Word files, PDFs, slides and text files become pages anyone in the circle can keep improving and search; each file is kept as its page's original. Spreadsheets, images and files with no text stay files."
+            : "Uploaded as they are: every file is added unchanged, to open or download."}
+        </p>
       </div>
 
       <input
@@ -306,7 +352,25 @@ export function BulkUpload({
                   ) : null}
                 </div>
                 {row.status === "done" ? (
-                  <p className="text-sm font-medium text-foreground">{row.title}</p>
+                  <div className="flex flex-col gap-0.5" data-upload-result>
+                    {row.page ? (
+                      <Link
+                        href={`/wiki/${row.page.slug}`}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+                        data-made-page={row.page.slug}
+                      >
+                        <BookOpen className="h-4 w-4 text-primary" aria-hidden /> {row.page.title}
+                        <span className="text-xs font-normal text-muted">· now a page</span>
+                      </Link>
+                    ) : (
+                      <p className="text-sm font-medium text-foreground">{row.title}</p>
+                    )}
+                    {row.kept ? (
+                      <p className="text-xs text-muted" data-kept>
+                        Kept as a file: {row.kept}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
                     <Input

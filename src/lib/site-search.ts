@@ -3,7 +3,7 @@ import type { DirectoryDocument } from "@/lib/directory/types";
 import { featureEnabled } from "@/lib/circles/features";
 import { listDocuments, searchDocuments } from "@/lib/documents/store";
 import { readTypeMap, typeLabelFor } from "@/lib/documents/type-store";
-import { consentState, type DocumentRecord } from "@/lib/documents/types";
+import { consentState, shownWithPage, type DocumentRecord } from "@/lib/documents/types";
 import { searchForum } from "@/lib/forum/search";
 import { listLoanItems } from "@/lib/library/store";
 import { listRecommendations } from "@/lib/resources/store";
@@ -257,8 +257,10 @@ export async function searchSite(
   }));
 
   const consented = (doc: DocumentRecord) => consentState(doc) === "consented";
+  // Files made into pages are found through their pages.
+  const livePageIds = new Set(wikis.map((page) => page.id));
   const documentHits = await searchDocuments(
-    documents,
+    documents.filter((doc) => !shownWithPage(doc, livePageIds)),
     query,
     (doc) =>
       `${circleName(doc.circleId)} ${typeLabelFor(doc, types)}${consented(doc) ? " consented" : ""}`

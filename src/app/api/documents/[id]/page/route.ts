@@ -4,7 +4,7 @@ import { canUploadTo } from "@/lib/documents/access";
 import { identifyDocument } from "@/lib/documents/files";
 import { readGoogleDocx } from "@/lib/documents/link-fetch";
 import { classifyLink } from "@/lib/documents/links";
-import { fileKey, getDocument, isDocumentId } from "@/lib/documents/store";
+import { fileKey, getDocument, isDocumentId, markMadeInto } from "@/lib/documents/store";
 import { fileToMarkdown } from "@/lib/documents/to-markdown";
 import { currentVersion } from "@/lib/documents/types";
 import { readBinary } from "@/lib/storage";
@@ -20,11 +20,14 @@ export const maxDuration = 60;
 type Params = { params: { id: string } };
 
 /**
- * Turn an uploaded file into a written page: its text (a Word file's
+ * Turn an uploaded file into a written page — on upload, when it's added
+ * as a wiki page (the preferred choice), or later from its row: its text (a Word file's
  * headings, bold, italics, and lists too) becomes a new page with the
  * file's title, kept by the file's circle, opening with a link back to the
- * file — which stays as it is. A shared Google Doc comes in the same way,
- * through Google's Word export. Anyone who can start pages for that circle.
+ * file. The file is kept, unchanged, as the page's original (`madeInto`):
+ * shown with the page rather than listed on its own. A shared Google Doc
+ * comes in the same way, through Google's Word export (and stays listed).
+ * Anyone who can start pages for that circle.
  */
 export async function POST(request: NextRequest, { params }: Params) {
   const limited = throttled(request, "document-to-page");
@@ -70,6 +73,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return result.reason === "exists"
       ? problem(`There's already a page called “${doc.title}”`, 409)
       : wikiProblem(result.reason);
+  if (result.page && !version.link) await markMadeInto(doc.id, result.page.id);
   return NextResponse.json(
     { page: result.page ? { slug: result.page.slug, title: result.page.title } : null },
     { status: 201 }

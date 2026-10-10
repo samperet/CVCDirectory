@@ -373,7 +373,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   of files at a time; an export is kept a day, for whoever made it.
 - **Turn into a page** – a file with text (Word, PDF, slides, text) has a book icon among its
   actions, for anyone who can start pages in its circle: its text becomes a page with the file's
-  title, kept by the file's circle and opening with a link back to the file, which stays as it is.
+  title, kept by the file's circle and opening with a link back to the file. The file is kept,
+  unchanged, as the page's original (`madeInto`): while the page is there, Documents lists and
+  search show the page, not the file (`shownWithPage`); if the page goes to the trash, the file is
+  listed again.
   A Word file keeps its headings, bold and italic words, and lists; other files come in paragraph by
   paragraph; the words are never changed (`POST /api/documents/<id>/page`,
   `lib/documents/to-markdown.ts`). A shared Google Doc can be turned into a page the same way
@@ -658,6 +661,12 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   chosen from a dropdown of the circles you can add to (your own; every circle for the Board and
   admins). On a circle's own page, **Add documents** does the same for that circle (no dropdown);
   a single file works the same way, and a description can be added afterwards with Edit.
+  **Add them as** offers **Wiki pages (recommended)**, the default — each Word file, PDF, slide
+  deck or text file is uploaded and then turned into a page (as **Turn into a page** does), shown
+  as "now a page" — or **Files as they are**. Spreadsheets, images, files with no text, and any
+  whose title another page already has stay files, saying why. The editor's **Link → Upload a
+  file…** offers the same choice for one file (**A wiki page** / **The file as it is**) and links
+  the page or the file.
 - **Filtering and sorting** – document lists filter by circle (on `/documents`), type, year (on
   `/documents`), and stage (Proposed or Consented), and sort by newest (the default), oldest, title, or recently
   updated (best match while searching); **Clear** resets them (`GET /api/documents?sort=…&year=…`). Each file gets an editable title (from its name), type, and meeting date (filled in

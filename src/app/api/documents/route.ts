@@ -13,7 +13,7 @@ import {
   listDocuments,
   searchDocuments,
 } from "@/lib/documents/store";
-import { DocumentRecord, consentState, documentDate } from "@/lib/documents/types";
+import { DocumentRecord, consentState, documentDate, shownWithPage } from "@/lib/documents/types";
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
 import { announceDocument } from "@/lib/documents/announce";
@@ -78,7 +78,8 @@ const proposalSortable = (proposal: Proposal): Sortable => ({
  * one list (`items`: each `kind` "file", "page" or "proposal") filtered,
  * searched and sorted alike; `kind=pages`, `kind=files` or `kind=proposals`
  * keeps to one (choosing a file `type` means files). `documents` stays the
- * files alone.
+ * files alone. Listed with the pages, a file made into a page (`madeInto`)
+ * is left out while that page is there: the page links to it.
  */
 export async function GET(request: NextRequest) {
   const context = await circleContext();
@@ -100,10 +101,13 @@ export async function GET(request: NextRequest) {
   const label = (doc: DocumentRecord) => typeLabelFor(doc, types);
   const circleName = (id: string) => directory.circles.find((entry) => entry.id === id)?.name ?? "";
 
-  const inCircle = (await listDocuments()).filter((doc) => !circle || doc.circleId === circle);
-  const pagesInCircle = withPages
-    ? (await readPages()).filter((page) => !circle || page.keeper === circle)
-    : [];
+  const allPages = withPages ? await readPages() : [];
+  // Listed with the pages, a file made into a page is listed through it (while it's there).
+  const livePageIds = new Set(allPages.map((page) => page.id));
+  const inCircle = (await listDocuments()).filter(
+    (doc) => (!circle || doc.circleId === circle) && !shownWithPage(doc, livePageIds)
+  );
+  const pagesInCircle = allPages.filter((page) => !circle || page.keeper === circle);
   const proposalsInCircle = withPages
     ? (await listProposals()).filter(
         (proposal) =>
