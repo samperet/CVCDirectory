@@ -37,7 +37,9 @@ export const perspectivesQuery = (slug: string) => ({
 /** What became of a version no longer being worked on. */
 const closedAs = (perspective: PerspectiveSummary) =>
   perspective.outcome?.kind === "adopted"
-    ? "made the page"
+    ? perspective.outcome.proposalId
+      ? "consented"
+      : "made the page"
     : perspective.outcome?.kind === "set-aside"
       ? "set aside"
       : "withdrawn";
@@ -58,7 +60,9 @@ function Chip({ slug, perspective }: { slug: string; perspective: PerspectiveSum
       </span>
       <span className="truncate text-muted">· {perspective.name}</span>
       {live ? (
-        perspective.sharedAt ? null : (
+        perspective.proposed ? (
+          <span className="text-muted">(put to a meeting)</span>
+        ) : perspective.sharedAt ? null : (
           <span className="text-muted">(draft)</span>
         )
       ) : (

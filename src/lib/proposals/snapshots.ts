@@ -5,8 +5,10 @@ import { currentVersion, type DocumentRecord } from "@/lib/documents/types";
 import { classifyLink } from "@/lib/documents/links";
 import { readGoogleText } from "@/lib/documents/link-fetch";
 import type { WikiPage } from "@/lib/wiki/store";
+import { caughtUp } from "@/lib/wiki/perspectives";
+import type { Perspective } from "@/lib/wiki/perspectives-shared";
 import type { Actor } from "@/lib/auth/actor";
-import type { DocumentRef, DocumentSnapshot } from "./shared";
+import type { DocumentRef, DocumentSnapshot, ProposalVersion } from "./shared";
 
 /**
  * Snapshots: the copies a proposal keeps of the documents it's about, taken
@@ -20,7 +22,10 @@ import type { DocumentRef, DocumentSnapshot } from "./shared";
  *   `proposals/snapshots/<snapshotId>`;
  * - a link's text — a shared Google file's, read as the snapshot is taken,
  *   or else what was read when the link was added —
- *   `proposals/snapshots/<snapshotId>.json`.
+ *   `proposals/snapshots/<snapshotId>.json`;
+ * - an alternative version of a page put forward: its text with the page's
+ *   changes since it was written brought in (where they don't clash), and
+ *   that text of the page — `proposals/snapshots/<snapshotId>.json`.
  *
  * Copies are written once and never changed: taking a snapshot again makes
  * a new one. Those no proposal holds any more (its document taken off, the
@@ -40,6 +45,8 @@ export interface SnapshotContent {
   text?: string;
   /** Who had last saved the page, and when. */
   edited?: { by: string; at: string };
+  /** An alternative version's: the page's text and save it was put forward against. */
+  base?: { body: string; updatedAt: string };
 }
 
 const writeOnce = (key: string, value: SnapshotContent) =>
@@ -123,6 +130,42 @@ export async function takeSnapshots(
     )
   );
   return taken.filter((snapshot): snapshot is DocumentSnapshot => !!snapshot);
+}
+
+/**
+ * Copy an alternative version as it's put forward: its text, with the
+ * page's changes since it was written brought in (where both changed the
+ * same passage, the version's words stay), against the page as it is now.
+ */
+export async function takeVersionSnapshot(
+  perspective: Perspective,
+  page: Pick<WikiPage, "id" | "title" | "body" | "updatedAt">,
+  by: Pick<Actor, "userId" | "personId" | "name">
+): Promise<ProposalVersion> {
+  const snapshotId = randomUUID();
+  await writeOnce(contentKey(snapshotId), {
+    title: page.title,
+    body: caughtUp(perspective, page).text,
+    base: { body: page.body, updatedAt: page.updatedAt },
+    edited: { by: perspective.updatedBy.name, at: perspective.updatedAt },
+  });
+  return {
+    pageId: page.id,
+    perspectiveId: perspective.id,
+    name: perspective.name,
+    author: { name: perspective.createdBy.name, personId: perspective.createdBy.personId },
+    snapshotId,
+    version: perspective.updatedAt,
+    takenAt: new Date().toISOString(),
+    takenBy: { userId: by.userId, personId: by.personId, name: by.name },
+  };
+}
+
+/** Throw away the copies of versions no proposal holds any more. */
+export async function discardVersionSnapshots(versions: ProposalVersion[]) {
+  await Promise.all(
+    versions.map((version) => deleteJson(contentKey(version.snapshotId)).catch(() => undefined))
+  );
 }
 
 /** A page's or a link's copy (null for a file's, which is opened as the file). */

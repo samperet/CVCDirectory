@@ -13,6 +13,8 @@ import {
   type Proposal,
   type ProposalConsent,
   type ProposalPerson,
+  type ProposalVersion,
+  type VersionChoice,
 } from "./shared";
 
 /**
@@ -28,7 +30,10 @@ import {
  * attached; the copies themselves are kept by `snapshots.ts`, outside this
  * document). They're added for documents that have none, kept while their
  * document stays on the proposal, and replaced only on request, all while it
- * isn't consented; a consented proposal's stay as they were consented.
+ * isn't consented; a consented proposal's stay as they were consented. The
+ * alternative versions of its pages put forward with it (`versions`, each
+ * copied before it's added) follow the same rules, and go when their page
+ * is taken off.
  */
 
 const KEY = "proposals/proposals.json";
@@ -36,10 +41,15 @@ const MAX_PROPOSALS = 3000;
 export const MAX_BODY = 10_000;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-08");
+const uuid = z.string().regex(/^[0-9a-f-]{36}$/i, "That isn't a document");
 const documentRef = z.object({
   kind: z.enum(["page", "file"]),
-  id: z.string().regex(/^[0-9a-f-]{36}$/i, "That isn't a document"),
+  id: uuid,
 });
+/** An alternative version of a page, to put forward with the page. */
+const versionRef = z.object({ pageId: uuid, perspectiveId: uuid });
+export type VersionRef = z.infer<typeof versionRef>;
+export const MAX_VERSIONS = 10;
 
 export const proposalInputSchema = z.object({
   circleId: z.string().min(1).max(80),
@@ -57,6 +67,10 @@ export const proposalInputSchema = z.object({
     .array(documentRef)
     .max(20, "A proposal can be about 20 documents at most")
     .default([]),
+  versions: z
+    .array(versionRef)
+    .max(MAX_VERSIONS, `A proposal can put ${MAX_VERSIONS} versions forward at most`)
+    .default([]),
   decideOn: isoDate.nullable().default(null),
 });
 
@@ -66,6 +80,7 @@ export const proposalUpdateSchema = z
     title: proposalInputSchema.shape.title.optional(),
     body: z.string().trim().max(MAX_BODY).optional(),
     documents: z.array(documentRef).max(20).optional(),
+    versions: z.array(versionRef).max(MAX_VERSIONS).optional(),
     decideOn: isoDate.nullable().optional(),
     /** Withdraw it, or propose a withdrawn one again. */
     status: z.enum(["proposed", "withdrawn"]).optional(),
@@ -91,10 +106,20 @@ export const consentInputSchema = z.object({
     .transform((value) => value || null),
   /** Consent to the documents as they are now: those changed since their snapshots are snapshotted again first. */
   current: z.boolean().optional(),
+  /** For each page with versions put forward: the one consented to (null: the page as proposed). */
+  chosen: z
+    .array(z.object({ pageId: uuid, perspectiveId: uuid.nullable() }))
+    .max(20)
+    .optional(),
 });
 
-export type ProposalInput = z.infer<typeof proposalInputSchema>;
-export type ProposalUpdate = z.infer<typeof proposalUpdateSchema>;
+/** What's saved: the versions put forward already copied (`snapshots.ts`). */
+export type ProposalInput = Omit<z.infer<typeof proposalInputSchema>, "versions"> & {
+  versions?: ProposalVersion[];
+};
+export type ProposalUpdate = Omit<z.infer<typeof proposalUpdateSchema>, "versions"> & {
+  versions?: ProposalVersion[];
+};
 export type Failure = "not_found" | "full" | "not_open" | "consented" | "not_attached";
 export type Result = { ok: true; proposal: Proposal } | { ok: false; reason: Failure };
 
@@ -144,14 +169,16 @@ export function createProposal(
       return { write: false, result: { ok: false, reason: "full" } };
     const now = new Date().toISOString();
     const by = personOf(author);
+    const versions = input.versions ?? [];
     const proposal: Proposal = {
       id: randomUUID(),
       circleId: input.circleId,
       title: input.title,
       body: input.body,
-      documents: dedupe(input.documents),
+      documents: withPagesOf(dedupe(input.documents), versions),
       // Taken once it's saved (`snapshots.ts`).
       snapshots: [],
+      ...(versions.length ? { versions } : {}),
       decideOn: input.decideOn,
       status: "proposed",
       proposedBy: by,
@@ -171,6 +198,10 @@ const dedupe = (refs: DocumentRef[]) =>
       refs.findIndex((other) => other.kind === ref.kind && other.id === ref.id) === index
   );
 
+/** The documents, with the page of each version put forward among them. */
+const withPagesOf = (refs: DocumentRef[], versions: ProposalVersion[]) =>
+  dedupe([...refs, ...versions.map((version) => ({ kind: "page" as const, id: version.pageId }))]);
+
 /** Change a proposal while it's proposed (or withdrawn): its details, or withdraw it / propose it again. */
 export function updateProposal(
   id: string,
@@ -182,7 +213,17 @@ export function updateProposal(
     const by = personOf(editor);
     const now = new Date().toISOString();
     const status = update.status ?? proposal.status;
-    const documents = update.documents !== undefined ? dedupe(update.documents) : null;
+    const versionsGiven = update.versions;
+    // A version put forward brings its page; a page taken off takes its versions.
+    const documents =
+      update.documents !== undefined || versionsGiven
+        ? withPagesOf(dedupe(update.documents ?? proposal.documents), versionsGiven ?? [])
+        : null;
+    const versions = documents
+      ? (versionsGiven ?? proposal.versions ?? []).filter((version) =>
+          documents.some((ref) => ref.kind === "page" && ref.id === version.pageId)
+        )
+      : null;
     return {
       ...proposal,
       ...(update.circleId !== undefined ? { circleId: update.circleId } : {}),
@@ -197,6 +238,7 @@ export function updateProposal(
             ),
           }
         : {}),
+      ...(versions ? { versions } : {}),
       ...(update.decideOn !== undefined ? { decideOn: update.decideOn } : {}),
       status,
       withdrawn:
@@ -269,6 +311,46 @@ export function replaceSnapshots(
   });
 }
 
+/**
+ * Versions put forward copied again from their current text ("use the
+ * current version"), while the proposal isn't consented: each takes the
+ * place of its old copy, which comes back in `replaced`.
+ */
+export function replaceVersions(
+  id: string,
+  editor: Pick<Actor, "userId" | "personId" | "name">,
+  versions: ProposalVersion[]
+) {
+  type Replaced =
+    | { ok: true; proposal: Proposal; replaced: ProposalVersion[] }
+    | { ok: false; reason: Failure };
+  return mutateJson<Replaced>(KEY, (raw) => {
+    const proposals = normalize(raw);
+    const index = proposals.findIndex((proposal) => proposal.id === id.toLowerCase());
+    const fail = (reason: Failure) => ({
+      write: false as const,
+      result: { ok: false as const, reason },
+    });
+    if (index === -1) return fail("not_found");
+    const proposal = proposals[index];
+    if (proposal.status === "consented") return fail("consented");
+    const old = proposal.versions ?? [];
+    const same = (a: ProposalVersion, b: ProposalVersion) => a.perspectiveId === b.perspectiveId;
+    if (!versions.every((version) => old.some((kept) => same(kept, version))))
+      return fail("not_attached");
+    const replaced = old.filter((kept) => versions.some((version) => same(version, kept)));
+    const next: Proposal = {
+      ...proposal,
+      versions: old.map((kept) => versions.find((version) => same(version, kept)) ?? kept),
+      updatedBy: personOf(editor),
+      updatedAt: new Date().toISOString(),
+    };
+    const all = [...proposals];
+    all[index] = next;
+    return { value: { proposals: all }, result: { ok: true, proposal: next, replaced } };
+  });
+}
+
 /** Record the circle's consent, given at a meeting. Only an open proposal can be consented. */
 export function consentToProposal(
   id: string,
@@ -278,6 +360,7 @@ export function consentToProposal(
     note: string | null;
     submittedBy: Pick<Actor, "userId" | "personId" | "name">;
     documents: (DocumentRef & { version: string })[];
+    chosen?: VersionChoice[];
   }
 ) {
   return mutateOne(id, (proposal) => {
@@ -290,6 +373,7 @@ export function consentToProposal(
       submittedBy: personOf(consent.submittedBy),
       submittedAt: new Date().toISOString(),
       documents: consent.documents,
+      ...(consent.chosen?.length ? { chosen: consent.chosen } : {}),
     };
     return { ...proposal, status: "consented", consent: record, withdrawn: null };
   });

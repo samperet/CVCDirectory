@@ -1,21 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Camera, ExternalLink, FileText } from "lucide-react";
-import { compareText } from "@/lib/wiki/merge";
-import type { WikiPageSummary } from "@/lib/wiki/store";
+import { BadgeCheck, Camera, ExternalLink, FileText, GitBranch } from "lucide-react";
+import type { SnapshotView } from "@/lib/proposals/shared";
+import { versionOf } from "@/lib/wiki/perspectives-shared";
 import { BackLink } from "@/components/layout/back-link";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
+import { Pill } from "@/components/ui/pill";
+import { SegmentedControl } from "@/components/ui/segmented";
 import { Loading, NotFoundCard } from "@/components/ui/status";
 import { useToast } from "@/components/ui/use-toast";
 import { WikiMarkdown } from "@/components/wiki/markdown";
 import { useWikiPages } from "@/components/wiki/wiki-client";
-import { cn } from "@/lib/utils";
+import { Changes, SideBySide } from "@/components/wiki/comparison";
 import { retakeSnapshot, snapshotQuery, useProposalsChanged } from "./data";
 import { ProposalStatusPill, dayOf } from "./proposal-bits";
 
@@ -27,7 +29,9 @@ import { ProposalStatusPill, dayOf } from "./proposal-bits";
  * has changed since; for a page that has, **Show what's changed** (block by
  * block: what's been taken out, and put in) and, while the proposal waits
  * for consent, **Use the current version** for those who may change it. A
- * file's snapshot is opened as the file itself.
+ * file's snapshot is opened as the file itself. An alternative version put
+ * forward opens the same way (`VersionCopy`): as it was put forward, beside
+ * the page as it was then.
  */
 export function SnapshotPage({
   proposalId,
@@ -72,6 +76,7 @@ export function SnapshotPage({
         <NotFoundCard error={error} message="That snapshot wasn't found." />
       </div>
     );
+  if (data.version) return <VersionCopy data={data} />;
   const { snapshot, proposal, current } = data;
   const what =
     snapshot.kind === "page" ? "the page" : snapshot.file?.link ? "the link" : "the file";
@@ -169,12 +174,16 @@ export function SnapshotPage({
         </header>
         <div className="document-body flex w-full flex-col gap-4">
           {comparing && canCompare ? (
-            <Comparison
-              before={data.body!}
-              after={current!.body!}
-              circleId={circleId}
-              pages={pages}
-            />
+            <div data-snapshot-comparison>
+              <Changes
+                before={data.body!}
+                after={current!.body!}
+                removedLabel="Taken out since the snapshot"
+                addedLabel="Put in since"
+                circleId={circleId}
+                pages={pages}
+              />
+            </div>
           ) : data.body !== null ? (
             <WikiMarkdown source={data.body} circleId={circleId} pages={pages} />
           ) : data.text !== null ? (
@@ -216,55 +225,152 @@ export function SnapshotPage({
   );
 }
 
-/** What changed between the snapshot and the page now, block by block: taken out (struck through), and put in. */
-function Comparison({
-  before,
-  after,
-  circleId,
-  pages,
-}: {
-  before: string;
-  after: string;
-  circleId: string;
-  pages: WikiPageSummary[] | undefined;
-}) {
-  const blocks = useMemo(() => compareText(before, after), [before, after]);
+/**
+ * An alternative version as it was put forward with a proposal: beside the
+ * page as it was then (or as one column of changes, or alone), what became
+ * of it at the meeting, and — while the proposal waits — whether its author
+ * has changed it since, and **Use the current version**.
+ */
+function VersionCopy({ data }: { data: SnapshotView }) {
+  const router = useRouter();
+  const confirm = useConfirm();
+  const { toast } = useToast();
+  const changed = useProposalsChanged();
+  const pages = useWikiPages().data?.pages;
+  const version = data.version!;
+  const { snapshot, proposal } = data;
+  const whose = versionOf(version.author);
+  const [view, setView] = useState<"side" | "changes" | "version">(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "changes" : "side"
+  );
+  const retake = useMutation({
+    mutationFn: () => retakeSnapshot(proposal.id, { kind: "version", id: version.perspectiveId }),
+    onSuccess: ({ proposal: next }) => {
+      toast({ title: `The proposal now has ${whose} as it is now` });
+      changed();
+      const copy = next.versionsShown.find(
+        (entry) => entry.perspectiveId === version.perspectiveId
+      );
+      router.replace(copy ? copy.href : `/proposals/${proposal.id}`);
+    },
+    onError: (err: Error) =>
+      toast({ title: "Could not copy it again", description: err.message, variant: "destructive" }),
+  });
+  const circleId = snapshot.page?.keeper ?? proposal.circleId;
   return (
-    <div className="flex flex-col gap-3" data-snapshot-comparison>
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm border-l-4 border-red-300 bg-red-50" aria-hidden />
-          Taken out since the snapshot
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="h-3 w-3 rounded-sm border-l-4 border-primary bg-primary/10"
-            aria-hidden
-          />
-          Put in since
-        </span>
-      </p>
-      {blocks.map((block, index) =>
-        block.change === "same" ? (
-          <WikiMarkdown key={index} source={block.text} circleId={circleId} pages={pages} />
-        ) : (
-          <div
-            key={index}
-            className={cn(
-              "rounded-r-lg border-l-4 px-3 py-1",
-              block.change === "removed"
-                ? "border-red-300 bg-red-50 text-muted line-through decoration-red-400/70"
-                : "border-primary bg-primary/10"
-            )}
-            data-change={block.change}
-          >
-            <span className="sr-only">
-              {block.change === "removed" ? "Taken out: " : "Put in: "}
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <BackLink href={`/proposals/${proposal.id}`} label={proposal.title} />
+      <aside
+        className="flex flex-col gap-2 rounded-xl border border-border bg-white/80 px-4 py-3 text-sm"
+        data-snapshot-banner
+        data-version-copy
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="flex min-w-0 items-start gap-2 text-foreground">
+            <GitBranch className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <span className="min-w-0">
+              {whose} of “{snapshot.title}” — <strong>{version.name}</strong> — as it was put
+              forward {dayOf(version.takenAt)} with the proposal{" "}
+              <Link
+                href={`/proposals/${proposal.id}`}
+                className="font-medium underline-offset-2 hover:underline"
+              >
+                “{proposal.title}”
+              </Link>{" "}
+              to {proposal.circleName}.
             </span>
-            <WikiMarkdown source={block.text} circleId={circleId} pages={pages} />
-          </div>
-        )
-      )}
+          </p>
+          {version.chosen ? (
+            <Pill tone="pine" data-version-outcome="adopted">
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Consented — it&apos;s the page
+            </Pill>
+          ) : version.setAside ? (
+            <Pill tone="muted" data-version-outcome="set-aside">
+              Set aside
+            </Pill>
+          ) : (
+            <ProposalStatusPill status={proposal.status} size="xs" />
+          )}
+        </div>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-6 text-xs text-muted">
+          {version.liveHref ? (
+            <Link
+              href={version.liveHref}
+              className="font-medium text-secondary-foreground underline-offset-2 hover:underline"
+            >
+              See the version now
+            </Link>
+          ) : null}
+          {data.current ? (
+            <Link
+              href={data.current.href}
+              className="font-medium text-secondary-foreground underline-offset-2 hover:underline"
+            >
+              See the page now
+            </Link>
+          ) : null}
+          {version.changed && proposal.status !== "consented" ? (
+            <span className="text-[#7a5200]" data-changed>
+              {version.author.name} has changed it since.
+            </span>
+          ) : null}
+          {data.canRetake ? (
+            <ActionLink
+              disabled={retake.isPending}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: `Use ${whose} as it is now?`,
+                    body: `The copy put forward ${dayOf(
+                      version.takenAt
+                    )} is replaced by one of the version as it is now.`,
+                    confirmLabel: "Use the current version",
+                  })
+                )
+                  retake.mutate();
+              }}
+            >
+              Use the current version
+            </ActionLink>
+          ) : null}
+        </p>
+      </aside>
+      <article className="document-sheet flex flex-col gap-4 p-4 sm:p-8" data-snapshot-sheet>
+        <SegmentedControl
+          label="Show"
+          size="sm"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "side", label: "Side by side" },
+            { value: "changes", label: "Changes" },
+            { value: "version", label: whose },
+          ]}
+        />
+        {data.body === null ? (
+          <p className="text-sm text-muted">Its copy couldn&apos;t be read.</p>
+        ) : view === "version" ? (
+          <WikiMarkdown source={data.body} circleId={circleId} pages={pages} />
+        ) : view === "side" ? (
+          <SideBySide
+            before={version.base}
+            after={data.body}
+            beforeLabel="The page then"
+            afterLabel={whose}
+            circleId={circleId}
+            pages={pages}
+          />
+        ) : (
+          <Changes
+            before={version.base}
+            after={data.body}
+            removedLabel={`Not in ${whose}`}
+            addedLabel={`In ${whose}`}
+            circleId={circleId}
+            pages={pages}
+          />
+        )}
+      </article>
     </div>
   );
 }

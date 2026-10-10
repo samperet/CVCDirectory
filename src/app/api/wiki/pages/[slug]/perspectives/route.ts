@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pageContext, perspectiveProblem } from "@/lib/wiki/http";
 import { listPerspectives, startPerspective, startSchema } from "@/lib/wiki/perspectives";
 import { isLive, summaryOf } from "@/lib/wiki/perspectives-shared";
+import { listProposals } from "@/lib/proposals/store";
 import { problem, readBody } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -9,16 +10,29 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: { slug: string } };
 
-/** A page's alternative versions: those still being worked on first, then the rest, newest first. */
+/**
+ * A page's alternative versions: those still being worked on first, then
+ * the rest, newest first — each saying whether a proposal puts it to a
+ * meeting (`proposed`).
+ */
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
   if ("error" in ctx) return ctx.error;
   const list = (await listPerspectives(ctx.page.id)).sort(
     (a, b) => Number(isLive(b)) - Number(isLive(a)) || b.updatedAt.localeCompare(a.updatedAt)
   );
+  const proposed = new Set(
+    (await listProposals())
+      .filter((proposal) => proposal.status === "proposed")
+      .flatMap((proposal) => proposal.versions ?? [])
+      .map((version) => version.perspectiveId)
+  );
   return NextResponse.json(
     {
-      perspectives: list.map((perspective) => summaryOf(perspective, ctx.page.updatedAt)),
+      perspectives: list.map((perspective) => ({
+        ...summaryOf(perspective, ctx.page.updatedAt),
+        proposed: proposed.has(perspective.id),
+      })),
       canStart: !ctx.page.meetingDate,
     },
     { headers: { "Cache-Control": "private, no-store" } }

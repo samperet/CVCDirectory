@@ -408,6 +408,20 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   of its own: a card with the proposal, the documents it's about, where it stands, and what you can
   do. Its own page also lists the pages that hold it. The circle's members hear of a new proposal,
   and of its consent (topic "Proposals to your circles…"; everyone, for Community's).
+- **Alternative versions at a meeting** – a proposal about a page can put some of its alternative
+  versions to the circle with it (the proposal form offers a page's open versions as ticks;
+  `Proposal.versions`). Each is copied as it's put forward — its text with the page's changes up
+  to then brought in, beside that text of the page — and opens from the proposal (**Versions put
+  forward with it**) side by side with the page as it was then. When its author changes it, the
+  proposal says **changed since**, with **Use the current version**. While the proposal waits, the
+  version can't be made the page directly, and the page lists it as "(put to a meeting)".
+  Recording consent then asks **Which version of “…” did the meeting consent to?** — the page as
+  proposed, or one of the versions (the API refuses consent without an answer; `consent.chosen`).
+  The chosen version becomes the page first (with any changes to the page since brought in, its
+  words winning where both changed a passage; the page's history keeps the text before), and
+  consent is to the page as it then is, so it reads **Consented**; the others are set aside, and
+  each author is told what became of theirs. Withdrawing the consent opens the versions again (the
+  page keeps its text). Exports list the versions put forward and which was consented.
 - **Snapshots** (`lib/proposals/snapshots.ts`) – each document a proposal is about is copied when
   it's attached, so what's proposed — and then consented — is the document as it was then,
   whatever happens to it after: a page's title and text, a file itself (copied within storage), a
@@ -521,10 +535,12 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   edited meanwhile, the version shows what it would change on the page as it is now (the page's
   changes merged in, paragraph by paragraph), and where both changed the same passage it says so;
   its author can **Bring in the page's changes** for good. The page's editors can **Make this the
-  page** (unless it clashes with the page's changes): the page becomes that text as a new version,
-  its history keeps what it replaced, and the author is told. Versions are kept for the record
-  (made the page, withdrawn), up to 20 open per page and 60 in all; a meeting's notes can't have
-  them, and deleting a page deletes them. Photos added while writing one are kept with the page's
+  page** (unless it clashes with the page's changes, or a meeting is to decide): the page becomes
+  that text as a new version, its history keeps what it replaced, and the author is told.
+  **Put to a meeting** (for whoever can put proposals to the page's circle) starts a proposal about
+  the page with that version — and the page's other versions can be ticked too; see Proposals.
+  Versions are kept for the record (consented, made the page, set aside, withdrawn), up to 20 open
+  per page and 60 in all; a meeting's notes can't have them, and deleting a page deletes them. Photos added while writing one are kept with the page's
   circle's photos. Stored per page in `wiki/perspectives/<pageId>.json`
   (`/api/wiki/pages/<slug>/perspectives`).
 - **Polls** live in wiki pages: the editor's poll button asks a question with 2–10 options, one

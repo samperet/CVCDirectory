@@ -4,8 +4,9 @@
  * page: it starts as a copy of the page and is theirs alone to edit. It's
  * compared with the page as it is now (with the page's later changes brought
  * in), or with another version — once closed, with the page it started from.
- * A version that's adopted becomes the live page (by the page's editors), and
- * the page's history keeps what it replaced. "Version" alone in the UI means
+ * A version that's adopted becomes the live page — made so by the page's
+ * editors, or when a meeting consents to it (`lib/proposals`) — and the
+ * page's history keeps what it replaced. "Version" alone in the UI means
  * a page's earlier versions (its history), so these are "alternative
  * versions", or "Eve's version".
  */
@@ -53,11 +54,11 @@ export const isLive = (perspective: Pick<Perspective, "status" | "outcome">) =>
 export const isStale = (perspective: Pick<Perspective, "base">, pageUpdatedAt: string) =>
   perspective.base.updatedAt !== pageUpdatedAt;
 
-/** A version as a list shows it. */
+/** A version as a list shows it (`proposed`: a proposal puts it to a meeting). */
 export type PerspectiveSummary = Pick<
   Perspective,
   "id" | "name" | "createdBy" | "createdAt" | "updatedAt" | "sharedAt" | "status" | "outcome"
-> & { stale: boolean };
+> & { stale: boolean; proposed?: boolean };
 
 export const summaryOf = (perspective: Perspective, pageUpdatedAt: string): PerspectiveSummary => ({
   id: perspective.id,

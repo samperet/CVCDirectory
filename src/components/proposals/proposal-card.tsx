@@ -3,11 +3,18 @@
 import Link from "next/link";
 import { createContext, useContext, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { BadgeCheck, BookOpen, Camera, FileText, Handshake } from "lucide-react";
-import type { MeetingOption, ProposalDocument, ProposalView } from "@/lib/proposals/shared";
+import { BadgeCheck, BookOpen, Camera, FileText, GitBranch, Handshake } from "lucide-react";
+import type {
+  MeetingOption,
+  ProposalDocument,
+  ProposalVersionShown,
+  ProposalView,
+} from "@/lib/proposals/shared";
 import { PROPOSAL_DIRECTIVE } from "@/lib/proposals/shared";
+import { versionOf } from "@/lib/wiki/perspectives-shared";
 import { ActionLink } from "@/components/ui/action-link";
 import { Button } from "@/components/ui/button";
+import { Pill } from "@/components/ui/pill";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/use-toast";
 import { WikiMarkdown } from "@/components/wiki/markdown";
@@ -34,7 +41,8 @@ import {
  * the notes); elsewhere, **Record consent** at a meeting chosen then; and
  * change, withdraw, propose again, withdraw consent, or delete, for those
  * who may. Each document it's about shows its snapshot — the document as
- * proposed — and whether it has changed since.
+ * proposed — and whether it has changed since; a page, the alternative
+ * versions put forward with it, and which the meeting consented to.
  */
 
 /** The meeting whose notes are being shown, if they're a meeting's: proposals in them can be consented there. */
@@ -206,6 +214,10 @@ export function ProposalActions({
             id,
             title,
           }))}
+          initialVersions={(proposal.versions ?? []).map(({ pageId, perspectiveId }) => ({
+            pageId,
+            perspectiveId,
+          }))}
           circleName={proposal.circleName}
           submitLabel="Save"
           saving={edit.isPending}
@@ -218,10 +230,109 @@ export function ProposalActions({
 }
 
 /**
+ * The alternative versions of a page put forward with a proposal: each
+ * opening its copy as put forward (compared with the page), which the
+ * meeting consented to or set aside, and — when one has been changed since
+ * — **Use the current version**.
+ */
+function VersionsPut({
+  proposal,
+  pageId,
+  canRetake,
+}: {
+  proposal: ProposalView;
+  pageId: string;
+  canRetake: boolean;
+}) {
+  const confirm = useConfirm();
+  const { toast } = useToast();
+  const changed = useProposalsChanged();
+  const retake = useMutation({
+    mutationFn: (version: ProposalVersionShown) =>
+      retakeSnapshot(proposal.id, { kind: "version", id: version.perspectiveId }),
+    onSuccess: (_result, version) => {
+      toast({ title: `The proposal now has ${versionOf(version.author)} as it is now` });
+      changed();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Could not copy it again", description: err.message, variant: "destructive" }),
+  });
+  const versions = proposal.versionsShown.filter((version) => version.pageId === pageId);
+  if (!versions.length) return null;
+  const pageChosen =
+    proposal.status === "consented" &&
+    proposal.consent?.chosen?.some(
+      (choice) => choice.pageId === pageId && choice.perspectiveId === null
+    );
+  return (
+    <div className="flex flex-col gap-0.5 pl-[22px] text-xs text-muted" data-versions-put>
+      <span>
+        {pageChosen
+          ? "Consented as proposed. Versions put forward with it:"
+          : "Versions put forward with it:"}
+      </span>
+      <ul className="flex flex-col gap-0.5">
+        {versions.map((version) => (
+          <li
+            key={version.perspectiveId}
+            className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+            data-version-put={version.perspectiveId}
+          >
+            <GitBranch className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <Link
+              href={version.href}
+              className="min-w-0 break-words font-medium text-secondary-foreground underline-offset-2 hover:underline"
+            >
+              {versionOf(version.author)} · {version.name}
+            </Link>
+            {version.chosen ? (
+              <Pill tone="pine" size="xs" data-version-chosen>
+                <BadgeCheck className="h-3 w-3" aria-hidden /> Consented
+              </Pill>
+            ) : version.setAside ? (
+              <span data-version-set-aside>· set aside</span>
+            ) : null}
+            {version.changed && proposal.status !== "consented" ? (
+              <span
+                className="text-[#7a5200]"
+                title="Its author has changed it since it was put forward — what's proposed is the copy"
+                data-changed
+              >
+                · changed since
+              </span>
+            ) : null}
+            {version.changed && canRetake ? (
+              <ActionLink
+                disabled={retake.isPending}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: `Use ${versionOf(version.author)} as it is now?`,
+                      body: `The copy put forward ${dayOf(
+                        version.takenAt
+                      )} is replaced by one of the version as it is now.`,
+                      confirmLabel: "Use the current version",
+                    })
+                  )
+                    retake.mutate(version);
+                }}
+              >
+                Use the current version
+              </ActionLink>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * The documents a proposal is about: each as it is now (linked), its
  * snapshot — the document as proposed, which is what's consented — and,
  * when it has changed since, **Use the current version** for those who may
- * change the proposal while it waits for consent.
+ * change the proposal while it waits for consent; a page, the versions put
+ * forward with it.
  */
 export function ProposalDocuments({ proposal }: { proposal: ProposalView }) {
   const confirm = useConfirm();
@@ -328,6 +439,9 @@ export function ProposalDocuments({ proposal }: { proposal: ProposalView }) {
                   </ActionLink>
                 ) : null}
               </span>
+            ) : null}
+            {doc.kind === "page" ? (
+              <VersionsPut proposal={proposal} pageId={doc.id} canRetake={canRetake} />
             ) : null}
           </li>
         ))}

@@ -1,33 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { problem, readBody, throttled } from "@/lib/http";
-import { readPages } from "@/lib/wiki/store";
-import { listDocuments } from "@/lib/documents/store";
 import { searchTerms, snippetFor } from "@/lib/search";
 import { canConsentProposal, canPropose } from "@/lib/proposals/access";
 import {
   consentInputSchema,
-  consentToProposal,
   createProposal,
   listProposals,
   proposalInputSchema,
 } from "@/lib/proposals/store";
 import {
-  announceConsent,
   announceProposal,
   checkDocuments,
-  consentedVersions,
   ensureSnapshots,
+  giveConsent,
   listingOf,
-  memberIdsOf,
+  prepareVersions,
   proposalProblem,
   proposalScore,
   proposalSession,
   resolveMeeting,
-  savePresent,
+  shownProposal,
   syncDocuments,
-  viewOf,
 } from "@/lib/proposals/http";
-import { byDecision, markMembers } from "@/lib/proposals/shared";
+import { discardVersionSnapshots } from "@/lib/proposals/snapshots";
+import { byDecision, checkChosen } from "@/lib/proposals/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -86,9 +82,11 @@ const createSchema = proposalInputSchema.extend({
 /**
  * Put a proposal to a circle (those who can start the circle's documents);
  * its members hear about it. A snapshot of each document it's about is taken
- * as it's saved. With `consent`, the circle has already consented at a
- * meeting: it's recorded straight away (by its members, the Board, or an
- * admin), and they hear that instead.
+ * as it's saved, and each alternative version put forward (`versions`) is
+ * copied (its page is added to the documents). With `consent`, the circle
+ * has already consented at a meeting: it's recorded straight away (by its
+ * members, the Board, or an admin; with the version chosen of each page
+ * that has versions), and they hear that instead.
  */
 export async function POST(request: NextRequest) {
   const limited = throttled(request, "proposals");
@@ -97,7 +95,7 @@ export async function POST(request: NextRequest) {
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, createSchema);
   if ("error" in parsed) return parsed.error;
-  const { consent, ...input } = parsed.data;
+  const { consent, versions: wanted, ...input } = parsed.data;
   if (!ctx.directory.circles.some((entry) => entry.id === input.circleId))
     return problem("That circle doesn't exist", 404);
   if (!canPropose(ctx.user, ctx.directory, input.circleId))
@@ -106,31 +104,29 @@ export async function POST(request: NextRequest) {
     return problem("Only the circle's members and the Board can record its consent", 403);
   const bad = await checkDocuments(input.documents, ctx);
   if (bad) return bad;
+  const unchosen = consent ? checkChosen(wanted, consent.chosen) : null;
+  if (unchosen) return problem(unchosen);
   // The meeting is checked (or its notes started) before anything is saved.
   const meeting = consent
     ? await resolveMeeting(consent.meeting, input.circleId, consent.present, ctx)
     : null;
   if (meeting && "error" in meeting) return problem(meeting.error);
+  const versions = await prepareVersions(wanted, [], ctx.actor);
+  if ("error" in versions) return versions.error;
 
-  const created = await createProposal(ctx.actor, input);
-  if (!created.ok) return proposalProblem(created.reason);
+  const created = await createProposal(ctx.actor, { ...input, versions: versions.versions });
+  if (!created.ok) {
+    await discardVersionSnapshots(versions.taken);
+    return proposalProblem(created.reason);
+  }
   let proposal = await ensureSnapshots(created.proposal, ctx.actor);
   if (consent && meeting) {
-    const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
-    const result = await consentToProposal(proposal.id, {
-      meeting: meeting.meeting,
-      present: markMembers(meeting.present, memberIdsOf(ctx.directory, proposal.circleId)),
-      note: consent.note,
-      submittedBy: ctx.actor,
-      documents: consentedVersions(proposal, pages, documents),
-    });
-    if (!result.ok) return proposalProblem(result.reason);
-    proposal = result.proposal;
-    await savePresent(meeting, ctx);
+    const given = await giveConsent(proposal, consent, meeting, ctx);
+    if ("error" in given) return given.error;
+    proposal = given.proposal;
+  } else {
+    await syncDocuments(proposal.documents);
+    await announceProposal(proposal, ctx);
   }
-  await syncDocuments(proposal.documents);
-  if (proposal.status === "consented") await announceConsent(proposal, ctx);
-  else await announceProposal(proposal, ctx);
-  const [pages, documents] = await Promise.all([readPages(), listDocuments()]);
-  return NextResponse.json({ proposal: viewOf(proposal, ctx, pages, documents) }, { status: 201 });
+  return NextResponse.json({ proposal: await shownProposal(proposal, ctx) }, { status: 201 });
 }

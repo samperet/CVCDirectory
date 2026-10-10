@@ -4,8 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, GitBranch, GitMerge, Pencil, RefreshCw, Send, Undo2 } from "lucide-react";
+import Link from "next/link";
+import {
+  Check,
+  GitBranch,
+  GitMerge,
+  Handshake,
+  Pencil,
+  RefreshCw,
+  Send,
+  Undo2,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import type { MeetingRef, ProposalStatus } from "@/lib/proposals/shared";
 import {
   MAX_NAME,
   isLive,
@@ -29,6 +40,8 @@ import { useCircles } from "@/components/directory/use-directory";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Changes, SideBySide } from "@/components/wiki/comparison";
 import { WikiMarkdown } from "@/components/wiki/markdown";
+import { ProposalFormDialog } from "@/components/proposals/proposal-form";
+import { createProposal, useProposalsChanged } from "@/components/proposals/data";
 
 /**
  * Someone's alternative version of a page (`/wiki/<slug>/versions/<id>`):
@@ -38,7 +51,9 @@ import { WikiMarkdown } from "@/components/wiki/markdown";
  * where it clashes with the page's changes); its author can **Bring in the
  * page's changes** for good. Its author edits it (`?edit=1`), shares it with
  * the page's circle, or withdraws it; the page's editors can **Make this
- * the page**.
+ * the page** — unless it's been **Put to a meeting** (by those who can put
+ * proposals to the page's circle), when the meeting decides. The proposals
+ * that put it forward are listed, and what became of it.
  */
 
 const RichEditor = dynamic(
@@ -65,8 +80,18 @@ type PerspectiveResponse = {
   stale: boolean;
   caughtUp: { body: string; clashes: number } | null;
   others: PerspectiveSummary[];
+  /** The proposals that put it to a meeting. */
+  proposals: {
+    id: string;
+    title: string;
+    status: ProposalStatus;
+    circleId: string;
+    meeting: MeetingRef | null;
+    chosen: boolean;
+  }[];
   canEdit: boolean;
   canAdopt: boolean;
+  canPropose: boolean;
 };
 type View = "side" | "changes" | "version";
 
@@ -77,7 +102,12 @@ const perspectiveQuery = (slug: string, id: string) => ({
 
 function statusOf(perspective: Perspective, circleName: string) {
   if (perspective.outcome?.kind === "adopted")
-    return { tone: "pine" as const, label: `Made the page · ${shortDate(perspective.outcome.at)}` };
+    return {
+      tone: "pine" as const,
+      label: `${perspective.outcome.proposalId ? "Consented" : "Made the page"} · ${shortDate(
+        perspective.outcome.at
+      )}`,
+    };
   if (perspective.outcome?.kind === "set-aside")
     return { tone: "muted" as const, label: "Set aside" };
   if (perspective.status === "withdrawn") return { tone: "muted" as const, label: "Withdrawn" };
@@ -99,6 +129,8 @@ export function PerspectivePage({ slug, id }: { slug: string; id: string }) {
     typeof window !== "undefined" && window.innerWidth < 768 ? "changes" : "side"
   );
   const [against, setAgainst] = useState("page");
+  const [proposing, setProposing] = useState(false);
+  const proposalsChanged = useProposalsChanged();
   const other = useQuery({
     ...perspectiveQuery(slug, against),
     enabled: against !== "page",
@@ -142,6 +174,17 @@ export function PerspectivePage({ slug, id }: { slug: string; id: string }) {
     },
     onError: failed("Could not withdraw it"),
   });
+  const propose = useMutation({
+    mutationFn: createProposal,
+    onSuccess: ({ proposal }) => {
+      setProposing(false);
+      refresh();
+      proposalsChanged();
+      toast({ title: `Put to ${proposal.circleName}` });
+      router.push(`/proposals/${proposal.id}`);
+    },
+    onError: failed("Could not make the proposal"),
+  });
   const adopt = useMutation({
     mutationFn: () => apiFetch(`${url}/adopt`, { method: "POST" }),
     onSuccess: () => {
@@ -171,6 +214,8 @@ export function PerspectivePage({ slug, id }: { slug: string; id: string }) {
   const live = isLive(perspective);
   const whose = versionOf(perspective.createdBy);
   const status = statusOf(perspective, circleName);
+  const waiting = data.proposals.some((proposal) => proposal.status === "proposed");
+  const nameOf = (id: string) => circles?.find((circle) => circle.id === id)?.name ?? "its circle";
   // What it would change on the page now (with the page's changes since brought in) — or, once
   // it's closed, what it changed on the page it started from.
   const mine = live ? caughtUp?.body ?? perspective.body : perspective.body;
@@ -206,6 +251,34 @@ export function PerspectivePage({ slug, id }: { slug: string; id: string }) {
             {status.label}
           </Pill>
         </div>
+        {data.proposals.length ? (
+          <ul className="flex flex-col gap-1 text-sm" data-version-proposals>
+            {data.proposals.map((proposal) => (
+              <li key={proposal.id} className="flex flex-wrap items-center gap-x-1.5 text-muted">
+                <Handshake className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                Put to {nameOf(proposal.circleId)} in{" "}
+                <Link
+                  href={`/proposals/${proposal.id}`}
+                  className="font-medium text-foreground underline-offset-2 hover:underline"
+                >
+                  “{proposal.title}”
+                </Link>
+                <span>
+                  —{" "}
+                  {proposal.status === "consented"
+                    ? proposal.chosen
+                      ? `consented${
+                          proposal.meeting ? ` at ${proposal.meeting.title}` : ""
+                        }: it's the page`
+                      : `set aside${proposal.meeting ? ` at ${proposal.meeting.title}` : ""}`
+                    : proposal.status === "withdrawn"
+                      ? "withdrawn"
+                      : "waiting for the meeting"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {live && data.stale ? (
           <p className="rounded-lg bg-sun/15 px-3 py-2 text-sm text-foreground" data-stale>
             The page has changed since this version was started. Shown here is what it would change
@@ -252,6 +325,16 @@ export function PerspectivePage({ slug, id }: { slug: string; id: string }) {
                 <Send className="h-4 w-4" /> Share with {circleName}
               </Button>
             ) : null}
+            {data.canPropose && !waiting ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setProposing(true)}
+              >
+                <Handshake className="h-4 w-4" /> Put to a meeting
+              </Button>
+            ) : null}
             {data.canAdopt ? (
               <Button
                 size="sm"
@@ -295,6 +378,24 @@ export function PerspectivePage({ slug, id }: { slug: string; id: string }) {
           </div>
         ) : null}
       </Card>
+      {proposing ? (
+        <ProposalFormDialog
+          heading="Put it to a meeting"
+          initial={{
+            circleId: page.keeper,
+            title: `Adopt ${whose} of “${page.title}”`,
+            body: "",
+            decideOn: null,
+          }}
+          initialDocuments={[{ kind: "page", id: page.id, title: page.title }]}
+          initialVersions={[{ pageId: page.id, perspectiveId: perspective.id }]}
+          circleName={circleName}
+          submitLabel="Propose"
+          saving={propose.isPending}
+          onSubmit={(draft) => propose.mutate(draft)}
+          onClose={() => setProposing(false)}
+        />
+      ) : null}
 
       {editing ? (
         <PerspectiveEditor

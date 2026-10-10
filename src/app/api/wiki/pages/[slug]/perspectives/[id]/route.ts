@@ -10,6 +10,9 @@ import {
   withdrawPerspective,
 } from "@/lib/wiki/perspectives";
 import { isLive, isStale, summaryOf } from "@/lib/wiki/perspectives-shared";
+import { listProposals } from "@/lib/proposals/store";
+import { canPropose } from "@/lib/proposals/access";
+import { chosenFor } from "@/lib/proposals/shared";
 import { notFound, problem, readBody } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -21,7 +24,9 @@ type Params = { params: { slug: string; id: string } };
  * An alternative version, with the page as it is now — and, if the page has
  * moved on since it started, the version with the page's changes brought in
  * (and where they clash), to compare with the page now. Also: the page's
- * other versions still being worked on, and what you can do.
+ * other versions still being worked on, the proposals that put it to a
+ * meeting, and what you can do — its editors make it the page directly only
+ * while no proposal waits on it.
  */
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
@@ -32,6 +37,19 @@ export async function GET(_request: Request, { params }: Params) {
   const stale = isStale(perspective, ctx.page.updatedAt);
   const live = isLive(perspective);
   const merged = stale && live ? caughtUp(perspective, ctx.page) : null;
+  const proposals = (await listProposals())
+    .filter(
+      (proposal) => proposal.versions?.some((version) => version.perspectiveId === perspective.id)
+    )
+    .map((proposal) => ({
+      id: proposal.id,
+      title: proposal.title,
+      status: proposal.status,
+      circleId: proposal.circleId,
+      meeting: proposal.consent?.meeting ?? null,
+      chosen: chosenFor(proposal, ctx.page.id) === perspective.id,
+    }));
+  const waiting = proposals.some((proposal) => proposal.status === "proposed");
   return NextResponse.json(
     {
       perspective,
@@ -48,9 +66,13 @@ export async function GET(_request: Request, { params }: Params) {
       others: list
         .filter((entry) => entry.id !== perspective.id && isLive(entry))
         .map((entry) => summaryOf(entry, ctx.page.updatedAt)),
+      proposals,
       canEdit: live && isAuthor(perspective, ctx.actor),
-      // Its editors can make it the page — once it has the page's latest changes without clashing.
-      canAdopt: live && ctx.canEdit && (!merged || merged.conflicts.length === 0),
+      // Its editors can make it the page — once it has the page's latest changes without clashing,
+      // and unless a meeting is to decide.
+      canAdopt: live && ctx.canEdit && !waiting && (!merged || merged.conflicts.length === 0),
+      // Put it to the page's circle, at a meeting.
+      canPropose: live && canPropose(ctx.user, ctx.directory, ctx.page.keeper),
     },
     { headers: { "Cache-Control": "private, no-store" } }
   );

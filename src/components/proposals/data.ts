@@ -9,6 +9,7 @@ import type {
   ProposalListing,
   ProposalView,
   SnapshotView,
+  VersionChoice,
 } from "@/lib/proposals/shared";
 
 /**
@@ -58,25 +59,28 @@ export const meetingsQuery = (circleId: string) => ({
     apiFetch<{ meetings: MeetingOption[] }>(`/api/proposals/meetings?circle=${circleId}`),
 });
 
-/** What a proposal is sent as, new or changed. */
+/** What a proposal is sent as, new or changed (`versions`: alternative versions of its pages put forward). */
 export type ProposalDraft = {
   circleId: string;
   title: string;
   body: string;
   documents: DocumentRef[];
+  versions?: { pageId: string; perspectiveId: string }[];
   decideOn: string | null;
 };
 
 /**
  * Consent as it's recorded: at which meeting (or new notes for one on a day),
- * who was there if the notes don't say, a note, and — with `current` — to
- * the documents as they are now rather than as proposed (their snapshots).
+ * who was there if the notes don't say, a note, — with `current` — to the
+ * documents as they are now rather than as proposed (their snapshots), and
+ * which version of each page with versions put forward the meeting chose.
  */
 export type ConsentDraft = {
   meeting: { kind: "page" | "file"; id: string } | { kind: "new"; date: string };
   present?: NamedPerson[];
   note?: string;
   current?: boolean;
+  chosen?: VersionChoice[];
 };
 
 /** Refresh everything a proposal's change shows up in. */
@@ -111,8 +115,11 @@ export const recordConsent = (id: string, consent: ConsentDraft) =>
     body: JSON.stringify(consent),
   });
 
-/** Take a document's snapshot again, from its current version. */
-export const retakeSnapshot = (id: string, document: DocumentRef) =>
+/** Take a document's snapshot again, from its current version — or copy a version put forward again (`kind` "version", by its id). */
+export const retakeSnapshot = (
+  id: string,
+  document: DocumentRef | { kind: "version"; id: string }
+) =>
   apiFetch<{ proposal: ProposalView }>(`/api/proposals/${id}/snapshots`, {
     method: "POST",
     body: JSON.stringify(document),

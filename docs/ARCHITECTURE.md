@@ -159,7 +159,14 @@ versions — what was proposed — unless the recorder chooses the documents as 
 (`current`, which snapshots them again first). `ensureSnapshots()` takes any missing after every
 create, change, and consent (so proposals from before snapshots get theirs); `retakeSnapshots()`
 replaces them ("use the current version"); copies no proposal holds are discarded, and a consented
-proposal's are never changed. Pages and files keep a copy of where their proposals stand — `page.proposal` /
+proposal's are never changed. A proposal can also put a page's **alternative versions** forward
+(`Proposal.versions`, each copied by `takeVersionSnapshot`: its text caught up with the page,
+and that page text as `base`); consent then names the one chosen for each such page
+(`ProposalConsent.chosen`, checked by `checkChosen`), and `giveConsent()` (`http.ts`) makes the
+chosen one the page *before* recording consent — `mergeText(base, copy, page now)`, saved with
+`updatePage`, a no-op on a retry — so the consent's version for that page is the page's new
+`updatedAt`; then it marks each version adopted or set aside (`setOutcome`, with the
+`proposalId`). Pages and files keep a copy of where their proposals stand — `page.proposal` /
 `page.consent` (`lib/wiki/consent.ts`), `doc.proposal` / `doc.consent` — each with a `proposalId`,
 computed by `lib/proposals/mirror.ts` and written by `syncDocuments()` after every change, so
 `consentState()` ("changed" once a page is edited again) and `pageStage()` (draft, proposed,

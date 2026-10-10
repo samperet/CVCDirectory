@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, CalendarPlus, FileText, History, NotebookPen } from "lucide-react";
+import { BadgeCheck, CalendarPlus, FileText, GitBranch, History, NotebookPen } from "lucide-react";
 import type { NamedPerson } from "@/lib/people";
-import type { MeetingOption } from "@/lib/proposals/shared";
+import type { MeetingOption, ProposalVersionShown } from "@/lib/proposals/shared";
+import { versionOf } from "@/lib/wiki/perspectives-shared";
 import { shortDate, todayInVermont } from "@/lib/time";
 import { listNames } from "@/lib/text";
 import { CirclePeopleField } from "@/components/directory/circle-people-field";
@@ -28,6 +30,9 @@ import { meetingsQuery, proposalQuery, type ConsentDraft } from "./data";
  * Consent is to the documents as proposed — their snapshots. When one has
  * changed since its snapshot was taken, it's asked whether the circle
  * consented to it as proposed or as it is now (a new snapshot is taken).
+ * For a page with alternative versions put forward, it's asked which the
+ * meeting consented to: a version (it becomes the page; the others are set
+ * aside) or the page as proposed.
  */
 export function ConsentDialog({
   proposalId,
@@ -58,8 +63,26 @@ export function ConsentDialog({
   const meetings = useQuery({ ...meetingsQuery(circleId), enabled: !fixed });
   const proposal = useQuery({ ...proposalQuery(proposalId ?? "-"), enabled: !!proposalId }).data
     ?.proposal;
-  const changed = (proposal?.documentsShown ?? []).filter((doc) => doc.snapshot && doc.changed);
+  const changedDocs = (proposal?.documentsShown ?? []).filter((doc) => doc.snapshot && doc.changed);
+  const changedVersions = (proposal?.versionsShown ?? []).filter((version) => version.changed);
+  const changed = [
+    ...changedDocs.map((doc) => `“${doc.title}”`),
+    ...changedVersions.map((version) => versionOf(version.author)),
+  ];
   const [asNow, setAsNow] = useState(preferCurrent);
+  // The pages with versions put forward, and which the meeting chose (null: the page as proposed).
+  const versionPages = Array.from(
+    (proposal?.versionsShown ?? []).reduce((pages, version) => {
+      pages.set(version.pageId, [...(pages.get(version.pageId) ?? []), version]);
+      return pages;
+    }, new Map<string, ProposalVersionShown[]>())
+  ).map(([pageId, versions]) => ({
+    pageId,
+    title: proposal?.documentsShown.find((doc) => doc.id === pageId)?.title ?? "The page",
+    versions,
+  }));
+  const [picks, setPicks] = useState<Record<string, string | null>>({});
+  const picked = versionPages.every((page) => page.pageId in picks);
   const options = fixed ? [fixed] : meetings.data?.meetings ?? [];
   const [chosen, setChosen] = useState<string | null>(fixed ? `${fixed.kind}:${fixed.id}` : null);
   const [newDate, setNewDate] = useState(today);
@@ -70,7 +93,9 @@ export function ConsentDialog({
   const isNew = chosen === "new";
   const needsPresent = isNew || (!!current && !current.present.length);
   const ready =
-    (isNew ? !!newDate && newDate <= today : !!current) && (!needsPresent || present.length > 0);
+    (isNew ? !!newDate && newDate <= today : !!current) &&
+    (!needsPresent || present.length > 0) &&
+    picked;
 
   const submit = () => {
     if (!ready) return;
@@ -79,6 +104,14 @@ export function ConsentDialog({
       ...(needsPresent ? { present } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(changed.length && asNow ? { current: true } : {}),
+      ...(versionPages.length
+        ? {
+            chosen: versionPages.map((page) => ({
+              pageId: page.pageId,
+              perspectiveId: picks[page.pageId] ?? null,
+            })),
+          }
+        : {}),
     });
   };
 
@@ -207,6 +240,61 @@ export function ConsentDialog({
           </fieldset>
         ) : null}
 
+        {versionPages.map((page) => (
+          <fieldset
+            key={page.pageId}
+            className="flex flex-col gap-1.5"
+            data-consent-versions={page.pageId}
+          >
+            <legend className="mb-1 text-sm font-medium text-foreground">
+              Which version of “{page.title}” did the meeting consent to?
+            </legend>
+            {[null, ...page.versions].map((version) => {
+              const value = version ? version.perspectiveId : null;
+              const checked = page.pageId in picks && picks[page.pageId] === value;
+              return (
+                <label
+                  key={value ?? "page"}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm",
+                    checked ? "border-primary bg-primary/5" : "border-border bg-white"
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name={`version-${page.pageId}`}
+                    checked={checked}
+                    onChange={() => setPicks((all) => ({ ...all, [page.pageId]: value }))}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  {version ? (
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-1.5">
+                      <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+                      <span className="font-medium text-foreground">
+                        {versionOf(version.author)}
+                      </span>
+                      <span className="min-w-0 break-words text-muted">· {version.name}</span>
+                      <Link
+                        href={version.href}
+                        target="_blank"
+                        className="text-xs text-secondary-foreground underline-offset-2 hover:underline"
+                      >
+                        see it
+                      </Link>
+                    </span>
+                  ) : (
+                    <span className="text-foreground">“{page.title}” as proposed</span>
+                  )}
+                </label>
+              );
+            })}
+            <p className="text-xs text-muted">
+              The version chosen becomes the page (its history keeps the page as it was); the others
+              are set aside.
+            </p>
+          </fieldset>
+        ))}
+
         {changed.length ? (
           <fieldset
             className="flex flex-col gap-1.5 rounded-lg border border-sun/40 bg-sun/10 px-3 py-2.5 text-sm text-foreground"
@@ -216,7 +304,7 @@ export function ConsentDialog({
             <p className="flex items-start gap-1.5">
               <History className="mt-0.5 h-4 w-4 shrink-0 text-[#7a5200]" aria-hidden />
               <span>
-                {listNames(changed.map((doc) => `“${doc.title}”`))}{" "}
+                {listNames(changed)}{" "}
                 {changed.length === 1
                   ? "has changed since its snapshot was"
                   : "have changed since their snapshots were"}{" "}
@@ -262,8 +350,9 @@ export function ConsentDialog({
           />
         </label>
         <p className="text-xs text-muted">
-          The documents it&apos;s about are consented as proposed — as their snapshots have them;
-          you&apos;re recorded as the one who recorded it.
+          The documents it&apos;s about are consented as proposed — as their snapshots have them
+          {versionPages.length ? ", or as the version the meeting chose" : ""}; you&apos;re recorded
+          as the one who recorded it.
         </p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>

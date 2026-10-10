@@ -6,10 +6,12 @@ import { namesOf, type NamedPerson } from "@/lib/people";
 import {
   PROPOSAL_DIRECTIVE,
   meetingDateOf,
+  chosenFor,
   snapshotOf,
   type Proposal,
   type ProposalConsent,
 } from "@/lib/proposals/shared";
+import { versionOf } from "@/lib/wiki/perspectives-shared";
 import { shortDate, todayInVermont } from "@/lib/time";
 
 /**
@@ -430,7 +432,7 @@ export function pageMarkdown(page: ExportPage, path: string, ctx: ExportContext)
   return `${lines.join("\n").trim()}\n`;
 }
 
-/** A proposal as a Markdown file: the proposal, the documents it's about, and its consent. */
+/** A proposal as a Markdown file: the proposal, the documents it's about, the versions put forward with them, and its consent. */
 export function proposalMarkdown(
   proposal: Proposal,
   path: string,
@@ -489,6 +491,30 @@ export function proposalMarkdown(
               }/proposals/${proposal.id}/snapshots/${snapshot.snapshotId})`
             : ""
         }`
+      );
+    }
+  }
+  const versions = proposal.versions ?? [];
+  if (versions.length) {
+    lines.push("", "## Alternative versions put forward", "");
+    for (const version of versions) {
+      const page = describe({ kind: "page", id: version.pageId });
+      const chosen =
+        proposal.status === "consented" ? chosenFor(proposal, version.pageId) : undefined;
+      const outcome =
+        chosen === undefined
+          ? ""
+          : chosen === version.perspectiveId
+            ? " — **consented**: it became the page"
+            : chosen === null
+              ? " — set aside (the page as proposed was consented)"
+              : " — set aside";
+      lines.push(
+        `- ${versionOf(version.author)} of ${escapeLabel(
+          page?.title ?? "a page that's gone"
+        )}: “${escapeLabel(version.name)}” — [as put forward ${longDay(
+          vermontDay(version.takenAt)
+        )}](${ctx.siteUrl}/proposals/${proposal.id}/snapshots/${version.snapshotId})${outcome}`
       );
     }
   }

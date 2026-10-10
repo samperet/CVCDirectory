@@ -20,6 +20,12 @@ import type { NamedPerson } from "@/lib/people";
  * and then consented, is the document as it was then, whatever happens to it
  * after. While the proposal waits for consent, a document that has changed
  * can have its snapshot taken again ("use the current version").
+ *
+ * A proposal can also put **alternative versions** of its pages to the
+ * circle (`ProposalVersion`; `lib/wiki/perspectives.ts`), each copied as it
+ * was put forward. The meeting then says which it consented to — one of the
+ * versions, which becomes the page, or the page as proposed — and the
+ * others are set aside.
  */
 
 export type ProposalStatus = "proposed" | "consented" | "withdrawn";
@@ -71,6 +77,33 @@ export interface ProposalConsent {
   submittedAt: string;
   /** The documents' versions consented to: a page's last save (`updatedAt`), a file's version number. */
   documents: (DocumentRef & { version: string })[];
+  /**
+   * For each page with alternative versions put forward: which the meeting
+   * consented to — a version (made the page as consent was recorded) or,
+   * with `perspectiveId` null, the page as proposed.
+   */
+  chosen?: VersionChoice[];
+}
+
+export type VersionChoice = { pageId: string; perspectiveId: string | null };
+
+/**
+ * An alternative version of one of its pages, put to the circle with a
+ * proposal: which it is, what it was called and who wrote it, and a copy of
+ * it as it was put forward (kept with the snapshots: its text, with the
+ * page's changes up to then brought in, and that text of the page).
+ */
+export interface ProposalVersion {
+  pageId: string;
+  perspectiveId: string;
+  name: string;
+  author: { name: string; personId: string | null };
+  /** Where its copy is kept. */
+  snapshotId: string;
+  /** The version's last save when it was copied (`updatedAt`). */
+  version: string;
+  takenAt: string;
+  takenBy: ProposalPerson;
 }
 
 /**
@@ -109,6 +142,8 @@ export interface Proposal {
   documents: DocumentRef[];
   /** A snapshot of each document, taken when it was attached (proposals from before snapshots have none). */
   snapshots?: DocumentSnapshot[];
+  /** Alternative versions of its pages put forward with it (each page is among `documents`). */
+  versions?: ProposalVersion[];
   /** The day the circle means to decide (YYYY-MM-DD), if there is one. */
   decideOn: string | null;
   status: ProposalStatus;
@@ -133,10 +168,25 @@ export interface ProposalDocument extends DocumentRef {
   changed: boolean;
 }
 
+/** An alternative version put forward, as it's shown with its page. */
+export interface ProposalVersionShown extends ProposalVersion {
+  /** Its copy as put forward, compared with the page then. */
+  href: string;
+  /** The version itself, while it's still there. */
+  liveHref: string | null;
+  /** Changed since it was put forward. */
+  changed: boolean;
+  /** The meeting consented to it. */
+  chosen: boolean;
+  /** It was set aside when the meeting consented to another (or to the page as proposed). */
+  setAside: boolean;
+}
+
 /** A proposal as it's shown on its own or in a document: names filled in, and what the reader may do. */
 export interface ProposalView extends Proposal {
   circleName: string;
   documentsShown: ProposalDocument[];
+  versionsShown: ProposalVersionShown[];
   /** The pages that hold it. */
   appearsIn: { slug: string; title: string }[];
   /** Change it, withdraw it, or propose it again: whoever proposed it, the circle's members, the Board, admins. */
@@ -177,6 +227,8 @@ export interface MeetingOption {
 /** A snapshot as it's opened (`GET /api/proposals/<id>/snapshots/<snapshotId>`). */
 export interface SnapshotView {
   snapshot: DocumentSnapshot;
+  /** For an alternative version's copy: the version, and the page's text it was put forward against. */
+  version?: ProposalVersionShown & { base: string };
   proposal: Pick<Proposal, "id" | "title" | "circleId" | "status"> & { circleName: string };
   /** A page's text as it was (Markdown). */
   body: string | null;
@@ -209,6 +261,42 @@ export function proposalIdsIn(markdown: string): string[] {
 export const proposalDirective = (id: string) => `::proposal{id="${id}"}`;
 
 export const sameDocument = (a: DocumentRef, b: DocumentRef) => a.kind === b.kind && a.id === b.id;
+
+/** The alternative versions put forward for one page. */
+export const versionsFor = (proposal: Pick<Proposal, "versions">, pageId: string) =>
+  (proposal.versions ?? []).filter((version) => version.pageId === pageId);
+
+/**
+ * Why a meeting's choice of versions can't be recorded (null if it can):
+ * each page with versions put forward needs one choice — one of its
+ * versions, or the page as proposed (null).
+ */
+export function checkChosen(
+  versions: Pick<ProposalVersion, "pageId" | "perspectiveId">[],
+  chosen: VersionChoice[] = []
+): string | null {
+  const pageIds = Array.from(new Set(versions.map((version) => version.pageId)));
+  for (const pageId of pageIds) {
+    const choices = chosen.filter((choice) => choice.pageId === pageId);
+    if (choices.length !== 1)
+      return "Say which version of each page the meeting consented to (or the page as proposed)";
+    const [choice] = choices;
+    if (
+      choice.perspectiveId !== null &&
+      !versions.some(
+        (version) => version.pageId === pageId && version.perspectiveId === choice.perspectiveId
+      )
+    )
+      return "That version wasn't put forward with the proposal";
+  }
+  if (chosen.some((choice) => !pageIds.includes(choice.pageId)))
+    return "No versions of that page were put forward with the proposal";
+  return null;
+}
+
+/** What the meeting consented to for a page with versions: a version's id, null (the page as proposed), or undefined (it had none). */
+export const chosenFor = (proposal: Pick<Proposal, "consent">, pageId: string) =>
+  proposal.consent?.chosen?.find((choice) => choice.pageId === pageId)?.perspectiveId;
 
 /** A proposal's snapshot of one of its documents, if it has one. */
 export const snapshotOf = (proposal: Pick<Proposal, "snapshots">, ref: DocumentRef) =>
