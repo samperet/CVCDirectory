@@ -17,6 +17,7 @@ import {
 } from "./layout";
 import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "./ids";
+import { canHaveSubgroups } from "./tiers";
 import type { Circle, CircleApplication, CircleKind, CircleSeat } from "@/lib/circles/types";
 
 /**
@@ -128,7 +129,7 @@ export const modulesSchema = z
       .filter((module) => !REPEATABLE_MODULES.includes(module.type))
       .map((module) => module.type);
     return new Set(others).size === others.length;
-  }, "Members, the duty schedule, tasks, the forum, the log, finances, and documents can each appear once");
+  }, "Members, the duty schedule, tasks, the forum, the log, finances, documents, and sub groups can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),
@@ -136,6 +137,11 @@ export const circleInputSchema = z.object({
     .optional()
     .transform((value) => value || null),
   kind: kind.default("club"),
+  /** Start a sub group of this circle (its kind follows the circle's). */
+  parentId: z
+    .string()
+    .regex(/^[a-z0-9-]{1,40}$/)
+    .optional(),
 });
 
 export const circleUpdateSchema = circleInputSchema
@@ -218,7 +224,8 @@ export type Failure =
   | "already_applied"
   | "not_member"
   | "full"
-  | "everyone";
+  | "everyone"
+  | "bad_parent";
 export type CircleResult<T = Circle> = { ok: true; value: T } | { ok: false; reason: Failure };
 
 async function mutate<T>(
@@ -247,20 +254,31 @@ function slugFor(input: { name: string }, taken: Set<string>) {
   return slug;
 }
 
+/**
+ * Start a circle, with its founder as its first member — or, with
+ * `parentId`, a sub group of a top-level circle (not Community), of the same
+ * kind as it.
+ */
 export function createCircle(
   imported: Circle[],
-  input: { name: string; description: string | null; kind: CircleKind },
+  input: { name: string; description: string | null; kind: CircleKind; parentId?: string },
   founder: { personId: string; name: string }
 ) {
   return mutate(imported, (circles) => {
     if (circles.some((circle) => circle.name.toLowerCase() === input.name.toLowerCase())) {
       return "exists";
     }
+    const parent = input.parentId
+      ? circles.find((circle) => circle.id === input.parentId)
+      : undefined;
+    if (input.parentId && (!parent || !canHaveSubgroups(circles, parent))) return "bad_parent";
+    const club = parent ? parent.kind === "club" : input.kind === "club";
     const circle: Circle = {
       id: slugFor(input, new Set(circles.map((c) => c.id))),
       name: input.name,
       description: input.description,
-      ...(input.kind === "club" ? { kind: "club" as const } : {}),
+      ...(club ? { kind: "club" as const } : {}),
+      ...(parent ? { parentId: parent.id } : {}),
       seats: [
         {
           id: randomUUID(),
@@ -313,10 +331,21 @@ export function updateCircle(
   });
 }
 
+/** Delete a circle (the deleted one is the result); its sub groups become circles of their own. */
 export function deleteCircle(imported: Circle[], id: string) {
-  return mutate<null>(imported, (circles) => {
-    if (!circles.some((circle) => circle.id === id)) return "not_found";
-    return { circles: circles.filter((circle) => circle.id !== id), value: null };
+  return mutate(imported, (circles) => {
+    const circle = circles.find((entry) => entry.id === id);
+    if (!circle) return "not_found";
+    return {
+      circles: circles
+        .filter((entry) => entry.id !== id)
+        .map((entry) => {
+          if (entry.parentId !== id) return entry;
+          const { parentId: _parent, ...rest } = entry;
+          return rest;
+        }),
+      value: circle,
+    };
   });
 }
 

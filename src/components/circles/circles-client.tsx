@@ -1,126 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { ChevronRight, Plus } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
 import type { Person } from "@/lib/directory/types";
-import type { Circle, CircleKind } from "@/lib/circles/types";
+import type { Circle } from "@/lib/circles/types";
 import { CircleIcon } from "@/components/circles/circle-icon";
+import { NewCircleForm } from "@/components/circles/new-circle-form";
 import { EmailCircleButton } from "@/components/circles/email-circle";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
-import { startIconDrawing } from "@/components/circles/icon-controls";
 import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { subgroupsOf, topLevel } from "@/lib/circles/tiers";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { Loading, ErrorCard } from "@/components/ui/status";
+import { cn } from "@/lib/utils";
 
-/** Start a social club — or, for the Board and admins, an official circle. */
-function NewCircleForm({
-  onCancel,
-  canFormCircles,
+const memberCount = (circle: Circle) => {
+  const count = circle.seats.filter((seat) => seat.personId || seat.name).length;
+  return `${count} ${count === 1 ? "member" : "members"}`;
+};
+
+/**
+ * A circle's card: the whole card opens the circle; the email button sits on
+ * top of it, and so does its sub groups' list, which opens out when asked.
+ */
+function CircleCard({
+  circle,
+  circles,
+  people,
 }: {
-  onCancel: () => void;
-  canFormCircles: boolean;
+  circle: Circle;
+  circles: Circle[];
+  people: Map<string, Person>;
 }) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", description: "" });
-  const [kind, setKind] = useState<CircleKind>("club");
-
-  const create = useMutation({
-    mutationFn: () =>
-      apiFetch<{ circle: Circle }>("/api/circles", {
-        method: "POST",
-        body: JSON.stringify({ name: form.name, description: form.description || undefined, kind }),
-      }),
-    onSuccess: ({ circle }) => {
-      queryClient.invalidateQueries({ queryKey: ["directory"] });
-      // Its icon is drawn in the style of the others while the new page opens.
-      startIconDrawing(queryClient, toast, circle);
-      router.push(`/circles/${circle.id}`);
-    },
-    onError: (err: Error) =>
-      toast({ title: "Could not create circle", description: err.message, variant: "destructive" }),
-  });
-
+  const [open, setOpen] = useState(false);
+  const subgroups = subgroupsOf(circles, circle.id).sort((a, b) => a.name.localeCompare(b.name));
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold text-foreground">
-        {canFormCircles ? "Start a circle or club" : "Start a social club"}
-      </h2>
-      {canFormCircles ? (
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Kind">
-          {(
-            [
-              ["club", "Social club"],
-              ["circle", "Official circle"],
-            ] as const
-          ).map(([value, label]) => (
-            <label
-              key={value}
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm ${
-                kind === value ? "border-primary ring-1 ring-primary" : "border-border"
-              }`}
-            >
-              <input
-                type="radio"
-                name="kind"
-                checked={kind === value}
-                onChange={() => setKind(value)}
-                className="h-4 w-4 accent-primary"
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-      ) : null}
-      <Input
-        placeholder={kind === "club" ? "Name, e.g. Crop Sharers" : "Name, e.g. Welcome Circle"}
-        value={form.name}
-        maxLength={80}
-        onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
-        className="bg-white"
-        aria-label="Circle name"
-      />
-      <Textarea
-        rows={2}
-        placeholder="What does this circle take care of? (optional)"
-        value={form.description}
-        maxLength={1000}
-        onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
-        className="bg-white"
-      />
-      <p className="text-xs text-muted">
-        You&apos;ll be its first member, and can add others from its page.
-      </p>
-      <div className="flex gap-2">
-        <Button
-          onClick={() => create.mutate()}
-          disabled={create.isPending || form.name.trim().length < 2}
-        >
-          {create.isPending ? "Creating…" : "Create circle"}
-        </Button>
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Person> }) {
-  const members = circle.seats.filter((seat) => seat.personId || seat.name).length;
-  // The whole card opens the circle; the email button sits on top of it.
-  return (
-    <Card className="relative flex h-full items-start gap-4 p-5 transition focus-within:ring-2 focus-within:ring-primary hover:ring-2 hover:ring-primary">
+    <Card
+      className="relative flex h-full items-start gap-4 p-5 transition focus-within:ring-2 focus-within:ring-primary hover:ring-2 hover:ring-primary"
+      data-circle-card={circle.id}
+    >
       <CircleIcon circle={circle} size={56} />
       <div className="min-w-0 flex-1 pr-8">
         <Link
@@ -129,11 +50,42 @@ function CircleCard({ circle, people }: { circle: Circle; people: Map<string, Pe
         >
           <h2 className="text-lg font-semibold text-foreground">{circle.name}</h2>
         </Link>
-        <p className="text-xs text-muted">
-          {members} {members === 1 ? "member" : "members"}
-        </p>
+        <p className="text-xs text-muted">{memberCount(circle)}</p>
         {circle.description ? (
           <p className="mt-1 line-clamp-2 text-sm text-foreground-light">{circle.description}</p>
+        ) : null}
+        {subgroups.length ? (
+          <div className="relative z-10 mt-2">
+            <button
+              type="button"
+              onClick={() => setOpen((value) => !value)}
+              aria-expanded={open}
+              className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-pine hover:underline"
+              data-subgroups-toggle
+            >
+              <ChevronRight
+                className={cn("h-3.5 w-3.5 transition", open && "rotate-90")}
+                aria-hidden
+              />
+              {subgroups.length} {subgroups.length === 1 ? "sub group" : "sub groups"}
+            </button>
+            {open ? (
+              <ul className="mt-1.5 flex flex-col gap-0.5" data-subgroups>
+                {subgroups.map((sub) => (
+                  <li key={sub.id}>
+                    <Link
+                      href={`/circles/${sub.id}`}
+                      className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm text-foreground hover:bg-accent"
+                    >
+                      <CircleIcon circle={sub} size={24} className="shrink-0 rounded-full" />
+                      <span className="min-w-0 truncate font-medium">{sub.name}</span>
+                      <span className="shrink-0 text-xs text-muted">· {memberCount(sub)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <EmailCircleButton circle={circle} people={people} className="absolute right-3 top-3 z-10" />
@@ -162,11 +114,19 @@ function CommunityCard({ circle }: { circle: Circle }) {
   );
 }
 
-function CircleGrid({ circles, people }: { circles: Circle[]; people: Map<string, Person> }) {
+function CircleGrid({
+  shown,
+  circles,
+  people,
+}: {
+  shown: Circle[];
+  circles: Circle[];
+  people: Map<string, Person>;
+}) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      {circles.map((circle) => (
-        <CircleCard key={circle.id} circle={circle} people={people} />
+      {shown.map((circle) => (
+        <CircleCard key={circle.id} circle={circle} circles={circles} people={people} />
       ))}
     </div>
   );
@@ -203,7 +163,8 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
 
   const people = new Map(data.people.map((person) => [person.id, person]));
   const community = data.circles.find((circle) => isCommunity(circle.id));
-  const others = data.circles.filter((circle) => !isCommunity(circle.id));
+  // Sub groups are shown within their circles.
+  const others = topLevel(data.circles).filter((circle) => !isCommunity(circle.id));
   const circles = others.filter((circle) => circle.kind !== "club");
   const clubs = others.filter((circle) => circle.kind === "club");
   // Official circles are formed by the Board (and admins); anyone can start a social club.
@@ -234,7 +195,7 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
               Circles
             </h2>
           </div>
-          <CircleGrid circles={circles} people={people} />
+          <CircleGrid shown={circles} circles={data.circles} people={people} />
         </section>
         {clubs.length ? (
           <section className="mt-2 flex flex-col gap-3" aria-labelledby="clubs-heading">
@@ -243,7 +204,7 @@ export function CirclesClient({ header }: { header: React.ReactNode }) {
                 Social Clubs
               </h2>
             </div>
-            <CircleGrid circles={clubs} people={people} />
+            <CircleGrid shown={clubs} circles={data.circles} people={people} />
           </section>
         ) : null}
       </div>

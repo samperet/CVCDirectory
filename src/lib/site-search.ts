@@ -1,3 +1,4 @@
+import { parentOf } from "@/lib/circles/tiers";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import { featureEnabled } from "@/lib/circles/features";
 import { listDocuments, searchDocuments } from "@/lib/documents/store";
@@ -166,7 +167,11 @@ export async function searchSite(
     result: {
       title: circle.name,
       href: `/circles/${circle.id}`,
-      meta: circle.kind === "club" ? "Social club" : "Circle",
+      meta: parentOf(circles, circle)
+        ? `Sub group of ${parentOf(circles, circle)!.name}`
+        : circle.kind === "club"
+          ? "Social club"
+          : "Circle",
     },
     body: circle.description ?? undefined,
   }));

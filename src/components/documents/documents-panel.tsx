@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { searchTerms } from "@/lib/search";
 import { possessive } from "@/lib/text";
+import { labelledCircles } from "@/lib/circles/tiers";
 import { Loading } from "@/components/ui/status";
 import { Select } from "@/components/ui/select";
 import { DocumentRow, Highlighted } from "@/components/documents/document-row";
@@ -120,7 +121,7 @@ export function DocumentsPanel({
   /** Whether the resident can write a page here (on a circle's page, by default whoever can upload). */
   canWrite?: boolean;
   /** For the all-documents page: the circles to filter by. */
-  circles?: { id: string; name: string }[];
+  circles?: { id: string; name: string; parentId?: string }[];
   /** For the all-documents page: the circles the resident can add documents to (bulk upload). */
   uploadCircles?: { id: string; name: string }[];
   /** For the all-documents page: the circles whose document types the resident can edit. */
@@ -269,9 +270,9 @@ export function DocumentsPanel({
             aria-label="Circle"
           >
             <option value="">All circles</option>
-            {circles.map((entry) => (
+            {labelledCircles(circles).map((entry) => (
               <option key={entry.id} value={entry.id}>
-                {entry.name}
+                {entry.label}
               </option>
             ))}
           </Select>

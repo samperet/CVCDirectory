@@ -24,6 +24,8 @@ export function circleProblem(reason: Failure) {
       return problem("Everyone at CVC is already in the Community circle", 409);
     case "full":
       return problem("This circle has too many open applications — ask a member", 409);
+    case "bad_parent":
+      return problem("A sub group belongs to a circle, not to a sub group or Community", 400);
   }
 }
 

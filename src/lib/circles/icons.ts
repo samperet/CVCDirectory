@@ -1,7 +1,7 @@
 import { mutateJson, readJson } from "@/lib/storage";
 import type { DirectoryDocument } from "@/lib/directory/types";
 import type { Circle } from "@/lib/circles/types";
-import { BOARD_ID } from "./ids";
+import { managesCircle } from "./tiers";
 
 /**
  * Circle icons: one uploaded image per circle, stored as a binary object with
@@ -62,15 +62,15 @@ export function holdsSeat(
   );
 }
 
-/** Whether a resident may manage a circle (details, members, icon): they're in it, or on the Board. */
+/**
+ * Whether a resident may manage a circle (details, members, icon, page,
+ * things): they're in it, in its parent (a sub group), or on the Board
+ * (`managesCircle`). Admins aren't included: callers add them.
+ */
 export function canManageCircle(
   directory: DirectoryDocument,
   circleId: string,
   personId: string
 ): boolean {
-  return directory.circles.some(
-    (circle) =>
-      (circle.id === circleId || circle.id === BOARD_ID) &&
-      circle.seats.some((seat) => seat.personId === personId)
-  );
+  return managesCircle(directory.circles, circleId, personId);
 }

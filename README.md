@@ -652,6 +652,20 @@ from then on, so re-importing the directory never overwrites circle changes.
   description. Any resident can start a social club and becomes its first member; the Board and
   admins can also form official circles, and switch a circle between the two when editing its
   details (`kind: "club"`; unset means an official circle).
+- **Sub groups** – smaller groups within a circle (a hedge team within Land Care), each a circle
+  of its own: its own members (anyone can join, or its members approve), page, modules, and icon.
+  A circle's **Sub groups** module lists them, and its members (and the Board) start one with
+  **New sub group** — of the circle's kind, its founder its first member. They're one level deep
+  (a sub group has none of its own; nor has Community, nor can the Board be one). The circle's
+  members manage its sub groups as the Board manages every circle — editing, members, documents,
+  consent (`managesCircle` in `lib/circles/tiers.ts`, behind `canManageCircle`) — and can delete
+  one, whose documents, pages, and open proposals then go to the circle rather than the Board;
+  deleting a circle makes its sub groups circles of their own. On `/circles` a circle's card
+  opens out to its sub groups (they have no cards of their own); in the header's **Circles** menu,
+  pointing at a circle (or its arrow, or →) shows them in a tier beside it; the phone menu lists
+  them under their circle; and a sub group's page says whose it is, and goes back there. Lists of
+  circles to choose from name them "Land Care Circle › Hedge Team". Stored as `parentId` on the
+  circle (`POST /api/circles` with `parentId`), set when it's started and never moved.
 - **Emailing a circle** – the envelope on each circle's card (and in its members panel) asks
   whether to email the whole circle or only certain roles (op leader, secretary, …), then opens
   your mail app with their directory addresses (leaving you out), or copies them. Members with no

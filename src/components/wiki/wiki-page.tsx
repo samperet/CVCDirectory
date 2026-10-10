@@ -38,6 +38,7 @@ import { RehomeDialog } from "@/components/wiki/rehome-dialog";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings } from "@/components/wiki/page-settings";
+import { labelledCircles } from "@/lib/circles/tiers";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { EditedSinceProposed, StageControls, StagePill } from "@/components/wiki/page-consent";
@@ -447,9 +448,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
                     disabled={rehome.isPending}
                     className="h-8 max-w-[12rem] rounded-md px-1.5 text-xs"
                   >
-                    {(circles ?? []).map((entry) => (
+                    {labelledCircles(circles ?? []).map((entry) => (
                       <option key={entry.id} value={entry.id}>
-                        {entry.name}
+                        {entry.label}
                       </option>
                     ))}
                   </Select>

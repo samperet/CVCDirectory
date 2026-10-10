@@ -2,7 +2,8 @@
 
 import { useSession } from "@/lib/auth/client";
 import { featureEnabled } from "@/lib/circles/features";
-import { isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { isCommunity } from "@/lib/circles/ids";
+import { managesCircle } from "@/lib/circles/tiers";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 
 /**
@@ -17,30 +18,21 @@ export function useUploadCircles() {
   const { data } = useDirectoryQuery();
   const { user } = useSession();
   const circles = (data?.circles ?? [])
-    .map((circle) => ({ id: circle.id, name: circle.name }))
+    .map((circle) => ({ id: circle.id, name: circle.name, parentId: circle.parentId }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const inCircle = (circleId: string) =>
-    !!user?.personId &&
-    !!data?.circles.some(
-      (circle) =>
-        circle.id === circleId && circle.seats.some((seat) => seat.personId === user.personId)
-    );
+  // Theirs: they're in it, in the circle it's a sub group of, or on the Board (`managesCircle`).
+  const manages = (circleId: string) =>
+    !!user?.isAdmin || managesCircle(data?.circles ?? [], circleId, user?.personId);
   const documentsOn = new Set(
     (data?.circles ?? [])
       .filter((circle) => featureEnabled(circle, "documents"))
       .map((circle) => circle.id)
   );
-  const uploadCircles = (
-    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId)
-      ? circles
-      : circles.filter(
-          (circle) => inCircle(circle.id) || (isCommunity(circle.id) && !!user?.personId)
-        )
-  ).filter((circle) => documentsOn.has(circle.id));
-  const typeCircles = (
-    user?.isAdmin || sitsOnBoard(data?.circles ?? [], user?.personId)
-      ? circles
-      : circles.filter((circle) => inCircle(circle.id))
-  ).filter((circle) => documentsOn.has(circle.id));
+  const uploadCircles = circles.filter(
+    (circle) =>
+      (manages(circle.id) || (isCommunity(circle.id) && !!user?.personId)) &&
+      documentsOn.has(circle.id)
+  );
+  const typeCircles = circles.filter((circle) => manages(circle.id) && documentsOn.has(circle.id));
   return { circles, uploadCircles, typeCircles };
 }

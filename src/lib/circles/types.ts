@@ -44,6 +44,8 @@ export interface Circle {
   joinPolicy?: JoinPolicy;
   /** "club" for a social club; unset for an official, sociocratically formed circle. */
   kind?: CircleKind;
+  /** For a sub group: the circle it's within (see `tiers.ts`). Set when it's started, never moved. */
+  parentId?: string;
   /** Which of its pages' sections the circle uses; each is on unless set to false. */
   features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
   /** How its page is laid out (see `src/lib/circles/layout.ts`); unset is the default. */

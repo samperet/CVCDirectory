@@ -2,19 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BookOpen, ChevronDown, Upload } from "lucide-react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { BookOpen, ChevronDown, ChevronRight, Upload } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
 import { useCircles } from "@/components/directory/use-directory";
 import { CircleIcon } from "@/components/circles/circle-icon";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { useUploadCircles } from "@/components/documents/use-upload-circles";
 import { cn } from "@/lib/utils";
+import { subgroupsOf, topLevel } from "@/lib/circles/tiers";
+import type { Circle } from "@/lib/circles/types";
+
+/**
+ * Where an item's own menu (a sub tier) opens: beside the menu, outside its
+ * scrolling list (which would clip it), but inside the menu, so pointing at it
+ * keeps the menu open.
+ */
+const FlyoutHost = createContext<HTMLDivElement | null>(null);
 
 /**
  * A header item with a menu: its label still goes to its page; pointing at it
  * (after a moment) or pressing its arrow opens the menu, which ↑/↓ move
- * through and Escape, a click elsewhere, or a choice closes.
+ * through and Escape, a click elsewhere, or a choice closes. ↑/↓ keep to the
+ * list that has focus: the menu, or a sub tier opened beside it.
  */
 export function NavMenu({
   href,
@@ -30,6 +41,7 @@ export function NavMenu({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const later = (next: boolean, ms: number) => {
@@ -60,8 +72,12 @@ export function NavMenu({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const items = () =>
-    Array.from(box.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? []);
+  const items = () => {
+    const tier = (document.activeElement as HTMLElement | null)?.closest("[data-submenu]") ?? null;
+    return Array.from(box.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? []).filter(
+      (item) => item.closest("[data-submenu]") === tier
+    );
+  };
   const move = (step: number) => {
     const list = items();
     const at = list.indexOf(document.activeElement as HTMLElement);
@@ -72,6 +88,7 @@ export function NavMenu({
     <div
       ref={box}
       className="relative"
+      data-nav-menu
       onMouseEnter={() => later(true, 150)}
       onMouseLeave={() => later(false, 250)}
       onKeyDown={(event) => {
@@ -130,8 +147,9 @@ export function NavMenu({
             aria-label={label}
             className="max-h-[60vh] w-64 overflow-y-auto rounded-xl border border-border bg-white p-1 shadow-elev"
           >
-            {children(close)}
+            <FlyoutHost.Provider value={host}>{children(close)}</FlyoutHost.Provider>
           </div>
+          <div ref={setHost} className="absolute left-full top-1.5" />
         </div>
       ) : null}
     </div>
@@ -166,36 +184,114 @@ export function DocumentsMenuItems({ close }: { close: () => void }) {
   );
 }
 
-/** The circles, split into yours and the rest, each by name with its icon. */
+/**
+ * The circles (sub groups within theirs), split into yours — those you're in,
+ * or in one of whose sub groups — and the rest, each by name with its icon.
+ */
 export function useCircleGroups() {
   const circles = useCircles();
   const { user } = useSession();
-  const sorted = [...(circles ?? [])].sort((a, b) => a.name.localeCompare(b.name));
-  const mine = sorted.filter((circle) =>
-    circle.seats.some((seat) => !!user?.personId && seat.personId === user.personId)
-  );
+  const all = circles ?? [];
+  const byName = (a: Circle, b: Circle) => a.name.localeCompare(b.name);
+  const subsOf = (circleId: string) => subgroupsOf(all, circleId).sort(byName);
+  const inIt = (circle: Circle) =>
+    circle.seats.some((seat) => !!user?.personId && seat.personId === user.personId);
+  const sorted = topLevel(all).sort(byName);
+  const mine = sorted.filter((circle) => inIt(circle) || subsOf(circle.id).some(inIt));
   const others = sorted.filter((circle) => !mine.includes(circle));
-  return { mine, others };
+  return { mine, others, subsOf };
 }
 
-/** The Circles menu: all of them, then yours and the others, with their icons. */
+/**
+ * The Circles menu: all of them, then yours and the others, with their
+ * icons. A circle with sub groups shows them in a sub tier beside the menu —
+ * pointing at it (after a moment), its arrow, or → — which ← or Escape
+ * leaves.
+ */
 export function CirclesMenuItems({ close }: { close: () => void }) {
-  const { mine, others } = useCircleGroups();
-  const row = (circle: (typeof mine)[number]) => (
-    <Link
-      key={circle.id}
-      href={`/circles/${circle.id}`}
-      role="menuitem"
-      className={itemClass}
-      onClick={close}
-    >
-      <CircleIcon circle={circle} size={22} className="shrink-0 rounded-full" />
-      <span className="truncate">{circle.name}</span>
-    </Link>
-  );
+  const { mine, others, subsOf } = useCircleGroups();
+  const host = useContext(FlyoutHost);
+  const [flyout, setFlyout] = useState<{ id: string; top: number } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
+  // It's placed beside its row: when the list scrolls, it closes.
+  useEffect(() => {
+    const list = host?.previousElementSibling;
+    if (!list) return;
+    const onScroll = () => setFlyout(null);
+    list.addEventListener("scroll", onScroll);
+    return () => list.removeEventListener("scroll", onScroll);
+  }, [host]);
+  const show = (circleId: string, row: HTMLElement, focus = false) => {
+    if (!host) return;
+    setFlyout({
+      id: circleId,
+      top: row.getBoundingClientRect().top - host.getBoundingClientRect().top,
+    });
+    if (focus)
+      requestAnimationFrame(
+        () => host.querySelector<HTMLElement>("[data-submenu] [role=menuitem]")?.focus()
+      );
+  };
+  const pointAt = (circleId: string | null, row: HTMLElement) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => (circleId ? show(circleId, row) : setFlyout(null)), 120);
+  };
+  const row = (circle: Circle) => {
+    const subs = subsOf(circle.id);
+    return (
+      <div
+        key={circle.id}
+        className="relative flex items-center"
+        onMouseEnter={(event) => pointAt(subs.length ? circle.id : null, event.currentTarget)}
+      >
+        <Link
+          href={`/circles/${circle.id}`}
+          role="menuitem"
+          className={cn(itemClass, "min-w-0 flex-1", subs.length && "pr-9")}
+          onClick={close}
+          data-circle-row={circle.id}
+          aria-haspopup={subs.length ? "menu" : undefined}
+          aria-expanded={subs.length ? flyout?.id === circle.id : undefined}
+          onKeyDown={(event) => {
+            if (subs.length && event.key === "ArrowRight") {
+              event.preventDefault();
+              show(circle.id, event.currentTarget.parentElement!, true);
+            }
+          }}
+        >
+          <CircleIcon circle={circle} size={22} className="shrink-0 rounded-full" />
+          <span className="truncate">{circle.name}</span>
+        </Link>
+        {subs.length ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={`${circle.name}: its sub groups`}
+            className="absolute right-1 rounded-md p-1 text-muted hover:bg-accent hover:text-foreground"
+            onClick={(event) =>
+              flyout?.id === circle.id
+                ? setFlyout(null)
+                : show(circle.id, event.currentTarget.parentElement!)
+            }
+            data-subgroups-chevron={circle.id}
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+    );
+  };
+  const opened = flyout ? [...mine, ...others].find((circle) => circle.id === flyout.id) : null;
   return (
     <>
-      <Link href="/circles" role="menuitem" className={itemClass} onClick={close}>
+      <Link
+        href="/circles"
+        role="menuitem"
+        className={itemClass}
+        onClick={close}
+        onMouseEnter={(event) => pointAt(null, event.currentTarget)}
+      >
         All circles
       </Link>
       {mine.length ? (
@@ -210,6 +306,44 @@ export function CirclesMenuItems({ close }: { close: () => void }) {
           {others.map(row)}
         </>
       ) : null}
+      {opened && flyout && host
+        ? createPortal(
+            <div
+              role="menu"
+              aria-label={`${opened.name}: sub groups`}
+              data-submenu={opened.id}
+              style={{ top: flyout.top }}
+              className="absolute left-1 w-60 rounded-xl border border-border bg-white p-1 shadow-elev"
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft" || event.key === "Escape") {
+                  // Back to its row, the menu still open.
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setFlyout(null);
+                  host
+                    .closest("[data-nav-menu]")
+                    ?.querySelector<HTMLElement>(`[data-circle-row="${opened.id}"]`)
+                    ?.focus();
+                }
+              }}
+            >
+              <p className={groupLabel}>{opened.name}</p>
+              {subsOf(opened.id).map((sub) => (
+                <Link
+                  key={sub.id}
+                  href={`/circles/${sub.id}`}
+                  role="menuitem"
+                  className={itemClass}
+                  onClick={close}
+                >
+                  <CircleIcon circle={sub} size={22} className="shrink-0 rounded-full" />
+                  <span className="truncate">{sub.name}</span>
+                </Link>
+              ))}
+            </div>,
+            host
+          )
+        : null}
     </>
   );
 }
@@ -237,15 +371,28 @@ export function MobileDocumentsLinks({ onChoose }: { onChoose: () => void }) {
   );
 }
 
-/** In the phone menu, under Circles: yours, with their icons — and the rest on request. */
+/** In the phone menu, under Circles: yours, with their icons (sub groups under theirs) — and the rest on request. */
 export function MobileCircleLinks({ onChoose }: { onChoose: () => void }) {
-  const { mine, others } = useCircleGroups();
+  const { mine, others, subsOf } = useCircleGroups();
   const [all, setAll] = useState(false);
-  const row = (circle: (typeof mine)[number]) => (
-    <Link key={circle.id} href={`/circles/${circle.id}`} className={subLink} onClick={onChoose}>
-      <CircleIcon circle={circle} size={20} className="shrink-0 rounded-full" />
-      <span className="truncate">{circle.name}</span>
-    </Link>
+  const row = (circle: Circle) => (
+    <div key={circle.id} className="flex flex-col">
+      <Link href={`/circles/${circle.id}`} className={subLink} onClick={onChoose}>
+        <CircleIcon circle={circle} size={20} className="shrink-0 rounded-full" />
+        <span className="truncate">{circle.name}</span>
+      </Link>
+      {subsOf(circle.id).map((sub) => (
+        <Link
+          key={sub.id}
+          href={`/circles/${sub.id}`}
+          className={cn(subLink, "pl-16")}
+          onClick={onChoose}
+        >
+          <CircleIcon circle={sub} size={18} className="shrink-0 rounded-full" />
+          <span className="truncate">{sub.name}</span>
+        </Link>
+      ))}
+    </div>
   );
   return (
     <>

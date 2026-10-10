@@ -62,6 +62,7 @@ const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   forum: " The circle's conversations are kept; add Forum again to see them here.",
   documents: " The circle's documents are kept, and come back if you add Documents again.",
   text: " Its words go with it.",
+  subgroups: " The sub groups stay, within this circle; only their list goes from its page.",
 };
 
 /** Members goes in the right-hand column; everything else in the main one, in order. */

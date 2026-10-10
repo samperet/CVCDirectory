@@ -17,6 +17,7 @@ export const MODULE_TYPES = [
   "finances",
   "documents",
   "text",
+  "subgroups",
 ] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
@@ -102,8 +103,8 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
  * A circle's page is built from modules, each a size wide. Information
  * modules show a chosen set of wiki pages, and Custom Text modules the
  * circle's own formatted words (there can be several of each); the others
- * (members, the duty schedule, tasks, the log, finances, documents) appear
- * once each.
+ * (members, the duty schedule, tasks, the log, finances, documents, sub
+ * groups) appear once each.
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
   information: "Information",
@@ -115,6 +116,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   finances: "Finances",
   documents: "Documents",
   text: "Custom Text",
+  subgroups: "Sub groups",
 };
 
 /** Which pages an Information module shows: chosen ones (in order), all of a circle's, a circle's proposals waiting for consent, or the most recently edited (of a circle, or the whole wiki). */

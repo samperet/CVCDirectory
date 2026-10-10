@@ -45,6 +45,9 @@ import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BOARD_ID, isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { managesCircle, parentOf, subgroupsOf } from "@/lib/circles/tiers";
+import { SubgroupsModule } from "@/components/circles/subgroups-module";
+import Link from "next/link";
 import { useDirectoryQuery } from "@/components/directory/use-directory";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Pill } from "@/components/ui/pill";
@@ -75,10 +78,20 @@ export function CircleDetailClient({ id }: { id: string }) {
     !!data?.circles.some(
       (c) => c.id === circleId && c.seats.some((seat) => seat.personId === user.personId)
     );
-  // Admins can manage every circle, as the Board can.
+  // Admins can manage every circle, as the Board can; a sub group's circle's members manage it too.
   const onBoard = sitsOnBoard(data?.circles ?? [], user?.personId) || !!user?.isAdmin;
   const isMember = inCircle(id);
-  const canManage = onBoard || isMember;
+  const canManage = !!user?.isAdmin || managesCircle(data?.circles ?? [], id, user?.personId);
+  const parent = circle && data ? parentOf(data.circles, circle) : null;
+  const subgroups = data ? subgroupsOf(data.circles, id) : [];
+  // A sub group is deleted by its circle's members (and the Board); a circle by the Board.
+  const canDelete =
+    !!circle &&
+    circle.id !== BOARD_ID &&
+    !isCommunity(id) &&
+    (parent
+      ? !!user?.isAdmin || managesCircle(data?.circles ?? [], parent.id, user?.personId)
+      : onBoard);
   // The Community circle is everyone: no member list, and any resident adds its documents.
   const community = isCommunity(id);
   const canUpload = canManage || (community && !!user?.personId);
@@ -240,6 +253,19 @@ export function CircleDetailClient({ id }: { id: string }) {
             <TextModule circleId={circle.id} module={module} title={title} canEdit={canManage} />
           ),
         };
+      case "subgroups":
+        return {
+          title,
+          icon: icon(module),
+          content: (
+            <SubgroupsModule
+              circle={circle}
+              circles={data.circles}
+              title={title}
+              canManage={canManage}
+            />
+          ),
+        };
       case "documents":
         return {
           title,
@@ -258,7 +284,8 @@ export function CircleDetailClient({ id }: { id: string }) {
   const sectionsOf = (list: CircleModule[]): ModuleViews =>
     Object.fromEntries(list.map((module) => [module.id, sectionFor(module)]));
   const editing = pageDraft ?? [];
-  const canSetKind = onBoard && circle.id !== BOARD_ID && !community;
+  // A sub group is of its circle's kind.
+  const canSetKind = onBoard && circle.id !== BOARD_ID && !community && !parent;
   // Save what changed — details and the page together, in one request.
   const save = () => {
     const changes: Record<string, unknown> = {};
@@ -283,7 +310,11 @@ export function CircleDetailClient({ id }: { id: string }) {
           <option key={role} value={role} />
         ))}
       </datalist>
-      <BackLink href="/circles" label="All circles" />
+      {parent ? (
+        <BackLink href={`/circles/${parent.id}`} label={parent.name} />
+      ) : (
+        <BackLink href="/circles" label="All circles" />
+      )}
 
       <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="relative w-fit shrink-0">
@@ -306,8 +337,18 @@ export function CircleDetailClient({ id }: { id: string }) {
             />
           ) : (
             <>
+              {parent ? (
+                <p className="text-sm text-muted" data-breadcrumb>
+                  <Link href={`/circles/${parent.id}`} className="hover:underline">
+                    {parent.name}
+                  </Link>{" "}
+                  › sub group
+                </p>
+              ) : null}
               <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
-              {circle.kind === "club" ? <Pill className="w-fit">Social club</Pill> : null}
+              {circle.kind === "club" && !parent ? (
+                <Pill className="w-fit">Social club</Pill>
+              ) : null}
               {circle.description ? (
                 <p className="whitespace-pre-wrap text-sm text-foreground-light">
                   {circle.description}
@@ -352,7 +393,7 @@ export function CircleDetailClient({ id }: { id: string }) {
               <Button size="sm" variant="ghost" onClick={stopEditing}>
                 Cancel
               </Button>
-              {onBoard && circle.id !== BOARD_ID && !community ? (
+              {canDelete ? (
                 <Button
                   size="sm"
                   variant="ghost"
@@ -361,7 +402,15 @@ export function CircleDetailClient({ id }: { id: string }) {
                     if (
                       await confirm({
                         title: `Delete ${circle.name}?`,
-                        body: "Its documents, pages, and open proposals go to the Board, and its finances are kept; its tasks, log, and forum go with it.",
+                        body: `Its documents, pages, and open proposals go to ${
+                          parent ? parent.name : "the Board"
+                        }, and its finances are kept; its tasks, log, and forum go with it.${
+                          subgroups.length
+                            ? ` Its sub groups (${subgroups
+                                .map((sub) => sub.name)
+                                .join(", ")}) become circles of their own.`
+                            : ""
+                        }`,
                         destructive: true,
                       })
                     )
@@ -369,7 +418,7 @@ export function CircleDetailClient({ id }: { id: string }) {
                   }}
                   disabled={remove.isPending}
                 >
-                  <X className="h-4 w-4" /> Delete circle
+                  <X className="h-4 w-4" /> {parent ? "Delete sub group" : "Delete circle"}
                 </Button>
               ) : null}
             </div>

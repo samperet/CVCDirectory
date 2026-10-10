@@ -65,7 +65,8 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 - **Permissions are decided on the server**, in the feature's `access.ts`/`http.ts`; the API tells
   the client what it may do (`canEdit`, `canAdd`, …) and components only hide or show controls.
 - **Admins** are `ADMIN_PERSON_IDS` and those added on Admin settings (`isAdmin`); **the Board** can manage every circle
-  (`canManageCircle`, `sitsOnBoard`); **Community** is everyone and has no members.
+  (`canManageCircle`, `sitsOnBoard`), and a circle's members its **sub groups** (`managesCircle` in
+  `lib/circles/tiers.ts`, safe for the browser); **Community** is everyone and has no members.
 - **React Query**: one query per resource with a small factory (`directoryQuery`, `wikiPagesQuery`,
   `tasksQuery`…). Mutations invalidate by key prefix; `["directory"]` is the
   people-and-circles document most pages read — use `useDirectory()`/`useCircles()`.

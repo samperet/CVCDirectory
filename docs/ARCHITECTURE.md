@@ -86,6 +86,8 @@ Main documents (see each store's `KEY`):
 - **Resident**: anyone signed in; has a `personId` from the directory. `getSessionUser()`.
 - **Circle member**: holds a seat on the circle (`circle.seats[].personId`); a seat's `position`
   ("Secretary", "Op leader", …) is free text, matched with `holdsSeat(…, /secretary/i)`.
+- **Sub group**: a circle with a `parentId` (`lib/circles/tiers.ts`), one level deep; its
+  parent's members manage it as the Board does (`managesCircle`, which `canManageCircle` uses).
 - **The Board** (`BOARD_ID`): its members can manage every circle (`canManageCircle`,
   `sitsOnBoard`). **Community** (`COMMUNITY_ID`) is everyone — no seats, can't be joined or deleted.
 - **Admin**: built in, listed in `ADMIN_PERSON_IDS`, or added on Admin settings (`auth/admins.json`,

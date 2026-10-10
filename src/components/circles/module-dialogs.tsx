@@ -12,12 +12,13 @@ import {
   LayoutGrid,
   List,
   ListChecks,
-  Plus,
   MessagesSquare,
+  Network,
+  Plus,
   ScrollText,
-  Type,
   Search,
   Settings2,
+  Type,
   Users,
   Wallet,
   X,
@@ -67,6 +68,7 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   finances: Wallet,
   documents: FileText,
   text: Type,
+  subgroups: Network,
 };
 
 const MODULE_HINTS: Record<ModuleType, string> = {
@@ -82,6 +84,8 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   documents:
     "The circle's documents — pages written here and files uploaded — searchable, with New to add one.",
   text: "Your own words, formatted — headings, lists, links, highlights, tables. Add as many as you like.",
+  subgroups:
+    "Smaller groups within the circle, each with its own members, page, and icon — and New sub group to start one.",
 };
 
 // The visual editor is large, and needs the browser; load it only when someone edits.
@@ -325,11 +329,14 @@ export function AddModuleDialog({
       "log",
       "finances",
       "documents",
+      "subgroups",
     ] as const
   ).filter((type) => {
     if (REPEATABLE_MODULES.includes(type)) return true;
     if (modules.some((module) => module.type === type)) return false;
     if (type === "members" || type === "forum") return !isCommunity(circle.id);
+    // Sub groups are one level deep.
+    if (type === "subgroups") return !isCommunity(circle.id) && !circle.parentId;
     if (type === "schedule") return hasSchedule;
     return true;
   });

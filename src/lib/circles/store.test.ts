@@ -24,7 +24,7 @@ describe("modulesSchema", () => {
 
   it("allows one Finances module on a page", () => {
     expect(messages([finances, { ...finances, id: "finances-2" }])).toEqual([
-      "Members, the duty schedule, tasks, the forum, the log, finances, and documents can each appear once",
+      "Members, the duty schedule, tasks, the forum, the log, finances, documents, and sub groups can each appear once",
     ]);
   });
 });
