@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareText, mergeText, splitBlocks } from "./merge";
+import { compareRows, compareText, mergeText, splitBlocks } from "./merge";
 
 const base = "# Title\n\nPara one.\n\nPara two.\n\nPara three.\n";
 
@@ -131,5 +131,43 @@ describe("compareText", () => {
       { change: "added", text: "Two." },
     ]);
     expect(compareText("Gone.", "")).toEqual([{ change: "removed", text: "Gone." }]);
+  });
+});
+
+describe("compareRows", () => {
+  it("lines up what's the same, and pairs what one took out with what the other put in", () => {
+    const before = "# Mowing\n\nMow monthly.\n\nOnly the east field.\n\nThanks.\n";
+    const after = "# Mowing\n\nMow twice a month.\n\nThanks.\n\nAsk Ben first.\n";
+    expect(compareRows(before, after)).toEqual([
+      { change: "same", before: "# Mowing", after: "# Mowing" },
+      { change: "edited", before: "Mow monthly.", after: "Mow twice a month." },
+      { change: "removed", before: "Only the east field.", after: null },
+      { change: "same", before: "Thanks.", after: "Thanks." },
+      { change: "added", before: null, after: "Ask Ben first." },
+    ]);
+  });
+
+  it("pairs each paragraph with the one most like it, whatever the order", () => {
+    const before = "Keep the paths clear.\n\nLeave the west field wild.\n\nThanks, all.\n";
+    const after = "Keep the paths clear.\n\nThanks, everyone.\n";
+    expect(compareRows(before, after)).toEqual([
+      { change: "same", before: "Keep the paths clear.", after: "Keep the paths clear." },
+      { change: "removed", before: "Leave the west field wild.", after: null },
+      { change: "edited", before: "Thanks, all.", after: "Thanks, everyone." },
+    ]);
+    // Put in before, and nothing alike: still a row each, in reading order.
+    expect(compareRows("One.\n\nTwo.", "New.\n\nOther.\n\nTwo.").map((row) => row.change)).toEqual([
+      "edited",
+      "added",
+      "same",
+    ]);
+  });
+
+  it("is all the same for the same text", () => {
+    expect(compareRows("One.\n\nTwo.", "One.\n\nTwo.").map((row) => row.change)).toEqual([
+      "same",
+      "same",
+    ]);
+    expect(compareRows("", "")).toEqual([]);
   });
 });

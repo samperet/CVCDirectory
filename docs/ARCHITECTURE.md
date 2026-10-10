@@ -63,7 +63,7 @@ Main documents (see each store's `KEY`):
 | `directory/directory.json`, `directory/people.json` | The imported residents, and edits made in the app | `lib/directory` |
 | `circles/circles.json`, `circles/icons.json`, `circles/schedules/<id>.json` | Circles, seats, page modules; icons; duty rotations | `lib/circles`, `lib/schedules` |
 | `circles/eggs/<circleId>.json` + `circles/eggs/<circleId>/photos/<id>.jpg` | A duty schedule's daily counts (the eggs: per day, who and how), and the photos of the printed calendar sent to be read | `lib/schedules` (`egg-store.ts`) |
-| `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/comments/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
+| `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/comments/<pageId>.json`, `wiki/perspectives/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `proposals/proposals.json` | Proposals: what's put to which circle, about which documents (with their snapshots' details), and its consent at a meeting | `lib/proposals` |
 | `proposals/snapshots/<snapshotId>.json`, `proposals/snapshots/<snapshotId>` | Snapshots' copies: a page's title and text, or a link's text; a file itself. Written once, never changed | `lib/proposals` (`snapshots.ts`) |
@@ -137,8 +137,8 @@ to its component.
 ## The wiki
 
 One wiki for the whole community (`lib/wiki/store.ts`). Each page has a **keeper** — the field name
-in code and storage; the UI calls it the **parent circle** — and its own view/edit settings
-(`lib/wiki/access.ts`). Titles are unique; links are `[[Title]]`, embeds `::embed{page="…"}`
+in code and storage; the UI calls it the **parent circle** — and its own edit setting
+(`lib/wiki/access.ts`; everyone sees every page). Titles are unique; links are `[[Title]]`, embeds `::embed{page="…"}`
 (`lib/wiki/links.ts`, `sections.ts`). Edits autosave and merge paragraph by paragraph
 (`lib/wiki/merge.ts`, `mergeText(base, mine, theirs)`), with presence via `wiki/presence.json`.
 Highlighted words are `:mark[…]{color="…"}` (palette in `lib/wiki/colors.ts`, drawn as `<mark>` by
@@ -170,6 +170,19 @@ place and can only be withdrawn. Who records consent is the same for every circl
 admins. In meeting notes, `MeetingProposals` (a **Consent** button per proposal waiting for the
 circle) and `ProposalHostContext` (proposal cards in the notes offer **Consent at this meeting**)
 record against that meeting.
+
+**Alternative versions** of a page (`lib/wiki/perspectives.ts`, types in `perspectives-shared.ts`;
+"perspectives" in code and storage) are copies of a page that one resident changes, kept per page in
+`wiki/perspectives/<pageId>.json`. Each keeps its `base` — the page's text and `updatedAt` it
+started from — so it can be compared with the page now: `caughtUp()` is `mergeText(base, version,
+page)`, the version with the page's later changes brought in (and the clashes), which is what's
+shown, what **Bring in the page's changes** saves, and what **Make this the page**
+(`POST …/perspectives/<id>/adopt`, the page's editors) saves to the page with `updatePage`
+(non-autosave, against the page's `updatedAt`, so the replaced text goes to the history). Saves
+are checked against the version's own `updatedAt` (409 otherwise). A version is live while
+`status` is "open" and it has no `outcome` (adopted, or — for proposals — set aside).
+`compareRows()` (`merge.ts`) lines two texts up for `SideBySide` (`components/wiki/comparison.tsx`),
+pairing a run of paragraphs taken out with the run put in by likeness of words.
 
 Pages and uploaded files share one **Documents** section (`/documents`; `/wiki` redirects there).
 `GET /api/documents?pages=1` returns them, and proposals, as `items` (`kind` "page" | "file" |
@@ -230,6 +243,7 @@ field) or `todayInVermont()` too, not the device's zone.
 | In the code | In the UI | Meaning |
 |---|---|---|
 | keeper | parent circle | The circle a wiki page belongs to |
+| perspective | alternative version ("Eve's version") | Someone's own copy of a page, compared with it and perhaps made the page (a page's *versions*, unqualified, are its history) |
 | module (formerly section) | module | One block of a circle's page |
 | `HIGHLIGHT_COLORS` / `:mark[…]` | highlight | Coloured words in a wiki page (pages themselves no longer have colours) |
 | `COMMUNITY_ID` / `BOARD_ID` | Community / the Board | The two built-in circles |

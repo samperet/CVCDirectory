@@ -211,3 +211,97 @@ export function blockStarts(text: string): { start: number; length: number }[] {
   }
   return starts;
 }
+
+/** A row of two versions side by side: the same block on both, or what one has where the other differs. */
+export interface CompareRow {
+  change: "same" | "removed" | "added" | "edited";
+  /** The block in the first version (null where it has nothing here). */
+  before: string | null;
+  /** …and in the second. */
+  after: string | null;
+}
+
+/** A block's words, lowercased. */
+const wordsOf = (text: string) => new Set(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+
+/** How alike two blocks' words are, from 0 (none shared) to 1 (the same words). */
+function likeness(a: Set<string>, b: Set<string>) {
+  if (!a.size && !b.size) return 1;
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared++;
+  return (2 * shared) / (a.size + b.size);
+}
+
+/**
+ * A run of blocks taken out beside a run put in, as rows: each put-in block
+ * pairs with the taken-out block most like it, keeping both in order (any
+ * left over are only taken out, or only put in).
+ */
+function pairRun(removed: string[], added: string[]): CompareRow[] {
+  const n = removed.length;
+  const m = added.length;
+  if (!n || !m || n * m > 40_000) {
+    return Array.from({ length: Math.max(n, m) }, (_, i) => {
+      const was = removed[i] ?? null;
+      const now = added[i] ?? null;
+      return {
+        change: was !== null && now !== null ? "edited" : was !== null ? "removed" : "added",
+        before: was,
+        after: now,
+      };
+    });
+  }
+  const a = removed.map(wordsOf);
+  const b = added.map(wordsOf);
+  // best[i][j]: the most likeness pairing removed[i…] with added[j…] can have (a pair always
+  // counts a little, so blocks pair up when nothing is more alike).
+  const best = Array.from({ length: n + 1 }, () => new Float64Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      best[i][j] = Math.max(
+        best[i + 1][j],
+        best[i][j + 1],
+        best[i + 1][j + 1] + likeness(a[i], b[j]) + 0.001
+      );
+    }
+  }
+  const rows: CompareRow[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && best[i][j] === best[i + 1][j + 1] + likeness(a[i], b[j]) + 0.001) {
+      rows.push({ change: "edited", before: removed[i++], after: added[j++] });
+    } else if (i < n && (j === m || best[i][j] === best[i + 1][j])) {
+      rows.push({ change: "removed", before: removed[i++], after: null });
+    } else {
+      rows.push({ change: "added", before: null, after: added[j++] });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Two versions as rows to show side by side: blocks they share line up, and
+ * where one took out blocks and the other put others in, each pairs with the
+ * one most like it as an edited row.
+ */
+export function compareRows(before: string, after: string): CompareRow[] {
+  const rows: CompareRow[] = [];
+  let removed: string[] = [];
+  let added: string[] = [];
+  const settle = () => {
+    rows.push(...pairRun(removed, added));
+    removed = [];
+    added = [];
+  };
+  for (const block of compareText(before, after)) {
+    if (block.change === "removed") removed.push(block.text);
+    else if (block.change === "added") added.push(block.text);
+    else {
+      settle();
+      rows.push({ change: "same", before: block.text, after: block.text });
+    }
+  }
+  settle();
+  return rows;
+}

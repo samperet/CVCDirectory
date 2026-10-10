@@ -17,7 +17,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📱 **Installable app & notifications** – Add CVC to your home screen, and get push notifications when neighbors post.
 - 💡 **Resources** – Local services neighbors recommend, by category, with who recommended each, likes, and comments.
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
-- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, and sticky-note comments on passages) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. **Proposals** are their own records — put to a circle, about pages and files (each kept as a **snapshot** of how it was when attached), held in documents — and a circle consents to one **at a meeting**: the meeting's notes record who was there, and its **Consent** button records the circle, the meeting, who was there, and who recorded it. Pages and files show where their proposals stand: **Draft**, **Proposed**, **Consented**.
+- 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, sticky-note comments on passages, and **alternative versions** any resident can write and compare side by side) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. **Proposals** are their own records — put to a circle, about pages and files (each kept as a **snapshot** of how it was when attached), held in documents — and a circle consents to one **at a meeting**: the meeting's notes record who was there, and its **Consent** button records the circle, the meeting, who was there, and who recorded it. Pages and files show where their proposals stand: **Draft**, **Proposed**, **Consented**.
 - 🐞 **Bugs & ideas** – A ladybug in the corner of every page sends the admins a bug report or a feature request, with the page it came from.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
@@ -508,6 +508,25 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   `/api/wiki/pages/<slug>`). Until October 2026 each circle had its own wiki
   (`wiki/<circleId>.json`); the first read brought them together (keeping each page's old address,
   `/circles/<id>/wiki/<slug>`, as a redirect) and left the old documents untouched.
+- **Alternative versions** (`lib/wiki/perspectives.ts`; "perspectives" in the code) – any
+  resident can write their own version of a page: **Write your own version** under its title makes
+  a copy of the page that only they (and admins) change, in the same visual editor (without polls,
+  proposals, or the meeting tools), saved as they type. Under the page's title its versions are
+  listed by name ("Eve's version · Mow twice a month in June", "(draft)" until shared), and those
+  no longer worked on behind "N earlier ones". A version's page (`/wiki/<slug>/versions/<id>`)
+  compares it with the page **side by side** (paragraphs lined up; each changed paragraph beside
+  the one most like it), as one column of **Changes**, or on its own, and **Compare with** sets it
+  against another version. Its author **Shares** it with the page's circle (its members and the
+  page's writers are told, once — the "proposals" setting) or **Withdraws** it. If the page is
+  edited meanwhile, the version shows what it would change on the page as it is now (the page's
+  changes merged in, paragraph by paragraph), and where both changed the same passage it says so;
+  its author can **Bring in the page's changes** for good. The page's editors can **Make this the
+  page** (unless it clashes with the page's changes): the page becomes that text as a new version,
+  its history keeps what it replaced, and the author is told. Versions are kept for the record
+  (made the page, withdrawn), up to 20 open per page and 60 in all; a meeting's notes can't have
+  them, and deleting a page deletes them. Photos added while writing one are kept with the page's
+  circle's photos. Stored per page in `wiki/perspectives/<pageId>.json`
+  (`/api/wiki/pages/<slug>/perspectives`).
 - **Polls** live in wiki pages: the editor's poll button asks a question with 2–10 options, one
   choice or several, an optional closing date, optionally letting voters add their own options, and
   — outside Community — optionally for the page's parent circle's members only (everyone sees the results). It's

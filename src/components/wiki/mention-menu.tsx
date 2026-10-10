@@ -65,9 +65,17 @@ interface MentionParams {
   pageId: string;
   /** A new page was linked: make it when this page is saved. */
   onCreatePage: (title: string) => void;
+  /** Whether @ offers a new page (not in an alternative version of a page). */
+  canCreate?: boolean;
 }
 
-function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionParams) {
+function MentionMenu({
+  circleId,
+  circleName,
+  pageId,
+  onCreatePage,
+  canCreate = true,
+}: MentionParams) {
   const [editor] = useLexicalComposerContext();
   const [query, setQuery] = useState<string | null>(null);
   const [debounced, setDebounced] = useState("");
@@ -127,11 +135,16 @@ function MentionMenu({ circleId, circleName, pageId, onCreatePage }: MentionPara
         ),
     ];
     const exact = data?.pages.some((page) => page.title.toLowerCase() === typed.toLowerCase());
-    if (typed && !exact && !(data?.exists && debounced.toLowerCase() === typed.toLowerCase())) {
+    if (
+      canCreate &&
+      typed &&
+      !exact &&
+      !(data?.exists && debounced.toLowerCase() === typed.toLowerCase())
+    ) {
       list.push(new LinkOption(`create:${typed}`, "create", typed, null, pageLinkText(typed)));
     }
     return list;
-  }, [query, data, typed, debounced, circleId]);
+  }, [query, data, typed, debounced, circleId, canCreate]);
 
   return (
     <LexicalTypeaheadMenuPlugin<LinkOption>

@@ -38,6 +38,7 @@ import { RehomeDialog } from "@/components/wiki/rehome-dialog";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings } from "@/components/wiki/page-settings";
+import { PerspectivesBar } from "@/components/wiki/perspectives-bar";
 import { labelledCircles } from "@/lib/circles/tiers";
 import { Button } from "@/components/ui/button";
 import { CircleIcon } from "@/components/circles/circle-icon";
@@ -594,6 +595,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
               />
             ) : null}
             {meetingPanel}
+            <PerspectivesBar slug={slug} />
           </header>
 
           <div className="document-body w-full">

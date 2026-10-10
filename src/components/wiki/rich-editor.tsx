@@ -801,6 +801,12 @@ export const RichEditor = forwardRef<
     transcribing?: boolean;
     /** The toolbar's **Who's present**: choose the people present (meeting notes). */
     onPresent?: () => void;
+    /**
+     * Editing someone's alternative version of the page (a perspective): no
+     * polls, proposals, meeting tools, file uploads, or new pages; its photos
+     * are the version's author's to add.
+     */
+    perspectiveId?: string;
   }
 >(function RichEditor(
   {
@@ -818,9 +824,11 @@ export const RichEditor = forwardRef<
     onTranscribe,
     transcribing = false,
     onPresent,
+    perspectiveId,
   },
   ref
 ) {
+  const perspective = !!perspectiveId;
   // The toolbar is set up once, so it reaches these through a ref.
   const meeting = useRef({ onTranscribe, onPresent });
   meeting.current = { onTranscribe, onPresent };
@@ -846,7 +854,7 @@ export const RichEditor = forwardRef<
   // Photos chosen from the toolbar, pasted, or dropped in go to the circle's wiki photos.
   const uploadPhoto = async (file: File) => {
     try {
-      return await uploadWikiImage(pageSlug, file);
+      return await uploadWikiImage(pageSlug, file, perspectiveId);
     } catch (error) {
       toast({
         title: "Could not add the photo",
@@ -945,6 +953,7 @@ export const RichEditor = forwardRef<
               circleName,
               pageId,
               onCreatePage: (title) => createRef.current(title),
+              canCreate: !perspective,
             }),
             toolbarPlugin({
               toolbarClassName: "wiki-toolbar",
@@ -961,7 +970,7 @@ export const RichEditor = forwardRef<
                   <ListsToggle options={["bullet", "number", "check"]} />
                   <Separator />
                   <LinkMenu
-                    canUpload={documentsOn}
+                    canUpload={documentsOn && !perspective}
                     onPage={() => setEmbedding(true)}
                     onUpload={() => setAddingDocument(true)}
                   />
@@ -976,20 +985,24 @@ export const RichEditor = forwardRef<
                   >
                     <ChevronsUpDown className="h-5 w-5" />
                   </ButtonWithTooltip>
-                  <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
-                    <BarChart3 className="h-5 w-5" />
-                  </ButtonWithTooltip>
-                  <ButtonWithTooltip title="Add a proposal" onClick={() => setProposing(true)}>
-                    <Handshake className="h-5 w-5" />
-                  </ButtonWithTooltip>
-                  <Separator />
-                  <ButtonWithTooltip
-                    title="Who's present"
-                    onClick={() => meeting.current.onPresent?.()}
-                  >
-                    <Users className="h-5 w-5" />
-                  </ButtonWithTooltip>
-                  <TranscriptToggle onToggle={() => meeting.current.onTranscribe?.()} />
+                  {perspective ? null : (
+                    <>
+                      <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
+                        <BarChart3 className="h-5 w-5" />
+                      </ButtonWithTooltip>
+                      <ButtonWithTooltip title="Add a proposal" onClick={() => setProposing(true)}>
+                        <Handshake className="h-5 w-5" />
+                      </ButtonWithTooltip>
+                      <Separator />
+                      <ButtonWithTooltip
+                        title="Who's present"
+                        onClick={() => meeting.current.onPresent?.()}
+                      >
+                        <Users className="h-5 w-5" />
+                      </ButtonWithTooltip>
+                      <TranscriptToggle onToggle={() => meeting.current.onTranscribe?.()} />
+                    </>
+                  )}
                 </>
               ),
             }),

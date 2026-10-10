@@ -8,6 +8,7 @@ import {
   type WikiPage,
 } from "@/lib/wiki/store";
 import { deletePageComments } from "@/lib/wiki/comments";
+import { deletePerspectives } from "@/lib/wiki/perspectives";
 import { pageContext, wikiProblem } from "@/lib/wiki/http";
 import { canMovePageTo, circlesYouKeep } from "@/lib/wiki/access";
 import { problem, readBody } from "@/lib/http";
@@ -120,13 +121,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json({ page: result.page });
 }
 
-/** Delete a page (its parent circle): its history and comments go too. */
+/** Delete a page (its parent circle): its history, comments, and alternative versions go too. */
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug, "manage");
   if ("error" in ctx) return ctx.error;
   const result = await deletePage(params.slug);
   if (!result.ok) return wikiProblem(result.reason);
   await deletePageComments(ctx.page.id);
+  await deletePerspectives(ctx.page.id);
   await deleteJson(`wiki/history/${ctx.page.id}.json`);
   return NextResponse.json({ ok: true });
 }
