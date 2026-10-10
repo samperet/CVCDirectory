@@ -473,6 +473,33 @@ export async function restoreVersion(slug: string, editor: WikiAuthor, index: nu
   return updatePage(slug, editor, { title: version.title, body: version.body });
 }
 
+/**
+ * Put a page back (from the trash): under its own title and address — or,
+ * if another page has taken them meanwhile, as "Title (restored)" at a new
+ * address. Already back (a delete that didn't finish): left as it is.
+ */
+export function reinsertPage(page: WikiPage) {
+  return mutate((pages) => {
+    const live = pages.find((entry) => entry.id === page.id);
+    if (live) return { pages, page: live };
+    if (pages.length >= MAX_PAGES) return "full";
+    const titles = new Set(pages.map((entry) => entry.title.toLowerCase()));
+    let title = page.title;
+    for (let n = 1; titles.has(title.toLowerCase()); n++)
+      title = `${page.title.slice(0, 100)} (restored${n > 1 ? ` ${n}` : ""})`;
+    const taken = new Set(
+      pages.flatMap((entry) => [entry.slug, ...(entry.aliases ?? []).map((alias) => alias.slug)])
+    );
+    const restored: WikiPage = {
+      ...page,
+      title,
+      slug: taken.has(page.slug) ? slugFor(title, taken) : page.slug,
+      ...(page.aliases ? { aliases: page.aliases.filter((alias) => !taken.has(alias.slug)) } : {}),
+    };
+    return { pages: [...pages, restored], page: restored };
+  });
+}
+
 export function deletePage(slug: string) {
   return mutate((pages) => {
     const page = pages.find((entry) => entry.slug === slug);

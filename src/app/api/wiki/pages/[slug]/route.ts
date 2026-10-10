@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteJson } from "@/lib/storage";
-import {
-  deletePage,
-  getHistory,
-  pageUpdateSchema,
-  updatePage,
-  type WikiPage,
-} from "@/lib/wiki/store";
-import { deletePageComments } from "@/lib/wiki/comments";
-import { deletePerspectives } from "@/lib/wiki/perspectives";
+import { getHistory, pageUpdateSchema, updatePage, type WikiPage } from "@/lib/wiki/store";
+import { trashPage } from "@/lib/wiki/trash";
 import { pageContext, wikiProblem } from "@/lib/wiki/http";
 import { canMovePageTo, circlesYouKeep } from "@/lib/wiki/access";
 import { problem, readBody } from "@/lib/http";
@@ -121,14 +113,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json({ page: result.page });
 }
 
-/** Delete a page (its parent circle): its history, comments, and alternative versions go too. */
+/**
+ * Delete a page (its parent circle): it goes to the trash for 30 days
+ * (`lib/wiki/trash.ts`), its history, comments and alternative versions
+ * kept with it, and can be restored from there.
+ */
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug, "manage");
   if ("error" in ctx) return ctx.error;
-  const result = await deletePage(params.slug);
+  const result = await trashPage(ctx.page, ctx.actor);
   if (!result.ok) return wikiProblem(result.reason);
-  await deletePageComments(ctx.page.id);
-  await deletePerspectives(ctx.page.id);
-  await deleteJson(`wiki/history/${ctx.page.id}.json`);
   return NextResponse.json({ ok: true });
 }

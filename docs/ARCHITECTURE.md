@@ -63,7 +63,7 @@ Main documents (see each store's `KEY`):
 | `directory/directory.json`, `directory/people.json` | The imported residents, and edits made in the app | `lib/directory` |
 | `circles/circles.json`, `circles/icons.json`, `circles/schedules/<id>.json` | Circles, seats, page modules; icons; duty rotations | `lib/circles`, `lib/schedules` |
 | `circles/eggs/<circleId>.json` + `circles/eggs/<circleId>/photos/<id>.jpg` | A duty schedule's daily counts (the eggs: per day, who and how), and the photos of the printed calendar sent to be read | `lib/schedules` (`egg-store.ts`) |
-| `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/comments/<pageId>.json`, `wiki/perspectives/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
+| `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/trash.json`, `wiki/comments/<pageId>.json`, `wiki/perspectives/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `proposals/proposals.json` | Proposals: what's put to which circle, about which documents (with their snapshots' details), and its consent at a meeting | `lib/proposals` |
 | `proposals/snapshots/<snapshotId>.json`, `proposals/snapshots/<snapshotId>` | Snapshots' copies: a page's title and text, or a link's text; a file itself. Written once, never changed | `lib/proposals` (`snapshots.ts`) |
@@ -177,6 +177,12 @@ place and can only be withdrawn. Who records consent is the same for every circl
 admins. In meeting notes, `MeetingProposals` (a **Consent** button per proposal waiting for the
 circle) and `ProposalHostContext` (proposal cards in the notes offer **Consent at this meeting**)
 record against that meeting.
+
+Deleting a page moves it to `wiki/trash.json` (`lib/wiki/trash.ts`) for 30 days, out of
+`wiki/pages.json` — so nothing that reads pages needs to skip it — with its history, comments
+and versions left in their own documents; `reinsertPage` (`store.ts`) puts it back, retitled or
+re-addressed if need be. Pages past their days are purged lazily, whenever the trash is read or
+changed.
 
 **Alternative versions** of a page (`lib/wiki/perspectives.ts`, types in `perspectives-shared.ts`;
 "perspectives" in code and storage) are copies of a page that one resident changes, kept per page in

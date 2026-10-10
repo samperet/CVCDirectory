@@ -487,7 +487,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   resident can see every page. Every page has a **parent circle**, and its own setting for **who
   can edit it** (nothing is inherited) — its parent circle (the default; anyone, for Community's
   pages) or any resident. The parent circle's members (and the Board and admins, who can always
-  edit everything) change the parent circle and that setting, and can delete the page. A page
+  edit everything) change the parent circle and that setting, and can delete the page — which
+  moves it to the **trash** (`/documents/trash`, linked from Documents and its menu;
+  `wiki/trash.json`, `lib/wiki/trash.ts`) for 30 days, its history, comments and alternative
+  versions kept with it: whoever could delete it can **Restore** it (as "Title (restored)" at a
+  new address if another page took its title meanwhile; to the Board if its circle is gone), and
+  admins can **Delete forever**. Pages past their 30 days are forgotten, with their history,
+  comments and versions, whenever the trash is next read or changed (there's no scheduled job). A page
   moves only to a circle you're in (the Board and admins: any), and the server holds to that
   (`canMoveTo` in `GET /api/wiki/pages/<slug>`; a 403 otherwise). Choosing one you're not in
   says you need to join it first and offers the best way in: **Join and move it** (a circle anyone
@@ -495,8 +501,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   until one says yes), or that your request is already waiting. (Pages once set to be seen only
   by some circles, before every page was open to all, are seen by everyone now; that old setting
   only keeps them out of welcome links.) A page reads clean: its **Edit** button opens the editor,
-  where the page's tools live — **Parent circle**, **Who can edit**, and
-  **History** (earlier versions to view or restore). Pages don't nest: they connect by **links** and **embeds** (each page lists what's
+  where the page's tools live — **Parent circle**, **Who can edit**, and **History**. **History**
+  (also beside Edit while reading, for everyone) lists the edits that made the page, newest
+  first, who made each and when; each shows **What changed** (taken out, put in), the page
+  **Before** it, or that **Compared with now**, side by side, and its editors can **Restore** the
+  page as it was before any edit (`components/wiki/page-history.tsx`). Pages don't nest: they connect by **links** and **embeds** (each page lists what's
   **Linked from** it). Documents lists every page, with a search and a filter by
   circle (`/documents?circle=<circleId>`); **New → Write a page** asks which of your circles keeps it. A circle's
   Filtered Documents module's **Add a page** starts a page with that circle as its parent (so it

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, ChevronDown, ChevronRight, Upload } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Trash2, Upload } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
 import { useCircles } from "@/components/directory/use-directory";
 import { CircleIcon } from "@/components/circles/circle-icon";
@@ -160,7 +160,7 @@ const itemClass =
   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-foreground outline-none hover:bg-accent focus-visible:bg-accent";
 const groupLabel = "px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted";
 
-/** The Documents menu: all of them, or start one (if you can). */
+/** The Documents menu: all of them, start one (if you can), or the trash. */
 export function DocumentsMenuItems({ close }: { close: () => void }) {
   const canWrite = (useWikiPages().data?.keepers.length ?? 0) > 0;
   const canUpload = useUploadCircles().uploadCircles.length > 0;
@@ -180,6 +180,10 @@ export function DocumentsMenuItems({ close }: { close: () => void }) {
           <Upload className="h-4 w-4 text-primary" aria-hidden /> Upload a file
         </Link>
       ) : null}
+      <div className="my-1 h-px bg-border" role="separator" />
+      <Link href="/documents/trash" role="menuitem" className={itemClass} onClick={close}>
+        <Trash2 className="h-4 w-4 text-muted" aria-hidden /> Trash
+      </Link>
     </>
   );
 }
@@ -351,7 +355,7 @@ export function CirclesMenuItems({ close }: { close: () => void }) {
 const subLink =
   "flex items-center gap-2 rounded-lg py-1.5 pl-11 pr-3 text-sm text-foreground/80 hover:bg-accent hover:text-foreground";
 
-/** In the phone menu, under Documents: start one (if you can). */
+/** In the phone menu, under Documents: start one (if you can), or the trash. */
 export function MobileDocumentsLinks({ onChoose }: { onChoose: () => void }) {
   const canWrite = (useWikiPages().data?.keepers.length ?? 0) > 0;
   const canUpload = useUploadCircles().uploadCircles.length > 0;
@@ -367,6 +371,9 @@ export function MobileDocumentsLinks({ onChoose }: { onChoose: () => void }) {
           <Upload className="h-4 w-4 text-primary" aria-hidden /> Upload a file
         </Link>
       ) : null}
+      <Link href="/documents/trash" className={subLink} onClick={onChoose}>
+        <Trash2 className="h-4 w-4 text-muted" aria-hidden /> Trash
+      </Link>
     </>
   );
 }

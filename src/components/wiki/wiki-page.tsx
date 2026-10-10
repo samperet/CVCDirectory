@@ -38,6 +38,7 @@ import { RehomeDialog } from "@/components/wiki/rehome-dialog";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { wikiPageQuery, type PageResponse } from "@/components/wiki/link-data";
 import { PageSettings } from "@/components/wiki/page-settings";
+import { PageHistory } from "@/components/wiki/page-history";
 import { PerspectivesBar } from "@/components/wiki/perspectives-bar";
 import { labelledCircles } from "@/lib/circles/tiers";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,6 @@ export function WikiPageClient({ slug }: { slug: string }) {
   const threads = useMemo(() => threadsOf(commentData?.comments ?? []), [commentData]);
   const [mode, setMode] = useState<"read" | "edit">(params.get("edit") ? "edit" : "read");
   const [showHistory, setShowHistory] = useState(false);
-  const [viewing, setViewing] = useState<number | null>(null);
   const [pendingQuote, setPendingQuote] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const article = useRef<HTMLDivElement>(null);
@@ -209,10 +209,12 @@ export function WikiPageClient({ slug }: { slug: string }) {
       }),
     onSuccess: ({ page: updated }) => {
       saved(updated);
-      setViewing(null);
       setShowHistory(false);
       // The editor takes the restored text in, as it does anyone's save.
-      toast({ title: "Earlier version restored", description: "It's in the editor now." });
+      toast({
+        title: "Earlier version restored",
+        ...(mode === "edit" ? { description: "It's in the editor now." } : {}),
+      });
     },
     onError: (err: Error) =>
       toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
@@ -274,7 +276,10 @@ export function WikiPageClient({ slug }: { slug: string }) {
     mutationFn: () => apiFetch(`/api/wiki/pages/${slug}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
-      toast({ title: "Page deleted" });
+      toast({
+        title: "Moved to the trash",
+        description: "Documents → Trash brings it back, for 30 days.",
+      });
       router.replace("/documents");
     },
     onError: (err: Error) =>
@@ -284,6 +289,19 @@ export function WikiPageClient({ slug }: { slug: string }) {
         variant: "destructive",
       }),
   });
+
+  const historyPanel = page ? (
+    <PageHistory
+      page={page}
+      history={history}
+      circleId={circleId}
+      pages={pages}
+      canRestore={canEdit}
+      restoring={restore.isPending}
+      onRestore={(index) => restore.mutate(index)}
+      onClose={() => setShowHistory(false)}
+    />
+  ) : null;
 
   // Show a thread's passage on the page, or a passage's thread in the comments.
   const activate = (id: string) => {
@@ -359,60 +377,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
     return (
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         {back}
-        {showHistory ? (
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-accent/40 p-3">
-            <h2 className="text-sm font-semibold text-foreground">Earlier versions</h2>
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {history
-                .map((version, index) => ({ version, index }))
-                .reverse()
-                .map(({ version, index }) => (
-                  <li key={index} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="text-foreground">
-                      {version.editedBy.name} · {timeAgo(version.editedAt)}
-                      {version.title !== page.title ? (
-                        <span className="text-muted"> — “{version.title}”</span>
-                      ) : null}
-                    </span>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-secondary-foreground hover:underline"
-                      onClick={() => setViewing(viewing === index ? null : index)}
-                    >
-                      {viewing === index ? "Hide" : "View"}
-                    </button>
-                    {canEdit ? (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-secondary-foreground hover:underline"
-                        disabled={restore.isPending}
-                        onClick={async () => {
-                          if (
-                            await confirm({
-                              title: "Make this version the current one?",
-                              body: "The current one stays in the history.",
-                              confirmLabel: "Restore",
-                            })
-                          )
-                            restore.mutate(index);
-                        }}
-                      >
-                        <RotateCcw className="h-3 w-3" /> Restore
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
-            </ul>
-            {viewing !== null && history[viewing] ? (
-              <div className="rounded-lg border border-border bg-white p-4">
-                <p className="mb-2 text-xs font-medium text-muted">
-                  Version from {timeAgo(history[viewing].editedAt)}
-                </p>
-                <WikiMarkdown source={history[viewing].body} circleId={circleId} pages={pages} />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        {showHistory ? historyPanel : null}
         <WikiEditor
           circleId={circleId}
           circleName={circle?.name ?? ""}
@@ -540,12 +505,26 @@ export function WikiPageClient({ slug }: { slug: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {back}
-        {canEdit ? (
-          <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
-            <Pencil className="h-4 w-4" /> Edit
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {history.length ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setShowHistory(!showHistory)}
+              aria-expanded={showHistory}
+            >
+              <HistoryIcon className="h-4 w-4" /> History ({history.length})
+            </Button>
+          ) : null}
+          {canEdit ? (
+            <Button size="sm" className="gap-1.5" onClick={() => setMode("edit")}>
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          ) : null}
+        </div>
       </div>
+      {showHistory ? historyPanel : null}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <article className="document-sheet flex min-w-0 flex-col" data-page-sheet>
           {/* The page's head: its circle, title, date, and where it stands with the circle. */}
@@ -650,9 +629,9 @@ export function WikiPageClient({ slug }: { slug: string }) {
                 onClick={async () => {
                   if (
                     await confirm({
-                      title: `Delete “${page.title}”?`,
-                      body: "Its history and comments go with it. This can't be undone.",
-                      destructive: true,
+                      title: `Move “${page.title}” to the trash?`,
+                      body: "It can be restored from the trash for 30 days, with its history and comments.",
+                      confirmLabel: "Move to the trash",
                     })
                   )
                     remove.mutate();

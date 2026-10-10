@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Download, MessagesSquare, Search, Tags, X } from "lucide-react";
+import { ArrowUpDown, Download, MessagesSquare, Search, Tags, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { BulkUpload } from "@/components/documents/bulk-upload";
 import { DocumentListing } from "@/lib/documents/types";
@@ -349,6 +349,13 @@ export function DocumentsPanel({
             <Tags className="h-4 w-4" /> Edit types
           </Button>
         ) : null}
+        {circleId ? null : (
+          <Button variant="ghost" className="gap-1.5" asChild>
+            <Link href="/documents/trash">
+              <Trash2 className="h-4 w-4" /> Trash
+            </Link>
+          </Button>
+        )}
         <Button
           variant="outline"
           className="gap-1.5"
