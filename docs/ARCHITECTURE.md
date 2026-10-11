@@ -150,7 +150,8 @@ over a `.document-sheet` with `.document-body` margins); the editor (`wiki-edito
 sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
 The visual editor is TipTap (`rich-editor.tsx`; the schema in `editor-schema.ts`, the blocks'
 views in `editor-blocks.tsx`, the toolbar in `editor-toolbar.tsx`, `[[link]]` tags in
-`wiki-link-node.tsx`, the @ menu in `mention-menu.tsx`, the right-click menu in
+`wiki-link-node.tsx`, the @ and / menus in `mention-menu.tsx` and `slash-menu.tsx` (sharing
+`suggestion-popup.ts`), the right-click menu in
 `editor-context-menu.tsx`); pages stay Markdown, converted both ways by `lib/wiki/prose.ts`
 (Markdown → document → Markdown equals the Markdown writer's own round trip — `prose.test.ts`),
 and anything it doesn't model is carried through in `rawBlock`/`rawInline` nodes. Others' saves

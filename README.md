@@ -352,7 +352,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   files**, **Proposals** (`/proposals` opens it), or one type of file). The one **New** button offers
   **Write a page** (a title and its circle, then the editor), **Meeting notes** (a page for one of a
   circle's meetings: its day, then the editor; named "Land Care Circle meeting, Oct 8, 2026" until
-  given another title), **A proposal**, **Upload a file**, or **Add a link**. The **Map** button shows how pages link. `/wiki` (and
+  given another title), **A proposal**, **Upload a file**, or **Add a link**. A new page can
+  **Start from** a template (`lib/wiki/templates.ts`): **Meeting agenda**, **Meeting notes** (what
+  meeting notes start from), **Policy**, **How-to**, or any page whose circle ticked **Use as a
+  template** in its **Settings** (`page.template`) — a copy of its text with `{{date}}` and
+  `{{circle}}` filled in and its polls and proposals left out (`POST /api/wiki/pages` with
+  `template`: a built-in key or a page's id). A circle's Filtered Documents **Add a page** offers the
+  same. The **Map** button shows how pages link. `/wiki` (and
   `/wiki?keeper=…`, `?new=…`) now lead here; pages keep their `/wiki/<slug>` addresses. A rule of
   thumb: anything people will keep improving is best written as a page; a fixed record, or anything
   from outside, uploaded as a file.
@@ -523,7 +529,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   Filtered Documents module's **Add a page** starts a page with that circle as its parent (so it
   shows in the module); **@ new
   page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the
-  page it was started from. Pages are Markdown, edited in a **visual editor**
+  page it was started from. **Typing /** at the start of a line (or after a space) offers what to put
+  there — headings, lists, a checklist, a quote, a callout, a collapsible section, a table, a
+  divider, a photo, a page, and (in a page, not a version) a poll, a proposal, a file and who's
+  present — narrowed as you type (`components/wiki/slash-menu.tsx`). Pages are Markdown, edited in a **visual editor**
   ([TipTap](https://tiptap.dev), on ProseMirror) with a simple toolbar: headings, quotes and
   callouts, bold/italic, highlights, lists and checklists, links, photos, tables (with their own
   add/delete tools while the cursor is in one), collapsible sections, embedded pages, and

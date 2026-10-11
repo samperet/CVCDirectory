@@ -2,7 +2,6 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { Extension, type Editor, type Range } from "@tiptap/core";
-import { ReactRenderer } from "@tiptap/react";
 import Suggestion, { type SuggestionMatch, type SuggestionProps } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -10,6 +9,7 @@ import { BookOpen, FileText, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { docLinkText, pageLinkText } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
+import { suggestionPopup, type MenuHandle } from "@/components/wiki/suggestion-popup";
 
 /**
  * Typing @ in the wiki editor: find a page (in any circle's wiki) or a
@@ -69,7 +69,6 @@ function findMatch({
 }
 
 type MenuProps = SuggestionProps<LinkOption, LinkOption> & { params: MentionParams };
-export type MenuHandle = { onKeyDown: (event: KeyboardEvent) => boolean };
 
 const MentionList = forwardRef<MenuHandle, MenuProps>(function MentionList(
   { query, command, params },
@@ -223,46 +222,9 @@ export const WikiMention = (getParams: () => MentionParams) =>
           findSuggestionMatch: findMatch as never,
           items: () => [],
           command: ({ editor, range, props }) => insertLink(editor, range, props, getParams()),
-          render: () => {
-            let menu: ReactRenderer<MenuHandle, MenuProps> | null = null;
-            const place = (props: SuggestionProps<LinkOption, LinkOption>) => {
-              const box = props.clientRect?.();
-              const element = menu?.element as HTMLElement | undefined;
-              if (!box || !element) return;
-              element.style.position = "fixed";
-              element.style.zIndex = "60";
-              element.style.left = `${Math.max(8, Math.min(box.left, window.innerWidth - 360))}px`;
-              element.style.top = `${box.bottom + 6}px`;
-            };
-            return {
-              onStart: (props) => {
-                menu = new ReactRenderer(MentionList, {
-                  props: { ...props, params: getParams() },
-                  editor: props.editor,
-                });
-                document.body.appendChild(menu.element);
-                place(props);
-              },
-              onUpdate: (props) => {
-                menu?.updateProps({ ...props, params: getParams() });
-                place(props);
-              },
-              onKeyDown: ({ event }) => {
-                if (event.key === "Escape") {
-                  menu?.destroy();
-                  menu?.element.remove();
-                  menu = null;
-                  return true;
-                }
-                return menu?.ref?.onKeyDown(event) ?? false;
-              },
-              onExit: () => {
-                menu?.destroy();
-                menu?.element.remove();
-                menu = null;
-              },
-            };
-          },
+          render: suggestionPopup<LinkOption, { params: MentionParams }>(MentionList, () => ({
+            params: getParams(),
+          })),
         }),
       ];
     },

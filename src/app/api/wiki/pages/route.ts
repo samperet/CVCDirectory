@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPage, getPageById, pageInputSchema, pageSummary, readPages } from "@/lib/wiki/store";
+import { builtInTemplate, fillTemplate } from "@/lib/wiki/templates";
+import { shortDate, todayInVermont } from "@/lib/time";
 import { excerptOf } from "@/lib/wiki/excerpt";
 import { canEditPage, circlesYouKeep } from "@/lib/wiki/access";
 import { wikiProblem, wikiSession } from "@/lib/wiki/http";
@@ -25,14 +27,17 @@ export async function GET() {
 /**
  * Add a page, kept by `keeper` (one of your circles). Started from a link in
  * another page (`from`, its id) that you can edit, it's kept by that page's
- * circle unless you say otherwise; with neither, by Community.
+ * circle unless you say otherwise; with neither, by Community. With
+ * `template` (a built-in one's key, or a template page's id) and no body of
+ * its own, it starts with the template's text, today's date and its circle
+ * filled in (`lib/wiki/templates.ts`).
  */
 export async function POST(request: NextRequest) {
   const ctx = await wikiSession();
   if ("error" in ctx) return ctx.error;
   const parsed = await readBody(request, pageInputSchema);
   if ("error" in parsed) return parsed.error;
-  const { from, keeper: asked, ...input } = parsed.data;
+  const { from, keeper: asked, template, ...input } = parsed.data;
   const source = from && !asked ? await getPageById(from) : null;
   const keeper =
     asked ??
@@ -43,7 +48,18 @@ export async function POST(request: NextRequest) {
   if (!canUploadTo(ctx.user, ctx.directory, keeper) && !(source && source.keeper === keeper)) {
     return problem("You can only start pages kept by your own circles", 403);
   }
-  const result = await createPage(ctx.actor, { ...input, keeper });
+  let body = input.body;
+  if (template && !body.trim()) {
+    const page = builtInTemplate(template) ? null : await getPageById(template);
+    const text = builtInTemplate(template)?.body ?? (page?.template ? page.body : null);
+    if (text === null) return problem("That template isn't there any more", 404);
+    const circle = ctx.directory.circles.find((entry) => entry.id === keeper)?.name ?? "";
+    body = fillTemplate(text, {
+      date: shortDate(input.meetingDate ?? todayInVermont(), true),
+      circle,
+    });
+  }
+  const result = await createPage(ctx.actor, { ...input, body, keeper });
   return result.ok
     ? NextResponse.json({ page: result.page }, { status: 201 })
     : wikiProblem(result.reason);

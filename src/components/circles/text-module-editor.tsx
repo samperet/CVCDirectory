@@ -6,6 +6,7 @@ import { Link2 } from "lucide-react";
 import { markdownToProse, proseToMarkdown, type ProseNode } from "@/lib/wiki/prose";
 import { wikiExtensions } from "@/components/wiki/editor-schema";
 import { EditorContextMenu } from "@/components/wiki/editor-context-menu";
+import { SlashMenu, slashItems } from "@/components/wiki/slash-menu";
 import {
   DividerButton,
   HighlightMenu,
@@ -46,10 +47,15 @@ export function TextModuleEditor({
   if (said.current === null) said.current = proseToMarkdown(initial).trimEnd();
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: wikiExtensions({
-      placeholder: "Write what this circle wants everyone to see — # for a heading, - for a list…",
-      onLinkShortcut: () => setLinking(true),
-    }),
+    extensions: [
+      ...wikiExtensions({
+        placeholder:
+          "Write what this circle wants everyone to see — type / for headings, lists and more…",
+        onLinkShortcut: () => setLinking(true),
+      }),
+      // Headings, lists, callouts, tables… (no photos or pages in a module).
+      SlashMenu(() => slashItems({})),
+    ],
     content: initial,
     editorProps: { attributes: { class: "wiki-prose document-body min-h-[12rem]" } },
     onUpdate: ({ editor: current }) => {

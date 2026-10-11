@@ -11,9 +11,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
 
 /**
- * Who can edit a page — its parent circle, or anyone — set by its parent
- * circle (and the Board). Each page has its own setting; everyone can see
- * every page.
+ * A page's settings, for its parent circle (and the Board): who can edit
+ * it — the parent circle, or anyone (each page has its own setting;
+ * everyone can see every page) — and whether it's offered as a template
+ * for new pages (`lib/wiki/templates.ts`).
  */
 export function PageSettings({
   page,
@@ -28,7 +29,7 @@ export function PageSettings({
   return (
     <>
       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setOpen(true)}>
-        <Settings2 className="h-4 w-4" /> Who can edit
+        <Settings2 className="h-4 w-4" /> Settings
       </Button>
       {open ? (
         <SettingsDialog
@@ -59,13 +60,14 @@ function SettingsDialog({
   const { toast } = useToast();
   const circles = useCircles() ?? [];
   const [edit, setEdit] = useState<PageEdit["kind"]>(page.edit.kind);
+  const [template, setTemplate] = useState(!!page.template);
   const keeperName =
     circles.find((circle) => circle.id === page.keeper)?.name ?? "the parent circle";
   const save = useMutation({
     mutationFn: () =>
       apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}`, {
         method: "PATCH",
-        body: JSON.stringify({ edit: { kind: edit } }),
+        body: JSON.stringify({ edit: { kind: edit }, template }),
       }),
     onSuccess: ({ page: updated }) => {
       toast({ title: "Settings saved" });
@@ -81,12 +83,12 @@ function SettingsDialog({
   const radio = "h-4 w-4 accent-[#3f7d5c]";
   return (
     <Dialog
-      title="Who can edit it"
+      title="Page settings"
       icon={<Settings2 className="h-5 w-5 text-primary" />}
       onClose={onClose}
     >
       <fieldset className="flex flex-col gap-1.5 text-sm">
-        <legend className="sr-only">Who can edit it</legend>
+        <legend className="mb-1 font-medium text-foreground">Who can edit it</legend>
         <label className="flex items-center gap-2">
           <input
             type="radio"
@@ -111,6 +113,22 @@ function SettingsDialog({
           Everyone can see it; the Board and admins can always edit it.
         </span>
       </fieldset>
+      <label className="flex items-start gap-2 text-sm" data-template-setting>
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 accent-[#3f7d5c]"
+          checked={template}
+          onChange={(event) => setTemplate(event.target.checked)}
+        />
+        <span>
+          <span className="font-medium text-foreground">Use as a template</span>
+          <span className="block text-xs text-muted">
+            Anyone starting a page can start from a copy of this one. Write {"{{date}}"} or{" "}
+            {"{{circle}}"} for the day and the new page&apos;s circle; its polls and proposals
+            aren&apos;t copied.
+          </span>
+        </span>
+      </label>
 
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>

@@ -10,6 +10,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { TemplatePicker } from "@/components/wiki/template-picker";
 
 /**
  * Add a page to a circle (from a Filtered Documents module listing its
@@ -27,11 +28,17 @@ export function AddInformationDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
+  const [template, setTemplate] = useState("");
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ page: WikiPage }>("/api/wiki/pages", {
         method: "POST",
-        body: JSON.stringify({ title: title.trim(), body: "", keeper: circle.id }),
+        body: JSON.stringify({
+          title: title.trim(),
+          body: "",
+          keeper: circle.id,
+          ...(template ? { template } : {}),
+        }),
       }),
     onSuccess: ({ page }) => {
       queryClient.invalidateQueries({ queryKey: ["wiki"] });
@@ -66,6 +73,7 @@ export function AddInformationDialog({
             placeholder="e.g. Pellet stove, Work day sign-up"
           />
         </label>
+        <TemplatePicker value={template} onChange={setTemplate} className="h-10 rounded-lg px-3" />
         <p className="text-xs text-muted">
           It becomes a wiki page with {circle.name} as its parent circle, and opens for writing.
           Type @ in it to link other pages and documents — or to start a new page.

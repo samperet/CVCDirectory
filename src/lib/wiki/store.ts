@@ -78,6 +78,8 @@ export interface WikiPage {
   autosaved?: boolean;
   /** Its addresses from when each circle had its own wiki, so old links still arrive. */
   aliases?: { circleId: string; slug: string }[];
+  /** Offered as a template for new pages (`lib/wiki/templates.ts`); set by its parent circle. */
+  template?: boolean;
 }
 
 export type WikiPageSummary = Pick<
@@ -92,6 +94,7 @@ export type WikiPageSummary = Pick<
   | "consent"
   | "proposal"
   | "meetingDate"
+  | "template"
 > & {
   /** Its opening lines, as plain text (in the page list, for cards). */
   excerpt?: string;
@@ -125,6 +128,8 @@ export const pageInputSchema = z.object({
   /** Meeting notes: the day of the meeting, and who was there. */
   meetingDate: isoDate.optional(),
   present: namedPeopleSchema(200).optional(),
+  /** Start from a template: a built-in one's key, or a template page's id (`lib/wiki/templates.ts`). */
+  template: z.string().max(80).optional(),
 });
 export const pageUpdateSchema = z
   .object({
@@ -148,6 +153,8 @@ export const pageUpdateSchema = z
     present: namedPeopleSchema(200).optional(),
     /** The whole transcript (empty to clear it). */
     transcript: z.string().max(200_000, "The transcript is too long").optional(),
+    /** Offer it as a template for new pages (its parent circle's choice). */
+    template: z.boolean().optional(),
   })
   .refine(
     (value) => Object.values(value).some((entry) => entry !== undefined),
@@ -170,6 +177,7 @@ export const pageSummary = (page: WikiPage): WikiPageSummary => ({
   ...(page.consent ? { consent: page.consent } : {}),
   ...(page.proposal ? { proposal: page.proposal } : {}),
   ...(page.meetingDate ? { meetingDate: page.meetingDate } : {}),
+  ...(page.template ? { template: true } : {}),
 });
 
 type Stored = { version: number; pages: WikiPage[] };
@@ -414,6 +422,7 @@ type PageUpdate = {
   present?: PagePerson[];
   meetingDate?: string | null;
   transcript?: string;
+  template?: boolean;
 };
 
 export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate) {
@@ -422,13 +431,15 @@ export function updatePage(slug: string, editor: WikiAuthor, update: PageUpdate)
     let page = pages.find((entry) => entry.slug === slug);
     if (!page) return "not_found";
     if (update.baseUpdatedAt && update.baseUpdatedAt !== page.updatedAt) return "conflict";
-    // Its keeper, who can edit it, its stage, who was present, and the transcript aren't new versions.
+    // Its keeper, who can edit it, whether it's a template, its stage, who was present, and the
+    // transcript aren't new versions.
     const settings: Partial<WikiPage> = {
       ...(update.present ? { present: update.present } : {}),
       ...(update.meetingDate !== undefined ? { meetingDate: update.meetingDate } : {}),
       ...(update.transcript !== undefined ? { transcript: update.transcript } : {}),
       ...(update.keeper ? { keeper: update.keeper } : {}),
       ...(update.edit ? { edit: update.edit } : {}),
+      ...(update.template !== undefined ? { template: update.template } : {}),
       ...(update.consent === null ? { consent: null } : {}),
       ...(update.proposal === null ? { proposal: null } : {}),
     };

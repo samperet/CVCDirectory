@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 import { Select } from "@/components/ui/select";
 import { shortDate, todayInVermont } from "@/lib/time";
+import { TemplatePicker } from "@/components/wiki/template-picker";
 
 /** The wiki's pages (and the circles you can start pages for). */
 export function useWikiPages() {
@@ -57,6 +58,8 @@ export function NewPageForm({
   const keeperName = keepers.find((circle) => circle.id === keeper)?.name ?? "";
   // A meeting's notes are named for the circle and the day until a title is typed.
   const [typed, setTyped] = useState(false);
+  // Meeting notes start from the meeting-notes template.
+  const [template, setTemplate] = useState(meeting ? "meeting-notes" : "");
   const shownTitle =
     meeting && !typed && keeperName
       ? `${keeperName} meeting, ${shortDate(meetingDate, true)}`
@@ -70,6 +73,7 @@ export function NewPageForm({
           body: "",
           ...(from && !chosen ? { from } : { keeper }),
           ...(meeting ? { meetingDate } : {}),
+          ...(template ? { template } : {}),
         }),
       }),
     onSuccess: ({ page }) => {
@@ -131,6 +135,7 @@ export function NewPageForm({
           </Select>
         </label>
       ) : null}
+      <TemplatePicker value={template} onChange={setTemplate} />
       <div className="flex gap-2">
         <Button
           type="submit"

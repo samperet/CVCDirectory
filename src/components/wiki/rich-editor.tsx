@@ -35,6 +35,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
 import { wikiExtensions } from "@/components/wiki/editor-schema";
 import { WikiMention, type MentionParams } from "@/components/wiki/mention-menu";
+import { SlashMenu, slashItems, type SlashItem } from "@/components/wiki/slash-menu";
 import { captureCursor, restoreCursor } from "@/components/wiki/editor-cursor";
 import { EditorContextMenu } from "@/components/wiki/editor-context-menu";
 import {
@@ -141,8 +142,8 @@ function TranscriptToggle({ on, onToggle }: { on: boolean; onToggle: () => void 
  * The wiki's visual editor (TipTap): a simple formatting toolbar (with a
  * highlighter), a right-click menu (`editor-context-menu.tsx`), lists,
  * tables, photos, collapsible sections, polls, and Markdown shortcuts as you
- * type (`#`, `-`, `**`). Typing @ links a page or a document — or a new
- * page. The page stays Markdown (`lib/wiki/prose.ts` converts both ways);
+ * type (`#`, `-`, `**`). Typing / offers what to put in (`slash-menu.tsx`);
+ * typing @ links a page or a document — or a new page. The page stays Markdown (`lib/wiki/prose.ts` converts both ways);
  * what the editor can't show is kept as written, and if a page can't be
  * opened here at all, `onError` sends it to the plain-text editor.
  */
@@ -233,6 +234,21 @@ export const RichEditor = forwardRef<
     onCreatePage: (title) => latest.current.onCreatePage(title),
     canCreate: !perspective,
   };
+  // The / menu's items: the page's own (polls, proposals…) only outside an alternative version.
+  const canUpload = documentsOn && !perspective;
+  const slash = useRef<SlashItem[]>([]);
+  slash.current = slashItems({
+    onImage: () => setImaging(true),
+    onPage: () => setEmbedding(true),
+    ...(perspective
+      ? {}
+      : {
+          onPoll: () => setPolling(true),
+          onProposal: () => setProposing(true),
+          onPresent: () => onPresent?.(),
+          ...(canUpload ? { onUpload: () => setAddingDocument(true) } : {}),
+        }),
+  });
   // Photos chosen from the toolbar, pasted, or dropped in go to the page's photos.
   const uploadPhoto = async (file: File) => {
     try {
@@ -279,11 +295,12 @@ export const RichEditor = forwardRef<
     extensions: [
       ...wikiExtensions({
         placeholder:
-          "Start writing — type @ to link a page or document, # for a heading, - for a list…",
+          "Start writing — type / for headings, lists, tables and more, or @ to link a page…",
         onLinkShortcut: () => setLinking(true),
         uploadImage: (file) => upload.current(file),
       }),
       WikiMention(() => mention.current),
+      SlashMenu(() => slash.current),
     ],
     content: initial ?? undefined,
     enableContentCheck: true,
@@ -329,7 +346,7 @@ export const RichEditor = forwardRef<
           <Toolbar
             editor={editor}
             perspective={perspective}
-            canUpload={documentsOn && !perspective}
+            canUpload={canUpload}
             transcribing={transcribing}
             onLink={() => setLinking(true)}
             onPage={() => setEmbedding(true)}

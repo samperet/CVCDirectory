@@ -38,8 +38,8 @@ export async function GET(_request: Request, { params }: Params) {
 
 /**
  * Save a new version (title and/or body; its editors), its settings —
- * keeper, who edits it (the circle that keeps it, or the Board; a page moves
- * only to a circle you're in) — who was present and the meeting's date
+ * keeper, who edits it, whether it's offered as a template (the circle that
+ * keeps it, or the Board; a page moves only to a circle you're in) — who was present and the meeting's date
  * (meeting notes; its editors), or withdraw a proposal or record of consent
  * from before proposals were their own (consent: the circle's members, the
  * Board). Proposals and consent are now `/api/proposals`. Polls newly in the
@@ -51,10 +51,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = await readBody(request, pageUpdateSchema);
   if ("error" in parsed) return parsed.error;
   const update = parsed.data;
-  const settings = update.keeper !== undefined || update.edit !== undefined;
+  const settings =
+    update.keeper !== undefined || update.edit !== undefined || update.template !== undefined;
   if (settings && !ctx.canManage)
     return problem(
-      "Only the circle that keeps this page (or the Board) can change who keeps or edits it",
+      "Only the circle that keeps this page (or the Board) can change its settings",
       403
     );
   if (update.consent !== undefined && !ctx.canConsent)
