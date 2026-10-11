@@ -53,6 +53,7 @@ import { Loading, NotFoundCard } from "@/components/ui/status";
 import { useConfirm } from "@/components/ui/confirm";
 import { Select } from "@/components/ui/select";
 import { StarButton, useNoteOpened } from "@/components/documents/my-documents";
+import { FollowButton } from "@/components/wiki/follow-button";
 
 const NO_THREADS: never[] = [];
 const NO_IDS = new Set<string>();
@@ -133,8 +134,8 @@ function useActiveHeading(ids: string[], enabled: boolean) {
 /**
  * One wiki page: read it (with "On this page" for longer pages, the section
  * you're in shown in bold), select words to leave a comment on them, look
- * back through its versions, star it (opening it notes it as recent), and —
- * for its editors — edit, restore a version, or delete it.
+ * back through its versions, star it (opening it notes it as recent), follow
+ * it, and — for its editors — edit, restore a version, or delete it.
  */
 export function WikiPageClient({ slug }: { slug: string }) {
   const confirm = useConfirm();
@@ -509,6 +510,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
         {back}
         <div className="flex flex-wrap items-center gap-2">
           <StarButton doc={{ kind: "page", id: page.id }} title={page.title} />
+          <FollowButton slug={slug} following={!!data?.following} />
           {history.length ? (
             <Button
               size="sm"

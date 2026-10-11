@@ -13,7 +13,7 @@ import { listTasks } from "@/lib/tasks/store";
 import { readPages } from "@/lib/wiki/store";
 import { occurrences, searchTerms, snippetFor } from "@/lib/search";
 import { excerptOf } from "@/lib/wiki/excerpt";
-import { unmark } from "@/lib/wiki/links";
+import { unmark, unperson } from "@/lib/wiki/links";
 import { listProposals } from "@/lib/proposals/store";
 import { STATUS_LABELS } from "@/lib/proposals/shared";
 
@@ -180,7 +180,7 @@ export async function searchSite(
     fields: [
       [page.title, 20],
       // Highlights match by their words, not their colour.
-      [unmark(page.body), 1],
+      [unperson(unmark(page.body)), 1],
       [page.transcript ?? "", 1],
     ],
     result: {

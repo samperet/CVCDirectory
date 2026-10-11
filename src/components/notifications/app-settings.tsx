@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, Check, Download, Send, Share } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils";
 /**
  * "App & notifications" on your profile: install the app, turn notifications
  * on for this device, and choose what about — and, separately, what you're
- * emailed about (at your directory entry's address).
+ * emailed about (at your directory entry's address); and the pages you follow.
  */
 export function AppSettings() {
   const { toast } = useToast();
@@ -189,7 +190,72 @@ export function AppSettings() {
       ) : null}
 
       <EmailChoices />
+      <FollowedPages />
     </Card>
+  );
+}
+
+/** The pages you follow (`lib/wiki/follows.ts`), each with Unfollow. */
+function FollowedPages() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["me-follows"],
+    queryFn: () =>
+      apiFetch<{ pages: { id: string; slug: string; title: string }[] }>("/api/me/follows"),
+  });
+  const unfollow = useMutation({
+    mutationFn: (slug: string) =>
+      apiFetch(`/api/wiki/pages/${slug}/follow`, {
+        method: "PUT",
+        body: JSON.stringify({ following: false }),
+      }),
+    onSuccess: (_result, slug) => {
+      void queryClient.invalidateQueries({ queryKey: ["me-follows"] });
+      void queryClient.invalidateQueries({ queryKey: ["wiki-page", slug] });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Could not unfollow it", description: err.message, variant: "destructive" }),
+  });
+  if (!data) return null;
+  return (
+    <section className="flex flex-col gap-2" data-followed-pages>
+      <h3 className="text-sm font-semibold text-foreground">Pages you follow</h3>
+      <p className="-mt-1 text-xs text-muted">
+        You hear when one changes — at most once an hour each, by app notification (and email, if
+        you chose “Changes to pages you follow” above). You follow the pages you start; press Follow
+        on any other.
+      </p>
+      {data.pages.length ? (
+        <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
+          {data.pages.map((page) => (
+            <li
+              key={page.id}
+              className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+              data-followed={page.slug}
+            >
+              <Link
+                href={`/wiki/${page.slug}`}
+                className="min-w-0 truncate text-foreground hover:underline"
+              >
+                {page.title}
+              </Link>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="shrink-0 text-muted"
+                disabled={unfollow.isPending}
+                onClick={() => unfollow.mutate(page.slug)}
+              >
+                Unfollow
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">None yet.</p>
+      )}
+    </section>
   );
 }
 

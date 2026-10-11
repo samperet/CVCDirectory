@@ -11,7 +11,9 @@
  * `::proposal{id="…"}` — into one it fills with the proposal, an embedded page —
  * `::embed{page="Circle:Title" section="Heading"}` — into one the page fills
  * with that page (or section), highlighted text —
- * `:mark[the text]{color="yellow"}` — into <mark> in that colour, and a
+ * `:mark[the text]{color="yellow"}` — into <mark> in that colour, a resident
+ * mentioned — `:person[Ada Ash]{#<personId>}` — into an "@Ada Ash" link to
+ * their directory entry, and a
  * callout — `:::callout` … `:::` — into a section set apart by a dotted
  * line. Anything else that happens to look like a directive —
  * "Contact:Lynn" — is put back as the text it was.
@@ -26,6 +28,8 @@ interface Node {
   attributes?: Record<string, string | null | undefined> | null;
   children?: Node[];
   data?: Record<string, unknown>;
+  url?: string;
+  title?: string;
 }
 
 const textOf = (node: Node): string =>
@@ -75,6 +79,17 @@ function transform(node: Node): Node[] {
           hProperties: { className: `wiki-mark hl-${highlightColor(node.attributes?.color)}` },
         },
         children: node.children ?? [],
+      },
+    ];
+  }
+  if (node.type === "textDirective" && node.name === "person" && node.attributes?.id) {
+    // A link marked as a mention (the page draws it as an "@Name" chip; see `components/wiki/markdown.tsx`).
+    return [
+      {
+        type: "link",
+        url: `/directory/${node.attributes.id}`,
+        title: "wiki:person",
+        children: [{ type: "text", value: `@${(node.children ?? []).map(textOf).join("")}` }],
       },
     ];
   }

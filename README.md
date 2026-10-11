@@ -539,8 +539,17 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   **polls**; Markdown shortcuts work as you type, Ctrl/⌘+K adds a link, and photos can be pasted or
   dropped in. `lib/wiki/prose.ts` turns a page's Markdown into the editor's document and back with
   the same Markdown writer and settings as before, so saved pages keep their spelling; what the
-  editor can't show (HTML, footnotes, other directives) is kept as written, in a dashed box. **Typing @** searches pages and documents and links the one
-  you pick — or, for a new title, links a new page (`GET /api/wiki/link-search`). The toolbar's one
+  editor can't show (HTML, footnotes, other directives) is kept as written, in a dashed box. **Typing @** offers residents whose names match first — **mentioning** one puts
+  an "@Ada Ash" chip in the page (written `:person[Ada Ash]{#<personId>}`, linking to their
+  directory entry; plain "@Ada Ash" in excerpts, headings and search), and they're told once per
+  page (`lib/wiki/mentions.ts`, `wiki/mentions.json`; the **mentions** topic, by push and email) —
+  then pages and documents, linking the one you pick — or, for a new title, a new page
+  (`GET /api/wiki/link-search`). **Follow** on a page (whoever starts one follows it) tells you
+  when it changes: when someone finishes editing it, restores an earlier version, or makes a
+  version the page — at most once an hour a page, never about your own change
+  (`lib/wiki/follows.ts`, `wiki/follows.json`; the **following** topic: push, and email only if
+  chosen). Your profile's **App & notifications** lists **Pages you follow**, each with
+  **Unfollow** (`GET /api/me/follows`, `PUT /api/wiki/pages/<slug>/follow`). The toolbar's one
   **Link** menu offers **Web address…** (a link on the selected words), **A page or document…**
   (find a page or an uploaded file; a page can be linked or shown here, a file is linked), and
   **Upload a file…** (into the parent circle's documents, then linked). **Links**

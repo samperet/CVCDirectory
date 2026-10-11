@@ -48,6 +48,26 @@ export function protectWikiLinks(markdown: string) {
 export const unmark = (markdown: string) =>
   markdown.replace(/:mark\[((?:\\.|\[\[[^\]\n]*\]\]|\[[^\]\n]*\]|[^\]\\\n])*)\]\{[^}\n]*\}/g, "$1");
 
+/** A resident mentioned (`:person[Ada Ash]{#<personId>}`): the name (escapes kept), then the attributes. */
+const PERSON = /:person\[((?:\\.|[^\]\\\n])*)\]\{([^}\n]*)\}/g;
+
+const personIdOf = (attributes: string) =>
+  (/(?:^|\s)#([\w-]+)/.exec(attributes) ?? /\bid="?([\w-]+)"?/.exec(attributes))?.[1] ?? null;
+
+/** The people a page's Markdown mentions, each once, in order. */
+export function personIdsIn(markdown: string): string[] {
+  const ids: string[] = [];
+  for (const match of Array.from(markdown.matchAll(PERSON))) {
+    const id = personIdOf(match[2]);
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+/** Mentions as plain "@Name" — for excerpts, headings, and search. */
+export const unperson = (markdown: string) =>
+  markdown.replace(PERSON, (_match, name: string) => `@${name.replace(/\\(.)/g, "$1")}`);
+
 /** A link, once normalized: `[[target]]` or `[[target|label]]`. */
 export const WIKI_LINK = /\[\[([^\]|\n]{1,240})(?:\|([^\]\n]{1,120}))?\]\]/g;
 

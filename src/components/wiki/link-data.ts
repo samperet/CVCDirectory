@@ -62,6 +62,8 @@ export type PageResponse = {
   canEdit: boolean;
   canManage: boolean;
   canConsent: boolean;
+  /** Whether you follow it (`lib/wiki/follows.ts`). */
+  following?: boolean;
   /** For those who can choose its parent circle: the circles they can move it to (theirs; for the Board, any). */
   canMoveTo?: string[];
 };

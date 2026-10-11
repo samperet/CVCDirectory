@@ -16,6 +16,7 @@ import { normalizeWikiLinks, protectWikiLinks } from "./links";
  * The editor knows paragraphs, headings, quotes, lists and checklists,
  * code, dividers, tables, photos, bold / italic / struck-through / code /
  * linked / highlighted words (`:mark[…]{color}`), `[[links]]` (as tags),
+ * residents mentioned (`:person[Ada Ash]{#id}`),
  * callouts (`:::callout`), collapsible sections (`:::details{title}`), and
  * polls, proposals and embedded pages (`::poll`, `::proposal`, `::embed`).
  * Anything else — HTML, footnotes, reference links, other directives — is
@@ -139,6 +140,15 @@ function inline(nodes: Md[], marks: ProseMark[] = []): ProseNode[] {
         );
         break;
       case "textDirective":
+        if (node.name === "person" && node.attributes?.id) {
+          out.push(
+            withMarks({
+              type: "personMention",
+              attrs: { id: node.attributes.id, name: textOf(node) },
+            })
+          );
+          break;
+        }
         if (node.name === "mark") {
           out.push(
             ...inline(node.children ?? [], [
@@ -356,6 +366,15 @@ function leaf(node: ProseNode): Md[] {
       const label = node.attrs?.label ? `|${node.attrs.label}` : "";
       return [{ type: "text", value: `[[${node.attrs?.target ?? ""}${label}]]` }];
     }
+    case "personMention":
+      return [
+        {
+          type: "textDirective",
+          name: "person",
+          attributes: { id: String(node.attrs?.id ?? "") },
+          children: [{ type: "text", value: String(node.attrs?.name ?? "") }],
+        },
+      ];
     case "rawInline":
       return [node.attrs?.mdast as Md];
     default:

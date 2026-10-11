@@ -1,3 +1,4 @@
+import { tellFollowers } from "@/lib/wiki/follows";
 import type { NextResponse } from "next/server";
 import { circleContext } from "@/lib/circles/access";
 import { problem } from "@/lib/http";
@@ -665,8 +666,14 @@ async function makeChosen(
         body: text,
         baseUpdatedAt: page.updatedAt,
       });
-      if (result.ok) made.set(page.id, (result.page ?? page).updatedAt);
-      else if (result.reason !== "conflict") return { error: wikiProblem(result.reason) };
+      if (result.ok) {
+        made.set(page.id, (result.page ?? page).updatedAt);
+        await tellFollowers(
+          result.page ?? page,
+          ctx.actor,
+          "made the version a meeting chose the page"
+        );
+      } else if (result.reason !== "conflict") return { error: wikiProblem(result.reason) };
     }
     if (!made.has(choice.pageId))
       return { error: problem("The page was being saved at the same moment — try again", 409) };

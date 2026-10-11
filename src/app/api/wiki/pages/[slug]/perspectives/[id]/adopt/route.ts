@@ -4,6 +4,7 @@ import { caughtUp, getPerspective, setOutcome } from "@/lib/wiki/perspectives";
 import { isLive, isStale } from "@/lib/wiki/perspectives-shared";
 import { updatePage } from "@/lib/wiki/store";
 import { notify } from "@/lib/push/notify";
+import { tellFollowers } from "@/lib/wiki/follows";
 import { listProposals } from "@/lib/proposals/store";
 import { notFound, problem } from "@/lib/http";
 
@@ -63,5 +64,6 @@ export async function POST(
     exceptUserId: ctx.user.id,
     onlyUserIds: [perspective.createdBy.userId],
   });
+  await tellFollowers(page, ctx.actor, `made ${perspective.createdBy.name}'s version the page`);
   return NextResponse.json({ page });
 }

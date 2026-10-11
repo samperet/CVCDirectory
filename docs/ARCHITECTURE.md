@@ -64,6 +64,7 @@ Main documents (see each store's `KEY`):
 | `circles/circles.json`, `circles/icons.json`, `circles/schedules/<id>.json` | Circles, seats, page modules; icons; duty rotations | `lib/circles`, `lib/schedules` |
 | `circles/eggs/<circleId>.json` + `circles/eggs/<circleId>/photos/<id>.jpg` | A duty schedule's daily counts (the eggs: per day, who and how), and the photos of the printed calendar sent to be read | `lib/schedules` (`egg-store.ts`) |
 | `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/trash.json`, `wiki/comments/<pageId>.json`, `wiki/perspectives/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
+| `wiki/follows.json`, `wiki/mentions.json` | Who follows each page (and when its followers were last told, for the hourly limit); whom each page's mentions have told | `lib/wiki/follows.ts`, `mentions.ts` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `proposals/proposals.json` | Proposals: what's put to which circle, about which documents (with their snapshots' details), and its consent at a meeting | `lib/proposals` |
 | `proposals/snapshots/<snapshotId>.json`, `proposals/snapshots/<snapshotId>` | Snapshots' copies: a page's title and text, or a link's text; a file itself. Written once, never changed | `lib/proposals` (`snapshots.ts`) |

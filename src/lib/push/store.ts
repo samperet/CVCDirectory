@@ -22,6 +22,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   polls: true,
   proposals: true,
   wiki: true,
+  mentions: true,
+  following: true,
   tasks: true,
   groups: true,
   messages: true,

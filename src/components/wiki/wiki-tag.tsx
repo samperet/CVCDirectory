@@ -6,6 +6,30 @@ import { cn } from "@/lib/utils";
 
 export type WikiTagKind = "page" | "doc" | "missing" | "doc-missing" | "pending";
 
+/** A resident mentioned in a page: "@Ada Ash", linking to their directory entry. */
+export function PersonTag({
+  label,
+  href,
+  newTab = false,
+}: {
+  label: React.ReactNode;
+  href?: string;
+  newTab?: boolean;
+}) {
+  const className =
+    "wiki-person mx-px rounded-full bg-accent px-1.5 py-px font-medium text-secondary-foreground !no-underline hover:bg-accent/70";
+  if (!href) return <span className={className}>{label}</span>;
+  return newTab ? (
+    <a href={href} target="_blank" rel="noopener" className={className} data-person-tag>
+      {label}
+    </a>
+  ) : (
+    <Link href={href} className={className} data-person-tag>
+      {label}
+    </Link>
+  );
+}
+
 /**
  * A wiki link as a tag: a small pill (a page's white with a book, a document's
  * grey-blue, a missing page's dashed red) — not underlined like a web link.

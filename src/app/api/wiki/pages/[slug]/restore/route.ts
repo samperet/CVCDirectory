@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { tellFollowers } from "@/lib/wiki/follows";
 import { restoreSchema, restoreVersion } from "@/lib/wiki/store";
 import { pageContext, wikiProblem } from "@/lib/wiki/http";
 import { problem } from "@/lib/http";
@@ -12,5 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
   const parsed = restoreSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem("Choose a version to restore");
   const result = await restoreVersion(params.slug, ctx.actor, parsed.data.index);
-  return result.ok ? NextResponse.json({ page: result.page }) : wikiProblem(result.reason);
+  if (!result.ok) return wikiProblem(result.reason);
+  if (result.page) await tellFollowers(result.page, ctx.actor, "restored an earlier version");
+  return NextResponse.json({ page: result.page });
 }

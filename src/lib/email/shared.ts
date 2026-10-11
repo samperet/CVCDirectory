@@ -24,6 +24,9 @@ export const DEFAULT_EMAIL_PREFERENCES: Preferences = {
   polls: true,
   proposals: true,
   wiki: true,
+  mentions: true,
+  // Pages change often, and email has a small free quota: the app tells you, unless you choose email.
+  following: false,
   tasks: true,
   // Circle forum messages and private messages are app notifications only.
   groups: false,

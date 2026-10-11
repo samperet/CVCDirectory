@@ -1,7 +1,7 @@
 import { POLL_DIRECTIVE } from "@/lib/polls/wiki";
 import { PROPOSAL_DIRECTIVE } from "@/lib/proposals/shared";
 import { EMBED_DIRECTIVE } from "./sections";
-import { unmark } from "./links";
+import { unmark, unperson } from "./links";
 
 /**
  * A page's opening, as plain text: links by their words, polls by their
@@ -9,7 +9,7 @@ import { unmark } from "./links";
  * highlighted text as the text; no images, headings, or markup.
  */
 export function excerptOf(markdown: string, length = 400, polls: Map<string, string> = new Map()) {
-  const text = unmark(markdown)
+  const text = unperson(unmark(markdown))
     .replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, " ")
     .replace(EMBED_DIRECTIVE, (_m, attributes: string) => {
       const page = attributes.match(/page="([^"\n]*)"/)?.[1] ?? "";

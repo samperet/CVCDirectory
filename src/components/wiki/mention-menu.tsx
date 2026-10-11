@@ -5,17 +5,23 @@ import { Extension, type Editor, type Range } from "@tiptap/core";
 import Suggestion, { type SuggestionMatch, type SuggestionProps } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpen, FileText, Plus } from "lucide-react";
+import { AtSign, BookOpen, FileText, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { docLinkText, pageLinkText } from "@/lib/wiki/links";
 import { cn } from "@/lib/utils";
 import { suggestionPopup, type MenuHandle } from "@/components/wiki/suggestion-popup";
+import { useDirectory } from "@/components/directory/use-directory";
 
 /**
- * Typing @ in the wiki editor: find a page (in any circle's wiki) or a
+ * Typing @ in the wiki editor: mention a resident (they're told — see
+ * `lib/wiki/mentions.ts`), or find a page (in any circle's wiki) or a
  * document and link it where the @ was — or, for a title that isn't a page
  * yet, link a new page (made when the page being written is saved).
+ * Residents whose names match what's typed come first.
  */
+
+/** At most this many residents in the menu. */
+const PEOPLE = 5;
 
 type SearchResult = {
   pages: { circleId: string; circleName: string; title: string; slug: string }[];
@@ -31,10 +37,10 @@ type SearchResult = {
 
 interface LinkOption {
   key: string;
-  kind: "page" | "document" | "create";
+  kind: "page" | "document" | "create" | "person";
   label: string;
   meta: string | null;
-  /** What goes in the page: `[[…]]`. */
+  /** What goes in the page: `[[…]]` (or, for a resident, their id). */
   text: string;
 }
 
@@ -95,10 +101,30 @@ const MentionList = forwardRef<MenuHandle, MenuProps>(function MentionList(
     staleTime: 10_000,
   });
   const typed = query.trim().replace(/[[\]|]/g, "");
+  const people = useDirectory()?.people;
   const options = useMemo(() => {
     // Results can lag what's typed: keep only those that still match.
     const fits = (title: string) => title.toLowerCase().includes(typed.toLowerCase());
+    const wanted = typed.toLowerCase();
+    // Residents whose first, last or whole name starts with what's typed.
+    const named = wanted
+      ? (people ?? [])
+          .filter((person) =>
+            [person.displayName, ...person.displayName.split(/\s+/)].some((name) =>
+              name.toLowerCase().startsWith(wanted)
+            )
+          )
+          .sort((a, b) => a.displayName.localeCompare(b.displayName))
+          .slice(0, PEOPLE)
+      : [];
     const list: LinkOption[] = [
+      ...named.map((person) => ({
+        key: `person:${person.id}`,
+        kind: "person" as const,
+        label: person.displayName,
+        meta: "Resident",
+        text: person.id,
+      })),
       ...(data?.pages ?? [])
         .filter((page) => fits(page.title))
         .map((page) => ({
@@ -138,7 +164,7 @@ const MentionList = forwardRef<MenuHandle, MenuProps>(function MentionList(
         text: pageLinkText(typed),
       });
     return list;
-  }, [data, typed, debounced, circleId, canCreate]);
+  }, [data, typed, debounced, circleId, canCreate, people]);
   useEffect(() => setIndex(0), [options.length]);
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
@@ -164,7 +190,13 @@ const MentionList = forwardRef<MenuHandle, MenuProps>(function MentionList(
     >
       {options.map((option, at) => {
         const Icon =
-          option.kind === "document" ? FileText : option.kind === "create" ? Plus : BookOpen;
+          option.kind === "document"
+            ? FileText
+            : option.kind === "create"
+              ? Plus
+              : option.kind === "person"
+                ? AtSign
+                : BookOpen;
         return (
           <li
             key={option.key}
@@ -193,8 +225,19 @@ const MentionList = forwardRef<MenuHandle, MenuProps>(function MentionList(
   );
 });
 
-/** Put the chosen link where the @ and the words after it were, with a space to carry on typing. */
+/** Put the chosen link (or mention) where the @ and the words after it were, with a space to carry on typing. */
 function insertLink(editor: Editor, range: Range, option: LinkOption, params: MentionParams) {
+  if (option.kind === "person") {
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(range, [
+        { type: "personMention", attrs: { id: option.text, name: option.label } },
+        { type: "text", text: " " },
+      ])
+      .run();
+    return;
+  }
   const [, target = option.text, label] =
     /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(option.text) ?? [];
   editor

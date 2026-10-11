@@ -18,3 +18,19 @@ describe("unmark", () => {
     );
   });
 });
+
+describe("mentions", () => {
+  it("finds the people a page mentions, each once, written either way", async () => {
+    const { personIdsIn } = await import("./links");
+    expect(
+      personIdsIn(
+        ':person[Ada Ash]{#000000000001} and :person[Ben Birch]{id="000000000002"} and :person[Ada Ash]{#000000000001}'
+      )
+    ).toEqual(["000000000001", "000000000002"]);
+  });
+
+  it("reads mentions as @Name in plain text", async () => {
+    const { unperson } = await import("./links");
+    expect(unperson("Ask :person[Ada Ash]{#000000000001} first.")).toBe("Ask @Ada Ash first.");
+  });
+});

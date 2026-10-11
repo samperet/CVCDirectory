@@ -23,7 +23,7 @@ import {
   type DocRef,
 } from "@/components/wiki/link-data";
 import { WikiCircleContext, WikiPollBlock } from "@/components/wiki/poll-block";
-import { WikiTag } from "@/components/wiki/wiki-tag";
+import { PersonTag, WikiTag } from "@/components/wiki/wiki-tag";
 import { EmbedBlock, EmbedChain } from "@/components/wiki/embed-block";
 import { ProposalBlock } from "@/components/proposals/proposal-card";
 import { cn } from "@/lib/utils";
@@ -161,6 +161,7 @@ const components: Components = {
   a: ({ node: _node, href = "", title, children }) => {
     const mark = title?.startsWith(MARK) ? title.slice(MARK.length) : null;
     if (mark === "pending") return <WikiTag kind="pending" label={children} />;
+    if (mark === "person") return <PersonTag label={children} href={href} />;
     if (mark === "doc-missing") return <WikiTag kind="doc-missing" label={children} />;
     if (mark?.startsWith("doc:"))
       return <WikiTag kind="doc" label={children} href={href} circleName={mark.slice(4)} />;

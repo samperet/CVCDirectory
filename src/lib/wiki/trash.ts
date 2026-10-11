@@ -1,6 +1,8 @@
 import { deleteJson, mutateJson, readJson } from "@/lib/storage";
 import { deletePageComments } from "./comments";
 import { deletePerspectives } from "./perspectives";
+import { forgetFollows } from "./follows";
+import { forgetMentions } from "./mentions";
 import { deletePage, reinsertPage, type WikiAuthor, type WikiPage } from "./store";
 
 /**
@@ -38,7 +40,7 @@ export const isExpired = (entry: Pick<TrashedPage, "deletedAt">, now: Date) =>
 export const keptUntil = (entry: Pick<TrashedPage, "deletedAt">) =>
   new Date(Date.parse(entry.deletedAt) + TRASH_DAYS * DAY_MS).toISOString();
 
-/** Delete what a page left behind: its history, comments and alternative versions. */
+/** Delete what a page left behind: its history, comments, alternative versions, followers and mentions told. */
 async function deleteRemains(pageIds: string[]) {
   await Promise.all(
     pageIds.flatMap((id) => [
@@ -47,6 +49,8 @@ async function deleteRemains(pageIds: string[]) {
       deletePerspectives(id).catch(() => undefined),
     ])
   );
+  await forgetFollows({ pageIds }).catch(() => undefined);
+  await forgetMentions(pageIds).catch(() => undefined);
 }
 
 /** Change the trash: what's past its days goes as well. The pages it then holds. */

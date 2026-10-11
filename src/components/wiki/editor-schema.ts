@@ -10,7 +10,7 @@ import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Placeholder } from "@tiptap/extensions";
 import { highlightColor } from "@/lib/wiki/colors";
-import { WikiLink } from "@/components/wiki/wiki-link-node";
+import { PersonMention, WikiLink } from "@/components/wiki/wiki-link-node";
 import {
   CalloutView,
   DetailsView,
@@ -24,7 +24,7 @@ import {
 /**
  * The visual editor's schema (TipTap): exactly what `lib/wiki/prose.ts`
  * reads pages into and writes back — the usual Markdown blocks and marks,
- * highlights, `[[link]]` tags, callouts, collapsible sections, polls,
+ * highlights, `[[link]]` tags, residents mentioned, callouts, collapsible sections, polls,
  * proposals, embedded pages, and "raw" nodes for whatever else a page
  * holds. Attributes only Markdown needs (a loose list, a code block's
  * meta, a table's column alignment) are kept but never drawn.
@@ -250,6 +250,7 @@ export function wikiExtensions({
     Placeholder.configure({ placeholder }),
     Highlight,
     WikiLink,
+    PersonMention,
     Callout,
     Details,
     RawBlock,

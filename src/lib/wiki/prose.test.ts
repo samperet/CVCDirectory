@@ -40,6 +40,7 @@ const SAMPLES: Record<string, string> = {
   footnotes: "A claim.[^1]\n\n[^1]: The source.\n",
   references: "See [the plan][plan].\n\n[plan]: https://example.org/plan\n",
   textDirective: "Contact:Lynn about it. Meet at 10:30.\n",
+  mentions: "Ask :person[Ada Ash]{#000000000001} or **:person[Ben Birch]{#000000000002}**.\n",
   otherDirectives: '::video{src="x"}\n\n:::aside\nInside\n:::\n',
   escapes: "Not \\*emphasis\\*, a \\[bracket], 2 \\* 3, a\\_b.\n",
   empty: "",
@@ -123,6 +124,17 @@ describe("the document", () => {
     ]);
     expect(words.find((node) => node.text === "bold")?.marks).toEqual([
       { type: "highlight", attrs: { color: "pink" } },
+      { type: "bold" },
+    ]);
+  });
+
+  it("makes mentions their own nodes, with the person's id and name", () => {
+    const words = doc(SAMPLES.mentions)[0].content ?? [];
+    expect(words.find((node) => node.type === "personMention")?.attrs).toEqual({
+      id: "000000000001",
+      name: "Ada Ash",
+    });
+    expect(words.filter((node) => node.type === "personMention")[1].marks).toEqual([
       { type: "bold" },
     ]);
   });

@@ -13,7 +13,7 @@ import {
   wikiPagesQuery,
 } from "@/components/wiki/link-data";
 import { WikiCircleContext } from "@/components/wiki/poll-block";
-import { WikiTag } from "@/components/wiki/wiki-tag";
+import { PersonTag, WikiTag } from "@/components/wiki/wiki-tag";
 import { useCircles } from "@/components/directory/use-directory";
 
 /**
@@ -21,7 +21,9 @@ import { useCircles } from "@/components/directory/use-directory";
  * node — drawn like the tag on the page, opened in a new tab when clicked,
  * and deleted as a whole — and goes back to `[[…]]` text when the page is
  * saved (`lib/wiki/prose.ts`), so the Markdown is unchanged. A link typed
- * by hand becomes a tag as soon as its closing `]]` is typed.
+ * by hand becomes a tag as soon as its closing `]]` is typed. A resident
+ * mentioned with @ is a node too (`personMention`): "@Ada Ash", linking to
+ * their directory entry; written `:person[Ada Ash]{#<personId>}`.
  */
 
 /** What a tag shows, worked out like the page does: the page, the document, or nothing yet. */
@@ -136,5 +138,51 @@ export const WikiLink = Node.create({
         },
       }),
     ];
+  },
+});
+
+function PersonView({ node }: NodeViewProps) {
+  return (
+    <NodeViewWrapper as="span" contentEditable={false} data-person-mention={node.attrs.id}>
+      <PersonTag label={`@${node.attrs.name}`} href={`/directory/${node.attrs.id}`} newTab />
+    </NodeViewWrapper>
+  );
+}
+
+export const PersonMention = Node.create({
+  name: "personMention",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      id: { default: "", rendered: false },
+      name: { default: "", rendered: false },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: "span[data-person-mention]",
+        getAttrs: (element) => ({
+          id: (element as HTMLElement).dataset.personMention ?? "",
+          name: (element as HTMLElement).textContent?.replace(/^@/, "") ?? "",
+        }),
+      },
+    ];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, { "data-person-mention": node.attrs.id }),
+      `@${node.attrs.name}`,
+    ];
+  },
+  renderText({ node }) {
+    return `@${node.attrs.name}`;
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(PersonView);
   },
 });

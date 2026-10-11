@@ -8,15 +8,18 @@ import { claimAnnouncements, pollIdsIn } from "@/lib/polls/wiki";
 import { userIdsForPeople } from "@/lib/auth/users";
 import { notify } from "@/lib/push/notify";
 import { isCommunity } from "@/lib/circles/ids";
+import { tellMentioned } from "@/lib/wiki/mentions";
+import { isFollowing } from "@/lib/wiki/follows";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: { slug: string } };
 
 /**
- * A page, its earlier versions, and whether you can edit it or change its
- * settings — and, for those who can choose its parent circle, the circles
- * they can move it to (`canMoveTo`: theirs; for the Board and admins, any).
+ * A page, its earlier versions, whether you can edit it or change its
+ * settings, and whether you follow it — and, for those who can choose its
+ * parent circle, the circles they can move it to (`canMoveTo`: theirs; for
+ * the Board and admins, any).
  */
 export async function GET(_request: Request, { params }: Params) {
   const ctx = await pageContext(params.slug);
@@ -28,6 +31,7 @@ export async function GET(_request: Request, { params }: Params) {
       canEdit: ctx.canEdit,
       canManage: ctx.canManage,
       canConsent: ctx.canConsent,
+      following: await isFollowing(ctx.page.id, ctx.user.id),
       ...(ctx.canManage
         ? { canMoveTo: circlesYouKeep(ctx.user, ctx.directory).map((circle) => circle.id) }
         : {}),
@@ -43,7 +47,7 @@ export async function GET(_request: Request, { params }: Params) {
  * (meeting notes; its editors), or withdraw a proposal or record of consent
  * from before proposals were their own (consent: the circle's members, the
  * Board). Proposals and consent are now `/api/proposals`. Polls newly in the
- * page are announced.
+ * page are announced, and residents newly mentioned are told.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await pageContext(params.slug, "edit");
@@ -110,6 +114,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         ...(only ? { onlyUserIds: only } : {}),
       });
     }
+    // Anyone newly mentioned hears, once.
+    if (result.page.body !== before.body) await tellMentioned(result.page, ctx.actor);
   }
   return NextResponse.json({ page: result.page });
 }

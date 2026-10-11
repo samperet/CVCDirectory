@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPage, getPageById, pageInputSchema, pageSummary, readPages } from "@/lib/wiki/store";
 import { builtInTemplate, fillTemplate } from "@/lib/wiki/templates";
+import { setFollowing } from "@/lib/wiki/follows";
+import { tellMentioned } from "@/lib/wiki/mentions";
 import { shortDate, todayInVermont } from "@/lib/time";
 import { excerptOf } from "@/lib/wiki/excerpt";
 import { canEditPage, circlesYouKeep } from "@/lib/wiki/access";
@@ -30,7 +32,8 @@ export async function GET() {
  * circle unless you say otherwise; with neither, by Community. With
  * `template` (a built-in one's key, or a template page's id) and no body of
  * its own, it starts with the template's text, today's date and its circle
- * filled in (`lib/wiki/templates.ts`).
+ * filled in (`lib/wiki/templates.ts`). Its creator follows it from the
+ * start, and anyone it mentions is told.
  */
 export async function POST(request: NextRequest) {
   const ctx = await wikiSession();
@@ -60,7 +63,11 @@ export async function POST(request: NextRequest) {
     });
   }
   const result = await createPage(ctx.actor, { ...input, body, keeper });
-  return result.ok
-    ? NextResponse.json({ page: result.page }, { status: 201 })
-    : wikiProblem(result.reason);
+  if (!result.ok) return wikiProblem(result.reason);
+  if (result.page) {
+    // Whoever starts a page follows it; anyone it mentions hears.
+    await setFollowing(result.page.id, ctx.actor.userId, true);
+    await tellMentioned(result.page, ctx.actor);
+  }
+  return NextResponse.json({ page: result.page }, { status: 201 });
 }

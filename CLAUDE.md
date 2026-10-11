@@ -47,6 +47,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/time.ts` | `TIME_ZONE` (Vermont), `todayInVermont`, `timeAgo` |
 | `src/lib/email/` | Sending (`deliver.ts`: Brevo, then Resend as backup), the free-plan quotas, the shared email layout, notification emails, test mode |
 | `src/lib/groups/` | Circle forums: conversations and polls, with app notifications to the circle's members |
+| `src/lib/wiki/follows.ts`, `mentions.ts` | Following pages (told when they change, hourly at most) and @-mentions of residents (told once a page); topics `following` and `mentions` |
 | `src/lib/wiki/prose.ts` | Pages' Markdown ↔ the visual editor's (TipTap) document; the editor itself is `components/wiki/rich-editor.tsx` with its schema in `editor-schema.ts` |
 | `src/lib/wiki/perspectives.ts` | Alternative versions of a page ("perspectives" in code): copies one resident changes, compared side by side (`compareRows` in `merge.ts`), brought up to date with `mergeText`, made the page by its editors |
 | `src/lib/proposals/` | Proposals put to circles, about documents (and pages' alternative versions), consented at meetings; `snapshots.ts` keeps each document (and version) as it was attached; `mirror.ts` keeps pages' and files' stage in step; `giveConsent` in `http.ts` makes a chosen version the page, then records consent |
