@@ -149,43 +149,6 @@ select {
   border: 1px solid theme("colors.border");
   padding: 0.25rem 0.5rem;
 }
-/*
- * The wiki editor (and its dialogs, like adding a photo) in the site's greens
- * rather than the editor's blues. `:root` outranks the editor's own stylesheet,
- * which loads later.
- */
-:root [class*="_editorRoot_"] {
-  --accentBase: #f6fef9;
-  --accentBgSubtle: #eef8f0;
-  --accentBg: #e8f5e9;
-  --accentBgHover: #dcefdf;
-  --accentBgActive: #cfe8d3;
-  --accentLine: #b1dd9e;
-  --accentBorder: #97cf8a;
-  --accentBorderHover: #7fbf73;
-  --accentSolid: #315a39;
-  --accentSolidHover: #264a2e;
-  --accentText: #315a39;
-  --accentTextContrast: #1e4620;
-}
-[class*="_dialogContent_"] {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  border-radius: 1rem;
-  font-family: var(--font-sans), system-ui;
-}
-[class*="_dialogContent_"] [class*="_primaryButton_"],
-[class*="_dialogContent_"] [class*="_secondaryButton_"] {
-  border-radius: 9999px;
-  padding: 0.4rem 1rem;
-  font-weight: 500;
-}
-:root [class*="_dialogContent_"] [class*="_secondaryButton_"] {
-  border-color: theme("colors.border");
-  background-color: #fff;
-  color: theme("colors.foreground");
-}
 /* Wiki pages as documents: a white sheet with margins, the text in a readable column. */
 .document-sheet {
   background: #fff;
@@ -216,6 +179,69 @@ select {
 }
 .wiki-editor .document-body {
   min-height: 60vh;
+}
+/* The visual editor's text (TipTap / ProseMirror). */
+.wiki-editor .ProseMirror {
+  outline: none;
+}
+.wiki-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: theme("colors.muted");
+}
+/* Inside a callout or a collapsible section, its blocks are spaced like the page's. */
+.wiki-editor [data-node-view-content-react] > * + * {
+  margin-top: 0.75rem;
+}
+.wiki-editor .ProseMirror-selectednode {
+  outline: 2px solid theme("colors.primary");
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+.wiki-editor .ProseMirror img {
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+.wiki-editor .ProseMirror table {
+  width: 100%;
+  table-layout: fixed;
+}
+.wiki-editor .ProseMirror td,
+.wiki-editor .ProseMirror th {
+  position: relative;
+  vertical-align: top;
+  min-width: 4rem;
+}
+.wiki-editor .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(49 90 57 / 0.08);
+  pointer-events: none;
+}
+/* Checklists: the box beside each item's words. */
+.wiki-prose ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.wiki-prose ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.wiki-prose ul[data-type="taskList"] li > label {
+  margin-top: 0.3rem;
+  flex: none;
+}
+.wiki-prose ul[data-type="taskList"] input[type="checkbox"] {
+  accent-color: theme("colors.primary");
+}
+.wiki-prose ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /*
@@ -272,17 +298,6 @@ mark.wiki-mark {
     );
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-}
-/* While editing, a highlight's words have their own little editor, which flows inline with the text. */
-.wiki-prose .wiki-mark-editor {
-  display: inline;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-}
-.wiki-prose .wiki-mark-editor > p {
-  display: inline;
-  margin: 0;
 }
 
 /*
@@ -368,12 +383,6 @@ mark.wiki-mark {
   .tour-spotlight {
     animation: none;
   }
-}
-
-/* The wiki toolbar's Link menu: wide enough for its choices (the editor's menus are narrow). */
-.mdxeditor-select-content:has([data-link-choice]) {
-  width: auto;
-  min-width: 13rem;
 }
 
 /*

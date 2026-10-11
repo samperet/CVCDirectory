@@ -524,9 +524,13 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   shows in the module); **@ new
   page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the
   page it was started from. Pages are Markdown, edited in a **visual editor**
-  ([MDXEditor](https://mdxeditor.dev), on Lexical) with a simple toolbar: headings, bold/italic,
-  lists and checklists, links, photos, tables, collapsible sections, embedded pages, and **polls**;
-  Markdown shortcuts work as you type. **Typing @** searches pages and documents and links the one
+  ([TipTap](https://tiptap.dev), on ProseMirror) with a simple toolbar: headings, quotes and
+  callouts, bold/italic, highlights, lists and checklists, links, photos, tables (with their own
+  add/delete tools while the cursor is in one), collapsible sections, embedded pages, and
+  **polls**; Markdown shortcuts work as you type, Ctrl/⌘+K adds a link, and photos can be pasted or
+  dropped in. `lib/wiki/prose.ts` turns a page's Markdown into the editor's document and back with
+  the same Markdown writer and settings as before, so saved pages keep their spelling; what the
+  editor can't show (HTML, footnotes, other directives) is kept as written, in a dashed box. **Typing @** searches pages and documents and links the one
   you pick — or, for a new title, links a new page (`GET /api/wiki/link-search`). The toolbar's one
   **Link** menu offers **Web address…** (a link on the selected words), **A page or document…**
   (find a page or an uploaded file; a page can be linked or shown here, a file is linked), and

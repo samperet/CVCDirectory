@@ -143,11 +143,19 @@ in code and storage; the UI calls it the **parent circle** — and its own edit 
 (`lib/wiki/links.ts`, `sections.ts`). Edits autosave and merge paragraph by paragraph
 (`lib/wiki/merge.ts`, `mergeText(base, mine, theirs)`), with presence via `wiki/presence.json`.
 Highlighted words are `:mark[…]{color="…"}` (palette in `lib/wiki/colors.ts`, drawn as `<mark>` by
-`lib/wiki/directives.ts` and edited by `markDirective` in `rich-editor.tsx`); the map (`components/wiki/map-*.tsx`) is built by
+`lib/wiki/directives.ts`, and a `highlight` mark in the editor); the map (`components/wiki/map-*.tsx`) is built by
 `lib/wiki/graph.ts` from the pages the viewer can see. A page is shown as a document
 (`components/wiki/wiki-page.tsx`: the keeper's icon, title, date and consent in a centred header
 over a `.document-sheet` with `.document-body` margins); the editor (`wiki-editor.tsx`) has a
 sticky title bar with the save state and the page's settings, and the toolbar sticks under it.
+The visual editor is TipTap (`rich-editor.tsx`; the schema in `editor-schema.ts`, the blocks'
+views in `editor-blocks.tsx`, the toolbar in `editor-toolbar.tsx`, `[[link]]` tags in
+`wiki-link-node.tsx`, the @ menu in `mention-menu.tsx`, the right-click menu in
+`editor-context-menu.tsx`); pages stay Markdown, converted both ways by `lib/wiki/prose.ts`
+(Markdown → document → Markdown equals the Markdown writer's own round trip — `prose.test.ts`),
+and anything it doesn't model is carried through in `rawBlock`/`rawInline` nodes. Others' saves
+are merged in with `replace()`, which keeps the cursor in its paragraph (`editor-cursor.ts`); the
+editor reports a change only when the Markdown actually differs, so opening a page saves nothing.
 **Proposals** are their own records (`lib/proposals`: `shared.ts` types and the
 `::proposal{id="…"}` directive, `store.ts`, `access.ts`, `http.ts`; `/api/proposals`), put to a
 circle and about documents (pages or files). A circle consents to one **at a meeting** — notes (a

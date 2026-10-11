@@ -1,10 +1,7 @@
 "use client";
 
-import "@mdxeditor/editor/style.css";
 import {
-  createContext,
   forwardRef,
-  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -12,112 +9,49 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import {
-  $createParagraphNode,
-  $createTextNode,
-  $getNodeByKey,
-  $getSelection,
-  $isElementNode,
-  $isLineBreakNode,
-  $isRangeSelection,
-  $isRootOrShadowRoot,
-  $isTextNode,
-  type LexicalEditor,
-  type LexicalNode,
-} from "lexical";
-import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
-import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowUpRight,
   BarChart3,
-  ChevronDown,
   ChevronsUpDown,
-  Eraser,
   FilePlus2,
   Globe,
   Handshake,
-  Highlighter,
+  ImagePlus,
   LayoutList,
   Link2,
   Mic,
   Users,
-  X,
 } from "lucide-react";
-import {
-  $isDirectiveNode,
-  BoldItalicUnderlineToggles,
-  ButtonOrDropdownButton,
-  ButtonWithTooltip,
-  openLinkEditDialog$,
-  type DirectiveDescriptor,
-  type DirectiveEditorProps,
-  GenericDirectiveEditor,
-  InsertImage,
-  InsertTable,
-  ListsToggle,
-  MDXEditor,
-  type MDXEditorMethods,
-  MultipleChoiceToggleGroup,
-  NestedLexicalEditor,
-  Separator,
-  UndoRedo,
-  activeEditor$,
-  allowedHeadingLevels$,
-  convertSelectionToNode$,
-  currentBlockType$,
-  insertMarkdown$,
-  Select as ToolbarSelect,
-  usePublisher,
-  codeBlockPlugin,
-  codeMirrorPlugin,
-  directivesPlugin,
-  editorInFocus$,
-  headingsPlugin,
-  imagePlugin,
-  linkDialogPlugin,
-  linkPlugin,
-  listsPlugin,
-  markdownShortcutPlugin,
-  quotePlugin,
-  tablePlugin,
-  thematicBreakPlugin,
-  toolbarPlugin,
-  useCellValue,
-  useLexicalNodeRemove,
-  useMdastNodeUpdater,
-} from "@mdxeditor/editor";
-import { normalizeWikiLinks, parseWikiLink, protectWikiLinks } from "@/lib/wiki/links";
-import { mentionPlugin } from "@/components/wiki/mention-menu";
-import { wikiLinkPlugin } from "@/components/wiki/wiki-link-node";
-import { captureCursor, editorBridgePlugin, restoreCursor } from "@/components/wiki/editor-cursor";
-import { WikiCircleContext, wikiPollsQuery } from "@/components/wiki/poll-block";
+import { markdownToProse, proseToMarkdown, type ProseNode } from "@/lib/wiki/prose";
+import { WikiCircleContext } from "@/components/wiki/poll-block";
 import { NewPollDialog } from "@/components/polls/new-poll-dialog";
 import { AddProposalDialog } from "@/components/proposals/add-proposal-dialog";
-import { proposalQuery } from "@/components/proposals/data";
-import { ProposalStatusPill } from "@/components/proposals/proposal-bits";
 import { proposalDirective as proposalLine } from "@/lib/proposals/shared";
 import { AddDocumentDialog } from "@/components/wiki/add-document-dialog";
 import { EmbedPageDialog } from "@/components/wiki/embed-page-dialog";
-import { EmbedBlock } from "@/components/wiki/embed-block";
-import { pageTitled, wikiPagesQuery } from "@/components/wiki/link-data";
 import { featureEnabled } from "@/lib/circles/features";
 import { uploadWikiImage } from "@/lib/image-client";
 import { useToast } from "@/components/ui/use-toast";
 import { useCircles } from "@/components/directory/use-directory";
+import { wikiExtensions } from "@/components/wiki/editor-schema";
+import { WikiMention, type MentionParams } from "@/components/wiki/mention-menu";
+import { captureCursor, restoreCursor } from "@/components/wiki/editor-cursor";
+import { EditorContextMenu } from "@/components/wiki/editor-context-menu";
 import {
-  HIGHLIGHT_COLORS,
-  HIGHLIGHT_STYLES,
-  highlightColor,
-  type HighlightColor,
-} from "@/lib/wiki/colors";
-import { cn } from "@/lib/utils";
-import {
-  MARK_ACTION,
-  contextMenuPlugin,
-  highlightMarkdown,
-  type MarkAction,
-} from "@/components/wiki/editor-context-menu";
+  HighlightMenu,
+  HighlightTools,
+  ImageDialog,
+  InsertTableButton,
+  LinkDialog,
+  ListButtons,
+  MarkButtons,
+  StyleMenu,
+  TableTools,
+  ToolbarButton,
+  ToolbarMenu,
+  ToolbarSeparator,
+  UndoRedo,
+} from "@/components/wiki/editor-toolbar";
 
 export interface RichEditorHandle {
   /** Replace the text (e.g. restoring a saved draft). */
@@ -127,654 +61,90 @@ export interface RichEditorHandle {
   focus: () => void;
 }
 
-/** A collapsible section (`:::details{title="…"}`) in the editor: its title, and what it hides. */
-const isLabel = (child: ContainerDirective["children"][number]) =>
-  !!(child.data as { directiveLabel?: boolean } | undefined)?.directiveLabel;
-/** The text of an mdast node and everything in it. */
-function plainText(node: object): string {
-  const { value, children } = node as { value?: unknown; children?: object[] };
-  return (typeof value === "string" ? value : "") + (children ?? []).map(plainText).join("");
-}
+/** Markdown as the blocks (or, for a link, the inline nodes) to put in the editor. */
+const blocksOf = (markdown: string) => markdownToProse(markdown).content ?? [];
+const inlineOf = (markdown: string): ProseNode[] => blocksOf(markdown)[0]?.content ?? [];
 
-function DetailsEditor({ mdastNode }: { mdastNode: ContainerDirective }) {
-  const update = useMdastNodeUpdater<ContainerDirective>();
-  // The title is its `title` attribute — or, written as `:::details[Title]`, its label.
-  const label = mdastNode.children.find(isLabel);
-  const title = mdastNode.attributes?.title ?? (label ? plainText(label) : "");
-  return (
-    <div className="my-2 rounded-lg border border-border bg-surface">
-      <div
-        className="flex items-center gap-2 border-b border-border px-3 py-1.5"
-        contentEditable={false}
-      >
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted" aria-hidden />
-        <input
-          value={title}
-          onChange={(event) =>
-            update({
-              attributes: { ...mdastNode.attributes, title: event.target.value },
-              children: mdastNode.children.filter((child) => !isLabel(child)),
-            })
-          }
-          onKeyDown={(event) => event.stopPropagation()}
-          placeholder="Section title (shown when collapsed)"
-          aria-label="Collapsible section title"
-          className="w-full bg-transparent text-sm font-semibold text-foreground outline-none placeholder:font-normal placeholder:text-muted"
-        />
-        <span className="shrink-0 text-xs text-muted">Collapsible</span>
-      </div>
-      <div className="px-3 py-1">
-        <NestedLexicalEditor<ContainerDirective>
-          block
-          getContent={(node) => node.children.filter((child) => !isLabel(child))}
-          getUpdatedMdastNode={(node, children) => ({
-            ...node,
-            children: [
-              ...node.children.filter(isLabel),
-              ...(children as ContainerDirective["children"]),
-            ],
-          })}
-        />
-      </div>
-    </div>
-  );
-}
-
-export const detailsDirective: DirectiveDescriptor<ContainerDirective> = {
-  name: "details",
-  type: "containerDirective",
-  testNode: (node) => node.type === "containerDirective" && node.name === "details",
-  attributes: ["title"],
-  hasChildren: true,
-  Editor: DetailsEditor,
-};
-
-/** A callout (`:::callout`) while editing: its words, edited in place, inside the dotted line. */
-function CalloutEditor() {
-  return (
-    <div className="wiki-callout relative" data-callout>
-      <span
-        contentEditable={false}
-        className="absolute -top-2.5 left-4 select-none bg-white px-1.5 text-[11px] font-medium uppercase tracking-wide text-muted"
-      >
-        Callout
-      </span>
-      <NestedLexicalEditor<ContainerDirective>
-        block
-        getContent={(node) => node.children.filter((child) => !isLabel(child))}
-        getUpdatedMdastNode={(node, children) => ({
-          ...node,
-          children: children as ContainerDirective["children"],
-        })}
-      />
-    </div>
-  );
-}
-
-export const calloutDirective: DirectiveDescriptor<ContainerDirective> = {
-  name: "callout",
-  type: "containerDirective",
-  testNode: (node) => node.type === "containerDirective" && node.name === "callout",
-  attributes: [],
-  hasChildren: true,
-  Editor: CalloutEditor,
-};
-
-/** A block's words as Markdown, keeping bold, italic, struck-through and code words. */
-function $blockMarkdown(block: LexicalNode): string {
-  const parts: string[] = [];
-  const walk = (node: LexicalNode) => {
-    if ($isTextNode(node)) {
-      const text = node.getTextContent().replace(/[\\`*_[\]<>~|]/g, "\\$&");
-      if (!text.trim()) return parts.push(text);
-      const format = node.getFormat();
-      const marks = [
-        format & CODE ? "`" : "",
-        format & BOLD ? "**" : "",
-        format & ITALIC ? "*" : "",
-        format & STRIKETHROUGH ? "~~" : "",
-      ].join("");
-      const closing = marks.split("").reverse().join("");
-      const [, before, words, after] = text.match(/^(\s*)([\s\S]*?)(\s*)$/)!;
-      parts.push(`${before}${marks}${words}${closing}${after}`);
-    } else if ($isLineBreakNode(node)) {
-      parts.push("  \n");
-    } else if ($isElementNode(node)) {
-      node.getChildren().forEach(walk);
-    } else {
-      parts.push(node.getTextContent());
-    }
-  };
-  walk(block);
-  return parts.join("").trim();
-}
-
-/**
- * The toolbar's **Style**: Paragraph, Quote, Callout, or a heading, for the
- * block the cursor is in. A callout takes in the selected blocks' words
- * (keeping bold and italic) and sets them apart; the others are the editor's own.
- */
-export function StyleSelect() {
-  const convertSelectionToNode = usePublisher(convertSelectionToNode$);
-  const insertMarkdown = usePublisher(insertMarkdown$);
-  const current = useCellValue(currentBlockType$);
-  const levels = useCellValue(allowedHeadingLevels$);
-  const active = useCellValue(activeEditor$);
-  // The blocks last selected (choosing from the menu takes the focus, and the selection, away).
-  const selected = useRef<string[]>([]);
-  useEffect(() => {
-    if (!active) return;
-    return active.registerUpdateListener(({ editorState }) =>
-      editorState.read(() => {
-        const selection = $getSelection();
-        if (!$isRangeSelection(selection)) return;
-        const keys: string[] = [];
-        for (const node of selection.getNodes()) {
-          const block = $isRootOrShadowRoot(node) ? null : node.getTopLevelElement();
-          if (block && !keys.includes(block.getKey())) keys.push(block.getKey());
-        }
-        selected.current = keys;
-      })
-    );
-  }, [active]);
-  const items: { label: string; value: string }[] = [
-    { label: "Paragraph", value: "paragraph" },
-    { label: "Quote", value: "quote" },
-    { label: "Callout", value: "callout" },
-    ...levels.map((level) => ({ label: `Heading ${level}`, value: `h${level}` })),
-  ];
-  return (
-    <ToolbarSelect<string>
-      value={current}
-      triggerTitle="Style"
-      placeholder="Style"
-      items={items}
-      onChange={(value) => {
-        if (value === "paragraph") convertSelectionToNode(() => $createParagraphNode());
-        else if (value === "quote") convertSelectionToNode(() => $createQuoteNode());
-        else if (/^h[1-6]$/.test(value))
-          convertSelectionToNode(() => $createHeadingNode(value as "h1" | "h2" | "h3"));
-        else if (value === "callout" && active) {
-          const live = () =>
-            selected.current
-              .map((key) => $getNodeByKey(key))
-              .filter((node): node is LexicalNode => !!node && node.isAttached());
-          // Read the words now; the editor applies changes after this returns.
-          const words = active
-            .getEditorState()
-            .read(() => live().map($blockMarkdown).filter(Boolean).join("\n\n"));
-          active.update(() => {
-            const blocks = live();
-            // The callout goes where these blocks were.
-            const place = $createParagraphNode();
-            if (blocks[0]) blocks[0].insertBefore(place);
-            blocks.forEach((block) => block.remove());
-            place.select();
-          });
-          insertMarkdown(`:::callout\n${words || "Write the callout here."}\n:::`);
-        }
-      }}
-    />
-  );
-}
-
-/** A poll in the page, while editing: its question and choices, and a × to take it out. */
-function PollDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
-  const wiki = useContext(WikiCircleContext);
-  const remove = useLexicalNodeRemove();
-  const { data } = useQuery(wikiPollsQuery());
-  const id = (mdastNode.attributes?.id ?? "").toLowerCase();
-  const entry = data?.polls.find((poll) => poll.id === id);
-  return (
-    <div
-      className="my-2 flex items-start gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2"
-      contentEditable={false}
-    >
-      <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">
-          {entry ? entry.question : data ? "A poll that's no longer available" : "Poll"}
-        </p>
-        {entry ? (
-          <p className="truncate text-xs text-muted">
-            {entry.poll.options.map((option) => option.text).join(" · ")}
-          </p>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        onClick={remove}
-        className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
-        aria-label="Take the poll out of the page"
-        title="Take out of the page"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-const pollDirective: DirectiveDescriptor<LeafDirective> = {
-  name: "poll",
-  type: "leafDirective",
-  testNode: (node) => node.type === "leafDirective" && node.name === "poll",
-  attributes: ["id"],
-  hasChildren: false,
-  Editor: PollDirectiveEditor,
-};
-
-/** A proposal in the page, while editing: its title, circle, and where it stands, and a × to take it out. */
-function ProposalDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
-  const remove = useLexicalNodeRemove();
-  const id = (mdastNode.attributes?.id ?? "").toLowerCase();
-  const { data, error } = useQuery({ ...proposalQuery(id), enabled: !!id });
-  const proposal = data?.proposal;
-  return (
-    <div
-      className="my-2 flex items-start gap-2 rounded-lg border border-border border-l-4 border-l-primary bg-accent/40 px-3 py-2"
-      contentEditable={false}
-    >
-      <Handshake className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">
-          {proposal ? proposal.title : error ? "A proposal that's no longer available" : "Proposal"}
-        </p>
-        {proposal ? (
-          <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
-            To {proposal.circleName}
-            <ProposalStatusPill
-              size="xs"
-              status={proposal.status}
-              decideOn={proposal.decideOn}
-              consentDate={proposal.consent?.meeting.date}
-            />
-          </p>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        onClick={remove}
-        className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
-        aria-label="Take the proposal out of the page"
-        title="Take out of the page (the proposal itself stays)"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-const proposalDirective: DirectiveDescriptor<LeafDirective> = {
-  name: "proposal",
-  type: "leafDirective",
-  testNode: (node) => node.type === "leafDirective" && node.name === "proposal",
-  attributes: ["id"],
-  hasChildren: false,
-  Editor: ProposalDirectiveEditor,
-};
-
-/** Another page (or a section of it) shown in this one: what it is, a preview on request, and a × to take it out. */
-function EmbedDirectiveEditor({ mdastNode }: { mdastNode: LeafDirective }) {
-  const wiki = useContext(WikiCircleContext);
-  const remove = useLexicalNodeRemove();
-  const [preview, setPreview] = useState(false);
-  const target = mdastNode.attributes?.page ?? "";
-  const section = mdastNode.attributes?.section ?? undefined;
-  const circles = useCircles();
-  const link = circles ? parseWikiLink(target, circles) : null;
-  const found = pageTitled(useQuery(wikiPagesQuery()).data?.pages, link?.title ?? "");
-  const circle = circles?.find((entry) => entry.id === found?.keeper);
-  return (
-    <div
-      className="my-2 rounded-lg border border-border bg-accent/30 px-3 py-2"
-      contentEditable={false}
-    >
-      <div className="flex items-start gap-2">
-        <LayoutList className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">
-            {link?.title ?? target}
-            {section ? <span className="font-normal text-muted"> › {section}</span> : null}
-          </p>
-          <p className="text-xs text-muted">
-            Shown here{circle && circle.id !== wiki?.circleId ? `, from ${circle.name}` : ""} ·{" "}
-            <button
-              type="button"
-              className="font-medium text-secondary-foreground hover:underline"
-              onClick={() => setPreview(!preview)}
-              aria-expanded={preview}
-            >
-              {preview ? "Hide preview" : "Show preview"}
-            </button>
-          </p>
-        </div>
-        {found ? (
-          <a
-            href={`/wiki/${found.slug}`}
-            target="_blank"
-            rel="noopener"
-            className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
-            aria-label="Open the page in a new tab"
-            title="Open in a new tab"
-          >
-            <ArrowUpRight className="h-4 w-4" />
-          </a>
-        ) : null}
-        <button
-          type="button"
-          onClick={remove}
-          className="rounded p-1 text-muted hover:bg-accent hover:text-foreground"
-          aria-label="Take the embedded page out"
-          title="Take out of the page"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      {preview ? (
-        <div className="mt-2 max-h-80 overflow-y-auto rounded-md bg-white/70 px-3 py-2">
-          <EmbedBlock target={target} section={section} />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-const embedDirective: DirectiveDescriptor<LeafDirective> = {
-  name: "embed",
-  type: "leafDirective",
-  testNode: (node) => node.type === "leafDirective" && node.name === "embed",
-  attributes: ["page", "section"],
-  hasChildren: false,
-  Editor: EmbedDirectiveEditor,
-};
-
-// Lexical's text format bits, for what a highlight can hold.
-const BOLD = 1;
-const ITALIC = 2;
-const STRIKETHROUGH = 4;
-const CODE = 16;
-
-type Phrasing = { type: string; value?: string; children?: Phrasing[] };
-
-/** Text nodes for a highlight's words, keeping bold, italic, and code (for taking the highlight off). */
-function $textNodesOf(children: Phrasing[], format = 0): LexicalNode[] {
-  return children.flatMap((child) => {
-    if (child.type === "strong") return $textNodesOf(child.children ?? [], format | BOLD);
-    if (child.type === "emphasis") return $textNodesOf(child.children ?? [], format | ITALIC);
-    if (typeof child.value === "string") {
-      const node = $createTextNode(child.value);
-      node.setFormat(child.type === "inlineCode" ? format | CODE : format);
-      return [node];
-    }
-    return $textNodesOf(child.children ?? [], format);
-  });
-}
-
-/**
- * Highlighted text while editing (`:mark[words]{color="green"}`): the words
- * stay editable in place, on their colour. While the cursor is in them, the
- * palette and an eraser show just above, to change the colour or take the
- * highlight off. A highlight is one run of text, so Enter does nothing in it.
- */
-function MarkEditor({ mdastNode, lexicalNode, parentEditor }: DirectiveEditorProps<TextDirective>) {
-  const color = highlightColor(mdastNode.attributes?.color);
-  // What's been typed in the highlight is saved into the page as it loses focus: do that first.
-  const settle = () => (document.activeElement as HTMLElement | null)?.blur();
-  const change = (apply: (node: ReturnType<typeof $getNodeByKey>) => void) => {
-    settle();
-    parentEditor.update(() => apply($getNodeByKey(lexicalNode.getKey())));
-  };
-  const recolor = (next: HighlightColor) =>
-    change((node) => {
-      if ($isDirectiveNode(node))
-        node.setMdastNode({
-          ...(node.getMdastNode() as TextDirective),
-          attributes: { color: next },
-        });
-    });
-  const unwrap = () =>
-    change((node) => {
-      if (!$isDirectiveNode(node)) return;
-      const words = $textNodesOf(node.getMdastNode().children as Phrasing[]);
-      if (!words.length) return node.remove();
-      node.replace(words[0]);
-      words.slice(1).reduce((previous, next) => previous.insertAfter(next), words[0]);
-    });
-  const keep = (event: React.MouseEvent) => event.preventDefault();
-  // The right-click menu changes or removes this highlight through a DOM event.
-  const host = useRef<HTMLSpanElement>(null);
-  const actions = useRef({ recolor, unwrap });
-  actions.current = { recolor, unwrap };
-  useEffect(() => {
-    const element = host.current;
-    if (!element) return;
-    const onAction = (event: Event) => {
-      const action = (event as CustomEvent<MarkAction>).detail;
-      if (action === "remove") actions.current.unwrap();
-      else actions.current.recolor(action);
-    };
-    element.addEventListener(MARK_ACTION, onAction);
-    return () => element.removeEventListener(MARK_ACTION, onAction);
-  }, []);
-  return (
-    <span
-      ref={host}
-      data-mark-host={color}
-      className="group/mark relative"
-      onKeyDownCapture={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      }}
-    >
-      <mark className={`wiki-mark hl-${color}`} data-highlight={color}>
-        <NestedLexicalEditor<TextDirective>
-          getContent={(node) => node.children}
-          getUpdatedMdastNode={(node, children) => ({
-            ...node,
-            children: children as TextDirective["children"],
-          })}
-          contentEditableProps={{ className: "wiki-mark-editor" }}
-        />
-      </mark>
-      <span
-        contentEditable={false}
-        className="absolute bottom-full left-0 z-30 mb-1 hidden items-center gap-1 rounded-full border border-border bg-white px-1.5 py-1 shadow-elev group-focus-within/mark:flex"
-        data-highlight-tools
-      >
-        {HIGHLIGHT_COLORS.map((name) => (
-          <button
-            key={name}
-            type="button"
-            title={HIGHLIGHT_STYLES[name].label}
-            aria-label={`${HIGHLIGHT_STYLES[name].label} highlight`}
-            aria-pressed={name === color}
-            onMouseDown={keep}
-            onClick={() => recolor(name)}
-            className={cn(
-              "h-5 w-5 rounded-full border border-black/10",
-              `hl-${name}`,
-              name === color && "ring-2 ring-foreground/50 ring-offset-1"
-            )}
-          />
-        ))}
-        <button
-          type="button"
-          title="No highlight"
-          aria-label="Remove highlight"
-          onMouseDown={keep}
-          onClick={unwrap}
-          className="grid h-5 w-5 place-items-center rounded-full text-muted hover:bg-accent hover:text-foreground"
-        >
-          <Eraser className="h-3.5 w-3.5" aria-hidden />
-        </button>
-      </span>
-    </span>
-  );
-}
-
-export const markDirective: DirectiveDescriptor<TextDirective> = {
-  name: "mark",
-  type: "textDirective",
-  testNode: (node) => node.type === "textDirective" && node.name === "mark",
-  attributes: ["color"],
-  hasChildren: true,
-  Editor: MarkEditor,
-};
-
-/**
- * The toolbar's highlighter: choose a colour, and the selected words (within
- * one paragraph) are highlighted in it. Inside a highlight, its own palette
- * (just above it) changes it instead.
- */
-export function HighlightButton({ onApply }: { onApply: (markdown: string) => void }) {
-  const active = useCellValue(activeEditor$);
-  const inFocus = useCellValue(editorInFocus$);
-  const { toast } = useToast();
-  return (
-    <ButtonOrDropdownButton<HighlightColor>
-      title="Highlight"
-      items={HIGHLIGHT_COLORS.map((name) => ({
-        value: name,
-        label: (
-          <span className="flex items-center gap-2" data-highlight-choice={name}>
-            <span className={`h-3.5 w-3.5 rounded-sm border border-black/10 hl-${name}`} />
-            {HIGHLIGHT_STYLES[name].label}
-          </span>
-        ),
-      }))}
-      onChoose={(color) => {
-        const root = inFocus?.rootNode;
-        if (root && $isDirectiveNode(root) && root.getMdastNode().name === "mark") {
-          toast({ title: "Change this highlight with the colours just above it" });
-          return;
-        }
-        const result = highlightMarkdown(active, color);
-        if ("problem" in result) toast({ title: result.problem });
-        else onApply(result.markdown);
-      }}
-    >
-      <Highlighter className="h-5 w-5" />
-    </ButtonOrDropdownButton>
-  );
+/** Put in a link where the cursor is, with a space before it unless there's one already. */
+export function insertLinkAtCursor(editor: Editor, link: string) {
+  const { from } = editor.state.selection;
+  const before = from > 1 ? editor.state.doc.textBetween(from - 1, from, " ", " ") : "";
+  const nodes = inlineOf(link);
+  editor
+    .chain()
+    .focus()
+    .insertContent([
+      ...(before && !/\s/.test(before) ? [{ type: "text", text: " " }] : []),
+      ...nodes,
+    ])
+    .run();
 }
 
 type LinkChoice = "web" | "page" | "upload";
 
 /**
- * The toolbar's one **Link** menu: a web address (the editor's own link box,
- * for the selected words), a page or document already here (linked — or a
- * page shown in this one), or a new file, uploaded to the circle's documents
- * and linked.
+ * The toolbar's one **Link** menu: a web address (the link box, for the
+ * selected words), a page or document already here (linked — or a page
+ * shown in this one), or a new file, uploaded to the circle's documents and
+ * linked.
  */
-/** The page has its transcript: the toolbar is set up once, so its toggle reads this. */
-const TranscriptOn = createContext(false);
-
-/** The toolbar's transcript toggle: adds the transcript at the page's end (recording), or removes it. */
-function TranscriptToggle({ onToggle }: { onToggle: () => void }) {
-  const on = useContext(TranscriptOn);
-  return (
-    <span data-transcript-toggle={on ? "on" : "off"}>
-      <MultipleChoiceToggleGroup
-        items={[
-          {
-            title: on ? "Remove the transcript" : "Record a transcript",
-            contents: <Mic className="h-5 w-5" />,
-            active: on,
-            onChange: onToggle,
-          },
-        ]}
-      />
-    </span>
-  );
-}
-
 function LinkMenu({
   canUpload,
+  onWeb,
   onPage,
   onUpload,
 }: {
   canUpload: boolean;
+  onWeb: () => void;
   onPage: () => void;
   onUpload: () => void;
 }) {
-  const openLinkDialog = usePublisher(openLinkEditDialog$);
-  const items: { value: LinkChoice; label: JSX.Element }[] = [
-    {
-      value: "web",
-      label: (
-        <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice="web">
-          <Globe className="h-4 w-4 shrink-0" aria-hidden /> Web address…
-        </span>
-      ),
-    },
-    {
-      value: "page",
-      label: (
-        <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice="page">
-          <LayoutList className="h-4 w-4 shrink-0" aria-hidden /> A page or document…
-        </span>
-      ),
-    },
-    ...(canUpload
-      ? [
-          {
-            value: "upload" as const,
-            label: (
-              <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice="upload">
-                <FilePlus2 className="h-4 w-4 shrink-0" aria-hidden /> Upload a file…
-              </span>
-            ),
-          },
-        ]
-      : []),
-  ];
+  const choice = (value: LinkChoice, Icon: typeof Globe, text: string) => ({
+    value,
+    name: text.replace("…", ""),
+    label: (
+      <span className="flex items-center gap-2 whitespace-nowrap" data-link-choice={value}>
+        <Icon className="h-4 w-4 shrink-0" aria-hidden /> {text}
+      </span>
+    ),
+  });
   return (
-    <ButtonOrDropdownButton<LinkChoice>
+    <ToolbarMenu<LinkChoice>
       title="Link"
-      items={items}
-      onChoose={(choice) => {
-        if (choice === "web") openLinkDialog();
-        else if (choice === "page") onPage();
-        else onUpload();
-      }}
-    >
-      <Link2 className="h-5 w-5" />
-    </ButtonOrDropdownButton>
+      trigger={<Link2 className="h-4 w-4" />}
+      options={[
+        choice("web", Globe, "Web address…"),
+        choice("page", LayoutList, "A page or document…"),
+        ...(canUpload ? [choice("upload", FilePlus2, "Upload a file…")] : []),
+      ]}
+      onChoose={(value) => (value === "web" ? onWeb() : value === "page" ? onPage() : onUpload())}
+    />
   );
 }
 
-/** Text like "Contact:Lynn" parses as a directive; show it as the text it is. */
-export const textDirectives: DirectiveDescriptor<TextDirective> = {
-  name: ":text",
-  type: "textDirective",
-  testNode: (node) => node.type === "textDirective",
-  attributes: [],
-  hasChildren: false,
-  Editor: ({ mdastNode }) => (
-    <span contentEditable={false}>
-      :{mdastNode.name}
-      {mdastNode.children.length ? `[${mdastNode.children.map(plainText).join("")}]` : ""}
+/** The toolbar's transcript toggle: adds the transcript at the page's end (recording), or removes it. */
+function TranscriptToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <span data-transcript-toggle={on ? "on" : "off"} className="inline-flex">
+      <ToolbarButton
+        title={on ? "Remove the transcript" : "Record a transcript"}
+        active={on}
+        onClick={onToggle}
+      >
+        <Mic className="h-4 w-4" />
+      </ToolbarButton>
     </span>
-  ),
-};
-
-/** Anything else that parses as a directive keeps its text rather than breaking the editor. */
-export const otherDirectives: DirectiveDescriptor = {
-  name: "*",
-  testNode: () => true,
-  attributes: [],
-  hasChildren: true,
-  Editor: GenericDirectiveEditor,
-};
+  );
+}
 
 /**
- * The wiki's visual editor (MDXEditor): a simple formatting toolbar (with a
- * highlighter), a right-click menu (`editor-context-menu.tsx`), lists, tables,
- * photos, collapsible sections, polls, and Markdown shortcuts as you type
- * (`#`, `-`, `**`), saving plain Markdown. Typing @ links a page or
- * a document — or a new page. HTML tags stay as text.
+ * The wiki's visual editor (TipTap): a simple formatting toolbar (with a
+ * highlighter), a right-click menu (`editor-context-menu.tsx`), lists,
+ * tables, photos, collapsible sections, polls, and Markdown shortcuts as you
+ * type (`#`, `-`, `**`). Typing @ links a page or a document — or a new
+ * page. The page stays Markdown (`lib/wiki/prose.ts` converts both ways);
+ * what the editor can't show is kept as written, and if a page can't be
+ * opened here at all, `onError` sends it to the plain-text editor.
  */
 export const RichEditor = forwardRef<
   RichEditorHandle,
@@ -829,11 +199,10 @@ export const RichEditor = forwardRef<
   ref
 ) {
   const perspective = !!perspectiveId;
-  // The toolbar is set up once, so it reaches these through a ref.
-  const meeting = useRef({ onTranscribe, onPresent });
-  meeting.current = { onTranscribe, onPresent };
-  const editor = useRef<MDXEditorMethods>(null);
-  const lexical = useRef<LexicalEditor | null>(null);
+  const { toast } = useToast();
+  const host = useRef<HTMLDivElement>(null);
+  const [linking, setLinking] = useState(false);
+  const [imaging, setImaging] = useState(false);
   const [polling, setPolling] = useState(false);
   const [proposing, setProposing] = useState(false);
   const [addingDocument, setAddingDocument] = useState(false);
@@ -847,14 +216,27 @@ export const RichEditor = forwardRef<
     () => ({ circleId, circleName, pageSlug }),
     [circleId, circleName, pageSlug]
   );
-  // The plugin is set up once, so it reads the latest callback through a ref.
-  const createRef = useRef(onCreatePage);
-  createRef.current = onCreatePage;
-  const { toast } = useToast();
-  // Photos chosen from the toolbar, pasted, or dropped in go to the circle's wiki photos.
+  // The editor is set up once, so it reaches the latest props through refs.
+  const latest = useRef({ onChange, onError, onCreatePage, pageSlug, perspectiveId });
+  latest.current = { onChange, onError, onCreatePage, pageSlug, perspectiveId };
+  const mention = useRef<MentionParams>({
+    circleId,
+    circleName,
+    pageId,
+    onCreatePage,
+    canCreate: !perspective,
+  });
+  mention.current = {
+    circleId,
+    circleName,
+    pageId,
+    onCreatePage: (title) => latest.current.onCreatePage(title),
+    canCreate: !perspective,
+  };
+  // Photos chosen from the toolbar, pasted, or dropped in go to the page's photos.
   const uploadPhoto = async (file: File) => {
     try {
-      return await uploadWikiImage(pageSlug, file, perspectiveId);
+      return await uploadWikiImage(latest.current.pageSlug, file, latest.current.perspectiveId);
     } catch (error) {
       toast({
         title: "Could not add the photo",
@@ -864,196 +246,248 @@ export const RichEditor = forwardRef<
       throw error;
     }
   };
+  const upload = useRef(uploadPhoto);
+  upload.current = uploadPhoto;
+
+  // The page as the editor's document, once (later text comes through the handle).
+  const initial = useMemo(() => {
+    try {
+      return markdownToProse(markdown);
+    } catch {
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!initial) latest.current.onError();
+  }, [initial]);
+  // What the page says now, as the editor writes it: only a real change is reported (not, say,
+  // the empty line the editor keeps below a table, or a click that changes nothing).
+  const said = useRef<string | null>(null);
+  if (said.current === null)
+    said.current = (initial ? proseToMarkdown(initial) : markdown).trimEnd();
+  const report = (value: string) => {
+    if (value.trimEnd() === said.current) return;
+    said.current = value.trimEnd();
+    latest.current.onChange(value);
+  };
+  const reportRef = useRef(report);
+  reportRef.current = report;
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      ...wikiExtensions({
+        placeholder:
+          "Start writing — type @ to link a page or document, # for a heading, - for a list…",
+        onLinkShortcut: () => setLinking(true),
+        uploadImage: (file) => upload.current(file),
+      }),
+      WikiMention(() => mention.current),
+    ],
+    content: initial ?? undefined,
+    enableContentCheck: true,
+    onContentError: () => latest.current.onError(),
+    editorProps: { attributes: { class: "wiki-prose document-body", spellcheck: "true" } },
+    onUpdate: ({ editor: current }) =>
+      reportRef.current(proseToMarkdown(current.getJSON() as ProseNode)),
+  });
+
   const handle: RichEditorHandle = {
-    setMarkdown: (value) => editor.current?.setMarkdown(protectWikiLinks(value)),
-    replace: (value, mineAt) => {
-      const root = lexical.current?.getRootElement();
-      const focused = !!root && root.contains(document.activeElement);
-      const mark = focused && lexical.current ? captureCursor(lexical.current) : null;
-      editor.current?.setMarkdown(protectWikiLinks(value));
-      if (lexical.current && mark) restoreCursor(lexical.current, mark, mineAt);
+    setMarkdown: (value) => {
+      said.current = value.trimEnd();
+      editor
+        ?.chain()
+        .setMeta("addToHistory", false)
+        .setContent(markdownToProse(value), { emitUpdate: false })
+        .run();
     },
-    focus: () => editor.current?.focus(),
+    replace: (value, mineAt) => {
+      said.current = value.trimEnd();
+      if (!editor) return;
+      const mark = editor.isFocused ? captureCursor(editor) : null;
+      editor
+        .chain()
+        .setMeta("addToHistory", false)
+        .setContent(markdownToProse(value), { emitUpdate: false })
+        .run();
+      if (mark) restoreCursor(editor, mark, mineAt);
+    },
+    focus: () => editor?.commands.focus(),
   };
   useImperativeHandle(ref, () => handle);
   if (control) control.current = handle;
-  const insert = (text: string) => {
-    editor.current?.focus(() => editor.current?.insertMarkdown(protectWikiLinks(text)), {
-      preventScroll: true,
-    });
-  };
-  /** A link in the running text, with a space before it unless one's there already (inserted Markdown loses its spaces). */
-  const insertLink = (link: string) => {
-    editor.current?.focus(
-      () => {
-        lexical.current?.update(
-          () => {
-            const selection = $getSelection();
-            if (!$isRangeSelection(selection) || !selection.isCollapsed()) return;
-            const { anchor } = selection;
-            const before =
-              anchor.type === "text" ? anchor.getNode().getTextContent()[anchor.offset - 1] : "";
-            if (before && !/\s/.test(before)) selection.insertText(" ");
-          },
-          { discrete: true }
-        );
-        editor.current?.insertMarkdown(protectWikiLinks(link));
-      },
-      { preventScroll: true }
-    );
-  };
+
+  /** Put whole blocks (from Markdown) in where the cursor is. */
+  const insertBlocks = (text: string) =>
+    editor?.chain().focus().insertContent(blocksOf(text)).run();
+
   return (
     <WikiCircleContext.Provider value={wiki}>
-      <TranscriptOn.Provider value={transcribing}>
-        <MDXEditor
-          ref={editor}
-          markdown={protectWikiLinks(markdown)}
-          onChange={(value) => onChange(normalizeWikiLinks(value))}
-          onError={onError}
-          suppressHtmlProcessing
-          className="wiki-editor"
-          contentEditableClassName="wiki-prose document-body"
-          placeholder="Start writing — type @ to link a page or document, # for a heading, - for a list…"
-          plugins={[
-            headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
-            listsPlugin(),
-            quotePlugin(),
-            thematicBreakPlugin(),
-            linkPlugin(),
-            linkDialogPlugin(),
-            tablePlugin(),
-            imagePlugin({
-              imageUploadHandler: uploadPhoto,
-              disableImageResize: true,
-              disableImageSettingsButton: true,
-            }),
-            codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
-            codeMirrorPlugin({
-              codeBlockLanguages: { "": "Plain text", js: "JavaScript", py: "Python", sh: "Shell" },
-              autoLoadLanguageSupport: false,
-            }),
-            markdownShortcutPlugin(),
-            directivesPlugin({
-              directiveDescriptors: [
-                detailsDirective,
-                calloutDirective,
-                pollDirective,
-                proposalDirective,
-                embedDirective,
-                markDirective,
-                textDirectives,
-                otherDirectives,
-              ],
-            }),
-            wikiLinkPlugin(),
-            editorBridgePlugin({ target: lexical }),
-            contextMenuPlugin(),
-            mentionPlugin({
-              circleId,
-              circleName,
-              pageId,
-              onCreatePage: (title) => createRef.current(title),
-              canCreate: !perspective,
-            }),
-            toolbarPlugin({
-              toolbarClassName: "wiki-toolbar",
-              toolbarContents: () => (
-                <>
-                  <UndoRedo />
-                  <Separator />
-                  <StyleSelect />
-                  <BoldItalicUnderlineToggles options={["Bold", "Italic"]} />
-                  <HighlightButton
-                    onApply={(markdown) => editor.current?.insertMarkdown(markdown)}
-                  />
-                  <Separator />
-                  <ListsToggle options={["bullet", "number", "check"]} />
-                  <Separator />
-                  <LinkMenu
-                    canUpload={documentsOn && !perspective}
-                    onPage={() => setEmbedding(true)}
-                    onUpload={() => setAddingDocument(true)}
-                  />
-                  <Separator />
-                  <InsertImage />
-                  <InsertTable />
-                  <ButtonWithTooltip
-                    title="Collapsible section"
-                    onClick={() =>
-                      insert(':::details{title="Details"}\nWhat this section hides.\n:::')
-                    }
-                  >
-                    <ChevronsUpDown className="h-5 w-5" />
-                  </ButtonWithTooltip>
-                  {perspective ? null : (
-                    <>
-                      <ButtonWithTooltip title="Add a poll" onClick={() => setPolling(true)}>
-                        <BarChart3 className="h-5 w-5" />
-                      </ButtonWithTooltip>
-                      <ButtonWithTooltip title="Add a proposal" onClick={() => setProposing(true)}>
-                        <Handshake className="h-5 w-5" />
-                      </ButtonWithTooltip>
-                      <Separator />
-                      <ButtonWithTooltip
-                        title="Who's present"
-                        onClick={() => meeting.current.onPresent?.()}
-                      >
-                        <Users className="h-5 w-5" />
-                      </ButtonWithTooltip>
-                      <TranscriptToggle onToggle={() => meeting.current.onTranscribe?.()} />
-                    </>
-                  )}
-                </>
-              ),
-            }),
-          ]}
+      <div className="wiki-editor">
+        {editor ? (
+          <Toolbar
+            editor={editor}
+            perspective={perspective}
+            canUpload={documentsOn && !perspective}
+            transcribing={transcribing}
+            onLink={() => setLinking(true)}
+            onPage={() => setEmbedding(true)}
+            onUpload={() => setAddingDocument(true)}
+            onImage={() => setImaging(true)}
+            onPoll={() => setPolling(true)}
+            onProposal={() => setProposing(true)}
+            onPresent={() => onPresent?.()}
+            onTranscribe={() => onTranscribe?.()}
+          />
+        ) : (
+          <div className="wiki-toolbar h-11" />
+        )}
+        <div ref={host} className="relative">
+          <EditorContent editor={editor} />
+          {editor ? <HighlightTools editor={editor} host={host} /> : null}
+        </div>
+        {editor ? <EditorContextMenu editor={editor} onLink={() => setLinking(true)} /> : null}
+      </div>
+      {editor && linking ? <LinkDialog editor={editor} onClose={() => setLinking(false)} /> : null}
+      {editor && imaging ? (
+        <ImageDialog editor={editor} upload={uploadPhoto} onClose={() => setImaging(false)} />
+      ) : null}
+      {editor && addingDocument ? (
+        <AddDocumentDialog
+          circle={{ id: circleId, name: circleName }}
+          onClose={() => setAddingDocument(false)}
+          onAdded={(link) => {
+            setAddingDocument(false);
+            insertLinkAtCursor(editor, link);
+          }}
         />
-        {addingDocument ? (
-          <AddDocumentDialog
-            circle={{ id: circleId, name: circleName }}
-            onClose={() => setAddingDocument(false)}
-            onAdded={(link) => {
-              setAddingDocument(false);
-              insertLink(link);
-            }}
-          />
-        ) : null}
-        {embedding ? (
-          <EmbedPageDialog
-            circle={{ id: circleId, name: circleName }}
-            pageId={pageId}
-            onClose={() => setEmbedding(false)}
-            onChosen={(markdown, kind) => {
-              setEmbedding(false);
-              if (kind === "link") insertLink(markdown);
-              else insert(markdown);
-            }}
-          />
-        ) : null}
-        {proposing ? (
-          <AddProposalDialog
-            circleId={circleId}
-            circleName={circleName}
-            page={{ id: pageId, title: pageTitle, meeting: meetingNotes }}
-            onClose={() => setProposing(false)}
-            onChosen={(id) => {
-              setProposing(false);
-              insert(`\n${proposalLine(id)}\n`);
-            }}
-          />
-        ) : null}
-        {polling ? (
-          <NewPollDialog
-            circle={{ id: circleId, name: circleName }}
-            pageSlug={pageSlug}
-            onClose={() => setPolling(false)}
-            onCreated={(poll) => {
-              setPolling(false);
-              insert(`\n::poll{id="${poll.id}"}\n`);
-            }}
-          />
-        ) : null}
-      </TranscriptOn.Provider>
+      ) : null}
+      {editor && embedding ? (
+        <EmbedPageDialog
+          circle={{ id: circleId, name: circleName }}
+          pageId={pageId}
+          onClose={() => setEmbedding(false)}
+          onChosen={(text, kind) => {
+            setEmbedding(false);
+            if (kind === "link") insertLinkAtCursor(editor, text);
+            else insertBlocks(text);
+          }}
+        />
+      ) : null}
+      {proposing ? (
+        <AddProposalDialog
+          circleId={circleId}
+          circleName={circleName}
+          page={{ id: pageId, title: pageTitle, meeting: meetingNotes }}
+          onClose={() => setProposing(false)}
+          onChosen={(id) => {
+            setProposing(false);
+            insertBlocks(proposalLine(id));
+          }}
+        />
+      ) : null}
+      {polling ? (
+        <NewPollDialog
+          circle={{ id: circleId, name: circleName }}
+          pageSlug={pageSlug}
+          onClose={() => setPolling(false)}
+          onCreated={(poll) => {
+            setPolling(false);
+            insertBlocks(`::poll{id="${poll.id}"}`);
+          }}
+        />
+      ) : null}
     </WikiCircleContext.Provider>
   );
 });
+
+function Toolbar({
+  editor,
+  perspective,
+  canUpload,
+  transcribing,
+  onLink,
+  onPage,
+  onUpload,
+  onImage,
+  onPoll,
+  onProposal,
+  onPresent,
+  onTranscribe,
+}: {
+  editor: Editor;
+  perspective: boolean;
+  canUpload: boolean;
+  transcribing: boolean;
+  onLink: () => void;
+  onPage: () => void;
+  onUpload: () => void;
+  onImage: () => void;
+  onPoll: () => void;
+  onProposal: () => void;
+  onPresent: () => void;
+  onTranscribe: () => void;
+}) {
+  // Re-render the toolbar's state (bold, the style…) as the cursor moves.
+  useEditorState({ editor, selector: ({ transactionNumber }) => transactionNumber });
+  return (
+    <div
+      className="wiki-toolbar flex flex-wrap items-center gap-0.5 px-2 py-1.5"
+      role="toolbar"
+      aria-label="Formatting"
+    >
+      <UndoRedo editor={editor} />
+      <ToolbarSeparator />
+      <StyleMenu editor={editor} />
+      <MarkButtons editor={editor} />
+      <HighlightMenu editor={editor} />
+      <ToolbarSeparator />
+      <ListButtons editor={editor} />
+      <ToolbarSeparator />
+      <LinkMenu canUpload={canUpload} onWeb={onLink} onPage={onPage} onUpload={onUpload} />
+      <ToolbarSeparator />
+      <ToolbarButton title="Insert image" onClick={onImage}>
+        <ImagePlus className="h-4 w-4" />
+      </ToolbarButton>
+      <InsertTableButton editor={editor} />
+      <ToolbarButton
+        title="Collapsible section"
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "details",
+              attrs: { title: "Details" },
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "What this section hides." }],
+                },
+              ],
+            })
+            .run()
+        }
+      >
+        <ChevronsUpDown className="h-4 w-4" />
+      </ToolbarButton>
+      {perspective ? null : (
+        <>
+          <ToolbarButton title="Add a poll" onClick={onPoll}>
+            <BarChart3 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton title="Add a proposal" onClick={onProposal}>
+            <Handshake className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarSeparator />
+          <ToolbarButton title="Who's present" onClick={onPresent}>
+            <Users className="h-4 w-4" />
+          </ToolbarButton>
+          <TranscriptToggle on={transcribing} onToggle={onTranscribe} />
+        </>
+      )}
+      <TableTools editor={editor} />
+    </div>
+  );
+}
