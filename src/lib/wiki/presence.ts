@@ -5,7 +5,8 @@ import type { Actor } from "@/lib/auth/actor";
  * Who's editing which wiki page right now. Editors check in every few
  * seconds while the editor is open (and say when they leave); anyone not
  * heard from in 30 seconds has gone. One small document
- * (`wiki/presence.json`), by page id.
+ * (`wiki/presence.json`), by page id — and by `file:<id>` for a spreadsheet
+ * open in CVC (`api/documents/[id]/live`).
  */
 
 /** Someone editing a page. */

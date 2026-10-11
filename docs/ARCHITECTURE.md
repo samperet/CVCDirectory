@@ -63,7 +63,7 @@ Main documents (see each store's `KEY`):
 | `directory/directory.json`, `directory/people.json` | The imported residents, and edits made in the app | `lib/directory` |
 | `circles/circles.json`, `circles/icons.json`, `circles/schedules/<id>.json` | Circles, seats, page modules; icons; duty rotations | `lib/circles`, `lib/schedules` |
 | `circles/eggs/<circleId>.json` + `circles/eggs/<circleId>/photos/<id>.jpg` | A duty schedule's daily counts (the eggs: per day, who and how), and the photos of the printed calendar sent to be read | `lib/schedules` (`egg-store.ts`) |
-| `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/trash.json`, `wiki/comments/<pageId>.json`, `wiki/perspectives/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki | `lib/wiki`, `lib/polls` |
+| `wiki/pages.json`, `wiki/history/<pageId>.json`, `wiki/trash.json`, `wiki/comments/<pageId>.json`, `wiki/perspectives/<pageId>.json`, `wiki/polls.json`, `wiki/presence.json`, `wiki-images/<circleId>.json` | The one wiki (`presence.json` also says who has a spreadsheet open to edit, as `file:<id>`) | `lib/wiki`, `lib/polls` |
 | `wiki/follows.json`, `wiki/mentions.json` | Who follows each page (and when its followers were last told, for the hourly limit); whom each page's mentions have told | `lib/wiki/follows.ts`, `mentions.ts` |
 | `documents/index.json`, `documents/text.json`, `documents/types.json` + binaries | Documents, their extracted text, per-circle types | `lib/documents` |
 | `proposals/proposals.json` | Proposals: what's put to which circle, about which documents (with their snapshots' details), and its consent at a meeting | `lib/proposals` |
@@ -212,12 +212,26 @@ Pages and uploaded files share one **Documents** section (`/documents`; `/wiki` 
 `GET /api/documents?pages=1` returns them, and proposals, as `items` (`kind` "page" | "file" |
 "proposal"; pages listed by `lib/wiki/listing.ts`, searched and sorted like files), shown by
 `DocumentsPanel` with `PageListingRow`, `DocumentRow` and `ProposalListingRow`, and its **New** menu
-(`documents/new-menu.tsx`) writes a page or meeting notes, makes a proposal, or uploads a file. Storage, links and history stay separate. **Turn into a page**
+(`documents/new-menu.tsx`) writes a page or meeting notes, makes a proposal, uploads a file, or makes a spreadsheet. Storage, links and history stay separate. **Turn into a page**
 (`POST /api/documents/<id>/page`) converts a file's text with `lib/documents/to-markdown.ts`;
 uploads do it straight away unless "as they are" is chosen (`BulkUpload`, `AddDocumentDialog`).
 The file is marked `madeInto: {pageId}` and, while that page exists, left out of the combined
 listing (`?pages=1`) and site search (`shownWithPage`); `GET /api/documents` without `pages=1`
 still returns it, so `[[doc:…]]` links to it resolve.
+
+**Spreadsheets** — an `.xlsx` or `.csv` file opens in CVC (`/documents/<id>/sheet`, from its row's
+**Open spreadsheet** or its title) in FortuneSheet (`components/documents/sheet-editor.tsx`, loaded
+in the browser only). Excel files are read and written by FortuneExcel (`@corbe30/fortune-excel`,
+on ExcelJS); it reads a number in an unstyled cell as text, so the editor reads the same file with
+ExcelJS and puts those back (`restoreNumbers` in `lib/documents/sheets.ts`) — or saving would
+write them as text, which Excel's sums skip. CSV is read and written by `sheets.ts` itself
+(quoting kept). **Save** is an ordinary upload of a new version (`sendFile` with `replaces`, then
+`POST /api/documents` with `baseVersion`: 409 if someone saved a version since), so history,
+proposals' snapshots, consent and exports treat it like any file. While it's open to edit it
+checks in every five seconds (`POST /api/documents/<id>/live`, presence in `wiki/presence.json`
+as `file:<id>`): it shows who else is editing and says at once when a newer version is saved.
+**New → Spreadsheet** (`new-sheet-dialog.tsx`) uploads a blank workbook made with ExcelJS and
+opens it. Edit rights are the circle's files' (`canManage`); everyone else can look and download.
 
 ## Notifications
 

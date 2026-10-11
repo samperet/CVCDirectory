@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, Download, MessagesSquare, Search, Tags, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { BulkUpload } from "@/components/documents/bulk-upload";
+import { NewSheetDialog } from "@/components/documents/new-sheet-dialog";
 import { DocumentListing } from "@/lib/documents/types";
 import type { ForumSearchHit } from "@/lib/forum/search";
 import { timeAgo } from "@/lib/time";
@@ -149,6 +150,7 @@ export function DocumentsPanel({
   const [sort, setSort] = useState("");
   const [circle, setCircle] = useState(initialCircle);
   const [writing, setWriting] = useState<"page" | "meeting" | null>(null);
+  const [sheeting, setSheeting] = useState(false);
   const [proposing, setProposing] = useState(false);
   const proposeTo =
     useQuery({ ...proposalCirclesQuery(), enabled: proposing }).data?.canProposeTo ?? [];
@@ -373,8 +375,16 @@ export function DocumentsPanel({
           onPropose={() => setProposing(true)}
           onUpload={() => (circleId ? setAdding(true) : setBulk(true))}
           onLink={() => setLinking(true)}
+          onSpreadsheet={() => setSheeting(true)}
         />
       </div>
+      {sheeting ? (
+        <NewSheetDialog
+          circles={circleId ? [{ id: circleId, name: circleName ?? "this circle" }] : uploadCircles}
+          initialCircleId={circleId ?? (circle || undefined)}
+          onClose={() => setSheeting(false)}
+        />
+      ) : null}
 
       {writing ? (
         <WritePageDialog

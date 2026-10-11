@@ -352,7 +352,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   files**, **Proposals** (`/proposals` opens it), or one type of file). The one **New** button offers
   **Write a page** (a title and its circle, then the editor), **Meeting notes** (a page for one of a
   circle's meetings: its day, then the editor; named "Land Care Circle meeting, Oct 8, 2026" until
-  given another title), **A proposal**, **Upload a file**, or **Add a link**. A new page can
+  given another title), **A proposal**, **Upload a file**, **Spreadsheet** (a blank one, opened to
+  fill in), or **Add a link**. A new page can
   **Start from** a template (`lib/wiki/templates.ts`): **Meeting agenda**, **Meeting notes** (what
   meeting notes start from), **Policy**, **How-to**, or any page whose circle ticked **Use as a
   template** in its **Settings** (`page.template`) — a copy of its text with `{{date}}` and
@@ -386,6 +387,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   noted or starred while viewing the app as someone (`GET /api/me/documents`,
   `PUT /api/me/documents/starred`, `POST /api/me/documents/recent`). The lists go when someone
   leaves the directory.
+- **Spreadsheets** – an Excel (`.xlsx`) or CSV file opens in CVC: **Open spreadsheet** among its
+  row's actions, or its title (`/documents/<id>/sheet`). It's a spreadsheet editor (FortuneSheet):
+  formulas, formatting, several sheets, a phone too. **Save** makes a new version of the same file
+  — still an Excel or CSV file anyone can download, with its history, proposals and consent as
+  for any file — unless someone saved a newer one meanwhile: then it says who, and offers to load
+  theirs (your changes there aren't saved; `POST /api/documents` with `baseVersion`, 409). While
+  you have one open to edit, it shows who else does, and says as soon as anyone saves. **New →
+  Spreadsheet** makes a blank one in one of your circles and opens it. Those who can change a
+  circle's files can edit its spreadsheets; everyone else can look and download.
 - **Turn into a page** – a file with text (Word, PDF, slides, text) has a book icon among its
   actions, for anyone who can start pages in its circle: its text becomes a page with the file's
   title, kept by the file's circle and opening with a link back to the file. The file is kept,

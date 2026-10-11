@@ -12,10 +12,12 @@ import {
   Hourglass,
   Link2,
   Pencil,
+  Sheet,
   Trash2,
   Upload,
 } from "lucide-react";
 import { LINK_LABELS, classifyLink } from "@/lib/documents/links";
+import { spreadsheetKind } from "@/lib/documents/sheets";
 import { LinkFacts, useLinkCheck } from "@/components/documents/link-dialog";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
@@ -55,8 +57,9 @@ import {
 /**
  * One document in the list: its details, versions, consent record, and what
  * the reader may change. A link opens where it lives; a Google one can be
- * previewed in place, and its link changed (a new version). Its **Star**
- * keeps it in your starred list; opening it notes it as recent.
+ * previewed in place, and its link changed (a new version); an Excel or CSV
+ * file opens in CVC's spreadsheet editor (`/documents/<id>/sheet`). Its
+ * **Star** keeps it in your starred list; opening it notes it as recent.
  */
 
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
@@ -181,6 +184,9 @@ export function DocumentRow({
   } | null>(null);
   const version = currentVersion(doc);
   const link = version.link ? classifyLink(version.link.url) : null;
+  /** An Excel or CSV file opens in CVC's spreadsheet editor. */
+  const sheetHref =
+    !version.link && spreadsheetKind(version.fileName) ? `/documents/${doc.id}/sheet` : null;
   const [previewing, setPreviewing] = useState(false);
   const [newLink, setNewLink] = useState<string | null>(null);
   const newLinkCheck = useLinkCheck(newLink ?? "");
@@ -381,6 +387,17 @@ export function DocumentRow({
       )}
     >
       <StarButton doc={{ kind: "file", id: doc.id }} title={doc.title} compact className={action} />
+      {sheetHref ? (
+        <Link
+          href={sheetHref}
+          className={action}
+          aria-label={`Open ${doc.title} as a spreadsheet`}
+          title="Open spreadsheet"
+          data-open-sheet
+        >
+          <Sheet className="h-4 w-4" />
+        </Link>
+      ) : null}
       {link?.previewUrl ? (
         <button
           type="button"
@@ -605,15 +622,24 @@ export function DocumentRow({
             />
           }
         />
-        <a
-          href={version.link?.url ?? fileUrl(doc)}
-          target={version.viewable ? "_blank" : undefined}
-          rel="noopener noreferrer"
-          onClick={() => noteOpened({ kind: "file", id: doc.id })}
-          className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
-        >
-          <Highlighted text={doc.title} terms={terms} />
-        </a>
+        {sheetHref ? (
+          <Link
+            href={sheetHref}
+            className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            <Highlighted text={doc.title} terms={terms} />
+          </Link>
+        ) : (
+          <a
+            href={version.link?.url ?? fileUrl(doc)}
+            target={version.viewable ? "_blank" : undefined}
+            rel="noopener noreferrer"
+            onClick={() => noteOpened({ kind: "file", id: doc.id })}
+            className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            <Highlighted text={doc.title} terms={terms} />
+          </a>
+        )}
         {compact ? actions : null}
       </div>
       {compact ? null : (

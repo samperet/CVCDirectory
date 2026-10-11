@@ -53,6 +53,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/proposals/` | Proposals put to circles, about documents (and pages' alternative versions), consented at meetings; `snapshots.ts` keeps each document (and version) as it was attached; `mirror.ts` keeps pages' and files' stage in step; `giveConsent` in `http.ts` makes a chosen version the page, then records consent |
 | `src/lib/chat/`, `src/lib/presence/` | Private messages between two residents (a conversation document, and each person's list with what's unread); who's online (each open tab checks in every minute) |
 | `src/lib/me/` | Each account's starred and recently opened documents (pages, files, proposals by id); `StarButton`, `useNoteOpened` and the menus' lists are in `components/documents/my-documents.tsx` |
+| `src/lib/documents/sheets.ts`, `components/documents/sheet-editor.tsx` | Spreadsheets opened in CVC (FortuneSheet): `.xlsx` through FortuneExcel (numbers put back with `restoreNumbers`), `.csv` read and written here; Save uploads a new version against the one opened (`baseVersion`) |
 | `src/lib/finances/` | A circle's Finances module: expenses in whole cents (`parseMoney`/`formatMoney` in `shared.ts`), budgets, receipts, the CSV export; who can see it is the module's setting (`access.ts`) |
 
 ## Conventions that matter

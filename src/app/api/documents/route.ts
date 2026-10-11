@@ -13,7 +13,13 @@ import {
   listDocuments,
   searchDocuments,
 } from "@/lib/documents/store";
-import { DocumentRecord, consentState, documentDate, shownWithPage } from "@/lib/documents/types";
+import {
+  DocumentRecord,
+  consentState,
+  currentVersion,
+  documentDate,
+  shownWithPage,
+} from "@/lib/documents/types";
 import { readTypeMap, typeLabelFor, typesFor } from "@/lib/documents/type-store";
 import { chunkCount, chunkKey, readUploadToken } from "@/lib/documents/upload-token";
 import { announceDocument } from "@/lib/documents/announce";
@@ -227,9 +233,15 @@ export async function GET(request: NextRequest) {
 const finishSchema = z.object({
   token: z.string().min(10).max(4000),
   details: documentDetailsSchema.optional(),
+  /** A new version made from this one (a spreadsheet saved in CVC): refused if another came since. */
+  baseVersion: z.number().int().positive().optional(),
 });
 
-/** Finish an upload: reassemble the pieces, check the file, read its text, and save it (as a new document or version). */
+/**
+ * Finish an upload: reassemble the pieces, check the file, read its text,
+ * and save it (as a new document or version — with `baseVersion`, only if
+ * that's still the latest).
+ */
 export async function POST(request: NextRequest) {
   const context = await circleContext();
   if ("error" in context) return context.error;
@@ -280,6 +292,14 @@ export async function POST(request: NextRequest) {
     if (!existing || !canManageDocument(user, directory, existing)) {
       await cleanUp();
       return problem("You can't replace this document", 403);
+    }
+    const latest = currentVersion(existing);
+    if (parsed.data.baseVersion !== undefined && latest.number !== parsed.data.baseVersion) {
+      await cleanUp();
+      return problem(
+        `${latest.uploadedBy.name} saved a new version meanwhile — reload to see it`,
+        409
+      );
     }
     result = await addVersion(grant.replaces, file, uploader);
   } else {
