@@ -80,6 +80,7 @@ Main documents (see each store's `KEY`):
 | `groups/<circleId>/index.json`, `groups/<circleId>/threads/<id>.json`, `groups/<circleId>/polls/<id>.json` | Circle forums: conversations, their messages, polls | `lib/groups` |
 | `presence/online.json` | Who's online: each person's last check-in (gone three minutes after it) | `lib/presence` |
 | `chat/conversations/<a>-<b>.json`, `chat/people/<personId>.json` | Private messages between two people (their last 500); each person's list of conversations and what they've read | `lib/chat` |
+| `me/documents/<userId>.json` | Each account's starred documents (up to 50) and the last 20 opened: pages, files and proposals by id, resolved when read | `lib/me` |
 
 ## Who's who
 

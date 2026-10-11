@@ -371,6 +371,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   long a request may last (`POST /api/documents/export` with `{items}` or `{all, circle?}`, then
   `GET /api/documents/export/<id>`; `lib/documents/export.ts`, `export-markdown.ts`). Up to 2 GB
   of files at a time; an export is kept a day, for whoever made it.
+- **Starred and recent** – a **Star** on a page (beside History), a proposal's page, and a file's
+  row of actions keeps it in your **Starred** list; pages, proposals and files you open go into
+  your **Recent** list. The Documents menu (and the phone menu, under Documents) shows five of
+  each, newest first (Recent leaves out what's starred), and `/documents/mine` shows them all, with
+  stars to change. Each account has its own (`me/documents/<userId>.json`, `lib/me`; up to 50
+  starred and the last 20 opened); what's since deleted or in the trash is left out, and nothing is
+  noted or starred while viewing the app as someone (`GET /api/me/documents`,
+  `PUT /api/me/documents/starred`, `POST /api/me/documents/recent`). The lists go when someone
+  leaves the directory.
 - **Turn into a page** – a file with text (Word, PDF, slides, text) has a book icon among its
   actions, for anyone who can start pages in its circle: its text becomes a page with the file's
   title, kept by the file's circle and opening with a link back to the file. The file is kept,

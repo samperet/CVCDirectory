@@ -52,6 +52,7 @@ import { Pill } from "@/components/ui/pill";
 import { Loading, NotFoundCard } from "@/components/ui/status";
 import { useConfirm } from "@/components/ui/confirm";
 import { Select } from "@/components/ui/select";
+import { StarButton, useNoteOpened } from "@/components/documents/my-documents";
 
 const NO_THREADS: never[] = [];
 const NO_IDS = new Set<string>();
@@ -132,8 +133,8 @@ function useActiveHeading(ids: string[], enabled: boolean) {
 /**
  * One wiki page: read it (with "On this page" for longer pages, the section
  * you're in shown in bold), select words to leave a comment on them, look
- * back through its versions, and — for its editors — edit, restore a
- * version, or delete it.
+ * back through its versions, star it (opening it notes it as recent), and —
+ * for its editors — edit, restore a version, or delete it.
  */
 export function WikiPageClient({ slug }: { slug: string }) {
   const confirm = useConfirm();
@@ -159,6 +160,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
   const article = useRef<HTMLDivElement>(null);
 
   const page = data?.page;
+  useNoteOpened(page ? { kind: "page", id: page.id } : null);
   const wikiOn = true;
   const canEdit = !!data?.canEdit;
   const canManage = !!data?.canManage;
@@ -506,6 +508,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         {back}
         <div className="flex flex-wrap items-center gap-2">
+          <StarButton doc={{ kind: "page", id: page.id }} title={page.title} />
           {history.length ? (
             <Button
               size="sm"

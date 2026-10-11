@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, ChevronDown, ChevronRight, Trash2, Upload } from "lucide-react";
+import { MyDocumentsLinks } from "@/components/documents/my-documents";
 import { useSession } from "@/lib/auth/client";
 import { useCircles } from "@/components/directory/use-directory";
 import { CircleIcon } from "@/components/circles/circle-icon";
@@ -160,7 +161,7 @@ const itemClass =
   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-foreground outline-none hover:bg-accent focus-visible:bg-accent";
 const groupLabel = "px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted";
 
-/** The Documents menu: all of them, start one (if you can), or the trash. */
+/** The Documents menu: all of them, your starred and recent ones, start one (if you can), or the trash. */
 export function DocumentsMenuItems({ close }: { close: () => void }) {
   const canWrite = (useWikiPages().data?.keepers.length ?? 0) > 0;
   const canUpload = useUploadCircles().uploadCircles.length > 0;
@@ -169,6 +170,7 @@ export function DocumentsMenuItems({ close }: { close: () => void }) {
       <Link href="/documents" role="menuitem" className={itemClass} onClick={close}>
         All documents
       </Link>
+      <MyDocumentsLinks menu linkClass={itemClass} labelClass={groupLabel} onChoose={close} />
       {canWrite || canUpload ? <div className="my-1 h-px bg-border" role="separator" /> : null}
       {canWrite ? (
         <Link href="/documents?new=" role="menuitem" className={itemClass} onClick={close}>
@@ -354,13 +356,16 @@ export function CirclesMenuItems({ close }: { close: () => void }) {
 
 const subLink =
   "flex items-center gap-2 rounded-lg py-1.5 pl-11 pr-3 text-sm text-foreground/80 hover:bg-accent hover:text-foreground";
+const mobileGroupLabel =
+  "pb-0.5 pl-11 pt-2 text-xs font-semibold uppercase tracking-wide text-muted";
 
-/** In the phone menu, under Documents: start one (if you can), or the trash. */
+/** In the phone menu, under Documents: your starred and recent ones, start one (if you can), or the trash. */
 export function MobileDocumentsLinks({ onChoose }: { onChoose: () => void }) {
   const canWrite = (useWikiPages().data?.keepers.length ?? 0) > 0;
   const canUpload = useUploadCircles().uploadCircles.length > 0;
   return (
     <>
+      <MyDocumentsLinks linkClass={subLink} labelClass={mobileGroupLabel} onChoose={onChoose} />
       {canWrite ? (
         <Link href="/documents?new=" className={subLink} onClick={onChoose}>
           <BookOpen className="h-4 w-4 text-primary" aria-hidden /> New document

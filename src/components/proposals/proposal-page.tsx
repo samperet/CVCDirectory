@@ -14,12 +14,13 @@ import { useWikiPages } from "@/components/wiki/wiki-client";
 import { proposalQuery } from "./data";
 import { ProposalConsentRecord, ProposalStatusPill, dayOf } from "./proposal-bits";
 import { ProposalActions, ProposalDocuments } from "./proposal-card";
+import { StarButton, useNoteOpened } from "@/components/documents/my-documents";
 
 /**
  * A proposal's own page (`/proposals/<id>`): its circle, title, where it
  * stands, the proposal itself, the documents it's about, the record of
  * consent (the meeting, who was there, who recorded it), the pages that
- * hold it, and what you may do with it.
+ * hold it, and what you may do with it — and a **Star**, to find it again.
  */
 export function ProposalPage({ id }: { id: string }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function ProposalPage({ id }: { id: string }) {
   const pages = useWikiPages().data?.pages;
   const { data, isLoading, error } = useQuery(proposalQuery(id));
   const proposal = data?.proposal;
+  useNoteOpened(proposal ? { kind: "proposal", id: proposal.id } : null);
   if (isLoading) return <Loading />;
   if (error || !proposal)
     return (
@@ -39,7 +41,10 @@ export function ProposalPage({ id }: { id: string }) {
   const body = proposal.body.replace(PROPOSAL_DIRECTIVE, "").trim();
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <BackLink href={`/circles/${proposal.circleId}`} label={proposal.circleName} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <BackLink href={`/circles/${proposal.circleId}`} label={proposal.circleName} />
+        <StarButton doc={{ kind: "proposal", id: proposal.id }} title={proposal.title} />
+      </div>
       <article className="document-sheet flex flex-col" data-proposal-page>
         <header className="flex flex-col items-center gap-3 border-b border-border/70 px-6 pb-7 pt-9 text-center sm:px-14">
           {circle ? (

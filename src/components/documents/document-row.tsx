@@ -39,6 +39,7 @@ import { DetailsFields, type DetailsForm } from "@/components/documents/details-
 import { shortDate } from "@/lib/time";
 import { ConsentRecord, consentSummary } from "@/components/circles/consent-record";
 import { RowChoice } from "@/components/documents/export";
+import { StarButton, useOpenNoter } from "@/components/documents/my-documents";
 import { ConsentDialog } from "@/components/proposals/consent-dialog";
 import { ProposalFormDialog } from "@/components/proposals/proposal-form";
 import {
@@ -54,7 +55,8 @@ import {
 /**
  * One document in the list: its details, versions, consent record, and what
  * the reader may change. A link opens where it lives; a Google one can be
- * previewed in place, and its link changed (a new version).
+ * previewed in place, and its link changed (a new version). Its **Star**
+ * keeps it in your starred list; opening it notes it as recent.
  */
 
 const fileUrl = (doc: DocumentListing, version?: number, download = false) =>
@@ -161,6 +163,7 @@ export function DocumentRow({
 }) {
   const confirm = useConfirm();
   const router = useRouter();
+  const noteOpened = useOpenNoter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const replaceInput = useRef<HTMLInputElement>(null);
@@ -377,6 +380,7 @@ export function DocumentRow({
           ON_HOVER
       )}
     >
+      <StarButton doc={{ kind: "file", id: doc.id }} title={doc.title} compact className={action} />
       {link?.previewUrl ? (
         <button
           type="button"
@@ -605,6 +609,7 @@ export function DocumentRow({
           href={version.link?.url ?? fileUrl(doc)}
           target={version.viewable ? "_blank" : undefined}
           rel="noopener noreferrer"
+          onClick={() => noteOpened({ kind: "file", id: doc.id })}
           className="min-w-0 break-words font-medium text-foreground underline-offset-4 hover:underline"
         >
           <Highlighted text={doc.title} terms={terms} />
