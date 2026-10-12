@@ -9,6 +9,7 @@ import Image from "@tiptap/extension-image";
 import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Placeholder } from "@tiptap/extensions";
+import { FindReplace } from "@/components/wiki/editor-find";
 import { highlightColor } from "@/lib/wiki/colors";
 import { PersonMention, WikiLink } from "@/components/wiki/wiki-link-node";
 import {
@@ -163,6 +164,8 @@ export interface WikiSchemaOptions {
   onLinkShortcut?: () => void;
   /** Photos pasted or dropped in: upload each and give its address. */
   uploadImage?: (file: File) => Promise<string>;
+  /** Ctrl/⌘+F (find) or Ctrl+H (find and replace) in the text: open the find bar. */
+  onFind?: (replace: boolean) => void;
 }
 
 /** Photos pasted or dropped into the text are uploaded, then put where they landed. */
@@ -230,6 +233,7 @@ export function wikiExtensions({
   placeholder,
   onLinkShortcut,
   uploadImage,
+  onFind,
 }: WikiSchemaOptions): AnyExtension[] {
   return [
     StarterKit.configure({
@@ -260,6 +264,8 @@ export function wikiExtensions({
     Poll,
     Proposal,
     Embed,
+    // Find and replace (`editor-find.ts`; the bar is `find-bar.tsx`).
+    FindReplace(onFind),
     ...(onLinkShortcut ? [LinkShortcut(onLinkShortcut)] : []),
     ...(uploadImage ? [ImageDrop(uploadImage)] : []),
   ];

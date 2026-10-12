@@ -642,6 +642,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **Right-click menu** – in the editor, right-clicking offers cut, copy, paste, bold, italic,
   strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link, and
   clear formatting. Shift + right-click opens the browser's own menu, for spelling suggestions.
+- **Find and replace** – in the editor (pages, alternative versions, Custom Text modules), the
+  toolbar's magnifier, Ctrl/⌘+F, or Ctrl+H (⌘⇧H) opens a find bar under the toolbar. Every match
+  is marked as you type, the current one more strongly, with "2 of 5", ↑ ↓ (or Enter and
+  Shift+Enter) to move between them, and **Match case**; words in bold or a link are found like
+  any others. **Replace…** adds **Replace with**: **Replace** changes the current match (keeping
+  its formatting) and moves to the next, **Replace all** changes every one in a single step that
+  one Undo takes back. Words selected in the text are what it looks for; Esc closes it, leaving
+  the cursor on the match you were at (`components/wiki/editor-find.ts`, `find-bar.tsx`;
+  `lib/wiki/find.ts`). Spreadsheets have their own search, in their toolbar.
 - **Wiki map** (the **Map** button at the top of `/wiki`, for everyone — each sees only the pages they can) –
   **Islands**: each parent circle is a soft island (in its own colour) holding its pages (documents
   aren't shown). Links arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the

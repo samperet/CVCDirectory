@@ -154,7 +154,8 @@ The visual editor is TipTap (`rich-editor.tsx`; the schema in `editor-schema.ts`
 views in `editor-blocks.tsx`, the toolbar in `editor-toolbar.tsx`, `[[link]]` tags in
 `wiki-link-node.tsx`, the @ and / menus in `mention-menu.tsx` and `slash-menu.tsx` (sharing
 `suggestion-popup.ts`), the right-click menu in
-`editor-context-menu.tsx`); pages stay Markdown, converted both ways by `lib/wiki/prose.ts`
+`editor-context-menu.tsx`, find and replace in `editor-find.ts` — a plugin whose matches are
+decorations, recomputed as the text changes — and `find-bar.tsx`); pages stay Markdown, converted both ways by `lib/wiki/prose.ts`
 (Markdown → document → Markdown equals the Markdown writer's own round trip — `prose.test.ts`),
 and anything it doesn't model is carried through in `rawBlock`/`rawInline` nodes. Others' saves
 are merged in with `replace()`, which keeps the cursor in its paragraph (`editor-cursor.ts`); the

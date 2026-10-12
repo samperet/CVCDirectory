@@ -446,3 +446,12 @@ mark.wiki-mark {
     align-items: center;
   }
 }
+/* Find and replace (`components/wiki/find-bar.tsx`): every match, and the current one more strongly. */
+.wiki-editor .find-match {
+  background: rgb(250 204 21 / 0.35);
+  border-radius: 2px;
+}
+.wiki-editor .find-match-current {
+  background: rgb(249 115 22 / 0.45);
+  box-shadow: 0 0 0 1px rgb(194 65 12 / 0.6);
+}

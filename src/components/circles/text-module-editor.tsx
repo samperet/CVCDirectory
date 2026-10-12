@@ -2,11 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
-import { Link2 } from "lucide-react";
+import { Link2, TextSearch } from "lucide-react";
 import { markdownToProse, proseToMarkdown, type ProseNode } from "@/lib/wiki/prose";
 import { wikiExtensions } from "@/components/wiki/editor-schema";
 import { EditorContextMenu } from "@/components/wiki/editor-context-menu";
 import { SlashMenu, slashItems } from "@/components/wiki/slash-menu";
+import { FindBar } from "@/components/wiki/find-bar";
 import {
   DividerButton,
   HighlightMenu,
@@ -45,6 +46,13 @@ export function TextModuleEditor({
   // Only a real change is reported (not a click that changes nothing).
   const said = useRef<string | null>(null);
   if (said.current === null) said.current = proseToMarkdown(initial).trimEnd();
+  // The find bar: whether it shows Replace, and a count of times it was asked for (to focus it).
+  const [finding, setFinding] = useState<{ replacing: boolean; opened: number } | null>(null);
+  const openFind = (replacing: boolean) =>
+    setFinding((was) => ({
+      replacing: replacing || !!was?.replacing,
+      opened: (was?.opened ?? 0) + 1,
+    }));
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -52,6 +60,7 @@ export function TextModuleEditor({
         placeholder:
           "Write what this circle wants everyone to see — type / for headings, lists and more…",
         onLinkShortcut: () => setLinking(true),
+        onFind: openFind,
       }),
       // Headings, lists, callouts, tables… (no photos or pages in a module).
       SlashMenu(() => slashItems({})),
@@ -75,6 +84,13 @@ export function TextModuleEditor({
           aria-label="Formatting"
         >
           <UndoRedo editor={editor} />
+          <ToolbarButton
+            title="Find and replace (Ctrl+F)"
+            active={!!finding}
+            onClick={() => (finding ? setFinding(null) : openFind(false))}
+          >
+            <TextSearch className="h-4 w-4" />
+          </ToolbarButton>
           <ToolbarSeparator />
           <StyleMenu editor={editor} />
           <MarkButtons editor={editor} />
@@ -88,6 +104,14 @@ export function TextModuleEditor({
           <InsertTableButton editor={editor} />
           <DividerButton editor={editor} />
           <TableTools editor={editor} />
+          {finding ? (
+            <FindBar
+              editor={editor}
+              replacing={finding.replacing}
+              opened={finding.opened}
+              onClose={() => setFinding(null)}
+            />
+          ) : null}
         </div>
       ) : (
         <div className="wiki-toolbar h-11" />

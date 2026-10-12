@@ -20,6 +20,7 @@ import {
   LayoutList,
   Link2,
   Mic,
+  TextSearch,
   Users,
 } from "lucide-react";
 import { markdownToProse, proseToMarkdown, type ProseNode } from "@/lib/wiki/prose";
@@ -38,6 +39,7 @@ import { WikiMention, type MentionParams } from "@/components/wiki/mention-menu"
 import { SlashMenu, slashItems, type SlashItem } from "@/components/wiki/slash-menu";
 import { captureCursor, restoreCursor } from "@/components/wiki/editor-cursor";
 import { EditorContextMenu } from "@/components/wiki/editor-context-menu";
+import { FindBar } from "@/components/wiki/find-bar";
 import {
   HighlightMenu,
   HighlightTools,
@@ -142,7 +144,8 @@ function TranscriptToggle({ on, onToggle }: { on: boolean; onToggle: () => void 
  * The wiki's visual editor (TipTap): a simple formatting toolbar (with a
  * highlighter), a right-click menu (`editor-context-menu.tsx`), lists,
  * tables, photos, collapsible sections, polls, and Markdown shortcuts as you
- * type (`#`, `-`, `**`). Typing / offers what to put in (`slash-menu.tsx`);
+ * type (`#`, `-`, `**`), and find and replace (`find-bar.tsx`, Ctrl/⌘+F).
+ * Typing / offers what to put in (`slash-menu.tsx`);
  * typing @ links a page or a document — or a new page. The page stays Markdown (`lib/wiki/prose.ts` converts both ways);
  * what the editor can't show is kept as written, and if a page can't be
  * opened here at all, `onError` sends it to the plain-text editor.
@@ -290,6 +293,14 @@ export const RichEditor = forwardRef<
   const reportRef = useRef(report);
   reportRef.current = report;
 
+  // The find bar: whether it shows Replace, and a count of times it was asked for (to focus it).
+  const [finding, setFinding] = useState<{ replacing: boolean; opened: number } | null>(null);
+  const openFind = (replacing: boolean) =>
+    setFinding((was) => ({
+      replacing: replacing || !!was?.replacing,
+      opened: (was?.opened ?? 0) + 1,
+    }));
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -298,6 +309,7 @@ export const RichEditor = forwardRef<
           "Start writing — type / for headings, lists, tables and more, or @ to link a page…",
         onLinkShortcut: () => setLinking(true),
         uploadImage: (file) => upload.current(file),
+        onFind: openFind,
       }),
       WikiMention(() => mention.current),
       SlashMenu(() => slash.current),
@@ -356,7 +368,18 @@ export const RichEditor = forwardRef<
             onProposal={() => setProposing(true)}
             onPresent={() => onPresent?.()}
             onTranscribe={() => onTranscribe?.()}
-          />
+            finding={!!finding}
+            onFind={() => (finding ? setFinding(null) : openFind(false))}
+          >
+            {finding ? (
+              <FindBar
+                editor={editor}
+                replacing={finding.replacing}
+                opened={finding.opened}
+                onClose={() => setFinding(null)}
+              />
+            ) : null}
+          </Toolbar>
         ) : (
           <div className="wiki-toolbar h-11" />
         )}
@@ -432,6 +455,9 @@ function Toolbar({
   onProposal,
   onPresent,
   onTranscribe,
+  finding,
+  onFind,
+  children,
 }: {
   editor: Editor;
   perspective: boolean;
@@ -445,6 +471,10 @@ function Toolbar({
   onProposal: () => void;
   onPresent: () => void;
   onTranscribe: () => void;
+  finding: boolean;
+  onFind: () => void;
+  /** The find bar, a row of its own under the buttons. */
+  children?: React.ReactNode;
 }) {
   // Re-render the toolbar's state (bold, the style…) as the cursor moves.
   useEditorState({ editor, selector: ({ transactionNumber }) => transactionNumber });
@@ -455,6 +485,9 @@ function Toolbar({
       aria-label="Formatting"
     >
       <UndoRedo editor={editor} />
+      <ToolbarButton title="Find and replace (Ctrl+F)" active={finding} onClick={onFind}>
+        <TextSearch className="h-4 w-4" />
+      </ToolbarButton>
       <ToolbarSeparator />
       <StyleMenu editor={editor} />
       <MarkButtons editor={editor} />
@@ -505,6 +538,7 @@ function Toolbar({
         </>
       )}
       <TableTools editor={editor} />
+      {children}
     </div>
   );
 }
