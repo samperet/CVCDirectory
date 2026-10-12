@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Children, isValidElement, useContext, useMemo, type ReactNode } from "react";
+import {
+  Children,
+  createContext,
+  isValidElement,
+  useContext,
+  useMemo,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import { remarkWikiDirectives } from "@/lib/wiki/directives";
+import { remarkTodoIndex } from "@/lib/wiki/todos";
 import { headingSlug } from "@/lib/wiki/sections";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import {
@@ -102,7 +111,19 @@ const components: Components = {
   h2: heading("h3", "mt-5 text-lg font-semibold text-foreground first:mt-0"),
   h3: heading("h4", "mt-4 font-semibold text-foreground first:mt-0"),
   p: ({ node: _node, ...props }) => <p className="leading-relaxed" {...props} />,
-  ul: ({ node: _node, ...props }) => <ul className="list-disc space-y-1 pl-6" {...props} />,
+  // A to-do list (checklist) has boxes, not bullets.
+  ul: ({ node: _node, className, ...props }) => (
+    <ul
+      className={cn(
+        "space-y-1",
+        className?.includes("contains-task-list") ? "pl-1 [li>&]:pl-6" : "list-disc pl-6",
+        className
+      )}
+      {...props}
+    />
+  ),
+  li: ({ node: _node, ...props }) => <ListItem {...props} />,
+  input: ({ node: _node, ...props }) => <TodoBox {...props} />,
   ol: ({ node: _node, ...props }) => <ol className="list-decimal space-y-1 pl-6" {...props} />,
   blockquote: ({ node: _node, ...props }) => <blockquote className="wiki-quote" {...props} />,
   code: ({ node: _node, className, ...props }) => (
@@ -204,6 +225,45 @@ const components: Components = {
     ),
 };
 
+/**
+ * Ticking a page's own to-do items while reading (its editors): given the
+ * item's number in the page (`remarkTodoIndex`). Pages embedded in it, and
+ * anyone who can't edit, get null — their boxes can't be ticked.
+ */
+const TodoContext = createContext<((index: number, checked: boolean) => void) | null>(null);
+
+/** A list item; a to-do item ticks off here (the change comes up from its box). */
+function ListItem({ className, ...props }: React.LiHTMLAttributes<HTMLLIElement>) {
+  const toggle = useContext(TodoContext);
+  const index = (props as Record<string, unknown>)["data-todo"];
+  if (index === undefined) return <li className={className} {...props} />;
+  const onChange = (event: ChangeEvent<HTMLLIElement>) => {
+    const box = event.target as unknown as HTMLInputElement;
+    // Only this item's own box (not one in a list inside it).
+    if (box.type !== "checkbox" || box.closest("li") !== event.currentTarget) return;
+    event.stopPropagation();
+    toggle?.(Number(index), box.checked);
+  };
+  return <li className={cn("list-none", className)} onChange={onChange} {...props} />;
+}
+
+/** A to-do item's box: ticked by the page's editors while reading (`TodoContext`). */
+function TodoBox(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const toggle = useContext(TodoContext);
+  if (props.type !== "checkbox") return <input {...props} />;
+  return (
+    <input
+      type="checkbox"
+      checked={!!props.checked}
+      disabled={!toggle}
+      // The list item takes the change (it knows which item this is).
+      onChange={() => undefined}
+      aria-label={props.checked ? "Done" : "To do"}
+      className="mr-2 h-4 w-4 translate-y-[2px] accent-primary disabled:cursor-default enabled:cursor-pointer"
+    />
+  );
+}
+
 /** What a page's links need: the circles, the wiki's pages, and (if it links any) the documents. */
 function useLinkData(
   source: string,
@@ -226,11 +286,14 @@ export function WikiMarkdown({
   circleId,
   pages,
   pageId,
+  onToggleTodo,
 }: {
   source: string;
   circleId: string;
   pages: WikiPageSummary[] | undefined;
   pageId?: string;
+  /** Tick a to-do item off (or not) while reading: for the page's editors. */
+  onToggleTodo?: (index: number, checked: boolean) => void;
 }) {
   const linkData = useLinkData(source, circleId, pages, pageId);
   const circleName = linkData.circles?.find((circle) => circle.id === circleId)?.name;
@@ -246,14 +309,16 @@ export function WikiMarkdown({
   return (
     <WikiCircleContext.Provider value={wiki}>
       <EmbedChain.Provider value={chain}>
-        <div className="flex flex-col gap-3 break-words text-foreground">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]}
-            components={components}
-          >
-            {linkWikiPages(normalizeWikiLinks(source), linkData)}
-          </ReactMarkdown>
-        </div>
+        <TodoContext.Provider value={onToggleTodo ?? null}>
+          <div className="flex flex-col gap-3 break-words text-foreground">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives, remarkTodoIndex]}
+              components={components}
+            >
+              {linkWikiPages(normalizeWikiLinks(source), linkData)}
+            </ReactMarkdown>
+          </div>
+        </TodoContext.Provider>
       </EmbedChain.Provider>
     </WikiCircleContext.Provider>
   );

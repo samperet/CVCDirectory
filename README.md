@@ -550,11 +550,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   shows in the module); **@ new
   page** (and a link to a page that doesn't exist yet) starts a page kept by the same circle as the
   page it was started from. **Typing /** at the start of a line (or after a space) offers what to put
-  there — headings, lists, a checklist, a quote, a callout, a collapsible section, a table, a
+  there — headings, lists, a to-do list, a quote, a callout, a collapsible section, a table, a
   divider, a photo, a page, and (in a page, not a version) a poll, a proposal, a file and who's
   present — narrowed as you type (`components/wiki/slash-menu.tsx`). Pages are Markdown, edited in a **visual editor**
   ([TipTap](https://tiptap.dev), on ProseMirror) with a simple toolbar: headings, quotes and
-  callouts, bold/italic, highlights, lists and checklists, links, photos, tables (with their own
+  callouts, bold/italic, highlights, lists and **to-do lists** (items with boxes, `- [ ]`; ticked
+  off right on the page while reading by anyone who can edit it — saved to the page's text, a run
+  of ticks one version, and checked to be the same item first: `POST /api/wiki/pages/<slug>/todo`,
+  `lib/wiki/todos.ts`; others see the boxes but can't tick them, nor those of an embedded page),
+  links, photos, tables (with their own
   add/delete tools while the cursor is in one), collapsible sections, embedded pages, and
   **polls**; Markdown shortcuts work as you type, Ctrl/⌘+K adds a link, and photos can be pasted or
   dropped in. `lib/wiki/prose.ts` turns a page's Markdown into the editor's document and back with

@@ -28,7 +28,7 @@ import { suggestionPopup, type MenuHandle } from "@/components/wiki/suggestion-p
 
 /**
  * Typing / at the start of a line (or after a space) in the wiki editor: a
- * menu of what to put there — headings, lists, a checklist, a quote, a
+ * menu of what to put there — headings, lists, a to-do list, a quote, a
  * callout, a collapsible section, a table, a divider, a photo, a page (linked
  * or shown here) — and, in a page (not an alternative version), a poll, a
  * proposal, a file upload and who's present. Typing narrows it; Enter or a
@@ -101,9 +101,9 @@ export function slashItems(actions: SlashActions): SlashItem[] {
     },
     {
       key: "checklist",
-      label: "Checklist",
+      label: "To-do list",
       hint: "Things to tick off",
-      words: "todo tasks",
+      words: "checklist todo tasks check",
       icon: ListChecks,
       run: (e) => chain(e).toggleTaskList().run(),
     },

@@ -27,6 +27,7 @@ import type { Backlink } from "@/lib/wiki/backlinks";
 import type { PageEditor } from "@/lib/wiki/presence";
 import { shortDate, timeAgo } from "@/lib/time";
 import { WikiMarkdown, tableOfContents } from "@/components/wiki/markdown";
+import { todoItems, toggleTodo } from "@/lib/wiki/todos";
 import {
   WikiComments,
   threadsOf,
@@ -222,6 +223,36 @@ export function WikiPageClient({ slug }: { slug: string }) {
     onError: (err: Error) =>
       toast({ title: "Could not restore it", description: err.message, variant: "destructive" }),
   });
+  // Ticking a to-do item off while reading: shown at once, then saved (the page's editors).
+  const tick = useMutation({
+    mutationFn: (todo: { index: number; checked: boolean; text: string }) =>
+      apiFetch<{ page: WikiPage }>(`/api/wiki/pages/${slug}/todo`, {
+        method: "POST",
+        body: JSON.stringify(todo),
+      }),
+    onMutate: ({ index, checked, text }) =>
+      queryClient.setQueryData<PageResponse>(key, (old) =>
+        old
+          ? {
+              ...old,
+              page: {
+                ...old.page,
+                body: toggleTodo(old.page.body, index, checked, text) ?? old.page.body,
+              },
+            }
+          : old
+      ),
+    onSuccess: ({ page: updated }) =>
+      queryClient.setQueryData<PageResponse>(key, (old) => (old ? { ...old, page: updated } : old)),
+    onError: (err: Error) => {
+      toast({ title: "Could not tick it", description: err.message, variant: "destructive" });
+      void refetch();
+    },
+  });
+  const toggleItem = (index: number, checked: boolean) => {
+    const item = data && todoItems(data.page.body)[index];
+    if (item) tick.mutate({ index, checked, text: item.text });
+  };
   // Who was present (meeting notes), chosen from the editor's toolbar.
   const [choosingPresent, setChoosingPresent] = useState(false);
   const setPresent = useMutation({
@@ -619,6 +650,7 @@ export function WikiPageClient({ slug }: { slug: string }) {
                   circleId={circleId}
                   pages={pages}
                   pageId={page.id}
+                  onToggleTodo={canEdit ? toggleItem : undefined}
                 />
               </ProposalHostContext.Provider>
             </div>

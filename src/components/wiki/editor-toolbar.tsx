@@ -305,7 +305,7 @@ export function ListButtons({ editor }: { editor: Editor }) {
         <ListOrdered className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
-        title="Checklist"
+        title="To-do list"
         active={state.check}
         onClick={() => editor.chain().focus().toggleTaskList().run()}
       >
