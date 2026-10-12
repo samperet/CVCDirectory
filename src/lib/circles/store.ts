@@ -129,7 +129,7 @@ export const modulesSchema = z
       .filter((module) => !REPEATABLE_MODULES.includes(module.type))
       .map((module) => module.type);
     return new Set(others).size === others.length;
-  }, "Members, the duty schedule, tasks, the forum, the log, finances, documents, and sub groups can each appear once");
+  }, "Members, the duty schedule, tasks, the forum, the log, finances, documents, sub groups, and the alert button can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),

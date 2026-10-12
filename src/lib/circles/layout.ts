@@ -18,6 +18,7 @@ export const MODULE_TYPES = [
   "documents",
   "text",
   "subgroups",
+  "alert",
 ] as const;
 export type ModuleType = (typeof MODULE_TYPES)[number];
 
@@ -118,6 +119,7 @@ export const MODULE_NAMES: Record<ModuleType, string> = {
   documents: "Documents",
   text: "Custom Text",
   subgroups: "Sub groups",
+  alert: "Alert",
 };
 
 /** Which pages a Filtered Documents module shows: chosen ones (in order), all of a circle's, a circle's proposals waiting for consent, or the most recently edited (of a circle, or the whole wiki). */

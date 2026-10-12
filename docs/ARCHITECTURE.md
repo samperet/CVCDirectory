@@ -71,6 +71,7 @@ Main documents (see each store's `KEY`):
 | `exports/index.json`, `exports/<id>.zip` | Documents exported as a zip (written in parts by `writeBinaryStream`), kept a day for whoever made them; older ones deleted when the next is made | `lib/documents` (`export.ts`) |
 | `tasks/<circleId>.json`, `task-comments/<circleId>.json` | Tasks | `lib/tasks` |
 | `logs/<circleId>.json` | Circle logs: short updates and replies, never notified | `lib/log` |
+| `alerts/<circleId>.json` | A circle's alerts (its Alert module's): the last 50, each with who sent it, to whom, and how many people that was | `lib/alerts` |
 | `circles/finances/<circleId>.json`, `circles/finances/<circleId>/receipts/<expenseId>` | A circle's Finances: expenses (whole cents) and a budget per year; each expense's receipt (photo or PDF) | `lib/finances` |
 | `feedback/reports.json` | Bug reports and feature requests from the ladybug | `lib/feedback` |
 | `onboarding/invitations.json`, `onboarding/resources.json` | The Secretary's new member invitations (and their answers), and what welcome pages list | `lib/onboarding` |
@@ -237,8 +238,9 @@ opens it. Edit rights are the circle's files' (`canManage`); everyone else can l
 
 Web push (`lib/push`). Topics are declared once in `push/store.ts` (`TOPICS`,
 `DEFAULT_PREFERENCES`) and the settings page lists them from there. `notify({ topic, title, body,
-url, onlyUserIds, exceptUserId })` never throws and gives up after ~6 s. `userIdsForPeople()` turns
-seats into accounts.
+url, onlyUserIds, onlyPersonIds, exceptUserId })` never throws and gives up after ~6 s.
+`userIdsForPeople()` turns seats into accounts; `onlyPersonIds` narrows to residents instead, so
+those who have never signed in are still emailed (alerts use it for a circle's members).
 
 ## Time
 

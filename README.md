@@ -664,7 +664,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **A circle's page** – is built from **modules**: **Filtered Documents** and **Custom Text** (as many of
   each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Forum** (see Circle forums), **Log**, **Finances**, and **Documents** (each of those once). One **Edit** button (the
+  there is one, **Tasks**, **Forum** (see Circle forums), **Log**, **Finances**, **Documents**, and
+  **Alert** (each of those once; Alert added and removed only by admins). One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
   in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
@@ -847,6 +848,18 @@ from then on, so re-importing the directory never overwrites circle changes.
   Log module on the circle's page (`GET`/`POST /api/circles/<id>/log`,
   `PATCH`/`DELETE …/log/<entryId>`, with `people` alongside `body`; stored in
   `logs/<circleId>.json`, using the shared comment rules; deleted with the circle).
+- **Alert** – a circle module for raising the alarm (the Safety Crew's, in CLC): a red **Send an
+  alert** button, and the alerts sent, newest first, each with who sent it and to whom. Any resident
+  can send one: a short message ("what's happening, where, and what people should do"), to the
+  circle's members (the default) or to **Everyone at CVC**. A confirmation says how many people it
+  will reach before anything is sent. Each gets a push notification and an email (topic **Safety
+  alerts**, on for both by default, which anyone can turn off under **App & notifications**) —
+  members are emailed even if they've never signed in; the sender isn't. **Send an alert** is also
+  at the top of the menu under your name, on every page. Only admins add or remove the module
+  (not on Community, which has no members of its own); each person can send one alert a minute
+  (`GET`/`POST /api/circles/<id>/alerts`; `lib/alerts`; the last 50 kept in
+  `alerts/<circleId>.json`, deleted with the circle). Text messages aren't sent: CVC has no SMS
+  provider (`lib/alerts/send.ts` is where one would go).
 - **Finances** – a circle module (any circle, Community included) that tracks the circle's spending
   against a budget for each year, with receipts. Its members, the Board, and admins (on Community,
   which has no members, just the Board and admins) **Add expense**, edit and delete them, **Set a
@@ -911,7 +924,7 @@ from then on, so re-importing the directory never overwrites circle changes.
 - **Push notifications** – residents turn them on per device under **App & notifications** on
   their profile (or from a one-time prompt on the dashboard, shown only in the installed app), and choose what to hear about: new
   discussions, replies in discussions they started or joined, appreciations, photos, new
-  recommendations and comments on theirs, and new loan-library items. Nobody is notified about
+  recommendations and comments on theirs, new loan-library items, and safety alerts. Nobody is notified about
   their own posts. On iPhone/iPad (iOS 16.4+), notifications work once CVC is on the home screen.
 - Delivery uses standard Web Push (`web-push`). The VAPID key pair comes from `VAPID_PUBLIC_KEY` /
   `VAPID_PRIVATE_KEY` if set, otherwise it's generated once and kept in R2 (`push/vapid.json`) —

@@ -54,6 +54,7 @@ admin with `ADMIN_PERSON_IDS=<your person id>`. `.env.example` lists every varia
 | `src/lib/chat/`, `src/lib/presence/` | Private messages between two residents (a conversation document, and each person's list with what's unread); who's online (each open tab checks in every minute) |
 | `src/lib/me/` | Each account's starred and recently opened documents (pages, files, proposals by id); `StarButton`, `useNoteOpened` and the menus' lists are in `components/documents/my-documents.tsx` |
 | `src/lib/documents/sheets.ts`, `components/documents/sheet-editor.tsx` | Spreadsheets opened in CVC (FortuneSheet): `.xlsx` through FortuneExcel (numbers put back with `restoreNumbers`), `.csv` read and written here; Save uploads a new version against the one opened (`baseVersion`) |
+| `src/lib/alerts/` | A circle's Alert module (the Safety Crew's): any resident alerts its members or everyone, by push and email (topic `alerts`); only admins place the module; `components/alerts/send-alert.tsx` is the dialog, also in the menu under your name |
 | `src/lib/finances/` | A circle's Finances module: expenses in whole cents (`parseMoney`/`formatMoney` in `shared.ts`), budgets, receipts, the CSV export; who can see it is the module's setting (`access.ts`) |
 
 ## Conventions that matter

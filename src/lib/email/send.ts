@@ -81,7 +81,8 @@ function compose(
 
 /**
  * Email a notification to those who chose its topic (see `chooseRecipients`):
- * `onlyUserIds` narrows it to those accounts' residents; the author
+ * `onlyUserIds` narrows it to those accounts' residents, `onlyPersonIds` to
+ * these residents (whether or not they've signed in); the author
  * (`exceptUserId`) is left out. Logged for the admin page. Never throws.
  */
 export async function emailNotification(message: {
@@ -91,6 +92,7 @@ export async function emailNotification(message: {
   url: string;
   exceptUserId: string | null;
   onlyUserIds?: string[];
+  onlyPersonIds?: string[];
 }) {
   try {
     if (!emailConfigured()) return;
@@ -102,11 +104,16 @@ export async function emailNotification(message: {
     ]);
     if (!directory) return;
     const personOf = new Map(users.map((user) => [user.id, user.personId ?? null]));
-    const only = message.onlyUserIds
+    const fromAccounts = message.onlyUserIds
       ? new Set(
           message.onlyUserIds.map((id) => personOf.get(id)).filter((id): id is string => !!id)
         )
       : null;
+    const people = message.onlyPersonIds ? new Set(message.onlyPersonIds) : null;
+    const only =
+      fromAccounts && people
+        ? new Set(Array.from(people).filter((id) => fromAccounts.has(id)))
+        : fromAccounts ?? people;
     const { to, skipped } = chooseRecipients({
       people: directory.people,
       topic: message.topic,

@@ -27,6 +27,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   tasks: true,
   groups: true,
   messages: true,
+  alerts: true,
 };
 
 export interface PushSubscriptionRecord {

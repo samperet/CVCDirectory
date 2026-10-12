@@ -22,9 +22,12 @@ describe("modulesSchema", () => {
     expect(messages([{ ...finances, finances: { view: "anyone" } }])).toHaveLength(1);
   });
 
-  it("allows one Finances module on a page", () => {
-    expect(messages([finances, { ...finances, id: "finances-2" }])).toEqual([
-      "Members, the duty schedule, tasks, the forum, the log, finances, documents, and sub groups can each appear once",
-    ]);
+  it("allows one Finances module on a page, and one Alert", () => {
+    const once =
+      "Members, the duty schedule, tasks, the forum, the log, finances, documents, sub groups, and the alert button can each appear once";
+    expect(messages([finances, { ...finances, id: "finances-2" }])).toEqual([once]);
+    const alert = { id: "alert", type: "alert", size: "full" };
+    expect(modulesSchema.parse([alert])).toEqual([alert]);
+    expect(messages([alert, { ...alert, id: "alert-2" }])).toEqual([once]);
   });
 });

@@ -31,6 +31,8 @@ export const DEFAULT_EMAIL_PREFERENCES: Preferences = {
   // Circle forum messages and private messages are app notifications only.
   groups: false,
   messages: false,
+  // Safety alerts are emailed as well as notified, unless someone turns them off.
+  alerts: true,
 };
 
 /** Topics that are never emailed as notifications (and aren't offered under "Email me about"). */

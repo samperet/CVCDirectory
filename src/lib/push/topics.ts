@@ -22,6 +22,7 @@ export const TOPICS = {
   tasks: "Tasks given to you, and comments on tasks you're part of",
   groups: "New messages in your circles' forums",
   messages: "Messages sent to you",
+  alerts: "Safety alerts, to a circle you're in or to everyone",
 } as const;
 
 export type Topic = keyof typeof TOPICS;

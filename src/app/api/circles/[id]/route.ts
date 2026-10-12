@@ -6,6 +6,8 @@ import { deleteCircleTasks } from "@/lib/tasks/store";
 import { deleteCircleTaskComments } from "@/lib/tasks/comments";
 import { deleteCircleLog } from "@/lib/log/store";
 import { deleteCircleGroups } from "@/lib/groups/store";
+import { deleteCircleAlerts } from "@/lib/alerts/store";
+import { hasAlert } from "@/lib/circles/features";
 import { circleContext, circleProblem } from "@/lib/circles/access";
 import { circleUpdateSchema, deleteCircle, updateCircle } from "@/lib/circles/store";
 import { canManageCircle } from "@/lib/circles/icons";
@@ -15,7 +17,7 @@ import { iconKey, setCircleIcon } from "@/lib/circles/icons";
 import { deleteBinary, deleteJson } from "@/lib/storage";
 import { possessive } from "@/lib/text";
 import { problem, readBody } from "@/lib/http";
-import { BOARD_ID, COMMUNITY_ID } from "@/lib/circles/ids";
+import { BOARD_ID, COMMUNITY_ID, isCommunity } from "@/lib/circles/ids";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +27,7 @@ type Params = { params: { id: string } };
  * Edit a circle's name, description, sections, or who can join (its members
  * or the Board — and, for a sub group, its parent's members), or whether it's
  * an official circle or a social club (the Board; never a sub group, which
- * is of its parent's kind).
+ * is of its parent's kind). Only an admin adds or removes an Alert module.
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const ctx = await circleContext({ circleId: params.id, require: "member-or-board" });
@@ -40,6 +42,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     !canHaveSubgroups(ctx.directory.circles, circle)
   )
     return problem("Only a circle (not a sub group, or Community) can have sub groups");
+  // Anyone can send an alert from an Alert module — to everyone at CVC — so only admins place one.
+  const alerting = parsed.data.modules?.some((module) => module.type === "alert");
+  if (alerting !== undefined && alerting !== hasAlert(circle) && !ctx.actor.admin)
+    return problem("Only an admin can add or remove an Alert module", 403);
+  if (alerting && isCommunity(circle.id))
+    return problem(
+      "Community has no members of its own to alert: put the Alert module on a circle"
+    );
   if (parsed.data.kind !== undefined) {
     if (params.id === BOARD_ID || params.id === "community")
       return problem("The Board and Community circles can't become social clubs");
@@ -92,6 +102,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   await deleteJson(`meetings/${params.id}.json`);
   await deleteCircleLog(params.id);
   await deleteCircleGroups(params.id);
+  await deleteCircleAlerts(params.id);
   // Its finances (expenses, budgets, receipts) are kept, as money records: a circle started again
   // under the same name finds them on its Finances module.
   return NextResponse.json({ ok: true });

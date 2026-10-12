@@ -16,6 +16,7 @@ import {
   Mail,
   NotebookPen,
   ShieldCheck,
+  Siren,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,16 @@ import { useLogout, usePeople, useSession, useViewAs } from "@/lib/auth/client";
 import { NameCombobox } from "@/components/auth/name-combobox";
 import { useToast } from "@/components/ui/use-toast";
 import { Avatar } from "@/components/profile/avatar";
+import { useCircles } from "@/components/directory/use-directory";
+import { hasAlert } from "@/lib/circles/features";
+import { SendAlertFrom } from "@/components/alerts/send-alert";
+
+/**
+ * The menu under your name: your profile and settings, the tour, the pages
+ * your roles open (Secretary, Homes for sale, the admin pages), viewing as
+ * a resident (admins), signing out — and, at the top, **Send an alert** from
+ * each circle with an Alert module (the Safety Crew's), for anyone.
+ */
 
 export function UserMenu() {
   const router = useRouter();
@@ -34,6 +45,9 @@ export function UserMenu() {
   const tour = useTour();
   const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState(false);
+  // Circles with an Alert module (only admins add one): anyone can send an alert from here.
+  const alertCircles = useCircles()?.filter(hasAlert) ?? [];
+  const [alerting, setAlerting] = useState<{ id: string; name: string } | null>(null);
   // Residents who can sign in, for "View as" (only loaded once an admin opens the picker).
   const { people, isLoading: peopleLoading } = usePeople({ enabled: picking });
 
@@ -84,6 +98,24 @@ export function UserMenu() {
               </p>
             ) : null}
             <div className="pb-2" />
+            {viewAs
+              ? null
+              : alertCircles.map((circle) => (
+                  <Button
+                    key={circle.id}
+                    variant="ghost"
+                    size="sm"
+                    className="mb-1 w-full justify-start gap-2 text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setOpen(false);
+                      setAlerting({ id: circle.id, name: circle.name });
+                    }}
+                    data-menu-alert={circle.id}
+                  >
+                    <Siren className="h-4 w-4" />
+                    {alertCircles.length > 1 ? `Send a ${circle.name} alert` : "Send an alert"}
+                  </Button>
+                ))}
             <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
               <Link href="/profile" onClick={() => setOpen(false)}>
                 <UserRound className="h-4 w-4" /> Your profile
@@ -211,6 +243,7 @@ export function UserMenu() {
           </div>
         </>
       ) : null}
+      {alerting ? <SendAlertFrom circle={alerting} onClose={() => setAlerting(null)} /> : null}
     </div>
   );
 }

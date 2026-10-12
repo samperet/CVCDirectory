@@ -37,6 +37,7 @@ import { FinancesSettings } from "@/components/finances/finances-settings";
 import { todayInVermont } from "@/lib/time";
 import { InformationModule } from "@/components/circles/information-module";
 import { ForumModule } from "@/components/groups/forum-module";
+import { AlertModule } from "@/components/alerts/alert-module";
 import { LogModule } from "@/components/circles/log-module";
 import { TextModule } from "@/components/circles/text-module";
 import { TasksModule } from "@/components/tasks/task-board";
@@ -265,6 +266,12 @@ export function CircleDetailClient({ id }: { id: string }) {
               canManage={canManage}
             />
           ),
+        };
+      case "alert":
+        return {
+          title,
+          icon: icon(module),
+          content: <AlertModule circleId={circle.id} circleName={circle.name} title={title} />,
         };
       case "documents":
         return {

@@ -18,6 +18,7 @@ import {
   ScrollText,
   Search,
   Settings2,
+  Siren,
   Type,
   Users,
   Wallet,
@@ -55,6 +56,7 @@ import { isCommunity } from "@/lib/circles/ids";
 import { useCircles } from "@/components/directory/use-directory";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented";
+import { useSession } from "@/lib/auth/client";
 
 /** Adding a module to a circle's page, and setting up which pages a Filtered Documents module shows. */
 
@@ -69,6 +71,7 @@ export const MODULE_ICONS: Record<ModuleType, typeof BookOpen> = {
   documents: FileText,
   text: Type,
   subgroups: Network,
+  alert: Siren,
 };
 
 const MODULE_HINTS: Record<ModuleType, string> = {
@@ -86,6 +89,8 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   text: "Your own words, formatted — headings, lists, links, highlights, tables. Add as many as you like.",
   subgroups:
     "Smaller groups within the circle, each with its own members, page, and icon — and New sub group to start one.",
+  alert:
+    "A button any resident can press to alert the circle's members — or everyone at CVC — by notification and email. Only admins add or remove it.",
 };
 
 // The visual editor is large, and needs the browser; load it only when someone edits.
@@ -304,7 +309,11 @@ export function describeFilter(filter: InfoFilter, circleName: (id: string) => s
   } pages`;
 }
 
-/** Choosing what to add: Filtered Documents and Custom Text any number of times; the others when they're not on the page. */
+/**
+ * Choosing what to add: Filtered Documents and Custom Text any number of
+ * times; the others when they're not on the page — and an Alert only by an
+ * admin, on a circle (Community has no members of its own to alert).
+ */
 export function AddModuleDialog({
   circle,
   modules,
@@ -318,6 +327,7 @@ export function AddModuleDialog({
   onAdd: (module: CircleModule) => void;
   onClose: () => void;
 }) {
+  const admin = !!useSession().user?.isAdmin;
   const offered = (
     [
       "information",
@@ -330,10 +340,12 @@ export function AddModuleDialog({
       "finances",
       "documents",
       "subgroups",
+      "alert",
     ] as const
   ).filter((type) => {
     if (REPEATABLE_MODULES.includes(type)) return true;
     if (modules.some((module) => module.type === type)) return false;
+    if (type === "alert") return admin && !isCommunity(circle.id);
     if (type === "members" || type === "forum") return !isCommunity(circle.id);
     // Sub groups are one level deep.
     if (type === "subgroups") return !isCommunity(circle.id) && !circle.parentId;

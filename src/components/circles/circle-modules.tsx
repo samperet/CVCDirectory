@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm";
 import { SegmentedControl } from "@/components/ui/segmented";
+import { useSession } from "@/lib/auth/client";
 
 /**
  * A circle page's modules, laid out as the circle chose: in its order, each
@@ -63,6 +64,7 @@ const REMOVE_NOTE: Partial<Record<CircleModule["type"], string>> = {
   documents: " The circle's documents are kept, and come back if you add Documents again.",
   text: " Its words go with it.",
   subgroups: " The sub groups stay, within this circle; only their list goes from its page.",
+  alert: " Its alerts are kept, and come back if an admin adds Alert again.",
 };
 
 /** Members goes in the right-hand column; everything else in the main one, in order. */
@@ -234,6 +236,8 @@ export function ModuleEditor({
   onSettings: (module: CircleModule) => void;
 }) {
   const confirm = useConfirm();
+  // Only admins add or remove an Alert module (the server checks too).
+  const admin = !!useSession().user?.isAdmin;
   const [dragging, setDragging] = useState<string | null>(null);
   const main = layout.filter((module) => !isAside(module));
   const aside = layout.filter(isAside);
@@ -338,26 +342,30 @@ export function ModuleEditor({
                 <Settings2 className="h-4 w-4" /> Settings
               </button>
             ) : null}
-            <button
-              type="button"
-              className={cn(
-                control,
-                "w-auto gap-1.5 px-2.5 text-sm text-muted hover:text-destructive"
-              )}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    title: `Remove ${section.title} from this page?`,
-                    body: REMOVE_NOTE[module.type]?.trim(),
-                    confirmLabel: "Remove",
-                  })
-                )
-                  remove(id);
-              }}
-              aria-label={`Remove ${section.title}`}
-            >
-              <Trash2 className="h-4 w-4" /> Remove
-            </button>
+            {module.type === "alert" && !admin ? (
+              <span className="text-xs text-muted">Only an admin can remove it.</span>
+            ) : (
+              <button
+                type="button"
+                className={cn(
+                  control,
+                  "w-auto gap-1.5 px-2.5 text-sm text-muted hover:text-destructive"
+                )}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: `Remove ${section.title} from this page?`,
+                      body: REMOVE_NOTE[module.type]?.trim(),
+                      confirmLabel: "Remove",
+                    })
+                  )
+                    remove(id);
+                }}
+                aria-label={`Remove ${section.title}`}
+              >
+                <Trash2 className="h-4 w-4" /> Remove
+              </button>
+            )}
           </div>
           {fixed ? (
             <p className="text-xs text-muted">Always in the right-hand column.</p>

@@ -5,8 +5,8 @@ import type { FinanceViewers } from "@/lib/circles/layout";
  * What a circle has turned on for itself: tasks and documents, each on
  * unless turned off. Since circle pages became modules these follow from the
  * page (saving modules sets them), and gate the task and document APIs.
- * `features.wiki`, from before, is read only by `modulesFor`. The Log and
- * Finances are read from the page's modules themselves.
+ * `features.wiki`, from before, is read only by `modulesFor`. The Log,
+ * Finances and Alert are read from the page's modules themselves.
  */
 export type CircleFeature = "documents" | "tasks";
 
@@ -34,3 +34,7 @@ export const hasFinances = (circle: Pick<Circle, "modules"> | undefined) =>
 /** Who can see the circle's finances (its Finances module's setting): everyone at CVC unless it says otherwise. */
 export const financeViewers = (circle: Pick<Circle, "modules"> | undefined): FinanceViewers =>
   circle?.modules?.find((module) => module.type === "finances")?.finances?.view ?? "everyone";
+
+/** Whether the circle has an Alert module on its page (alerts are sent from it; only admins add or remove one). */
+export const hasAlert = (circle: Pick<Circle, "modules"> | undefined) =>
+  !!circle?.modules?.some((module) => module.type === "alert");

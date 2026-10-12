@@ -7,6 +7,7 @@ import {
   Topic,
 } from "./store";
 import { vapidKeys, vapidSubject } from "./vapid";
+import { userIdsForPeople } from "@/lib/auth/users";
 import { emailNotification } from "@/lib/email/send";
 import { PUSH_ONLY_TOPICS } from "@/lib/email/shared";
 
@@ -19,6 +20,11 @@ type Message = {
   tag?: string;
   exceptUserId: string | null;
   onlyUserIds?: string[];
+  /**
+   * Narrows it to these residents (e.g. a circle's members) — emailed even if
+   * they've never signed in, which `onlyUserIds` can't reach.
+   */
+  onlyPersonIds?: string[];
   /** Deliver regardless of preferences, by push only (the "send a test" button; bug reports, to the admins). */
   ignorePreferences?: boolean;
   /** Push only, never emailed (as for every push-only topic). */
@@ -30,7 +36,7 @@ type Message = {
  * those who chose this topic by email (`lib/email/send.ts`). Everyone who
  * wants this kind of notification gets it on each of their devices — except
  * the person who posted it. `onlyUserIds` narrows it (e.g. to a discussion's
- * participants). Never throws and never takes long: a notification that
+ * participants), and `onlyPersonIds` to residents (both: those in each). Never throws and never takes long: a notification that
  * can't be delivered must not break or stall the post that caused it. A
  * test push (`ignorePreferences`), one marked `skipEmail`, and one on a
  * push-only topic (`PUSH_ONLY_TOPICS`) aren't emailed — whatever a resident
@@ -44,8 +50,16 @@ export async function notify(message: Message) {
 
 async function push(message: Message) {
   try {
-    const [subscriptions, preferences] = await Promise.all([listSubscriptions(), allPreferences()]);
-    const only = message.onlyUserIds ? new Set(message.onlyUserIds) : null;
+    const [subscriptions, preferences, accounts] = await Promise.all([
+      listSubscriptions(),
+      allPreferences(),
+      message.onlyPersonIds ? userIdsForPeople(message.onlyPersonIds) : null,
+    ]);
+    const onlyIds =
+      message.onlyUserIds && accounts
+        ? message.onlyUserIds.filter((id) => accounts.includes(id))
+        : message.onlyUserIds ?? accounts;
+    const only = onlyIds ? new Set(onlyIds) : null;
     const recipients = subscriptions.filter(
       (entry) =>
         entry.userId !== message.exceptUserId &&
