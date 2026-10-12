@@ -194,9 +194,14 @@ session is, so admin status is checked server-side on every request; the user me
   `PATCH`/`DELETE /api/feedback/<id>`, for admins); when it's full (1,000), the oldest done
   reports make room.
 - **Sign-in log** – "Sign-in log" in the user menu (`/admin/sign-ins`) lists every successful
-  sign-in, newest first, by day or by resident (sign-in count and last sign-in). It records only
-  who and when — no phone numbers or devices — keeps the latest 2,000 in `auth/sign-in-log.json`,
-  and is served only to admins.
+  sign-in, newest first, by day or by resident. **By resident** lists every resident with when they
+  were **last seen** in the app (noted from signing in and from each open tab's check-in, to within
+  ten minutes; "Never" if not since this began — `auth/last-seen.json`, `lib/auth/last-seen.ts`,
+  forgotten when someone leaves), their sign-in count and last sign-in, sorted by last seen or by
+  name; the heading counts who's been seen this week. Sessions last a long time, so sign-ins are
+  rare and last seen is the better sign of who uses the app. It records only who and when — no
+  phone numbers or devices — keeps the latest 2,000 sign-ins in `auth/sign-in-log.json`, and is
+  served only to admins.
 
 ## Forum & Appreciations
 

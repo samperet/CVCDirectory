@@ -9,8 +9,23 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Loading, ErrorCard } from "@/components/ui/status";
 import { SegmentedControl } from "@/components/ui/segmented";
+import { timeAgo } from "@/lib/time";
+
+/**
+ * The admins' sign-in log: every sign-in, by day — or **By resident**, each
+ * resident with when they were last seen in the app (noted while they have
+ * it open; "Never" if not since it began being noted), how often they've
+ * signed in, and when they last did. Sorted by last seen, or by name.
+ */
 
 type View = "all" | "people";
+type Sort = "seen" | "name";
+type LogData = {
+  entries: SignInEntry[];
+  lastSeen: Record<string, string>;
+  people: { personId: string; name: string }[];
+};
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const dayKey = (date: Date) => date.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
 
@@ -37,10 +52,11 @@ const shortDate = (date: Date) =>
 
 export function SignInLogClient() {
   const [view, setView] = useState<View>("all");
+  const [sort, setSort] = useState<Sort>("seen");
   const [query, setQuery] = useState("");
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "sign-ins"],
-    queryFn: () => apiFetch<{ entries: SignInEntry[] }>("/api/admin/sign-ins"),
+    queryFn: () => apiFetch<LogData>("/api/admin/sign-ins"),
     refetchInterval: 60_000,
   });
 
@@ -60,23 +76,42 @@ export function SignInLogClient() {
     return groups;
   }, [entries]);
 
+  // Every resident (and anyone with sign-ins who's since left), with when they were last seen.
   const byPerson = useMemo(() => {
-    const people = new Map<string, { name: string; count: number; last: string; first: string }>();
-    for (const entry of entries) {
-      const existing = people.get(entry.personId);
-      if (existing) {
-        existing.count += 1;
-        existing.first = entry.at; // entries are newest first
-      } else {
-        people.set(entry.personId, { name: entry.name, count: 1, last: entry.at, first: entry.at });
-      }
+    const q = query.trim().toLowerCase();
+    const people = new Map<
+      string,
+      { personId: string; name: string; count: number; last: string | null; seen: string | null }
+    >();
+    const row = (personId: string, name: string) => {
+      const existing = people.get(personId);
+      if (existing) return existing;
+      const made = { personId, name, count: 0, last: null, seen: data?.lastSeen[personId] ?? null };
+      people.set(personId, made);
+      return made;
+    };
+    for (const person of data?.people ?? []) row(person.personId, person.name);
+    for (const entry of data?.entries ?? []) {
+      const person = row(entry.personId, entry.name);
+      person.count += 1;
+      person.last ??= entry.at; // entries are newest first
     }
-    return Array.from(people.values());
-  }, [entries]);
+    return Array.from(people.values())
+      .filter((person) => !q || person.name.toLowerCase().includes(q))
+      .sort((a, b) =>
+        sort === "seen" && (a.seen ?? "") !== (b.seen ?? "")
+          ? (b.seen ?? "").localeCompare(a.seen ?? "")
+          : a.name.localeCompare(b.name)
+      );
+  }, [data, query, sort]);
 
   const signIns = data?.entries ?? [];
   const total = signIns.length;
   const residents = new Set(signIns.map((entry) => entry.personId)).size;
+  const now = Date.now();
+  const seenThisWeek = Object.values(data?.lastSeen ?? {}).filter(
+    (at) => now - Date.parse(at) < 7 * DAY_MS
+  ).length;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -85,7 +120,7 @@ export function SignInLogClient() {
         {total ? (
           <p className="text-sm text-muted">
             {total} sign-in{total === 1 ? "" : "s"} by {residents} resident
-            {residents === 1 ? "" : "s"}
+            {residents === 1 ? "" : "s"} · {seenThisWeek} seen in the app this week
           </p>
         ) : null}
       </div>
@@ -117,7 +152,7 @@ export function SignInLogClient() {
         <Loading />
       ) : error ? (
         <ErrorCard error={error} />
-      ) : !entries.length ? (
+      ) : view === "all" && !entries.length ? (
         <Card>
           <p className="text-sm text-muted">
             {query ? `No sign-ins match “${query}”.` : "No sign-ins recorded yet."}
@@ -147,30 +182,61 @@ export function SignInLogClient() {
           </section>
         ))
       ) : (
-        <Card className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                <th className="px-5 py-3 font-semibold">Resident</th>
-                <th className="px-3 py-3 text-right font-semibold">Sign-ins</th>
-                <th className="px-5 py-3 font-semibold">Last signed in</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {byPerson.map((person) => (
-                <tr key={person.name + person.first}>
-                  <td className="px-5 py-3 font-medium text-foreground">{person.name}</td>
-                  <td className="px-3 py-3 text-right tabular-nums text-foreground-light">
-                    {person.count}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3 tabular-nums text-muted">
-                    <time dateTime={person.last}>{shortDate(new Date(person.last))}</time>
-                  </td>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted">
+              Last seen: when they last had the app open (to within ten minutes).
+            </p>
+            <SegmentedControl
+              size="sm"
+              label="Sort by"
+              value={sort}
+              onChange={setSort}
+              options={[
+                { value: "seen", label: "Last seen" },
+                { value: "name", label: "Name" },
+              ]}
+            />
+          </div>
+          <Card className="overflow-x-auto p-0">
+            <table className="w-full text-sm" data-residents>
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+                  <th className="px-5 py-3 font-semibold">Resident</th>
+                  <th className="px-3 py-3 font-semibold">Last seen</th>
+                  <th className="px-3 py-3 text-right font-semibold">Sign-ins</th>
+                  <th className="px-5 py-3 font-semibold">Last signed in</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {byPerson.map((person) => (
+                  <tr key={person.personId} data-resident={person.personId}>
+                    <td className="px-5 py-3 font-medium text-foreground">{person.name}</td>
+                    <td className="whitespace-nowrap px-3 py-3 tabular-nums text-foreground-light">
+                      {person.seen ? (
+                        <time dateTime={person.seen} title={shortDate(new Date(person.seen))}>
+                          {timeAgo(person.seen)}
+                        </time>
+                      ) : (
+                        <span className="text-muted">Never</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums text-foreground-light">
+                      {person.count}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3 tabular-nums text-muted">
+                      {person.last ? (
+                        <time dateTime={person.last}>{shortDate(new Date(person.last))}</time>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </div>
       )}
     </div>
   );

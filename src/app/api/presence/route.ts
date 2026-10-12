@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getRealSessionUser, getSessionUser } from "@/lib/auth/session";
 import { checkIn, onlineNow } from "@/lib/presence/store";
+import { noteSeen } from "@/lib/auth/last-seen";
 import { readIndex } from "@/lib/chat/store";
 import { directoryPeople } from "@/lib/chat/http";
 import { latestChange, unreadCount, type PresenceView } from "@/lib/chat/shared";
@@ -23,7 +24,8 @@ const checkInSchema = z.object({ away: z.boolean().optional() });
 
 /**
  * An open tab checks in each minute (or, `away`, as it closes): who's online,
- * and how many of your conversations have unread messages. Never fails
+ * and how many of your conversations have unread messages — and you're
+ * noted as last seen now (`lib/auth/last-seen.ts`). Never fails
  * because the check-in couldn't be written. (Refused while viewing as
  * someone, by the middleware.)
  */
@@ -39,6 +41,8 @@ export async function POST(request: NextRequest) {
   const [online, index] = await Promise.all([
     checkIn(me, !parsed.data.away),
     readIndex(me).catch(() => ({})),
+    // For the admins' sign-in log: when each resident last used the app.
+    parsed.data.away ? null : noteSeen(me),
   ]);
   const view: PresenceView = {
     online,

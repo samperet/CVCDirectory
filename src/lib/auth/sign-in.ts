@@ -8,6 +8,7 @@ import { problem } from "@/lib/http";
 import { siteUrl } from "@/lib/site-url";
 import { createSessionValue, sessionCookieOptions } from "./session";
 import { recordSignIn } from "./sign-in-log";
+import { noteSeen } from "./last-seen";
 import { LINK_TTL_MS } from "./sign-in-links";
 import { toPublicUser, userForPerson } from "./users";
 
@@ -102,7 +103,7 @@ export async function signedIn(person: { id: string; displayName: string }, next
     console.error("[auth] cannot sign sessions: set AUTH_SECRET");
     return problem("Sign-in is temporarily unavailable", 503);
   }
-  await recordSignIn(person);
+  await Promise.all([recordSignIn(person), noteSeen(person.id)]);
   const response = NextResponse.json({ user: toPublicUser(user), next: next ?? "/" });
   const { name, ...options } = sessionCookieOptions();
   response.cookies.set(name, session, options);
