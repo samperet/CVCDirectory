@@ -1,11 +1,15 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { deleteJson, enqueue, mutateJson, readJson } from "@/lib/storage";
+import { todayInVermont } from "@/lib/time";
 import {
   PRIORITY_LABELS,
+  REPEAT_LABELS,
   STATUS_LABELS,
   TASK_PRIORITIES,
+  TASK_REPEATS,
   TASK_STATUSES,
+  nextOccurrence,
   type Task,
   type TaskPerson,
 } from "./shared";
@@ -13,7 +17,10 @@ import {
 /**
  * Circle tasks: each circle's in one document (`tasks/<circleId>.json`),
  * numbered in the order they're added. A task keeps a short log of what's
- * happened to it (who moved it along, who took it on).
+ * happened to it (who moved it along, who took it on). A task can repeat
+ * (weekly, monthly, every 3 months, yearly): when it's done, the next one is
+ * made at once — the same, not started, checklist unticked, due a period
+ * after it was due (the first such date not already past) — once.
  */
 
 const MAX_TASKS = 1000;
@@ -41,6 +48,7 @@ export const taskInputSchema = z.object({
   ownerId: z.string().max(80).nullable().default(null),
   dueDate: isoDate.nullable().default(null),
   checklist: z.array(checklistItem).max(MAX_CHECKLIST).default([]),
+  repeat: z.enum(TASK_REPEATS).nullable().default(null),
 });
 export type TaskInput = z.infer<typeof taskInputSchema>;
 
@@ -53,6 +61,7 @@ export const taskUpdateSchema = z
     ownerId: z.string().max(80).nullable(),
     dueDate: isoDate.nullable(),
     checklist: z.array(checklistItem).max(MAX_CHECKLIST),
+    repeat: z.enum(TASK_REPEATS).nullable(),
     /** Tick (or untick) one checklist item. */
     toggle: z.object({ id: z.string().max(40), done: z.boolean() }),
   })
@@ -82,17 +91,22 @@ export async function getTask(circleId: string, number: number): Promise<Task | 
 
 export type Failure = "not_found" | "full" | "forbidden";
 export type TaskResult =
-  | { ok: true; task: Task | null; before: Task | null }
+  | { ok: true; task: Task | null; before: Task | null; next?: Task | null }
   | { ok: false; reason: Failure };
+
+type Change = { stored: Stored; task: Task | null; before: Task | null; next?: Task | null };
 
 async function mutate(
   circleId: string,
-  change: (stored: Stored) => { stored: Stored; task: Task | null; before: Task | null } | Failure
+  change: (stored: Stored) => Change | Failure
 ): Promise<TaskResult> {
   return mutateJson<TaskResult>(key(circleId), (raw) => {
     const result = change(normalize(raw));
     if (typeof result === "string") return { write: false, result: { ok: false, reason: result } };
-    return { value: result.stored, result: { ok: true, task: result.task, before: result.before } };
+    return {
+      value: result.stored,
+      result: { ok: true, task: result.task, before: result.before, next: result.next ?? null },
+    };
   });
 }
 
@@ -132,6 +146,7 @@ export function createTask(
       updatedAt: now,
       completedAt: input.status === "done" ? now : null,
       activity: [],
+      repeat: input.repeat,
     };
     task = log(
       task,
@@ -144,6 +159,29 @@ export function createTask(
       before: null,
     };
   });
+}
+
+/** The next of a repeating task: the same, not started, its checklist unticked, due a period on. */
+function nextOf(task: Task, number: number, by: string): Task {
+  const now = new Date().toISOString();
+  const repeat = task.repeat!;
+  return log(
+    {
+      ...task,
+      id: randomUUID(),
+      number,
+      status: "todo",
+      dueDate: nextOccurrence(task.dueDate, repeat, todayInVermont()),
+      checklist: task.checklist.map((item) => ({ ...item, done: false })),
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      activity: [],
+      repeatedAs: null,
+    },
+    by,
+    `made this when #${task.number} was done (it repeats ${REPEAT_LABELS[repeat].toLowerCase()})`
+  );
 }
 
 /**
@@ -197,6 +235,14 @@ export function updateTask(
       task.dueDate = update.dueDate;
       say(update.dueDate ? `set it due ${update.dueDate}` : "removed the due date");
     }
+    if (update.repeat !== undefined && update.repeat !== (task.repeat ?? null)) {
+      task.repeat = update.repeat;
+      say(
+        update.repeat
+          ? `set it to repeat ${REPEAT_LABELS[update.repeat].toLowerCase()}`
+          : "stopped it repeating"
+      );
+    }
     if (update.checklist) {
       const next = withIds(update.checklist);
       const had = new Set(task.checklist.map((item) => item.id));
@@ -221,13 +267,27 @@ export function updateTask(
     }
     if (task.activity === before.activity) return { stored, task: before, before };
     task.updatedAt = new Date().toISOString();
+    // A repeating task, done (the first time): the next one, due a period on.
+    let next: Task | null = null;
+    if (
+      task.repeat &&
+      task.status === "done" &&
+      before.status !== "done" &&
+      !task.repeatedAs &&
+      stored.tasks.length < MAX_TASKS
+    ) {
+      next = nextOf(task, stored.nextNumber, actor.name);
+      task.repeatedAs = next.number;
+      say(`made the next one, #${next.number}, due ${next.dueDate}`);
+    }
+    const tasks = stored.tasks.map((entry) => (entry.id === task.id ? task : entry));
     return {
-      stored: {
-        ...stored,
-        tasks: stored.tasks.map((entry) => (entry.id === task.id ? task : entry)),
-      },
+      stored: next
+        ? { nextNumber: stored.nextNumber + 1, tasks: [...tasks, next] }
+        : { ...stored, tasks },
       task,
       before,
+      next,
     };
   });
 }

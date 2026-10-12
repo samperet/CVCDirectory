@@ -8,14 +8,22 @@ import { ListChecks, MessageSquare, Plus, Search, SlidersHorizontal } from "luci
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth/client";
 import type { Circle } from "@/lib/circles/types";
+import type { CircleModule } from "@/lib/circles/layout";
+import { todayInVermont } from "@/lib/time";
 import { featureEnabled } from "@/lib/circles/features";
 import {
   PRIORITY_LABELS,
+  REPEAT_LABELS,
   STATUS_LABELS,
   TASK_PRIORITIES,
+  TASK_REPEATS,
   TASK_STATUSES,
+  DEFAULT_TASK_VIEW,
+  describeView,
+  inView,
   type Task,
   type TaskPriority,
+  type TaskRepeat,
   type TaskStatus,
   type TaskSummary,
 } from "@/lib/tasks/shared";
@@ -25,9 +33,11 @@ import {
   OwnerSelect,
   PriorityFlag,
   ProgressBar,
+  RepeatMark,
   STATUS_STYLES,
   StatusSelect,
   canMoveTask,
+  nextTaskToast,
   tasksQuery,
   type TasksResponse,
 } from "@/components/tasks/task-bits";
@@ -57,10 +67,14 @@ function useMoveTask(circleId: string) {
   const { toast } = useToast();
   return useMutation({
     mutationFn: ({ number, status }: { number: number; status: TaskStatus }) =>
-      apiFetch<{ task: Task }>(`/api/circles/${circleId}/tasks/${number}`, {
+      apiFetch<{ task: Task; next?: Task | null }>(`/api/circles/${circleId}/tasks/${number}`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       }),
+    onSuccess: ({ next }) => {
+      const said = nextTaskToast(next);
+      if (said) toast(said);
+    },
     onMutate: async ({ number, status }) => {
       await queryClient.cancelQueries({ queryKey: ["tasks", circleId] });
       const previous = queryClient.getQueryData<TasksResponse>(["tasks", circleId]);
@@ -114,12 +128,19 @@ export function NewTaskForm({
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("normal");
+  const [repeat, setRepeat] = useState<TaskRepeat | "">("");
   const [more, setMore] = useState(false);
   const create = useMutation({
     mutationFn: () =>
       apiFetch<{ task: Task }>(`/api/circles/${circle!.id}/tasks`, {
         method: "POST",
-        body: JSON.stringify({ title, ownerId, dueDate: dueDate || null, priority }),
+        body: JSON.stringify({
+          title,
+          ownerId,
+          dueDate: dueDate || null,
+          priority,
+          repeat: repeat || null,
+        }),
       }),
     onSuccess: ({ task }) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", circle!.id] });
@@ -128,6 +149,7 @@ export function NewTaskForm({
       setOwnerId(null);
       setDueDate("");
       setPriority("normal");
+      setRepeat("");
       toast({ title: `Task #${task.number} added` });
       onDone?.(task);
     },
@@ -165,7 +187,7 @@ export function NewTaskForm({
             onClick={() => setMore(!more)}
             aria-label="More details"
             aria-expanded={more}
-            title="Owner, due date, priority"
+            title="Owner, due date, priority, repeat"
           >
             <SlidersHorizontal className="h-4 w-4" />
           </Button>
@@ -180,7 +202,7 @@ export function NewTaskForm({
         </div>
       </div>
       {more ? (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <label className="flex flex-col gap-1 text-xs font-medium text-muted">
             Owner
             <OwnerSelect circle={circle} value={ownerId} onChange={setOwnerId} />
@@ -200,6 +222,17 @@ export function NewTaskForm({
               {TASK_PRIORITIES.map((value) => (
                 <option key={value} value={value}>
                   {PRIORITY_LABELS[value]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+            Repeats
+            <Select value={repeat} onChange={(e) => setRepeat(e.target.value as TaskRepeat | "")}>
+              <option value="">Doesn&apos;t repeat</option>
+              {TASK_REPEATS.map((value) => (
+                <option key={value} value={value}>
+                  {REPEAT_LABELS[value]}
                 </option>
               ))}
             </Select>
@@ -248,10 +281,15 @@ export function TaskCard({
           {task.title}
         </span>
       </Link>
-      {task.priority === "high" || task.dueDate || task.checklist.length || task.commentCount ? (
+      {task.priority === "high" ||
+      task.dueDate ||
+      task.repeat ||
+      task.checklist.length ||
+      task.commentCount ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <PriorityFlag task={task} />
           <DueLabel task={task} />
+          <RepeatMark task={task} />
           <ProgressBar task={task} />
           {task.commentCount ? (
             <span
@@ -430,22 +468,46 @@ export function TaskBoardClient({ circleId }: { circleId: string }) {
   );
 }
 
-/** The Tasks module on a circle's page: what's open, and a quick way to add one. */
-export function TasksModule({ circle }: { circle: Circle }) {
+/**
+ * A circle's Tasks module: the tasks its view picks (its settings — open
+ * ones by default; a circle can have several, each its own view), most
+ * urgent first (done ones, the latest done first), with **New task** and
+ * a link to the board.
+ */
+export function TasksModule({
+  circle,
+  module,
+  title,
+}: {
+  circle: Circle;
+  module: CircleModule;
+  title: string;
+}) {
   const { data, isLoading } = useQuery(tasksQuery(circle.id));
+  const { user } = useSession();
   const [adding, setAdding] = useState(false);
   const canAdd = !!data?.canAdd;
   const tasks = data?.tasks ?? [];
-  const open = tasks.filter((task) => task.status !== "done").sort(byUrgency);
+  const view = module.tasks?.view ?? DEFAULT_TASK_VIEW;
+  const plain =
+    view.show === "open" && view.whose === "everyone" && view.due === "any" && !view.high;
+  const today = todayInVermont();
+  const shown = tasks
+    .filter((task) => inView(task, view, user?.personId ?? null, today))
+    .sort((a, b) =>
+      view.show === "done"
+        ? (b.completedAt ?? "").localeCompare(a.completedAt ?? "")
+        : byUrgency(a, b)
+    );
   const counts = (["todo", "doing", "blocked"] as const)
-    .map((status) => ({ status, count: open.filter((task) => task.status === status).length }))
+    .map((status) => ({ status, count: shown.filter((task) => task.status === status).length }))
     .filter((entry) => entry.count);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-tasks-view={view.show}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionHeading icon={ListChecks} toggle={<ModuleToggle />}>
           <Link href={`/circles/${circle.id}/tasks`} className="hover:underline">
-            Tasks
+            {title}
           </Link>
         </SectionHeading>
         {canAdd && !adding ? (
@@ -463,18 +525,24 @@ export function TasksModule({ circle }: { circle: Circle }) {
       ) : null}
       {isLoading ? (
         <Loading />
-      ) : open.length ? (
+      ) : shown.length ? (
         <>
           <p className="text-sm text-muted">
-            {counts
-              .map(({ status, count }) => `${count} ${STATUS_LABELS[status].toLowerCase()}`)
-              .join(" · ")}
+            {plain
+              ? counts
+                  .map(({ status, count }) => `${count} ${STATUS_LABELS[status].toLowerCase()}`)
+                  .join(" · ")
+              : `${describeView(
+                  view,
+                  view.personId ? personName(circle, view.personId) : null
+                )} · ${shown.length}`}
           </p>
           <ul className="flex flex-col divide-y divide-border">
-            {open.slice(0, 6).map((task) => (
+            {shown.slice(0, 6).map((task) => (
               <li
                 key={task.id}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+                data-task-row={task.number}
               >
                 <span
                   className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_STYLES[task.status].dot)}
@@ -483,12 +551,16 @@ export function TasksModule({ circle }: { circle: Circle }) {
                 />
                 <Link
                   href={`/circles/${circle.id}/tasks/${task.number}`}
-                  className="min-w-0 flex-1 font-medium text-foreground hover:underline"
+                  className={cn(
+                    "min-w-0 flex-1 font-medium text-foreground hover:underline",
+                    task.status === "done" && "text-muted line-through decoration-muted"
+                  )}
                 >
                   {task.title}
                 </Link>
                 <PriorityFlag task={task} />
                 <DueLabel task={task} />
+                <RepeatMark task={task} />
                 <OwnerChip name={task.ownerName} className="w-32 justify-end" />
               </li>
             ))}
@@ -497,12 +569,19 @@ export function TasksModule({ circle }: { circle: Circle }) {
             href={`/circles/${circle.id}/tasks`}
             className="w-fit text-sm font-medium text-secondary-foreground hover:underline"
           >
-            {open.length > 6 ? `All ${open.length} open tasks` : "Open the task board"}
+            {shown.length > 6 ? `All ${shown.length} on the board` : "Open the task board"}
           </Link>
         </>
       ) : (
         <p className="text-sm text-muted">
-          {tasks.length ? "Everything's done." : "No tasks yet."}{" "}
+          {!tasks.length
+            ? "No tasks yet."
+            : plain
+              ? "Everything's done."
+              : `Nothing here: ${describeView(
+                  view,
+                  view.personId ? personName(circle, view.personId) : null
+                ).toLowerCase()}.`}{" "}
           {tasks.length ? (
             <Link
               href={`/circles/${circle.id}/tasks`}
@@ -516,3 +595,7 @@ export function TasksModule({ circle }: { circle: Circle }) {
     </div>
   );
 }
+
+/** A circle member's name, for a view of their tasks. */
+const personName = (circle: Circle, personId: string) =>
+  circle.seats.find((seat) => seat.personId === personId)?.name ?? null;

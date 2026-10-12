@@ -23,6 +23,115 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
   high: "High",
 };
 
+/** How often a task comes round again: when it's done, the next one is made (`lib/tasks/store.ts`). */
+export const TASK_REPEATS = ["weekly", "monthly", "quarterly", "yearly"] as const;
+export type TaskRepeat = (typeof TASK_REPEATS)[number];
+export const REPEAT_LABELS: Record<TaskRepeat, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  quarterly: "Every 3 months",
+  yearly: "Yearly",
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+/**
+ * The date a week, a month, three months, or a year after `from`
+ * (YYYY-MM-DD). From a day the next month hasn't got (the 31st), it's that
+ * month's last day.
+ */
+export function nextDue(from: string, repeat: TaskRepeat): string {
+  const [year, month, day] = from.split("-").map(Number);
+  if (repeat === "weekly")
+    return new Date(Date.UTC(year, month - 1, day + 7)).toISOString().slice(0, 10);
+  const months = month - 1 + { monthly: 1, quarterly: 3, yearly: 12 }[repeat];
+  const nextYear = year + Math.floor(months / 12);
+  const nextMonth = months % 12;
+  const last = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
+  return `${nextYear}-${pad(nextMonth + 1)}-${pad(Math.min(day, last))}`;
+}
+
+/** When a repeating task done now is next due: a period after it was due (or today), and not already past. */
+export function nextOccurrence(dueDate: string | null, repeat: TaskRepeat, today: string) {
+  let next = nextDue(dueDate ?? today, repeat);
+  while (next < today) next = nextDue(next, repeat);
+  return next;
+}
+
+/**
+ * Which tasks a Tasks module shows (its settings; a circle can have several,
+ * each its own view): open, done or all; everyone's, the reader's own,
+ * nobody's, or one person's; due any time, overdue, or within a week or a
+ * month (overdue ones included); and perhaps only high priority.
+ */
+export const TASK_SHOWS = ["open", "done", "all"] as const;
+export type TaskShow = (typeof TASK_SHOWS)[number];
+export const SHOW_LABELS: Record<TaskShow, string> = { open: "Open", done: "Done", all: "All" };
+export const TASK_WHOSE = ["everyone", "mine", "unassigned", "person"] as const;
+export type TaskWhose = (typeof TASK_WHOSE)[number];
+export const WHOSE_LABELS: Record<TaskWhose, string> = {
+  everyone: "Everyone's",
+  mine: "Each reader's own",
+  unassigned: "Nobody's yet (unassigned)",
+  person: "One person's",
+};
+export const TASK_DUES = ["any", "overdue", "week", "month"] as const;
+export type TaskDue = (typeof TASK_DUES)[number];
+export const DUE_LABELS: Record<TaskDue, string> = {
+  any: "Any time",
+  overdue: "Overdue",
+  week: "Due within 7 days (and overdue)",
+  month: "Due within 30 days (and overdue)",
+};
+
+export interface TaskView {
+  show: TaskShow;
+  whose: TaskWhose;
+  /** With `whose: "person"`. */
+  personId?: string;
+  due: TaskDue;
+  /** Only high priority. */
+  high?: boolean;
+}
+export const DEFAULT_TASK_VIEW: TaskView = { show: "open", whose: "everyone", due: "any" };
+
+const addDays = (date: string, days: number) => {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+};
+
+/** Whether a task is in a view (`me`: the reader's person id; `today`: YYYY-MM-DD). */
+export function inView(
+  task: Pick<Task, "status" | "ownerId" | "dueDate" | "priority">,
+  view: TaskView,
+  me: string | null,
+  today: string
+) {
+  if (view.show === "open" && task.status === "done") return false;
+  if (view.show === "done" && task.status !== "done") return false;
+  if (view.whose === "mine" && (!me || task.ownerId !== me)) return false;
+  if (view.whose === "unassigned" && task.ownerId) return false;
+  if (view.whose === "person" && task.ownerId !== view.personId) return false;
+  if (view.high && task.priority !== "high") return false;
+  if (view.due === "any") return true;
+  if (!task.dueDate) return false;
+  if (view.due === "overdue") return task.status !== "done" && task.dueDate < today;
+  return task.dueDate <= addDays(today, view.due === "week" ? 7 : 30);
+}
+
+/** A view in a few words: "Open overdue tasks, nobody's yet". */
+export function describeView(view: TaskView, personName?: string | null) {
+  const show = SHOW_LABELS[view.show];
+  const parts = [view.due === "overdue" ? `${show} overdue tasks` : `${show} tasks`];
+  if (view.due === "week" || view.due === "month")
+    parts.push(`due within ${view.due === "week" ? 7 : 30} days`);
+  if (view.whose === "mine") parts.push("each reader's own");
+  else if (view.whose === "unassigned") parts.push("nobody's yet");
+  else if (view.whose === "person") parts.push(`${personName ?? "one person"}'s`);
+  if (view.high) parts.push("high priority");
+  return parts.join(", ");
+}
+
 /** Who added a task (stored with it). */
 export type TaskPerson = Pick<Actor, "userId" | "personId" | "name">;
 
@@ -60,6 +169,10 @@ export interface Task {
   completedAt: string | null;
   /** Newest last; the most recent 50. */
   activity: TaskEvent[];
+  /** It comes round again: done, the next one is made. */
+  repeat?: TaskRepeat | null;
+  /** The next one, made when this was done (so doing it again doesn't make another). */
+  repeatedAs?: number | null;
 }
 
 /** A task as listed: with how many comments it has. */

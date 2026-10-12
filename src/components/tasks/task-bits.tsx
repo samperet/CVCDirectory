@@ -2,10 +2,11 @@
 
 import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Flag } from "lucide-react";
+import { CalendarDays, Flag, Repeat } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { Circle } from "@/lib/circles/types";
 import {
+  REPEAT_LABELS,
   STATUS_LABELS,
   TASK_STATUSES,
   checklistProgress,
@@ -38,16 +39,28 @@ export const tasksQuery = (circleId: string) => ({
 });
 
 /** Change a task, then refresh the lists it shows up in. */
+/** A repeating task, done: say that the next one's been made. */
+export function nextTaskToast(next: Task | null | undefined) {
+  return next
+    ? {
+        title: `Next one made: #${next.number}`,
+        description: next.dueDate ? `Due ${shortDate(next.dueDate)}` : undefined,
+      }
+    : null;
+}
+
 export function useTaskUpdate(circleId: string, number: number, onDone?: (task: Task) => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   return useMutation({
     mutationFn: (update: Record<string, unknown>) =>
-      apiFetch<{ task: Task }>(`/api/circles/${circleId}/tasks/${number}`, {
+      apiFetch<{ task: Task; next?: Task | null }>(`/api/circles/${circleId}/tasks/${number}`, {
         method: "PATCH",
         body: JSON.stringify(update),
       }),
-    onSuccess: ({ task }) => {
+    onSuccess: ({ task, next }) => {
+      const said = nextTaskToast(next);
+      if (said) toast(said);
       queryClient.setQueryData<TaskResponse>(["task", circleId, number], (old) =>
         old ? { ...old, task } : old
       );
@@ -129,6 +142,18 @@ export function OwnerChip({ name, className }: { name: string | null; className?
         {initials(name)}
       </span>
       <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
+/** A repeating task's mark: "Repeats monthly". */
+export function RepeatMark({ task }: { task: Pick<Task, "repeat"> }) {
+  if (!task.repeat) return null;
+  const label = `Repeats ${REPEAT_LABELS[task.repeat].toLowerCase()}`;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-muted" title={label}>
+      <Repeat className="h-3.5 w-3.5" aria-hidden />
+      <span className="sr-only">{label}</span>
     </span>
   );
 }

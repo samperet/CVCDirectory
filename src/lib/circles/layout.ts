@@ -1,4 +1,5 @@
 import { isCommunity } from "./ids";
+import type { TaskView } from "@/lib/tasks/shared";
 
 /**
  * How a circle's page is laid out: its modules in order, each with a size
@@ -167,7 +168,8 @@ export interface CircleModule {
   /** Which pages a Filtered Documents module shows, and how. */
   info?: { filter: InfoFilter; view: InfoView };
   /** A Tasks module's setting: who can add tasks (unset: the circle's members). */
-  tasks?: { add: TaskAdders };
+  /** Who can add tasks (for all of the circle's Tasks modules), and which tasks this one shows. */
+  tasks?: { add: TaskAdders; view?: TaskView };
   /** A Log module's setting: who can post updates (unset: the circle's members). */
   log?: { post: LogPosters };
   /** A Finances module's setting: who can see it (unset: everyone at CVC). */
@@ -197,8 +199,8 @@ export const TEXT_BACKGROUND_STYLES: Record<TextBackground, { label: string; col
   blue: { label: "Blue", color: "#e5f0fc" },
 };
 
-/** Custom Text and Filtered Documents modules can appear any number of times; the others once. */
-export const REPEATABLE_MODULES: ModuleType[] = ["information", "text"];
+/** Custom Text, Filtered Documents and Tasks modules (each its own view) can appear any number of times; the others once. */
+export const REPEATABLE_MODULES: ModuleType[] = ["information", "text", "tasks"];
 export const MAX_TEXT_MODULE = 20_000;
 
 export const MAX_MODULES = 20;

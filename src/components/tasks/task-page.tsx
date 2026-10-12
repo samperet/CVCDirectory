@@ -10,12 +10,15 @@ import { useSession } from "@/lib/auth/client";
 import { featureEnabled } from "@/lib/circles/features";
 import {
   PRIORITY_LABELS,
+  REPEAT_LABELS,
   STATUS_LABELS,
   TASK_PRIORITIES,
+  TASK_REPEATS,
   TASK_STATUSES,
   checklistProgress,
   type Task,
   type TaskPriority,
+  type TaskRepeat,
 } from "@/lib/tasks/shared";
 import { timeAgo } from "@/lib/time";
 import { WikiMarkdown } from "@/components/wiki/markdown";
@@ -500,6 +503,35 @@ export function TaskPageClient({ circleId, number }: { circleId: string; number:
                     {PRIORITY_LABELS[task.priority]}
                   </span>
                 )}
+              </label>
+              <label className="col-span-2 flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                Repeats
+                {canEdit ? (
+                  <Select
+                    value={task.repeat ?? ""}
+                    onChange={(e) => save({ repeat: (e.target.value as TaskRepeat) || null })}
+                    className="h-9 px-2 font-normal normal-case tracking-normal"
+                    data-task-repeat
+                  >
+                    <option value="">Doesn&apos;t repeat</option>
+                    {TASK_REPEATS.map((value) => (
+                      <option key={value} value={value}>
+                        {REPEAT_LABELS[value]}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <span className="text-sm font-normal normal-case tracking-normal text-foreground">
+                    {task.repeat ? REPEAT_LABELS[task.repeat] : "Doesn't repeat"}
+                  </span>
+                )}
+                {task.repeat ? (
+                  <span className="text-xs font-normal normal-case tracking-normal text-muted">
+                    {task.repeatedAs
+                      ? `The next one is #${task.repeatedAs}.`
+                      : "When it's done, the next one is made, due a period on."}
+                  </span>
+                ) : null}
               </label>
             </div>
 

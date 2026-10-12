@@ -16,6 +16,7 @@ import {
   type CircleModule,
 } from "./layout";
 import { mutateJson, readJson, readOrSeedJson } from "@/lib/storage";
+import { TASK_DUES, TASK_SHOWS, TASK_WHOSE } from "@/lib/tasks/shared";
 import { BOARD_ID, COMMUNITY_ID, isCommunity } from "./ids";
 import { canHaveSubgroups } from "./tiers";
 import type { Circle, CircleApplication, CircleKind, CircleSeat } from "@/lib/circles/types";
@@ -72,7 +73,24 @@ const moduleSchema = z
       .optional()
       .transform((value) => value || undefined),
     info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
-    tasks: z.object({ add: z.enum(TASK_ADDERS) }).optional(),
+    tasks: z
+      .object({
+        add: z.enum(TASK_ADDERS),
+        view: z
+          .object({
+            show: z.enum(TASK_SHOWS),
+            whose: z.enum(TASK_WHOSE),
+            personId: z.string().max(80).optional(),
+            due: z.enum(TASK_DUES),
+            high: z.boolean().optional(),
+          })
+          .refine(
+            (view) => view.whose !== "person" || !!view.personId,
+            "Choose whose tasks it shows"
+          )
+          .optional(),
+      })
+      .optional(),
     log: z.object({ post: z.enum(LOG_POSTERS) }).optional(),
     finances: z.object({ view: z.enum(FINANCE_VIEWERS) }).optional(),
     text: z
@@ -116,7 +134,7 @@ const moduleSchema = z
     })
   );
 
-/** The page's modules, in order: any number of Filtered Documents and Custom Text modules, the others once each. */
+/** The page's modules, in order: any number of Filtered Documents, Custom Text and Tasks modules, the others once each. */
 export const modulesSchema = z
   .array(moduleSchema)
   .max(MAX_MODULES, `Up to ${MAX_MODULES} modules`)
@@ -129,7 +147,7 @@ export const modulesSchema = z
       .filter((module) => !REPEATABLE_MODULES.includes(module.type))
       .map((module) => module.type);
     return new Set(others).size === others.length;
-  }, "Members, the duty schedule, tasks, the forum, the log, finances, documents, sub groups, and the alert button can each appear once");
+  }, "Members, the duty schedule, the forum, the log, finances, documents, sub groups, and the alert button can each appear once");
 
 export const circleInputSchema = z.object({
   name: text(80, "Name").min(2, "Name the circle (at least 2 characters)"),

@@ -616,12 +616,20 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   members-only poll). Stored together in `wiki/polls.json` (`/api/wiki/polls`), each with its
   circle. Circles no longer have a separate Polls section, and the forum no longer has polls.
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
-  on or off (by adding or removing its Tasks module under **Edit**). The Tasks module's
-  **Settings** say **who can add tasks**: the circle's members (and the Board and admins; the
+  on or off (by adding or removing its Tasks modules under **Edit**). A circle can have **several
+  Tasks modules, each its own view**: its **Settings** give it a title and say which tasks it
+  shows — *Open*, *Done* or *All*; everyone's, each reader's own, nobody's yet, or one member's;
+  due any time, overdue, or within 7 or 30 days (overdue included); high priority only — say an
+  "Overdue" list beside the usual one, or "Done lately". They also say **who can add tasks** (for
+  all the circle's task lists): the circle's members (and the Board and admins; the
   default) or **any resident** — who can then also change and delete the tasks they added. A task has a title, Markdown details
   (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
-  (anyone in the directory — the circle's members listed first), a due date, a priority, and a
-  checklist whose progress shows as a bar. The board has a column per status (stacked on phones):
+  (anyone in the directory — the circle's members listed first), a due date, a priority, a
+  checklist whose progress shows as a bar, and whether it **repeats** — weekly, monthly, every 3
+  months or yearly. When a repeating task is done, the next one is made at once (once): the same
+  title, details, owner and priority, not started, its checklist unticked, due a period after this
+  one was due (the first such date not already past; a month on from the 31st is the month's last
+  day), and the done task says which is next (`nextOccurrence` in `lib/tasks/shared.ts`). The board has a column per status (stacked on phones):
   drag a card to move it, or use its status menu; filter to *Mine* or *Unassigned*, or find one by
   title or number. Each task has its own page (`/circles/<id>/tasks/<number>`) with a log of what's
   happened to it and **nested comments** — reply to any comment, fold a conversation away, link to
@@ -683,8 +691,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **A circle's page** – is built from **modules**: **Filtered Documents** and **Custom Text** (as many of
   each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
-  there is one, **Tasks**, **Forum** (see Circle forums), **Log**, **Finances**, **Documents**, and
-  **Alert** (each of those once; Alert added and removed only by admins). One **Edit** button (the
+  there is one, **Tasks** (as many as the circle likes, each its own view), **Forum** (see Circle
+  forums), **Log**, **Finances**, **Documents**, and **Alert** (each of those once; Alert added and
+  removed only by admins). One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
   in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds

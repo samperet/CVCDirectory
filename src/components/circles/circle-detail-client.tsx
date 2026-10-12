@@ -196,10 +196,10 @@ export function CircleDetailClient({ id }: { id: string }) {
         return {
           title,
           icon: icon(module),
-          detail: describeTasks(module),
+          detail: describeTasks(module, (personId) => people.get(personId)?.displayName ?? null),
           content: (
             <Card>
-              <TasksModule circle={circle} />
+              <TasksModule circle={circle} module={module} title={title} />
             </Card>
           ),
         };
@@ -483,9 +483,20 @@ export function CircleDetailClient({ id }: { id: string }) {
           ) : dialog?.kind === "settings" && dialog.module.type === "tasks" ? (
             <TasksSettings
               module={dialog.module}
+              circle={circle}
               onClose={() => setDialog(null)}
               onSave={(module) => {
-                setPageDraft(editing.map((entry) => (entry.id === module.id ? module : entry)));
+                // Who can add tasks is the circle's: every Tasks module says the same.
+                const add = module.tasks!.add;
+                setPageDraft(
+                  editing.map((entry) =>
+                    entry.id === module.id
+                      ? module
+                      : entry.type === "tasks"
+                        ? { ...entry, tasks: { ...entry.tasks, add } }
+                        : entry
+                  )
+                );
                 setDialog(null);
               }}
             />

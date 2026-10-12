@@ -57,6 +57,19 @@ import { useCircles } from "@/components/directory/use-directory";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { useSession } from "@/lib/auth/client";
+import {
+  DEFAULT_TASK_VIEW,
+  DUE_LABELS,
+  SHOW_LABELS,
+  TASK_DUES,
+  TASK_SHOWS,
+  TASK_WHOSE,
+  WHOSE_LABELS,
+  describeView,
+  type TaskDue,
+  type TaskView,
+  type TaskWhose,
+} from "@/lib/tasks/shared";
 
 /** Adding a module to a circle's page, and setting up which pages a Filtered Documents module shows. */
 
@@ -290,8 +303,11 @@ export function LogSettings({
 }
 
 /** What a Tasks module allows, in a few words. */
-export const describeTasks = (module: CircleModule) =>
-  module.tasks?.add === "anyone" ? "Any resident can add tasks" : "Members add tasks";
+export const describeTasks = (module: CircleModule, personName?: (id: string) => string | null) => {
+  const view = module.tasks?.view ?? DEFAULT_TASK_VIEW;
+  const who = module.tasks?.add === "anyone" ? "any resident adds tasks" : "members add tasks";
+  return `${describeView(view, view.personId ? personName?.(view.personId) : null)} · ${who}`;
+};
 
 /** Who can see a Finances module, in a few words. */
 export const describeFinances = (module: CircleModule) =>
@@ -394,17 +410,29 @@ export function AddModuleDialog({
   );
 }
 
-/** Setting up a Tasks module: who can add tasks. */
+/**
+ * Setting up a Tasks module: its title, which tasks it shows (open, done or
+ * all; whose; when due; high priority only), and who can add tasks — that
+ * last for all of the circle's Tasks modules.
+ */
 export function TasksSettings({
   module,
+  circle,
   onSave,
   onClose,
 }: {
   module: CircleModule;
+  circle: Circle;
   onSave: (module: CircleModule) => void;
   onClose: () => void;
 }) {
+  const [title, setTitle] = useState(module.title ?? "");
   const [add, setAdd] = useState(module.tasks?.add ?? "members");
+  const [view, setView] = useState<TaskView>(module.tasks?.view ?? DEFAULT_TASK_VIEW);
+  const set = (change: Partial<TaskView>) => setView((current) => ({ ...current, ...change }));
+  const person = (id: string | null) =>
+    id ? circle.seats.find((seat) => seat.personId === id)?.name ?? null : null;
+  const ready = view.whose !== "person" || !!view.personId;
   return (
     <Dialog
       title="Tasks settings"
@@ -415,11 +443,103 @@ export function TasksSettings({
         className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
-          onSave({ ...module, tasks: { add } });
+          if (!ready) return;
+          const { personId, high, ...rest } = view;
+          onSave({
+            ...module,
+            title: title.trim() || undefined,
+            tasks: {
+              add,
+              view: {
+                ...rest,
+                ...(rest.whose === "person" && personId ? { personId } : {}),
+                ...(high ? { high } : {}),
+              },
+            },
+          });
         }}
+        data-tasks-settings
       >
+        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+          Title
+          <Input
+            value={title}
+            maxLength={60}
+            placeholder="Tasks"
+            onChange={(event) => setTitle(event.target.value)}
+            className="bg-white"
+          />
+        </label>
+        <fieldset className="flex flex-col gap-2.5">
+          <legend className="mb-1 text-sm font-medium text-foreground">Which tasks it shows</legend>
+          <SegmentedControl
+            label="Show"
+            value={view.show}
+            onChange={(show) => set({ show })}
+            options={TASK_SHOWS.map((value) => ({ value, label: SHOW_LABELS[value] }))}
+          />
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+            Whose
+            <Select
+              value={view.whose}
+              onChange={(event) => set({ whose: event.target.value as TaskWhose })}
+            >
+              {TASK_WHOSE.map((value) => (
+                <option key={value} value={value}>
+                  {WHOSE_LABELS[value]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          {view.whose === "person" ? (
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+              Whose tasks
+              <Select
+                value={view.personId ?? ""}
+                onChange={(event) => set({ personId: event.target.value || undefined })}
+              >
+                <option value="">Choose a member…</option>
+                {circle.seats
+                  .filter((seat) => seat.personId)
+                  .map((seat) => (
+                    <option key={seat.personId} value={seat.personId!}>
+                      {seat.name}
+                    </option>
+                  ))}
+              </Select>
+            </label>
+          ) : null}
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+            When due
+            <Select
+              value={view.due}
+              onChange={(event) => set({ due: event.target.value as TaskDue })}
+            >
+              {TASK_DUES.map((value) => (
+                <option key={value} value={value}>
+                  {DUE_LABELS[value]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={!!view.high}
+              onChange={(event) => set({ high: event.target.checked })}
+              className="h-4 w-4 accent-primary"
+            />
+            High priority only
+          </label>
+          <p className="text-xs text-muted">
+            Shows: {describeView(view, person(view.personId ?? null))}. Add another Tasks module for
+            another view.
+          </p>
+        </fieldset>
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1 text-sm font-medium text-foreground">Who can add tasks</legend>
+          <legend className="mb-1 text-sm font-medium text-foreground">
+            Who can add tasks (in all of this circle&apos;s task lists)
+          </legend>
           {TASK_ADDERS.map((value) => (
             <label key={value} className="flex items-center gap-2 text-sm text-foreground">
               <input
@@ -442,7 +562,9 @@ export function TasksSettings({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit">Done</Button>
+          <Button type="submit" disabled={!ready}>
+            Done
+          </Button>
         </div>
       </form>
     </Dialog>

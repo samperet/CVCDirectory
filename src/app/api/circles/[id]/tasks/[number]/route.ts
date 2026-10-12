@@ -98,7 +98,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       onlyUserIds: [task.createdBy.userId],
     });
   }
-  return NextResponse.json({ task });
+  // A repeating task, done: the next one was made (`next`).
+  return NextResponse.json({ task, next: result.next ?? null });
 }
 
 /** Delete a task: the circle's editors, or whoever added it where any resident may add tasks. */
