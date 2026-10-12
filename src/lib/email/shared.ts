@@ -67,10 +67,10 @@ export interface EmailLogEntry {
   at: string;
   /**
    * A notification topic, an admin's test, a new member's welcome or a sign-in link
-   * (`sendDirectEmail`). "group", "summary" and "confirm" are from the group email the app
+   * (`sendDirectEmail`), or a backup being ready (`lib/backups/deliver.ts`). "group", "summary" and "confirm" are from the group email the app
    * once had, and stay readable in the log.
    */
-  topic: Topic | "test" | "welcome" | "sign-in" | "group" | "summary" | "confirm";
+  topic: Topic | "test" | "welcome" | "sign-in" | "backup" | "group" | "summary" | "confirm";
   /** For the old group email: the circle. */
   circleId?: string;
   subject: string;

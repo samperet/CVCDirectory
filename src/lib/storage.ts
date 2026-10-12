@@ -463,6 +463,64 @@ export async function copyBinary(from: string, to: string): Promise<boolean> {
   return true;
 }
 
+// --- Listing (backups) -----------------------------------------------------------
+
+/** A stored object: its key and size. */
+export interface StoredObject {
+  key: string;
+  bytes: number;
+}
+
+/**
+ * Every stored object whose key starts with `prefix` (all of them, by
+ * default) — R2's listing, page by page, or the local files (their
+ * content-type notes left out). For backups.
+ */
+export async function listKeys(prefix = ""): Promise<StoredObject[]> {
+  if (!isPersistent()) return listLocalKeys(prefix);
+  const { ListObjectsV2Command } = await import("@aws-sdk/client-s3");
+  const config = r2Config()!;
+  const client = await getS3Client();
+  const found: StoredObject[] = [];
+  let token: string | undefined;
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: config.bucket,
+        ...(prefix ? { Prefix: prefix } : {}),
+        ...(token ? { ContinuationToken: token } : {}),
+      })
+    );
+    for (const entry of page.Contents ?? [])
+      if (entry.Key) found.push({ key: entry.Key, bytes: entry.Size ?? 0 });
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return found;
+}
+
+async function listLocalKeys(prefix: string): Promise<StoredObject[]> {
+  const base = localFilePath("");
+  const found: StoredObject[] = [];
+  const walk = async (dir: string) => {
+    let entries: import("fs").Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.isFile() && !entry.name.endsWith(".type")) {
+        const key = path.relative(base, full).split(path.sep).join("/");
+        if (key.startsWith(prefix)) found.push({ key, bytes: (await fs.stat(full)).size });
+      }
+    }
+  };
+  await walk(base);
+  return found.sort((a, b) => a.key.localeCompare(b.key));
+}
+
 // --- Streams (big files: document exports) -----------------------------------
 
 /**

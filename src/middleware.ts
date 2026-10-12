@@ -38,6 +38,9 @@ const PUBLIC_PATHS = new Set([
   "/api/health",
   "/api/live/echo", // a spike: it checks the session itself, and only echoes for residents
   "/api/email/unsubscribe", // an email's "Stop them" link: its own signed token
+  "/api/backups/feed", // a resident's backup feed: its token is the key
+  "/api/backups/feed/file", // a backup from that feed: the same token
+  "/api/cron/backup", // the weekly backup: Vercel Cron's bearer CRON_SECRET
   "/api/admin/directory", // protected by its own bearer token
   "/api/admin/directory/people", // protected by its own bearer token
   "/api/admin/circles", // protected by its own bearer token

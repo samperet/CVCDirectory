@@ -19,6 +19,7 @@ A mobile-first community directory for residents, sociocratic circles, shared sk
 - 📷 **Photos** – A shared gallery of community photos with captions and a full-screen viewer.
 - 📄 **Documents** – One place for every circle's documents: **pages written here** (a visual editor, editing together, embeds, history, sticky-note comments on passages, and **alternative versions** any resident can write and compare side by side) and **files uploaded** (minutes, agendas, plans, scans, with versions). One list and one search cover both, contents included, and the forum too; one **New** button writes a page, uploads a file, or adds a link (Google Docs, Sheets and Slides recognised); a file or Google Doc can be turned into a page. **Proposals** are their own records — put to a circle, about pages and files (each kept as a **snapshot** of how it was when attached), held in documents — and a circle consents to one **at a meeting**: the meeting's notes record who was there, and its **Consent** button records the circle, the meeting, who was there, and who recorded it. Pages and files show where their proposals stand: **Draft**, **Proposed**, **Consented**.
 - 🐞 **Bugs & ideas** – A ladybug in the corner of every page sends the admins a bug report or a feature request, with the page it came from.
+- 🗄️ **Backups** – Every Monday, everything residents can see in the app (and the site's code) in one zip, readable by people and by agents, fingerprinted and timestamped in Bitcoin; residents sign up on an unlisted page for an email, a feed, or a copy in their own storage.
 - 🌀 **Circles** – Each circle has its own page, with its members in a side panel; residents join with a button or apply, as the circle chooses. Its members and the Board manage members, details, and an icon; icons show as badges in the directory.
 
 ## Getting Started
@@ -59,6 +60,10 @@ Email (optional; see App & Notifications):
 - `BREVO_DAILY_LIMIT` / `BREVO_MONTHLY_LIMIT` – Brevo's allowance (default 300 a day, 9,000 a
   month); `EMAIL_DAILY_LIMIT` / `EMAIL_MONTHLY_LIMIT` – Resend's (default: its free 100 a day,
   3,000 a month).
+- `CRON_SECRET` – Starts the weekly backup (Vercel Cron sends it; see Backups). Without it,
+  backups are made only when an admin exports one.
+- `GITHUB_BACKUP_TOKEN` – A GitHub token with read-only access to this repository's contents, so
+  each backup includes the site's code (`BACKUP_REPOSITORY`, `owner/name`, if not Vercel's own).
 - `OPENAI_KEY` – Draws new circles' icons (see Circles; `OPENAI_IMAGE_MODEL` picks the model,
   default `gpt-image-2.5-flare`) and reads photos of the printed duty calendar for the egg log (see
   Duty schedules; `OPENAI_VISION_MODEL`, default `gpt-5.6-sol`). Without it, new circles start
@@ -202,6 +207,49 @@ session is, so admin status is checked server-side on every request; the user me
   rare and last seen is the better sign of who uses the app. It records only who and when — no
   phone numbers or devices — keeps the latest 2,000 sign-ins in `auth/sign-in-log.json`, and is
   served only to admins.
+
+## Backups
+
+**Backups** (`/backups`, unlisted — no menu links to it) keep CVC's data somewhere besides its
+own storage. Every Monday morning (Vercel Cron, `vercel.json`, calling `/api/cron/backup` with
+`CRON_SECRET`) — or when an admin presses **Export now** on that page — `lib/backups/make.ts` makes
+one zip, streamed into storage at `backups/<id>.zip`; the newest eight are kept
+(`backups/index.json`). Inside, under `cvc-backup-<date>/`:
+
+- `data/` — every stored object at its storage key (JSON documents, files as uploaded): what the
+  app reads, so it can be restored key for key, and what an agent or script reads.
+- `pages/<circle>/<title>.md` — each written page as Markdown with front matter.
+- `site/source.zip` — the app's code at the deployed commit, from GitHub (with
+  `GITHUB_BACKUP_TOKEN`).
+- `manifest.json` (every file's path, size, SHA-256 and dataset; what each dataset holds; what's
+  left out) and `README.md`.
+
+A backup holds only what every resident can see in the app (`lib/backups/contents.ts`): private
+messages, what only admins see (the sign-in log and last seen, the email log, quota and settings,
+feedback reports), invitations' links, circles' finances kept to their members, sign-in links, the
+app's keys, push addresses, earlier backups and their sign-ups, and anything temporary are left
+out. The zip's SHA-256 (its **fingerprint**) is timestamped with OpenTimestamps
+(`lib/backups/timestamp.ts`: three public calendars, anchored in Bitcoin within hours); the proof is
+kept beside it (`backups/<id>.ots`) — `ots verify` shows the backup existed, unchanged, that day.
+
+Any resident signs up there (`backups/subscribers.json`, by person id):
+
+- **Email** — told when each is ready, with a link back to download it (`PATCH
+  /api/backups/subscription`; respects email test mode).
+- **A feed** — a private address (`/api/backups/feed?token=…`, no sign-in: the token is the key,
+  shown once, only its hash kept) listing the backups as JSON with links to each zip and proof
+  (`/api/backups/feed/file`), for an agent or a script. **New address** replaces it; **Stop**
+  ends it.
+- **Their own storage** — any S3-compatible bucket (Backblaze B2, AWS S3, Wasabi, Cloudflare R2,
+  Filebase on IPFS): each new backup and its proof are copied there in 8 MiB parts
+  (`lib/backups/deliver.ts`). CVC writes a small note there before keeping the settings; the
+  address must be `https://` and on the internet (not this machine or a private network); the
+  secret key is sealed with AES-256-GCM from `AUTH_SECRET` and never shown again (changing
+  `AUTH_SECRET` means setting it up again). The page shows how the last copy went.
+
+Signed-in residents download any kept backup (`GET /api/backups/<id>`, `?file=ots` for the proof;
+a ten-minute link straight from R2). Locally, `BACKUP_STORAGE_ALLOW_HTTP=1` lets tests copy to a
+stand-in bucket over plain http.
 
 ## Forum & Appreciations
 
