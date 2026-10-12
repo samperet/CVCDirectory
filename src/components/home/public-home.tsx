@@ -10,7 +10,8 @@ import { Pill } from "@/components/ui/pill";
  * development (CVC), the name it leads with — shown at "/" to
  * visitors who aren't signed in (residents see their dashboard there). The
  * text is the community's own, from its original website. Everything here is
- * public: no resident names or contact details. Residents can see it too, at
+ * public: no resident names or contact details, and no email address of the
+ * community's (homes for sale show the contact their seller gave). Residents can see it too, at
  * /welcome (`preview`), with a bar leading back to the app.
  *
  * While the site is being proposed (`UNDER_CONSTRUCTION`), visitors see only
@@ -20,8 +21,6 @@ import { Pill } from "@/components/ui/pill";
 
 /** Visitors see only the under-construction notice; set to false to open the page to them. */
 const UNDER_CONSTRUCTION = true;
-
-const CONTACT_EMAIL = "champlainvalleycohousinginfo@gmail.com";
 
 /** The community's public name, and what it is. */
 const NAME = "Common Pastures";
@@ -421,35 +420,6 @@ export function PublicHome({
         </Section>
 
         {homes.length ? <HomesForSale homes={homes} /> : null}
-
-        {/* Contact */}
-        <section
-          id="contact"
-          className="relative scroll-mt-20 overflow-hidden bg-forest text-white"
-        >
-          <Image
-            src="/home/leaf.webp"
-            alt=""
-            aria-hidden
-            width={591}
-            height={1000}
-            className="pointer-events-none absolute -right-10 top-1/2 h-[160%] w-auto max-w-none -translate-y-1/3 select-none opacity-60"
-          />
-          <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-6">
-            <div className="flex max-w-2xl flex-col gap-3">
-              <h2 className="text-3xl font-semibold">Get in touch</h2>
-              <p className="text-white/85">
-                Curious about cohousing or our community? We&apos;d love to hear from you.
-              </p>
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="mt-1 inline-flex w-fit items-center gap-2 break-all font-medium text-sun underline decoration-sun/40 underline-offset-4 hover:decoration-sun"
-              >
-                <Mail className="h-4 w-4 shrink-0" aria-hidden /> {CONTACT_EMAIL}
-              </a>
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-border bg-background">
@@ -459,9 +429,6 @@ export function PublicHome({
             {TAGLINE} · Charlotte, Vermont 05445
           </p>
           <div className="flex gap-4">
-            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground">
-              Contact
-            </a>
             <Link href="/login" className="hover:text-foreground">
               Resident sign-in
             </Link>

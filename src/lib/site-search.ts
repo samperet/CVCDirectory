@@ -250,7 +250,7 @@ export async function searchSite(
     ],
     result: {
       title: item.title,
-      href: "/library",
+      href: `/library?item=${item.id}`,
       meta: `${item.category} · lent by ${item.ownerName}${item.available ? "" : " · on loan"}`,
     },
     body: item.description || undefined,

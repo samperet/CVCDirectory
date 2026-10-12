@@ -93,7 +93,8 @@ npm run lint
 ## Public Front Page
 
 Signed-out visitors to `/` see a public page about CVC — the community, its
-land, how it governs itself, and how to get in touch — with **Resident sign-in** buttons; signed-in
+land, how it governs itself, and homes for sale — with **Resident sign-in** buttons, and no email
+address of the community's (homes for sale show their sellers' contacts); signed-in
 residents see their dashboard at `/` instead (`src/components/home/public-home.tsx`). It contains
 no resident information. Its hero photo lives in `public/home/`, which (like the manifest and icons)
 is served without sign-in; every other page and API still requires it.
@@ -321,13 +322,17 @@ Authors always come from the signed-in session, never from the request body.
 - **Skills** (`/skills`) – every skill belongs to the resident who lists it, taken from their
   signed-in account. Residents add and remove only their own; the catalog groups skills by
   category and shows who offers each one. Stored in `skills/index.json`.
-- **Loan Library** (`/library`) – things residents are happy to lend. Every item belongs to the
-  resident who lists it; only they can mark it lent out (optionally noting who has it), returned,
-  or remove it. Others see an "Ask to borrow" button that emails (or calls) the owner using their
-  directory contact details. Stored in `library/items.json`.
+- **Loan Library** (`/library`) – things residents are happy to lend, as a grid of small cards:
+  each just its photo, name, **Available** / **Lent out**, and whose it is. Clicking one opens the
+  rest — category, details, the owner's unit, who has it — with an **Ask to borrow** button that
+  emails (or calls) the owner using their directory contact details (`/library?item=<id>` opens
+  one; site search links there). Every item belongs to the resident who lists it; they (and admins)
+  get **Edit** and **Delete** on its card when they point at it (always shown on phones), and in
+  its details: **Edit** changes its name, category, details and photo, and whether it's lent out
+  (optionally noting who has it). Stored in `library/items.json`.
   An item can have a **photo**: **Lend something** opens with a photo tile — on a phone, **Take a
   photo** (straight to the camera) or **Choose from library**; on a computer, **Add a photo** — and
-  owners can **Add photo** / **Change photo** on their items. Photos are shrunk to 1600px and
+  owners can change or take it off in **Edit**. Photos are shrunk to 1600px and
   re-encoded as JPEG in the browser before they're sent (quick on a phone connection, and the
   camera's location data is dropped), stored as binaries (`library/photos/<id>`, removed with the
   item), and served to signed-in residents (`/api/loan-items/<id>/photo`).

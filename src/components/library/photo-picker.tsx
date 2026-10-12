@@ -22,13 +22,17 @@ function useTouch() {
  * **Choose a photo**. It's shrunk and turned into a JPEG in the browser at
  * once — so it uploads quickly, and the camera's location data is dropped —
  * and previewed. `onChange` gets the prepared photo (or null when taken off).
+ * Editing an item, `currentUrl` shows the photo it has until another is chosen.
  */
 export function PhotoPicker({
   photo,
+  currentUrl = null,
   onChange,
   className,
 }: {
   photo: Blob | null;
+  /** The photo already there (shown, with Change and ×, until another is chosen or it's taken off). */
+  currentUrl?: string | null;
   onChange: (photo: Blob | null) => void;
   className?: string;
 }) {
@@ -37,13 +41,14 @@ export function PhotoPicker({
   const camera = useRef<HTMLInputElement>(null);
   const library = useRef<HTMLInputElement>(null);
   const [preparing, setPreparing] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
   useEffect(() => {
-    if (!photo) return setPreview(null);
+    if (!photo) return setChosen(null);
     const url = URL.createObjectURL(photo);
-    setPreview(url);
+    setChosen(url);
     return () => URL.revokeObjectURL(url);
   }, [photo]);
+  const preview = chosen ?? currentUrl;
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
@@ -80,7 +85,7 @@ export function PhotoPicker({
     <div
       className={cn(
         "relative flex aspect-[4/3] w-full overflow-hidden rounded-xl border-2 border-dashed border-border bg-accent/30",
-        photo && "border-solid",
+        preview && "border-solid",
         className
       )}
       data-photo-picker
@@ -90,7 +95,11 @@ export function PhotoPicker({
       {preview ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- a local preview */}
-          <img src={preview} alt="The photo to add" className="h-full w-full object-cover" />
+          <img
+            src={preview}
+            alt={chosen ? "The photo to add" : "Its photo"}
+            className="h-full w-full object-cover"
+          />
           <div className="absolute inset-x-2 bottom-2 flex justify-between gap-2">
             <button
               type="button"

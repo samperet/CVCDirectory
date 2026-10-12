@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Mail, Phone, Plus, Search, Trash2, Undo2, UserRoundCheck, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { preparePhoto, uploadImage } from "@/lib/image-client";
+import { uploadImage } from "@/lib/image-client";
 import { PhotoPicker } from "@/components/library/photo-picker";
+import {
+  CategoryOptions,
+  EditLoanItem,
+  LoanItemDetails,
+  SUGGESTED_CATEGORIES,
+  useRemoveItem,
+  type LibraryListing,
+} from "@/components/library/loan-item-dialogs";
 import { useSession } from "@/lib/auth/client";
 import type { LoanItem } from "@/lib/library/store";
 import { Button } from "@/components/ui/button";
@@ -17,183 +25,23 @@ import { cn } from "@/lib/utils";
 import { Pill } from "@/components/ui/pill";
 import { Loading, ErrorCard } from "@/components/ui/status";
 import { Select } from "@/components/ui/select";
-import { useConfirm } from "@/components/ui/confirm";
 import { SegmentedControl } from "@/components/ui/segmented";
+import { ON_HOVER } from "@/components/ui/hover";
 
-interface LibraryListing extends LoanItem {
-  ownerUnit: number | null;
-  ownerEmail: string | null;
-  ownerPhone: string | null;
-  mine: boolean;
-  photoUrl: string | null;
-}
+/**
+ * The loan library: things residents lend each other. Each card is just
+ * its photo, name, whether it's available, and whose it is; clicking it
+ * opens the rest (`loan-item-dialogs.tsx`) with **Ask to borrow**. An
+ * item's owner and admins get **Edit** and **Delete** on the card when they
+ * point at it (always shown on touch screens). `/library?item=<id>` opens
+ * one item, as site search links it.
+ */
+
+/** An icon button among a card's hover actions. */
+const action =
+  "inline-flex h-8 w-8 items-center justify-center rounded-md text-foreground-light transition hover:bg-accent hover:text-foreground";
 
 type Availability = "all" | "available" | "lent";
-
-const SUGGESTED_CATEGORIES = [
-  "Tools",
-  "Garden",
-  "Kitchen",
-  "Books",
-  "Games",
-  "Outdoor",
-  "Kids",
-  "Electronics",
-  "General",
-];
-
-function AskToBorrow({ item }: { item: LibraryListing }) {
-  if (item.ownerEmail) {
-    const subject = encodeURIComponent(`Borrowing your ${item.title}`);
-    const body = encodeURIComponent(
-      `Hi ${item.ownerName.split(" ")[0]},\n\nCould I borrow your ${item.title}?\n\nThanks!`
-    );
-    return (
-      <Button asChild size="sm" className="gap-1.5">
-        <a href={`mailto:${item.ownerEmail}?subject=${subject}&body=${body}`}>
-          <Mail className="h-4 w-4" /> Ask to borrow
-        </a>
-      </Button>
-    );
-  }
-  if (item.ownerPhone) {
-    return (
-      <Button asChild size="sm" className="gap-1.5">
-        <a href={`tel:${item.ownerPhone.replace(/\D/g, "")}`}>
-          <Phone className="h-4 w-4" /> Call to borrow
-        </a>
-      </Button>
-    );
-  }
-  return <p className="text-xs text-muted">Ask {item.ownerName} in person.</p>;
-}
-
-function OwnerControls({ item }: { item: LibraryListing }) {
-  const confirm = useConfirm();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [lending, setLending] = useState(false);
-  const [lentTo, setLentTo] = useState("");
-
-  const onError = (err: Error) =>
-    toast({ title: "Could not update item", description: err.message, variant: "destructive" });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["library"] });
-
-  const update = useMutation({
-    mutationFn: (body: { available: boolean; lentTo?: string | null }) =>
-      apiFetch(`/api/loan-items/${item.id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    onSuccess: () => {
-      setLending(false);
-      setLentTo("");
-      refresh();
-    },
-    onError,
-  });
-  const remove = useMutation({
-    mutationFn: () => apiFetch(`/api/loan-items/${item.id}`, { method: "DELETE" }),
-    onSuccess: refresh,
-    onError,
-  });
-  const photoInput = useRef<HTMLInputElement>(null);
-  const photo = useMutation({
-    mutationFn: async (file: File) =>
-      uploadImage(`/api/loan-items/${item.id}/photo`, await preparePhoto(file, 1600)),
-    onSuccess: () => {
-      refresh();
-      toast({ title: item.photoUrl ? "Photo changed" : "Photo added" });
-    },
-    onError: (err: Error) =>
-      toast({ title: "Could not add the photo", description: err.message, variant: "destructive" }),
-  });
-
-  if (lending) {
-    return (
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          update.mutate({ available: false, lentTo: lentTo.trim() || null });
-        }}
-      >
-        <Input
-          autoFocus
-          placeholder="Who has it? (optional)"
-          value={lentTo}
-          maxLength={80}
-          onChange={(event) => setLentTo(event.target.value)}
-          className="bg-white"
-        />
-        <div className="flex gap-2">
-          <Button type="submit" size="sm" disabled={update.isPending}>
-            Mark as lent out
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => setLending(false)}>
-            Cancel
-          </Button>
-        </div>
-      </form>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      <input
-        ref={photoInput}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) photo.mutate(file);
-          event.target.value = "";
-        }}
-      />
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5"
-        onClick={() => photoInput.current?.click()}
-        disabled={photo.isPending}
-      >
-        <Camera className="h-4 w-4" />
-        {photo.isPending ? "Uploading…" : item.photoUrl ? "Change photo" : "Add photo"}
-      </Button>
-      {item.available ? (
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setLending(true)}>
-          <UserRoundCheck className="h-4 w-4" /> Lent out…
-        </Button>
-      ) : (
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
-          onClick={() => update.mutate({ available: true })}
-          disabled={update.isPending}
-        >
-          <Undo2 className="h-4 w-4" /> Returned
-        </Button>
-      )}
-      <Button
-        size="sm"
-        variant="ghost"
-        className="gap-1.5 text-muted hover:text-destructive"
-        onClick={async () => {
-          if (
-            await confirm({
-              title: `Remove “${item.title}” from the library?`,
-              confirmLabel: "Remove",
-              destructive: true,
-            })
-          )
-            remove.mutate();
-        }}
-        disabled={remove.isPending}
-      >
-        <Trash2 className="h-4 w-4" /> Remove
-      </Button>
-    </div>
-  );
-}
 
 export function LibraryClient() {
   const { toast } = useToast();
@@ -207,6 +55,19 @@ export function LibraryClient() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: "", category: "", description: "" });
   const [photo, setPhoto] = useState<Blob | null>(null);
+  // The item opened (its details) or being edited, by id.
+  const [opened, setOpened] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const remove = useRemoveItem();
+  // `/library?item=<id>` (site search) opens that item.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("item");
+    if (id) setOpened(id);
+  }, []);
+  const close = () => {
+    setOpened(null);
+    if (window.location.search) window.history.replaceState(null, "", "/library");
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["library"],
@@ -244,6 +105,9 @@ export function LibraryClient() {
       .sort((a, b) => Number(b.available) - Number(a.available) || a.title.localeCompare(b.title));
   }, [items, query, categoryFilter, availability, mineOnly]);
 
+  const openedItem = items.find((item) => item.id === opened);
+  const editingItem = items.find((item) => item.id === editing);
+
   // List the item, then send its photo (if one was chosen).
   const add = useMutation({
     mutationFn: async () => {
@@ -271,7 +135,7 @@ export function LibraryClient() {
       if (photoFailed)
         toast({
           title: "Item listed, but the photo didn't upload",
-          description: `${photoFailed}. Try Add photo on the item.`,
+          description: `${photoFailed}. Try again from Edit on the item.`,
           variant: "destructive",
         });
       else toast({ title: "Item listed", description: "Neighbors can now ask to borrow it." });
@@ -291,9 +155,6 @@ export function LibraryClient() {
           {adding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{" "}
           {adding ? "Cancel" : "Lend something"}
         </Button>
-        <span className="text-sm text-muted">
-          Items you list are shown under your name, with a way to reach you.
-        </span>
       </div>
 
       {adding ? (
@@ -327,11 +188,7 @@ export function LibraryClient() {
               onChange={(event) => setForm((f) => ({ ...f, category: event.target.value }))}
               className="bg-white"
             />
-            <datalist id="library-categories">
-              {categories.map((cat) => (
-                <option key={cat} value={cat} />
-              ))}
-            </datalist>
+            <CategoryOptions id="library-categories" categories={categories} />
             <Textarea
               rows={2}
               placeholder="Details (optional): size, condition, anything a borrower should know"
@@ -342,6 +199,9 @@ export function LibraryClient() {
               onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
               className="bg-white"
             />
+            <p className="text-xs text-muted">
+              Items you list are shown under your name, with a way to reach you.
+            </p>
             <Button
               type="submit"
               className="w-full sm:w-fit"
@@ -401,56 +261,81 @@ export function LibraryClient() {
       ) : error ? (
         <ErrorCard error={error} />
       ) : visible.length ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {visible.map((item) => (
-            <Card
-              key={item.id}
-              className={cn("flex flex-col gap-3 p-5", !item.available && "opacity-80")}
-            >
-              {item.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- a stored photo, already sized
-                <img
-                  src={item.photoUrl}
-                  alt={item.title}
-                  loading="lazy"
-                  className="aspect-[4/3] w-full rounded-lg bg-accent/40 object-cover"
-                />
-              ) : null}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="font-semibold text-foreground">{item.title}</h2>
-                  <p className="text-xs text-muted">{item.category}</p>
-                </div>
-                <Pill size="xs" tone={item.available ? "secondary" : "outline"}>
-                  {item.available ? "Available" : "Lent out"}
-                </Pill>
-              </div>
-              {item.description ? (
-                <p className="whitespace-pre-wrap text-sm text-foreground-light">
-                  {item.description}
-                </p>
-              ) : null}
-              {!item.available && item.lentTo ? (
-                <p className="text-xs text-muted">With {item.lentTo}</p>
-              ) : null}
-              <p className="text-sm text-foreground">
-                {item.mine ? "You" : item.ownerName}
-                {item.ownerUnit !== null ? (
-                  <span className="ml-1.5 text-xs text-muted">Unit {item.ownerUnit}</span>
-                ) : null}
-              </p>
-              <div className="mt-auto">
-                {item.mine ? (
-                  <OwnerControls item={item} />
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {item.available ? <AskToBorrow item={item} /> : null}
-                    {isAdmin ? <OwnerControls item={item} /> : null}
-                  </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {visible.map((item) => {
+            const canChange = item.mine || isAdmin;
+            return (
+              <Card
+                key={item.id}
+                className={cn(
+                  "group/post relative flex flex-col overflow-hidden p-0",
+                  !item.available && "opacity-80"
                 )}
-              </div>
-            </Card>
-          ))}
+                data-loan-item={item.id}
+              >
+                {item.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a stored photo, already sized
+                  <img
+                    src={item.photoUrl}
+                    alt={item.title}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full bg-accent/40 object-cover"
+                  />
+                ) : null}
+                <div
+                  className={cn(
+                    "flex flex-col gap-1.5 p-3 sm:p-4",
+                    // Room for Edit and Delete beside the name, with no photo for them to sit on.
+                    canChange && !item.photoUrl && "pr-20 sm:pr-20"
+                  )}
+                >
+                  <h2 className="break-words font-semibold leading-snug text-foreground">
+                    {/* The title's button covers the card: anywhere on it opens the details. */}
+                    <button
+                      type="button"
+                      onClick={() => setOpened(item.id)}
+                      className="text-left after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
+                    >
+                      {item.title}
+                    </button>
+                  </h2>
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground-light">
+                    <Pill size="xs" tone={item.available ? "secondary" : "outline"}>
+                      {item.available ? "Available" : "Lent out"}
+                    </Pill>
+                    <span className="min-w-0 truncate">{item.mine ? "You" : item.ownerName}</span>
+                  </p>
+                </div>
+                {canChange ? (
+                  <div
+                    className={cn(
+                      "absolute right-2 top-2 z-10 flex gap-0.5 rounded-lg bg-white/90 p-0.5 shadow-soft",
+                      ON_HOVER
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className={action}
+                      onClick={() => setEditing(item.id)}
+                      aria-label={`Edit ${item.title}`}
+                      title="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(action, "hover:bg-destructive/10 hover:text-destructive")}
+                      onClick={() => void remove(item)}
+                      aria-label={`Delete ${item.title}`}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <Card>
@@ -461,6 +346,25 @@ export function LibraryClient() {
           </p>
         </Card>
       )}
+      {openedItem ? (
+        <LoanItemDetails
+          item={openedItem}
+          canChange={openedItem.mine || isAdmin}
+          onEdit={() => {
+            close();
+            setEditing(openedItem.id);
+          }}
+          onClose={close}
+        />
+      ) : null}
+      {editingItem ? (
+        <EditLoanItem
+          key={editingItem.id}
+          item={editingItem}
+          categories={categories}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </div>
   );
 }
