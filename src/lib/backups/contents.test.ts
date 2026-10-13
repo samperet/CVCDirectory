@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backupReadme, datasetOf, leftOut, safeName } from "./contents";
+import { backupReadme, datasetOf, leftOut, leftOutOf, safeName } from "./contents";
 
 describe("backup contents", () => {
   it("leaves out private messages, secrets and what's temporary", () => {
@@ -57,15 +57,48 @@ describe("backup contents", () => {
 
   it("makes safe names, and a README that says what's in it and left out", () => {
     expect(safeName('Mow: "the" edges/lane')).toBe("Mow the edges lane");
-    const readme = backupReadme({
+    const info = {
       at: "2026-10-12",
       siteUrl: "https://example.org",
       files: 3,
       site: { included: false, repository: "owner/repo", commit: null },
       datasets: [{ dataset: "pages", about: "Written pages", files: 1 }],
-    });
+    };
+    const readme = backupReadme({ ...info, kind: "community" });
     expect(readme).toContain("`chat/` — private messages");
     expect(readme).toContain("**pages** (1)");
     expect(readme).toContain("wasn't included (it's at owner/repo)");
+    const complete = backupReadme({ ...info, kind: "complete" });
+    expect(complete).toContain("complete backup of 2026-10-12");
+    expect(complete).toContain("for CVC's admins only");
+    expect(complete).not.toContain("`chat/`");
+    expect(complete).toContain("private messages between residents");
+  });
+
+  it("a complete backup keeps everything a restore needs, but earlier backups and what's temporary", () => {
+    const kept = new Set(["lcc"]);
+    for (const key of [
+      "chat/conversations/a-b.json",
+      "push/vapid.json",
+      "push/subscriptions.json",
+      "auth/sign-in-log.json",
+      "email/settings.json",
+      "feedback/reports.json",
+      "onboarding/invitations.json",
+      "circles/finances/lcc.json",
+      "circles/finances/lcc/receipts/e1",
+    ])
+      expect(leftOut(key, kept, "complete"), key).toBeNull();
+    for (const key of [
+      "backups/index.json",
+      "exports/x.zip",
+      "presence/online.json",
+      "wiki/presence.json",
+      "auth/sign-in-links-2.json",
+      "documents/uploads/u1/0",
+      "circles/finances/lcc/uploads/e1/u1/0",
+    ])
+      expect(leftOut(key, kept, "complete"), key).not.toBeNull();
+    expect(leftOutOf("complete").length).toBeLessThan(leftOutOf("community").length);
   });
 });

@@ -1,28 +1,36 @@
 import { createHash, randomBytes } from "crypto";
 import { Zip, ZipDeflate, ZipPassThrough, strToU8 } from "fflate";
-import { listKeys, readBinaryStream, writeBinary, writeBinaryStream } from "@/lib/storage";
+import { listKeys, openBinaryStream, writeBinary, writeBinaryStream } from "@/lib/storage";
 import { readPages } from "@/lib/wiki/store";
 import { readDirectory } from "@/lib/directory/store";
 import { siteUrl } from "@/lib/site-url";
 import { financeViewers } from "@/lib/circles/features";
 import { todayInVermont } from "@/lib/time";
-import { LEFT_OUT, backupReadme, datasetOf, leftOut, safeName } from "./contents";
+import { backupReadme, datasetOf, leftOut, leftOutOf, safeName } from "./contents";
 import { fetchSiteZip, siteSource } from "./site";
 import { timestamp } from "./timestamp";
 import { otsKey, recordBackup, zipKey } from "./store";
-import type { BackupRecord } from "./shared";
+import type { BackupKind, BackupRecord } from "./shared";
 
 /**
  * Making a backup: every stored object but those left out (`contents.ts`:
- * what not every resident can see, secrets, what's temporary)
+ * for a community backup, what not every resident can see; for both kinds,
+ * earlier backups and what's temporary), each with its type in the manifest,
  * under `data/`, each page as Markdown under `pages/`, the site's code
  * under `site/` (`site.ts`), and a `manifest.json` and README — streamed
  * into one zip in storage (`backups/<id>.zip`) without holding it whole, its
  * SHA-256 worked out as it goes and then timestamped (`timestamp.ts`). The
- * oldest beyond the eight kept goes.
+ * oldest beyond those kept goes (eight community backups, three complete).
  */
 
-type ManifestFile = { path: string; bytes: number; sha256: string; dataset: string };
+export type ManifestFile = {
+  path: string;
+  bytes: number;
+  sha256: string;
+  dataset: string;
+  /** As stored (what the app serves it as); restored with it. */
+  contentType: string;
+};
 
 /** The bytes as they pass, into a hash too. */
 async function* hashing(chunks: AsyncIterable<Uint8Array>, into: ReturnType<typeof createHash>) {
@@ -33,6 +41,7 @@ async function* hashing(chunks: AsyncIterable<Uint8Array>, into: ReturnType<type
 }
 
 async function* backupZip(
+  kind: BackupKind,
   root: string,
   at: string,
   onFiles: (count: number) => void,
@@ -61,7 +70,8 @@ async function* backupZip(
     path: string,
     source: AsyncIterable<Uint8Array>,
     compress: boolean,
-    dataset: string
+    dataset: string,
+    contentType: string
   ) {
     const file = start(path, compress);
     const hash = createHash("sha256");
@@ -75,7 +85,7 @@ async function* backupZip(
       if (state.failure) throw state.failure;
     }
     file.push(new Uint8Array(0), true);
-    files.push({ path, bytes, sha256: hash.digest("hex"), dataset });
+    files.push({ path, bytes, sha256: hash.digest("hex"), dataset, contentType });
     while (ready.length) yield ready.shift()!;
     if (state.failure) throw state.failure;
   }
@@ -86,23 +96,32 @@ async function* backupZip(
         yield strToU8(content);
       })(),
       true,
-      dataset
+      dataset,
+      path.endsWith(".json") ? "application/json" : "text/markdown; charset=utf-8"
     );
 
-  // The data, key for key (but finances kept to a circle's members).
+  // The data, key for key (in a community backup, not finances kept to a circle's members).
   const [pages, directory] = await Promise.all([readPages(), readDirectory()]);
   const privateFinances = new Set(
     (directory?.circles ?? [])
-      .filter((circle) => financeViewers(circle) !== "everyone")
+      .filter((circle) => kind === "community" && financeViewers(circle) !== "everyone")
       .map((circle) => circle.id)
   );
-  const objects = (await listKeys()).filter((object) => !leftOut(object.key, privateFinances));
+  const objects = (await listKeys()).filter(
+    (object) => !leftOut(object.key, privateFinances, kind)
+  );
   for (const object of objects) {
-    const source = await readBinaryStream(object.key);
+    const source = await openBinaryStream(object.key);
     if (!source) continue;
     const { dataset, about } = datasetOf(object.key);
     counts.set(dataset, { about, files: (counts.get(dataset)?.files ?? 0) + 1 });
-    yield* add(`data/${object.key}`, source, object.key.endsWith(".json"), dataset);
+    yield* add(
+      `data/${object.key}`,
+      source.chunks,
+      object.key.endsWith(".json"),
+      dataset,
+      source.contentType
+    );
   }
   onFiles(objects.length);
 
@@ -128,7 +147,7 @@ async function* backupZip(
 
   // The site's code.
   const site = await fetchSiteZip();
-  if (site) yield* add("site/source.zip", site, false, "site");
+  if (site) yield* add("site/source.zip", site, false, "site", "application/zip");
   onSite(!!site);
 
   const source = siteSource();
@@ -140,6 +159,7 @@ async function* backupZip(
     JSON.stringify(
       {
         app: "Common Pastures — a Champlain Valley Cohousing development (CVC)",
+        kind,
         site: siteUrl(),
         madeAt: at,
         code: { included: !!site, ...source },
@@ -151,7 +171,7 @@ async function* backupZip(
         },
         datasets,
         leftOut: [
-          ...LEFT_OUT,
+          ...leftOutOf(kind),
           { prefix: "circles/finances/*/uploads/", why: "unfinished uploads" },
           ...Array.from(privateFinances, (id) => ({
             prefix: `circles/finances/${id}`,
@@ -169,6 +189,7 @@ async function* backupZip(
     "README.md",
     backupReadme({
       at: todayInVermont(),
+      kind,
       siteUrl: siteUrl(),
       files: objects.length,
       site: { included: !!site, repository: source.repository, commit: source.commit },
@@ -181,11 +202,18 @@ async function* backupZip(
   if (state.failure) throw state.failure;
 }
 
-/** Make a backup now (`by`: "the weekly schedule", or an admin's name), keep it, and timestamp it. */
-export async function makeBackup(by: string): Promise<BackupRecord> {
+/**
+ * Make a backup now (`by`: "the weekly schedule", or an admin's name), keep
+ * it, and timestamp it. `kind`: what every resident can see, or (admins
+ * only) everything a restore needs.
+ */
+export async function makeBackup(
+  by: string,
+  kind: BackupKind = "community"
+): Promise<BackupRecord> {
   const at = new Date().toISOString();
   const id = `${todayInVermont()}-${randomBytes(3).toString("hex")}`;
-  const root = `cvc-backup-${todayInVermont()}`;
+  const root = `cvc-${kind === "complete" ? "complete-backup" : "backup"}-${todayInVermont()}`;
   const hash = createHash("sha256");
   let files = 0;
   let site = false;
@@ -193,6 +221,7 @@ export async function makeBackup(by: string): Promise<BackupRecord> {
     zipKey(id),
     hashing(
       backupZip(
+        kind,
         root,
         at,
         (count) => (files = count),
@@ -211,6 +240,7 @@ export async function makeBackup(by: string): Promise<BackupRecord> {
     });
   const record: BackupRecord = {
     id,
+    kind,
     at,
     by,
     bytes,

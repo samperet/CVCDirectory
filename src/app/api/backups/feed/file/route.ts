@@ -5,7 +5,7 @@ import { notFound, problem, throttled } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
-/** A backup's zip (`file=zip`) or proof (`file=ots`) from a feed: its token is the key. */
+/** A backup's zip (`file=zip`) or proof (`file=ots`) from a feed: its token is the key (never a complete backup). */
 export async function GET(request: NextRequest) {
   const limited = throttled(request, "backups-feed-read", "Too many requests — wait a minute", 20);
   if (limited) return limited;

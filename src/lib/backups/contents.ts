@@ -1,24 +1,36 @@
+import type { BackupKind } from "./shared";
+
 /**
- * What goes in a backup, and how it's described (pure, for tests): what
- * every resident can see — every stored object but private messages between
- * two residents, the app's own secrets and keys, sign-in links, what only
- * admins see (the sign-in and email logs, feedback), circles' finances kept
- * to their members, and what's only ever temporary — each
- * file under `data/` with its storage key as its path, described by the
+ * What goes in a backup, and how it's described (pure, for tests). Each
+ * stored object goes under `data/` at its storage key, described by the
  * dataset it belongs to in `manifest.json` and the README.
+ *
+ * A **community** backup (the weekly one, sent to residents who sign up)
+ * holds what every resident can see: it also leaves out private messages,
+ * the app's push key and devices, what only admins see (the sign-in and email
+ * logs, feedback, invitations), and circles' finances kept to their members.
+ * A **complete** backup (admins only, never sent anywhere) holds everything
+ * a restore needs; both leave out earlier backups and what's only temporary.
  */
 
+type Rule = { prefix: string; why: string };
+
 /** Left out of every backup, and why. */
-export const LEFT_OUT: { prefix: string; why: string }[] = [
-  { prefix: "chat/", why: "private messages between two residents" },
-  { prefix: "auth/sign-in-links", why: "sign-in links (secrets)" },
-  { prefix: "push/vapid.json", why: "the app's push-notification key (a secret)" },
-  { prefix: "push/subscriptions.json", why: "devices' push addresses and keys" },
+export const ALWAYS_LEFT_OUT: Rule[] = [
   { prefix: "backups/", why: "earlier backups, and who signed up for them" },
   { prefix: "exports/", why: "temporary document exports" },
   { prefix: "presence/", why: "who's online (it changes every minute)" },
   { prefix: "wiki/presence.json", why: "who's editing (it changes every few seconds)" },
   { prefix: "documents/uploads/", why: "unfinished uploads" },
+  { prefix: "auth/sign-in-links", why: "sign-in links (secrets that last minutes)" },
+  { prefix: "email-sink.json", why: "test emails (only on a developer's machine)" },
+];
+
+/** Also left out of the community backup residents get, and why. */
+export const FOR_RESIDENTS_LEFT_OUT: Rule[] = [
+  { prefix: "chat/", why: "private messages between two residents" },
+  { prefix: "push/vapid.json", why: "the app's push-notification key (a secret)" },
+  { prefix: "push/subscriptions.json", why: "devices' push addresses and keys" },
   { prefix: "auth/sign-in-log.json", why: "who signed in when (only admins see it)" },
   { prefix: "auth/last-seen.json", why: "when each resident was last seen (only admins see it)" },
   { prefix: "email/log.json", why: "the email log (only admins see it)" },
@@ -29,26 +41,30 @@ export const LEFT_OUT: { prefix: string; why: string }[] = [
   },
   { prefix: "feedback/", why: "feedback reports (only admins see them)" },
   { prefix: "onboarding/invitations.json", why: "invitations to join, with their links (secrets)" },
-  { prefix: "email-sink.json", why: "test emails (only on a developer's machine)" },
 ];
+
+/** What a backup of this kind leaves out, by prefix. */
+export const leftOutOf = (kind: BackupKind) =>
+  kind === "complete" ? ALWAYS_LEFT_OUT : [...ALWAYS_LEFT_OUT, ...FOR_RESIDENTS_LEFT_OUT];
 
 /** Where a circle's finances are kept: its document, and its receipts. */
 const FINANCES = /^circles\/finances\/([^/]+?)(?:\.json$|\/)/;
 
 /**
- * Whether a stored object is left out (and why), or null if it goes in.
- * `privateFinances`: the circles whose Finances module only their members
- * and the Board see — a backup holds only what every resident can see.
+ * Whether a stored object is left out of a backup of this kind (and why), or
+ * null if it goes in. `privateFinances`: the circles whose Finances module
+ * only their members and the Board see — left out of community backups.
  */
 export function leftOut(
   key: string,
-  privateFinances: ReadonlySet<string> = new Set()
+  privateFinances: ReadonlySet<string> = new Set(),
+  kind: BackupKind = "community"
 ): string | null {
   if (/^circles\/finances\/[^/]+\/uploads\//.test(key)) return "unfinished uploads";
   const finances = FINANCES.exec(key);
-  if (finances && privateFinances.has(finances[1]))
+  if (kind === "community" && finances && privateFinances.has(finances[1]))
     return "finances only the circle's members and the Board see";
-  return LEFT_OUT.find((rule) => key.startsWith(rule.prefix))?.why ?? null;
+  return leftOutOf(kind).find((rule) => key.startsWith(rule.prefix))?.why ?? null;
 }
 
 /** The datasets, by storage key (most specific first): what each holds, for people and agents. */
@@ -116,22 +132,29 @@ export const safeName = (name: string) =>
 /** The README at the top of a backup. */
 export function backupReadme(info: {
   at: string;
+  kind: BackupKind;
   siteUrl: string;
   files: number;
   site: { included: boolean; repository: string | null; commit: string | null };
   datasets: { dataset: string; about: string; files: number }[];
 }) {
-  return `# Common Pastures (CVC) — backup of ${info.at}
+  const complete = info.kind === "complete";
+  return `# Common Pastures (CVC) — ${complete ? "complete backup" : "backup"} of ${info.at}
 
-Everything the app holds, as of this moment, from ${info.siteUrl}.
+${
+  complete
+    ? "Everything the app needs to be restored, as of this moment, from " +
+      `${info.siteUrl}. A complete backup is for CVC's admins only.`
+    : `Everything every resident can see in the app, as of this moment, from ${info.siteUrl}.`
+}
 
 - **\`data/\`** — every stored object (${info.files} files), each at its storage key: the app's
   data as JSON documents, and uploaded files and photos as they were uploaded. This is what the
-  app reads; it can be restored to a bucket key for key.
+  app reads; it can be restored to a bucket key for key (each file's type is in the manifest).
 - **\`pages/\`** — each written page as Markdown, in a folder for its circle (also in
   \`data/wiki/pages.json\`), for reading without the app.
-- **\`manifest.json\`** — for agents and scripts: every file's path, size, SHA-256 and dataset,
-  what each dataset holds, and what's left out.
+- **\`manifest.json\`** — for agents and scripts: every file's path, size, type, SHA-256 and
+  dataset, what each dataset holds, and what's left out.
 - **\`site/\`** — ${
     info.site.included
       ? `the app's code (\`source.zip\`, ${info.site.repository} at ${info.site.commit}).`
@@ -150,14 +173,24 @@ ${info.datasets
 
 ## Left out
 
-${LEFT_OUT.map((rule) => `- \`${rule.prefix}\` — ${rule.why}`).join("\n")}
-- unfinished uploads to circles' finances
-- the finances of circles that keep them to their members and the Board
+${leftOutOf(info.kind)
+  .map((rule) => `- \`${rule.prefix}\` — ${rule.why}`)
+  .join("\n")}
+- unfinished uploads to circles' finances${
+    complete ? "" : "\n- the finances of circles that keep them to their members and the Board"
+  }
 
 ## Keep it safe
 
-It holds residents' names, contact details and households, circles' finances (those every
-resident can see), and everything written in the app. Store it where only you can read it.
+${
+  complete
+    ? "It holds everything: residents' contact details, private messages between residents, " +
+      "admins' logs, every circle's finances, and the app's push-notification key. Keep it " +
+      "where only CVC's admins can read it, and delete copies you don't need."
+    : "It holds residents' names, contact details and households, circles' finances (those " +
+      "every resident can see), and everything written in the app. Store it where only you " +
+      "can read it."
+}
 
 ## Proving it
 

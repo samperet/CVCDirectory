@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 /**
  * A resident's backup feed, for an agent or a script (no sign-in: the token
  * in its address is the key, made on the backups page): the backups kept,
- * newest first, each with its fingerprint and links to its zip and proof.
+ * newest first, each with its fingerprint and links to its zip and proof
+ * (community backups only: never a complete one).
  */
 export async function GET(request: NextRequest) {
   const limited = throttled(request, "backups-feed-read", "Too many requests — wait a minute", 20);

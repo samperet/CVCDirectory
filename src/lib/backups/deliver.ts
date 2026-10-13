@@ -87,16 +87,26 @@ export async function emailBackupReady(backup: BackupRecord) {
 
 const PART_BYTES = 8 * 1024 * 1024;
 
-async function clientFor(target: StorageTarget) {
-  const secret = storageSecret(target);
-  if (!secret) throw new Error("Its key can't be read any more: set the storage up again");
+/** A client for someone's S3-compatible storage, given its key (also used to restore). */
+export async function s3Client(target: {
+  endpoint: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+}) {
   const { S3Client } = await import("@aws-sdk/client-s3");
   return new S3Client({
     region: target.region || "auto",
     endpoint: target.endpoint,
     forcePathStyle: true,
-    credentials: { accessKeyId: target.accessKeyId, secretAccessKey: secret },
+    credentials: { accessKeyId: target.accessKeyId, secretAccessKey: target.secretAccessKey },
   });
+}
+
+async function clientFor(target: StorageTarget) {
+  const secret = storageSecret(target);
+  if (!secret) throw new Error("Its key can't be read any more: set the storage up again");
+  return s3Client({ ...target, secretAccessKey: secret });
 }
 
 /** Write bytes as they come to someone's bucket: in 8 MiB parts (one write, if small). */
@@ -161,7 +171,8 @@ async function upload(
   }
 }
 
-const describe = (error: unknown) => {
+/** What went wrong talking to someone's storage: the error's name, HTTP status and message (never a key). */
+export const describe = (error: unknown) => {
   const err = error as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
   const status = err.$metadata?.httpStatusCode;
   return `${err.name ?? "Error"}${status ? ` (${status})` : ""}: ${

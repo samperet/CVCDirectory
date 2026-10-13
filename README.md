@@ -251,6 +251,25 @@ Signed-in residents download any kept backup (`GET /api/backups/<id>`, `?file=ot
 a ten-minute link straight from R2). Locally, `BACKUP_STORAGE_ALLOW_HTTP=1` lets tests copy to a
 stand-in bucket over plain http.
 
+**Complete backups** (admins only): **Complete backup** on the page makes one with everything a
+restore needs — private messages, the push key and devices, admins' logs, invitations, every
+circle's finances — leaving out only earlier backups and what's temporary (`contents.ts`,
+`leftOut(key, …, "complete")`). The newest three are kept; only admins see or download them, and
+they're never emailed, put in a feed, or copied to residents' storage. Every manifest records each
+file's type, so a restore serves photos and files as before.
+
+**Restore test** (admins, on the same page): choose a backup, give a new, empty bucket's S3
+address (R2: `https://<account id>.r2.cloudflarestorage.com`), its name and a key that can only
+reach it, and **Restore into this bucket** (`POST /api/backups/<id>/restore`,
+`lib/backups/restore.ts`). It refuses CVC's own bucket and any bucket with something in it, reads
+the zip's index first (`zip-index.ts`: files are cut out at the places the zip's central directory
+gives, never by searching the data, which a stored .xlsx — itself a zip — would confuse), writes each
+file under `data/` at its storage key with its type, then checks: the zip's fingerprint, each
+file's SHA-256 against the manifest, the new bucket's listing, a few files' types, and that the
+directory, circles and pages read back (counted beside CVC's now). The key is used for that request
+only — never stored or logged; each try is noted in `backups/restores.json` (where, by whom, how it
+went). Delete the test bucket and its key afterwards: it holds everything in the backup.
+
 ## Forum & Appreciations
 
 - **Forum topics** – the forum's front page (`/forum`) lists its topics, each with its discussion

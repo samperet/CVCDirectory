@@ -524,17 +524,22 @@ async function listLocalKeys(prefix: string): Promise<StoredObject[]> {
 // --- Streams (big files: document exports) -----------------------------------
 
 /**
- * A binary object's bytes as they arrive, for passing a big file on without
- * holding it whole; null when there's nothing there.
+ * A binary object's bytes as they arrive, with its type, for passing a big
+ * file on without holding it whole; null when there's nothing there.
  */
-export async function readBinaryStream(key: string): Promise<AsyncIterable<Uint8Array> | null> {
+export async function openBinaryStream(
+  key: string
+): Promise<{ chunks: AsyncIterable<Uint8Array>; contentType: string } | null> {
   if (isPersistent()) {
     try {
       const { GetObjectCommand } = await import("@aws-sdk/client-s3");
       const config = r2Config()!;
       const client = await getS3Client();
       const result = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
-      return (result.Body as AsyncIterable<Uint8Array> | undefined) ?? null;
+      const chunks = result.Body as AsyncIterable<Uint8Array> | undefined;
+      return chunks
+        ? { chunks, contentType: result.ContentType ?? "application/octet-stream" }
+        : null;
     } catch (error) {
       const name = (error as { name?: string })?.name;
       if (name === "NoSuchKey" || name === "NotFound") return null;
@@ -546,7 +551,57 @@ export async function readBinaryStream(key: string): Promise<AsyncIterable<Uint8
   } catch {
     return null;
   }
-  return createReadStream(localFilePath(key));
+  const contentType = await fs
+    .readFile(`${localFilePath(key)}.type`, "utf-8")
+    .catch(() => (key.endsWith(".json") ? "application/json" : "application/octet-stream"));
+  return { chunks: createReadStream(localFilePath(key)), contentType: contentType.trim() };
+}
+
+/** Part of a binary object: `length` bytes from `start` (fewer at its end); null when it isn't there. */
+export async function readBinaryRange(
+  key: string,
+  start: number,
+  length: number
+): Promise<Uint8Array | null> {
+  if (length <= 0) return new Uint8Array(0);
+  if (isPersistent()) {
+    try {
+      const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+      const config = r2Config()!;
+      const client = await getS3Client();
+      const result = await client.send(
+        new GetObjectCommand({
+          Bucket: config.bucket,
+          Key: key,
+          Range: `bytes=${start}-${start + length - 1}`,
+        })
+      );
+      return (await result.Body?.transformToByteArray()) ?? null;
+    } catch (error) {
+      const name = (error as { name?: string })?.name;
+      if (name === "NoSuchKey" || name === "NotFound") return null;
+      noteDegraded("read", error);
+    }
+  }
+  let handle: Awaited<ReturnType<typeof fs.open>> | null = null;
+  try {
+    handle = await fs.open(localFilePath(key), "r");
+    const buffer = new Uint8Array(length);
+    const { bytesRead } = await handle.read(buffer, 0, length, start);
+    return buffer.subarray(0, bytesRead);
+  } catch {
+    return null;
+  } finally {
+    await handle?.close();
+  }
+}
+
+/**
+ * A binary object's bytes as they arrive, for passing a big file on without
+ * holding it whole; null when there's nothing there.
+ */
+export async function readBinaryStream(key: string): Promise<AsyncIterable<Uint8Array> | null> {
+  return (await openBinaryStream(key))?.chunks ?? null;
 }
 
 /** R2 takes a big object in parts, each (but the last) the same size, at least 5 MiB. */

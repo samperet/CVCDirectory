@@ -82,7 +82,7 @@ Main documents (see each store's `KEY`):
 | `groups/<circleId>/index.json`, `groups/<circleId>/threads/<id>.json`, `groups/<circleId>/polls/<id>.json` | Circle forums: conversations, their messages, polls | `lib/groups` |
 | `presence/online.json` | Who's online: each person's last check-in (gone three minutes after it) | `lib/presence` |
 | `chat/conversations/<a>-<b>.json`, `chat/people/<personId>.json` | Private messages between two people (their last 500); each person's list of conversations and what they've read | `lib/chat` |
-| `backups/index.json`, `backups/<id>.zip`, `backups/<id>.ots`, `backups/subscribers.json` | The newest eight backups (each zip and its OpenTimestamps proof), and who signed up for them: email, a feed (its token's hash), their own storage (its key sealed). Never in a backup itself | `lib/backups` |
+| `backups/index.json`, `backups/<id>.zip`, `backups/<id>.ots`, `backups/subscribers.json`, `backups/restores.json` | The newest eight community backups and three complete ones (each zip and its OpenTimestamps proof); who signed up for them: email, a feed (its token's hash), their own storage (its key sealed); the restore tests run (never a key). Never in a backup itself | `lib/backups` |
 | `me/documents/<userId>.json` | Each account's starred documents (up to 50) and the last 20 opened: pages, files and proposals by id, resolved when read | `lib/me` |
 
 ## Who's who

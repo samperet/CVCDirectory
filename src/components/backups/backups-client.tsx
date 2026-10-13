@@ -7,6 +7,7 @@ import {
   Bot,
   CalendarClock,
   Check,
+  DatabaseBackup,
   Copy,
   Download,
   Fingerprint,
@@ -18,7 +19,15 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { TIME_ZONE, timeAgo } from "@/lib/time";
-import { formatBytes, type BackupRecord, type SubscriptionView } from "@/lib/backups/shared";
+import {
+  formatBytes,
+  kindOf,
+  type BackupKind,
+  type BackupRecord,
+  type RestoreRecord,
+  type SubscriptionView,
+} from "@/lib/backups/shared";
+import { RestoreTest } from "@/components/backups/restore-test";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,16 +44,18 @@ import { cn } from "@/lib/utils";
  * address for an agent or script (shown once), a copy in storage of your
  * own (tested before it's kept) — and the backups kept, each to download
  * with its fingerprint and timestamp proof. Admins also see **Export now**
- * (made, kept, sent to everyone signed up, and downloaded) and whether the
- * weekly one is scheduled.
+ * (made, kept, sent to everyone signed up, and downloaded), **Complete
+ * backup** (everything a restore needs; admins only, sent to nobody), whether
+ * the weekly one is scheduled, and the **Restore test** (`restore-test.tsx`).
  */
 
-type BackupsData = {
+export type BackupsData = {
   backups: BackupRecord[];
   subscription: SubscriptionView;
   isAdmin: boolean;
   signedUp?: number;
   scheduled?: boolean;
+  restores?: RestoreRecord[];
 };
 
 export const backupsQuery = {
@@ -425,7 +436,14 @@ function BackupRow({ backup }: { backup: BackupRecord }) {
     <li className="flex flex-col gap-2 px-4 py-3" data-backup={backup.id}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-medium text-foreground">{when(backup.at)}</p>
+          <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+            {when(backup.at)}
+            {kindOf(backup) === "complete" ? (
+              <Pill tone="amber" size="xs" data-backup-complete>
+                Complete · admins only
+              </Pill>
+            ) : null}
+          </p>
           <p className="text-xs text-muted">
             {formatBytes(backup.bytes)} · {backup.files.toLocaleString()} files
             {backup.site ? " · with the site's code" : ""} · made by {backup.by}
@@ -462,18 +480,27 @@ function BackupRow({ backup }: { backup: BackupRecord }) {
   );
 }
 
-function ExportNow({ signedUp }: { signedUp: number }) {
+/** Make a backup now and download it: a community one (sent to those signed up) or a complete one (admins only). */
+function ExportButton({ kind, signedUp }: { kind: BackupKind; signedUp: number }) {
   const confirm = useConfirm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const complete = kind === "complete";
   const make = useMutation({
-    mutationFn: () => apiFetch<{ backup: BackupRecord }>("/api/backups", { method: "POST" }),
+    mutationFn: () =>
+      apiFetch<{ backup: BackupRecord }>("/api/backups", {
+        method: "POST",
+        body: JSON.stringify({ kind }),
+      }),
     onSuccess: ({ backup }) => {
       queryClient.setQueryData<BackupsData>(["backups"], (old) =>
         old ? { ...old, backups: [backup, ...old.backups.filter((b) => b.id !== backup.id)] } : old
       );
       void queryClient.invalidateQueries({ queryKey: ["backups"] });
-      toast({ title: "Backup made", description: `${formatBytes(backup.bytes)} — downloading it` });
+      toast({
+        title: complete ? "Complete backup made" : "Backup made",
+        description: `${formatBytes(backup.bytes)} — downloading it`,
+      });
       window.location.assign(`/api/backups/${backup.id}`);
     },
     onError: (error: Error) =>
@@ -485,23 +512,33 @@ function ExportNow({ signedUp }: { signedUp: number }) {
   });
   return (
     <Button
+      variant={complete ? "outline" : "default"}
       className="gap-1.5"
       disabled={make.isPending}
-      data-backup-export
+      data-backup-export={kind}
       onClick={async () => {
         if (
-          await confirm({
-            title: "Export a backup now?",
-            body: `It's kept with the others and downloaded, and sent to ${
-              signedUp === 1 ? "the 1 resident" : `the ${signedUp} residents`
-            } signed up for them. It can take a few minutes.`,
-            confirmLabel: "Export now",
-          })
+          await confirm(
+            complete
+              ? {
+                  title: "Make a complete backup?",
+                  body: "Everything a restore needs, including private messages between residents, admins' logs, every circle's finances and the app's push key. It's kept for admins only (the newest three), sent to nobody, and downloaded. It can take a few minutes.",
+                  confirmLabel: "Make it",
+                }
+              : {
+                  title: "Export a backup now?",
+                  body: `It's kept with the others and downloaded, and sent to ${
+                    signedUp === 1 ? "the 1 resident" : `the ${signedUp} residents`
+                  } signed up for them. It can take a few minutes.`,
+                  confirmLabel: "Export now",
+                }
+          )
         )
           make.mutate();
       }}
     >
-      <Archive className="h-4 w-4" /> {make.isPending ? "Making it…" : "Export now"}
+      {complete ? <DatabaseBackup className="h-4 w-4" /> : <Archive className="h-4 w-4" />}{" "}
+      {make.isPending ? "Making it…" : complete ? "Complete backup" : "Export now"}
     </Button>
   );
 }
@@ -522,7 +559,12 @@ export function BackupsClient() {
             every Monday morning. The newest eight are kept here; sign up to keep your own.
           </p>
         </div>
-        {isAdmin ? <ExportNow signedUp={data.signedUp ?? 0} /> : null}
+        {isAdmin ? (
+          <div className="flex flex-wrap gap-2">
+            <ExportButton kind="community" signedUp={data.signedUp ?? 0} />
+            <ExportButton kind="complete" signedUp={data.signedUp ?? 0} />
+          </div>
+        ) : null}
       </div>
 
       {isAdmin ? (
@@ -573,6 +615,8 @@ export function BackupsClient() {
           <p className="text-sm text-muted">No backups yet — the first is made next Monday.</p>
         )}
       </section>
+
+      {isAdmin ? <RestoreTest backups={backups} restores={data.restores ?? []} /> : null}
 
       <section className="flex flex-col gap-2 text-sm text-foreground-light">
         <SectionHeading icon={Fingerprint}>What&apos;s inside, and checking one</SectionHeading>

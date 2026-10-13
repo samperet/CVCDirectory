@@ -1,18 +1,28 @@
 import { z } from "zod";
 import { deleteBinary, mutateJson, readJson } from "@/lib/storage";
 import { hashToken, newToken, seal, unseal } from "./secret";
-import { KEEP_BACKUPS, type BackupRecord, type SubscriptionView } from "./shared";
+import {
+  KEEP_BACKUPS,
+  KEEP_COMPLETE,
+  kindOf,
+  type BackupRecord,
+  type RestoreRecord,
+  type SubscriptionView,
+} from "./shared";
 
 /**
- * Backups kept (`backups/index.json`, the newest ${KEEP_BACKUPS}; each zip at
- * `backups/<id>.zip`, its proof at `backups/<id>.ots`) and who signed up for
- * them (`backups/subscribers.json`, by person id): an email when one's
- * ready, a feed (only its token's hash kept), and storage of their own (its
- * secret sealed). Backups themselves leave all of `backups/` out.
+ * Backups kept (`backups/index.json`: the newest eight community backups and
+ * three complete ones; each zip at `backups/<id>.zip`, its proof at
+ * `backups/<id>.ots`), who signed up for them (`backups/subscribers.json`, by
+ * person id: an email when one's ready, a feed — only its token's hash kept —
+ * and storage of their own, its secret sealed), and the restore tests run
+ * (`backups/restores.json`, the last 20; never a key). Backups themselves
+ * leave all of `backups/` out.
  */
 
 const INDEX = "backups/index.json";
 const SUBSCRIBERS = "backups/subscribers.json";
+const RESTORES = "backups/restores.json";
 export const zipKey = (id: string) => `backups/${id}.zip`;
 export const otsKey = (id: string) => `backups/${id}.ots`;
 
@@ -21,20 +31,33 @@ const normalizeIndex = (raw: unknown): BackupRecord[] => {
   return Array.isArray(backups) ? (backups as BackupRecord[]) : [];
 };
 
-/** The backups kept, newest first. */
-export async function listBackups(): Promise<BackupRecord[]> {
-  return normalizeIndex(await readJson(INDEX));
+/** The backups kept, newest first: complete ones only for admins. */
+export async function listBackups({ admin = false } = {}): Promise<BackupRecord[]> {
+  return normalizeIndex(await readJson(INDEX)).filter(
+    (backup) => admin || kindOf(backup) === "community"
+  );
 }
 
-export async function findBackup(id: string) {
-  return (await listBackups()).find((backup) => backup.id === id) ?? null;
+/** A kept backup by id: a complete one only for admins. */
+export async function findBackup(id: string, { admin = false } = {}) {
+  return (await listBackups({ admin })).find((backup) => backup.id === id) ?? null;
 }
 
-/** Keep a new backup (and let the oldest beyond ${KEEP_BACKUPS} go). */
+/** Keep a new backup (and let the oldest of its kind beyond those kept go). */
 export async function recordBackup(record: BackupRecord) {
   const dropped = await mutateJson<BackupRecord[]>(INDEX, (raw) => {
     const all = [record, ...normalizeIndex(raw)];
-    return { value: { backups: all.slice(0, KEEP_BACKUPS) }, result: all.slice(KEEP_BACKUPS) };
+    const seen = { community: 0, complete: 0 };
+    const kept: BackupRecord[] = [];
+    const gone: BackupRecord[] = [];
+    for (const backup of all) {
+      const kind = kindOf(backup);
+      seen[kind] += 1;
+      (seen[kind] <= (kind === "complete" ? KEEP_COMPLETE : KEEP_BACKUPS) ? kept : gone).push(
+        backup
+      );
+    }
+    return { value: { backups: kept }, result: gone };
   });
   await Promise.all(
     dropped.flatMap((old) => [
@@ -212,3 +235,22 @@ export const noteStorage = (personId: string, last: { at: string; ok: boolean; e
 
 /** A target's secret, opened (null if it can't be: AUTH_SECRET changed). */
 export const storageSecret = (target: StorageTarget) => unseal(target.secret);
+
+// --- Restore tests ----------------------------------------------------------------------------
+
+const normalizeRestores = (raw: unknown): RestoreRecord[] => {
+  const restores = (raw as { restores?: unknown } | null)?.restores;
+  return Array.isArray(restores) ? (restores as RestoreRecord[]) : [];
+};
+
+/** The restore tests run, newest first. */
+export async function listRestores(): Promise<RestoreRecord[]> {
+  return normalizeRestores(await readJson(RESTORES));
+}
+
+/** Note a restore test (the last 20 are kept). */
+export const noteRestore = (record: RestoreRecord) =>
+  mutateJson(RESTORES, (raw) => ({
+    value: { restores: [record, ...normalizeRestores(raw)].slice(0, 20) },
+    result: null,
+  }));

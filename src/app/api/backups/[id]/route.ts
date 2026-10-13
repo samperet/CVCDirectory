@@ -6,11 +6,14 @@ import { notFound } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
-/** Download a backup (`?file=zip`, the default) or its OpenTimestamps proof (`?file=ots`). */
+/**
+ * Download a backup (`?file=zip`, the default) or its OpenTimestamps proof
+ * (`?file=ots`); a complete backup only for admins (anyone else: not found).
+ */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const ctx = await backupContext();
   if ("error" in ctx) return ctx.error;
-  const backup = await findBackup(params.id);
+  const backup = await findBackup(params.id, { admin: ctx.actor.admin });
   if (!backup) return notFound("Backup");
   const file = request.nextUrl.searchParams.get("file") === "ots" ? "ots" : "zip";
   if (file === "ots" && !backup.timestamped) return notFound("Proof");
