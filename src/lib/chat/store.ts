@@ -1,4 +1,4 @@
-import { deleteJson, mutateJson, readJson } from "@/lib/storage";
+import { deleteJson, listKeys, mutateJson, readJson } from "@/lib/storage";
 import type { Actor } from "@/lib/auth/actor";
 import { addComment, deleteComment } from "@/lib/comments/store";
 import { normalizeComment } from "@/lib/comments/shared";
@@ -15,7 +15,10 @@ import {
  * `chat/conversations/<a>-<b>.json`, each person's index of theirs in
  * `chat/people/<personId>.json`. Sending adds the message, then brings both
  * people's indexes up to date (the sender has read it). Only its sender
- * deletes a message. A conversation keeps its latest `MAX_MESSAGES`.
+ * deletes a message. A conversation keeps its latest `MAX_MESSAGES`. When
+ * two directory entries turn out to be one person (combined), the
+ * duplicate's conversations move to the kept entry (`mergeChat`), so
+ * messages sent to either are read as one.
  */
 
 export type Failure = "not_found" | "forbidden";
@@ -142,3 +145,84 @@ export async function deleteMessage(
 
 /** Someone's left the directory: their list of conversations goes (what they sent stays). */
 export const deleteChatIndex = (personId: string) => deleteJson(indexKey(personId));
+
+/** The later of two index entries for the same conversation, read up to whichever read it later. */
+function laterEntry(
+  a: ConversationEntry | undefined,
+  b: ConversationEntry | undefined,
+  withId: string
+) {
+  if (!a) return b && { ...b, with: withId };
+  if (!b) return { ...a, with: withId };
+  const newer = (a.lastAt ?? "") >= (b.lastAt ?? "") ? a : b;
+  const readAt = [a.readAt, b.readAt].filter(Boolean).sort().pop() ?? null;
+  return { ...newer, with: withId, readAt, changedAt: new Date().toISOString() };
+}
+
+/**
+ * A duplicate directory entry has been combined into another: move its
+ * conversations (and the other people's entries for them) to the kept
+ * entry, joining any both had with the same person; its own index goes.
+ */
+export async function mergeChat(duplicate: string, keep: string) {
+  if (duplicate === keep) return;
+  const prefix = "chat/conversations/";
+  const others = (await listKeys(prefix))
+    .map((object) =>
+      object.key
+        .slice(prefix.length)
+        .replace(/\.json$/, "")
+        .split("-")
+    )
+    .filter((ids) => ids.length === 2 && ids.includes(duplicate))
+    .map(([a, b]) => (a === duplicate ? b : a));
+  for (const other of others) {
+    if (other === keep) {
+      await deleteJson(conversationKey(duplicate, keep));
+      continue;
+    }
+    const moved = messagesOf(await readJson(conversationKey(duplicate, other))).map((message) =>
+      message.authorPersonId === duplicate ? { ...message, authorPersonId: keep } : message
+    );
+    await mutateJson(conversationKey(keep, other), (raw) => {
+      const seen = new Set<string>();
+      const messages = [...messagesOf(raw), ...moved]
+        .filter((message) => !seen.has(message.id) && seen.add(message.id))
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .slice(-MAX_MESSAGES);
+      return { value: { messages }, result: null };
+    });
+    await deleteJson(conversationKey(duplicate, other));
+    // The other person's entry for the duplicate becomes their entry for the kept one.
+    await mutateJson(indexKey(other), (raw) => {
+      const index = indexOf(raw);
+      if (!index[duplicate]) return { write: false, result: null };
+      const { [duplicate]: old, ...rest } = index;
+      const joined = laterEntry(old, rest[keep], keep)!;
+      return {
+        value: {
+          conversations: {
+            ...rest,
+            [keep]: { ...joined, lastFrom: joined.lastFrom === duplicate ? keep : joined.lastFrom },
+          },
+        },
+        result: null,
+      };
+    });
+  }
+  const dupIndex = await readIndex(duplicate);
+  if (Object.keys(dupIndex).length)
+    await mutateJson(indexKey(keep), (raw) => {
+      const index = { ...indexOf(raw) };
+      for (const [other, entry] of Object.entries(dupIndex)) {
+        if (other === keep) continue;
+        const joined = laterEntry(entry, index[other], other)!;
+        index[other] = {
+          ...joined,
+          lastFrom: joined.lastFrom === duplicate ? keep : joined.lastFrom,
+        };
+      }
+      return { value: { conversations: index }, result: null };
+    });
+  await deleteJson(indexKey(duplicate));
+}

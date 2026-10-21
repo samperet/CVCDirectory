@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
 import {
   Bold,
+  BookOpen,
   ClipboardPaste,
   Code,
   Copy,
@@ -28,7 +29,8 @@ import { cn } from "@/lib/utils";
 /**
  * The wiki editor's right-click menu: cut, copy and paste; bold, italic,
  * strikethrough and code; highlight the selected words (or, inside a
- * highlight, change its colour or take it off); add a link; clear formatting.
+ * highlight, change its colour or take it off); add a web link, or link the
+ * selected words to a page (`link-words-dialog.tsx`); clear formatting.
  * Shift + right-click opens the browser's own menu instead (for spelling).
  * Choosing an item never moves the cursor out of the text, so the selection
  * it acts on stays put.
@@ -44,7 +46,16 @@ type Open = {
 
 const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
-export function EditorContextMenu({ editor, onLink }: { editor: Editor; onLink: () => void }) {
+export function EditorContextMenu({
+  editor,
+  onLink,
+  onLinkPage,
+}: {
+  editor: Editor;
+  onLink: () => void;
+  /** Link the selected words to a page (new or existing); only where pages can be linked. */
+  onLinkPage?: () => void;
+}) {
   const { toast } = useToast();
   const [open, setOpen] = useState<Open | null>(null);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
@@ -258,6 +269,9 @@ export function EditorContextMenu({ editor, onLink }: { editor: Editor; onLink: 
       </div>
       {rule}
       {item("Link…", Link2, run(onLink), { shortcut: `${mod}K` })}
+      {onLinkPage
+        ? item("Link to a page…", BookOpen, run(onLinkPage), { disabled: !selected })
+        : null}
       {item(
         "Clear formatting",
         RemoveFormatting,

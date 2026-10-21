@@ -27,6 +27,8 @@ const SAMPLES: Record<string, string> = {
   rule: "Above\n\n***\n\nBelow\n",
   table:
     "| Task | Who | When |\n| :--- | :-: | ---: |\n| Mow | **Ada** | [[Mowing]] |\n| Rake | Ben | Oct |\n",
+  tableWidths:
+    '::columns{widths="25,75"}\n\n| Task | Notes |\n| - | - |\n| Mow | The east field |\n',
   image: '![The barn](/api/wiki/images/x.jpg "Barn") and words after.\n',
   breaks: "Line one\\\nline two\n",
   highlight:

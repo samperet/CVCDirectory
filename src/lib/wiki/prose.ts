@@ -4,6 +4,7 @@ import remarkStringify from "remark-stringify";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import { normalizeWikiLinks, protectWikiLinks } from "./links";
+import { evenPixels, evenShares, formatWidths, parseWidths, pixelsOf, sharesOf } from "./tables";
 
 /**
  * Wiki pages' Markdown, to and from the visual editor's document
@@ -16,6 +17,7 @@ import { normalizeWikiLinks, protectWikiLinks } from "./links";
  * The editor knows paragraphs, headings, quotes, lists and checklists,
  * code, dividers, tables, photos, bold / italic / struck-through / code /
  * linked / highlighted words (`:mark[…]{color}`), `[[links]]` (as tags),
+ * tables' column widths (`::columns{widths="…"}` before a table, `tables.ts`),
  * residents mentioned (`:person[Ada Ash]{#id}`),
  * callouts (`:::callout`), collapsible sections (`:::details{title}`), and
  * polls, proposals and embedded pages (`::poll`, `::proposal`, `::embed`).
@@ -175,7 +177,17 @@ const paragraph = (content: ProseNode[]): ProseNode =>
   content.length ? { type: "paragraph", content } : { type: "paragraph" };
 
 function blocks(nodes: Md[]): ProseNode[] {
-  return nodes.flatMap(block);
+  // A `::columns` line gives the table after it its widths (`tables.ts`).
+  const out: ProseNode[] = [];
+  nodes.forEach((node, index) => {
+    const next = nodes[index + 1];
+    if (node.type === "leafDirective" && node.name === "columns" && next?.type === "table") {
+      next.data = { ...next.data, widths: node.attributes?.widths ?? null };
+      return;
+    }
+    out.push(...block(node));
+  });
+  return out;
 }
 
 /** A list item's blocks: they start with a paragraph (ProseMirror's rule for list items). */
@@ -237,14 +249,18 @@ function block(node: Md): ProseNode[] {
       return [{ type: "horizontalRule" }];
     case "table": {
       const align = node.align ?? [];
+      const columns = node.children?.[0]?.children?.length ?? 0;
+      const shares = parseWidths(node.data?.widths as string | null | undefined, columns);
+      const pixels = shares ? pixelsOf(shares) : evenPixels(columns);
       return [
         {
           type: "table",
           attrs: { align },
           content: (node.children ?? []).map((row, index) => ({
             type: "tableRow",
-            content: (row.children ?? []).map((cell) => ({
+            content: (row.children ?? []).map((cell, column) => ({
               type: index === 0 ? "tableHeader" : "tableCell",
+              attrs: { colwidth: [pixels[column] ?? pixels[0]] },
               content: [paragraph(inline(cell.children ?? []))],
             })),
           })),
@@ -499,8 +515,25 @@ function toMd(node: ProseNode): Md[] {
       ];
     case "horizontalRule":
       return [{ type: "thematicBreak" }];
-    case "table":
+    case "table": {
+      // Columns dragged to a size: their shares on a `::columns` line before the table.
+      const pixels = (content[0]?.content ?? []).map(
+        (cell) => (cell.attrs?.colwidth as number[] | null | undefined)?.[0] ?? 0
+      );
+      const shares = pixels.every((px) => px > 0) ? sharesOf(pixels) : [];
+      const widths =
+        shares.length && !evenShares(shares)
+          ? [
+              {
+                type: "leafDirective",
+                name: "columns",
+                attributes: { widths: formatWidths(shares) },
+                children: [],
+              },
+            ]
+          : [];
       return [
+        ...widths,
         {
           type: "table",
           align: (attrs.align as (string | null)[] | null) ?? null,
@@ -517,6 +550,7 @@ function toMd(node: ProseNode): Md[] {
           })),
         },
       ];
+    }
     case "callout":
       return [
         {

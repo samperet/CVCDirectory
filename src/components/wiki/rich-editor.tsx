@@ -39,6 +39,7 @@ import { WikiMention, type MentionParams } from "@/components/wiki/mention-menu"
 import { SlashMenu, slashItems, type SlashItem } from "@/components/wiki/slash-menu";
 import { captureCursor, restoreCursor } from "@/components/wiki/editor-cursor";
 import { EditorContextMenu } from "@/components/wiki/editor-context-menu";
+import { LinkWordsDialog } from "@/components/wiki/link-words-dialog";
 import { FindBar } from "@/components/wiki/find-bar";
 import {
   HighlightMenu,
@@ -206,6 +207,7 @@ export const RichEditor = forwardRef<
   const { toast } = useToast();
   const host = useRef<HTMLDivElement>(null);
   const [linking, setLinking] = useState(false);
+  const [linkingWords, setLinkingWords] = useState(false);
   const [imaging, setImaging] = useState(false);
   const [polling, setPolling] = useState(false);
   const [proposing, setProposing] = useState(false);
@@ -387,9 +389,25 @@ export const RichEditor = forwardRef<
           <EditorContent editor={editor} />
           {editor ? <HighlightTools editor={editor} host={host} /> : null}
         </div>
-        {editor ? <EditorContextMenu editor={editor} onLink={() => setLinking(true)} /> : null}
+        {editor ? (
+          <EditorContextMenu
+            editor={editor}
+            onLink={() => setLinking(true)}
+            onLinkPage={() => setLinkingWords(true)}
+          />
+        ) : null}
       </div>
       {editor && linking ? <LinkDialog editor={editor} onClose={() => setLinking(false)} /> : null}
+      {editor && linkingWords ? (
+        <LinkWordsDialog
+          editor={editor}
+          circle={{ id: circleId, name: circleName }}
+          pageId={pageId}
+          canCreate={!perspective}
+          onCreatePage={onCreatePage}
+          onClose={() => setLinkingWords(false)}
+        />
+      ) : null}
       {editor && imaging ? (
         <ImageDialog editor={editor} upload={uploadPhoto} onClose={() => setImaging(false)} />
       ) : null}

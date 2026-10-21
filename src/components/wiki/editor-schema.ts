@@ -12,6 +12,7 @@ import { Placeholder } from "@tiptap/extensions";
 import { FindReplace } from "@/components/wiki/editor-find";
 import { highlightColor } from "@/lib/wiki/colors";
 import { PersonMention, WikiLink } from "@/components/wiki/wiki-link-node";
+import { MIN_COLUMN_PX, evenPixels } from "@/lib/wiki/tables";
 import {
   CalloutView,
   DetailsView,
@@ -226,6 +227,45 @@ const LinkShortcut = (open: () => void) =>
     },
   });
 
+/**
+ * Every table cell has a width (`colwidth`, pixels): a table made here starts
+ * with equal columns, so dragging one column leaves the others as they are,
+ * and the widths can be written down with the page (`lib/wiki/tables.ts`).
+ */
+const TableColumnWidths = Extension.create({
+  name: "tableColumnWidths",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        appendTransaction: (transactions, _old, state) => {
+          if (!transactions.some((tr) => tr.docChanged)) return null;
+          const tr = state.tr;
+          let changed = false;
+          state.doc.descendants((node, pos) => {
+            if (node.type.name !== "table") return;
+            const columns = node.firstChild?.childCount ?? 0;
+            const pixels = evenPixels(columns);
+            node.descendants((cell, offset) => {
+              if (cell.type.name !== "tableCell" && cell.type.name !== "tableHeader") return;
+              if (cell.attrs.colwidth?.[0]) return false;
+              const row = state.doc.resolve(pos + 1 + offset);
+              const column = row.index(row.depth);
+              tr.setNodeMarkup(pos + 1 + offset, undefined, {
+                ...cell.attrs,
+                colwidth: [pixels[column] ?? pixels[0]],
+              });
+              changed = true;
+              return false;
+            });
+            return false;
+          });
+          return changed ? tr : null;
+        },
+      }),
+    ];
+  },
+});
+
 /** A table cell is one line of Markdown: paragraphs only. */
 const cellContent = { content: "paragraph+" };
 
@@ -245,7 +285,8 @@ export function wikiExtensions({
     // Code inside bold or a link is fine in Markdown.
     Code.extend({ excludes: "" }),
     Image.configure({ inline: true }),
-    Table.configure({ resizable: false }),
+    Table.configure({ resizable: true, cellMinWidth: MIN_COLUMN_PX, lastColumnResizable: true }),
+    TableColumnWidths,
     TableRow,
     TableHeader.extend(cellContent),
     TableCell.extend(cellContent),

@@ -15,6 +15,7 @@ import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import { remarkWikiDirectives } from "@/lib/wiki/directives";
 import { remarkTodoIndex } from "@/lib/wiki/todos";
+import { remarkTableWidths } from "@/lib/wiki/tables";
 import { headingSlug } from "@/lib/wiki/sections";
 import type { WikiPageSummary } from "@/lib/wiki/store";
 import {
@@ -164,11 +165,7 @@ const components: Components = {
       {...props}
     />
   ),
-  table: ({ node: _node, ...props }) => (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm" {...props} />
-    </div>
-  ),
+  table: ({ node: _node, ...props }) => <Table {...props} />,
   th: ({ node: _node, ...props }) => (
     <th
       className="border border-border bg-accent/60 px-2 py-1 text-left font-semibold"
@@ -233,6 +230,30 @@ const components: Components = {
 const TodoContext = createContext<((index: number, checked: boolean) => void) | null>(null);
 
 /** A list item; a to-do item ticks off here (the change comes up from its box). */
+/** A table; with `data-widths` (from a `::columns` line, `lib/wiki/tables.ts`), its columns at those shares. */
+function Table({ children, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
+  const widths = (props as Record<string, unknown>)["data-widths"];
+  const shares = typeof widths === "string" ? widths.split(",").map(Number) : [];
+  return (
+    <div className="overflow-x-auto">
+      <table
+        className="w-full border-collapse text-sm"
+        style={shares.length ? { tableLayout: "fixed" } : undefined}
+        {...props}
+      >
+        {shares.length ? (
+          <colgroup>
+            {shares.map((share, index) => (
+              <col key={index} style={{ width: `${share}%` }} />
+            ))}
+          </colgroup>
+        ) : null}
+        {children}
+      </table>
+    </div>
+  );
+}
+
 function ListItem({ className, ...props }: React.LiHTMLAttributes<HTMLLIElement>) {
   const toggle = useContext(TodoContext);
   const index = (props as Record<string, unknown>)["data-todo"];
@@ -312,7 +333,13 @@ export function WikiMarkdown({
         <TodoContext.Provider value={onToggleTodo ?? null}>
           <div className="flex flex-col gap-3 break-words text-foreground">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives, remarkTodoIndex]}
+              remarkPlugins={[
+                remarkGfm,
+                remarkDirective,
+                remarkTableWidths,
+                remarkWikiDirectives,
+                remarkTodoIndex,
+              ]}
               components={components}
             >
               {linkWikiPages(normalizeWikiLinks(source), linkData)}
@@ -371,7 +398,7 @@ export function PlainWikiMarkdown({ source }: { source: string }) {
   return (
     <div className="flex flex-col gap-3 break-words text-foreground">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkDirective, remarkWikiDirectives]}
+        remarkPlugins={[remarkGfm, remarkDirective, remarkTableWidths, remarkWikiDirectives]}
         components={plainComponents}
       >
         {text}

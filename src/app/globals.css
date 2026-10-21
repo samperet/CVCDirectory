@@ -205,9 +205,25 @@ select {
   max-width: 100%;
   border-radius: 0.5rem;
 }
+/* Tables in the editor: columns drag to a width (a handle on each cell's right edge). */
+.wiki-editor .ProseMirror .tableWrapper {
+  overflow-x: auto;
+}
 .wiki-editor .ProseMirror table {
-  width: 100%;
+  max-width: 100%;
   table-layout: fixed;
+}
+.wiki-editor .ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: -2px;
+  width: 4px;
+  background: theme("colors.primary");
+  pointer-events: none;
+}
+.wiki-editor .ProseMirror.resize-cursor {
+  cursor: col-resize;
 }
 .wiki-editor .ProseMirror td,
 .wiki-editor .ProseMirror th {

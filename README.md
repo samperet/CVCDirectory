@@ -626,7 +626,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   of ticks one version, and checked to be the same item first: `POST /api/wiki/pages/<slug>/todo`,
   `lib/wiki/todos.ts`; others see the boxes but can't tick them, nor those of an embedded page),
   links, photos, tables (with their own
-  add/delete tools while the cursor is in one), collapsible sections, embedded pages, and
+  add/delete tools while the cursor is in one, and **columns dragged to a width** by the edge
+  between them — kept with the page as a `::columns{widths="30,70"}` line before the table, each
+  column's share in percent, and drawn so when reading; `lib/wiki/tables.ts`), collapsible
+  sections, embedded pages, and
   **polls**; Markdown shortcuts work as you type, Ctrl/⌘+K adds a link, and photos can be pasted or
   dropped in. `lib/wiki/prose.ts` turns a page's Markdown into the editor's document and back with
   the same Markdown writer and settings as before, so saved pages keep their spelling; what the
@@ -729,8 +732,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   **Callout** (set apart by a light green dotted line with rounded corners; written
   `:::callout` … `:::`, keeping bold and italic), or a heading.
 - **Right-click menu** – in the editor, right-clicking offers cut, copy, paste, bold, italic,
-  strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link, and
-  clear formatting. Shift + right-click opens the browser's own menu, for spelling suggestions.
+  strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link,
+  **Link to a page…** (the selected words become a link to a page you pick — this circle's first —
+  or to a new page named after what you type, started when the page is saved and kept by its
+  circle; written `[[Title|words]]`), and clear formatting. Shift + right-click opens the browser's
+  own menu, for spelling suggestions.
 - **Find and replace** – in the editor (pages, alternative versions, Custom Text modules), the
   toolbar's magnifier, Ctrl/⌘+F, or Ctrl+H (⌘⇧H) opens a find bar under the toolbar. Every match
   is marked as you type, the current one more strongly, with "2 of 5", ↑ ↓ (or Enter and

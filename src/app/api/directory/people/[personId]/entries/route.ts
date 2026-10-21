@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth/session";
 import { canManageDirectory } from "@/lib/directory/access";
 import { mergePeople, separatePeople } from "@/lib/directory/people-store";
+import { mergeChat } from "@/lib/chat/store";
 import { readDirectory } from "@/lib/directory/store";
 import { problem } from "@/lib/http";
 
@@ -23,7 +24,8 @@ async function managerContext() {
 /**
  * Combine another directory entry into this person's profile — the same
  * person listed in another household under a different name. They're then
- * listed under both units with one profile.
+ * listed under both units with one profile, and messages sent to either
+ * entry are read as one (`mergeChat`).
  */
 export async function POST(request: NextRequest, { params }: Params) {
   const context = await managerContext();
@@ -43,6 +45,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
   if (keep === other) return problem("Those are already the same profile");
   await mergePeople(other, keep);
+  // Messages sent to the other entry are theirs too.
+  await mergeChat(other, keep);
   return NextResponse.json({ ok: true, personId: keep });
 }
 
