@@ -16,9 +16,10 @@ import type { GraphEdgeKind, GraphNode, GraphNodeKind, WikiGraph } from "@/lib/w
 import { EDGE_INFO, NameTip, neighbours, nodeFill } from "@/components/wiki/map-shared";
 
 /**
- * The wiki as islands: each circle a soft disc holding the pages it keeps;
- * links arc between them. Hover for a card;
- * click a page to open it, a circle to zoom in.
+ * The wiki as islands: each circle a soft disc holding the pages it keeps —
+ * a sub group a smaller, dashed disc inside its parent's, in its colour;
+ * links arc between them. Hover for a card; click a page to open it, a
+ * circle to zoom in.
  */
 
 interface Item {
@@ -26,6 +27,8 @@ interface Item {
   kind: "root" | "circle" | "leaf" | "elsewhere";
   node?: GraphNode;
   circleId?: string;
+  /** A sub group's island: the circle whose island holds it. */
+  parentId?: string;
   label: string;
   value?: number;
   children?: Item[];
@@ -82,7 +85,7 @@ export const IslandsView = forwardRef<
     return counts;
   }, [graph]);
 
-  // Circles → the pages they keep.
+  // Circles → the pages they keep (and their sub groups, each with its own pages).
   const packed = useMemo(() => {
     const shown = graph.nodes.filter((node) => node.kind !== "circle" && kinds.has(node.kind));
     const leafValue = (node: GraphNode) => 1 + Math.min(degree.get(node.id) ?? 0, 8) * 0.5;
@@ -94,23 +97,34 @@ export const IslandsView = forwardRef<
       label: node.label,
       value: leafValue(node),
     });
+    const island = (circle: WikiGraph["circles"][number]): Item => ({
+      id: `circle:${circle.id}`,
+      kind: "circle" as const,
+      circleId: circle.id,
+      ...(circle.parentId ? { parentId: circle.parentId } : {}),
+      label: circle.name,
+      node: graph.nodes.find((node) => node.id === `circle:${circle.id}`),
+      children: [
+        ...shown.filter((node) => node.circleId === circle.id).map(itemFor),
+        ...graph.circles
+          .filter((sub) => sub.parentId === circle.id)
+          .map(island)
+          .filter((sub) => sub.children?.length),
+      ],
+    });
     const circles: Item[] = graph.circles
-      .map((circle) => ({
-        id: `circle:${circle.id}`,
-        kind: "circle" as const,
-        circleId: circle.id,
-        label: circle.name,
-        node: graph.nodes.find((node) => node.id === `circle:${circle.id}`),
-        children: shown.filter((node) => node.circleId === circle.id).map(itemFor),
-      }))
-      .filter((circle) => circle.children.length);
-    const placed = new Set(
-      circles.flatMap((circle) => (circle.children ?? []).map((child) => child.id))
-    );
+      .filter((circle) => !circle.parentId)
+      .map(island)
+      .filter((circle) => circle.children?.length);
+    const leaves = (item: Item): string[] =>
+      (item.children ?? []).flatMap((child) =>
+        child.kind === "leaf" ? [child.id] : leaves(child)
+      );
+    const placed = new Set(circles.flatMap(leaves));
     const elsewhere = shown.filter(
       (node) =>
         !placed.has(node.id) &&
-        !(node.kind === "page" && circles.some((circle) => circle.circleId === node.circleId))
+        !(node.kind === "page" && graph.circles.some((circle) => circle.id === node.circleId))
     );
     const root: Item = {
       id: "root",
@@ -137,7 +151,9 @@ export const IslandsView = forwardRef<
         node.depth === 0
           ? 36
           : node.data.kind === "circle" || node.data.kind === "elsewhere"
-            ? 12
+            ? node.data.parentId
+              ? 10
+              : 12
             : 4
       )(
       hierarchy(root)
@@ -264,11 +280,14 @@ export const IslandsView = forwardRef<
                   ? "#8c8f86"
                   : colors.get(item.circleId ?? "") ?? "#6b8e70";
               const faded = item.node && dim(item.node.id);
+              const sub = !!item.parentId;
               return (
                 <g
                   key={item.id}
                   opacity={faded ? 0.35 : 1}
                   className="cursor-pointer"
+                  data-island={item.circleId ?? item.id}
+                  data-subgroup-of={item.parentId}
                   onClick={(event) => choose(event, item.node, item)}
                   onPointerMove={(event) => item.node && show(event, item.node.id)}
                 >
@@ -277,18 +296,21 @@ export const IslandsView = forwardRef<
                     cy={node.y}
                     r={node.r}
                     fill={hue}
-                    fillOpacity={0.09}
+                    fillOpacity={sub ? 0.07 : 0.09}
                     stroke={hue}
-                    strokeOpacity={0.35}
+                    strokeOpacity={sub ? 0.5 : 0.35}
                     strokeWidth={1.5 / k}
-                    filter="url(#island-shadow)"
+                    strokeDasharray={sub ? `${5 / k} ${4 / k}` : undefined}
+                    filter={sub ? undefined : "url(#island-shadow)"}
                   />
-                  {/* A circle's name sits just above its island. */}
+                  {/* A circle's name sits just above its island; a sub group's inside, near the top. */}
                   <text
                     x={node.x}
-                    y={node.y - node.r - 6 / k}
+                    y={
+                      sub ? node.y - node.r + clamp(node.r * 0.14, 10, 22) : node.y - node.r - 6 / k
+                    }
                     textAnchor="middle"
-                    fontSize={clamp(node.r * 0.11, 9, 26)}
+                    fontSize={sub ? clamp(node.r * 0.1, 8, 18) : clamp(node.r * 0.11, 9, 26)}
                     fontWeight={700}
                     fill={hue}
                     stroke="#ffffff"

@@ -3,10 +3,13 @@ import { wikiLinksIn } from "@/lib/wiki/links";
 import { embeddedPages } from "@/lib/wiki/sections";
 import { readPages, type WikiPage } from "@/lib/wiki/store";
 import { excerptOf } from "@/lib/wiki/excerpt";
+import { parentOf } from "@/lib/circles/tiers";
 
 /**
  * The map of how the wiki connects: every page, the circle it belongs to,
- * the pages it links to (or embeds).
+ * the pages it links to (or embeds). A sub group is listed with its
+ * `parentId`, and its parent is listed too (even with no pages of its own),
+ * so the map can draw it inside its parent's island.
  */
 
 export type GraphNodeKind = "page" | "circle";
@@ -31,13 +34,44 @@ export interface GraphEdge {
   kind: GraphEdgeKind;
 }
 
+export interface GraphCircle {
+  id: string;
+  name: string;
+  /** Set on a sub group: the circle whose island it sits in. */
+  parentId?: string;
+}
+
 export interface WikiGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  circles: { id: string; name: string }[];
+  circles: GraphCircle[];
 }
 
 const pageNode = (pageId: string) => `page:${pageId}`;
+
+/**
+ * The circles on the map (pure): those keeping a page, each sub group with
+ * its parent — and the parent itself, whether or not it keeps pages — in
+ * the directory's order.
+ */
+export function graphCircles<T extends { id: string; name: string; parentId?: string }>(
+  circles: T[],
+  keepers: ReadonlySet<string>
+): GraphCircle[] {
+  const shown = new Set<string>();
+  for (const circle of circles) {
+    if (!keepers.has(circle.id)) continue;
+    shown.add(circle.id);
+    const parent = parentOf(circles, circle);
+    if (parent) shown.add(parent.id);
+  }
+  return circles
+    .filter((circle) => shown.has(circle.id))
+    .map((circle) => {
+      const parent = parentOf(circles, circle);
+      return { id: circle.id, name: circle.name, ...(parent ? { parentId: parent.id } : {}) };
+    });
+}
 
 /** The map: every page, and the links between them. */
 export async function buildWikiGraph(directory: DirectoryDocument): Promise<WikiGraph> {
@@ -92,11 +126,8 @@ export async function buildWikiGraph(directory: DirectoryDocument): Promise<Wiki
     }
   }
 
-  return {
-    nodes: Array.from(nodes.values()),
-    edges,
-    circles: circles
-      .filter((circle) => nodes.has(`circle:${circle.id}`))
-      .map((circle) => ({ id: circle.id, name: circle.name })),
-  };
+  const keepers = new Set(pages.map((page) => page.keeper));
+  const listed = graphCircles(circles, keepers);
+  for (const circle of listed) addCircle(circle.id);
+  return { nodes: Array.from(nodes.values()), edges, circles: listed };
 }

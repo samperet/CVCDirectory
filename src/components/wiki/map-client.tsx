@@ -108,26 +108,43 @@ export function WikiMapClient() {
           <section className="flex flex-col gap-1.5">
             <h2 className="text-sm font-semibold text-foreground">Circles</h2>
             <ul className="flex flex-col">
-              {data?.circles.map((circle) => (
-                <li key={circle.id}>
-                  <button
-                    type="button"
-                    onClick={() => select(`circle:${circle.id}`, true)}
-                    className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm text-foreground hover:bg-accent"
-                    title={`Show ${circle.name}`}
-                  >
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: colors.get(circle.id) }}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1 truncate">{circle.name}</span>
-                    <span className="text-xs tabular-nums text-muted">
-                      {counts.get(circle.id) ?? 0}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {/* Each circle, with its sub groups indented under it. */}
+              {(data?.circles ?? [])
+                .filter((circle) => !circle.parentId)
+                .flatMap((circle) => [
+                  circle,
+                  ...(data?.circles ?? []).filter((sub) => sub.parentId === circle.id),
+                ])
+                .map((circle) => (
+                  <li key={circle.id}>
+                    <button
+                      type="button"
+                      onClick={() => select(`circle:${circle.id}`, true)}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm text-foreground hover:bg-accent",
+                        circle.parentId && "pl-6"
+                      )}
+                      title={`Show ${circle.name}`}
+                      data-map-circle={circle.id}
+                    >
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full",
+                          circle.parentId ? "h-2 w-2 border border-dashed" : "h-3 w-3"
+                        )}
+                        style={{
+                          backgroundColor: circle.parentId ? undefined : colors.get(circle.id),
+                          borderColor: colors.get(circle.id),
+                        }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate">{circle.name}</span>
+                      <span className="text-xs tabular-nums text-muted">
+                        {counts.get(circle.id) ?? 0}
+                      </span>
+                    </button>
+                  </li>
+                ))}
             </ul>
           </section>
 

@@ -752,8 +752,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   the cursor on the match you were at (`components/wiki/editor-find.ts`, `find-bar.tsx`;
   `lib/wiki/find.ts`). Spreadsheets have their own search, in their toolbar.
 - **Wiki map** (the **Map** button at the top of `/wiki`, for everyone — each sees only the pages they can) –
-  **Islands**: each parent circle is a soft island (in its own colour) holding its pages (documents
-  aren't shown). Links arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
+  **Islands**: each circle is a soft island (in its own colour) holding the pages it keeps; a sub
+  group is a smaller, dashed island inside its parent's, in the parent's colour (and indented
+  under it in the Circles list); documents aren't shown. Links arc between them. Hovering shows just a name; clicking anything opens a **panel** (docked on the
   right; a sheet along the bottom on phones) with its opening lines, who last edited it, what it
   links to and from — each clickable — plus **Open**, **Zoom to**, and
   **Show connections** (fading everything else). Clicking a circle also zooms in. **Find** zooms to

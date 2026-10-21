@@ -38,11 +38,27 @@ export const EDGE_INFO: Record<"link", { label: string; color: string; dash?: st
   link: { label: "Links", color: "#5b6b62" },
 };
 
-/** Each circle's colour, by its place in the list (stable as long as circles don't change). */
+/** Each circle's colour, by its place in the list (stable as long as circles don't change); a sub group takes its parent's. */
 export function circleColors(graph: WikiGraph) {
-  return new Map(
-    graph.circles.map((circle, index) => [circle.id, CIRCLE_PALETTE[index % CIRCLE_PALETTE.length]])
-  );
+  const colors = new Map<string, string>();
+  graph.circles
+    .filter((circle) => !circle.parentId)
+    .forEach((circle, index) =>
+      colors.set(circle.id, CIRCLE_PALETTE[index % CIRCLE_PALETTE.length])
+    );
+  for (const circle of graph.circles)
+    if (circle.parentId) colors.set(circle.id, colors.get(circle.parentId) ?? CIRCLE_PALETTE[0]);
+  return colors;
+}
+
+/** A circle's name on the map: a sub group's with its parent's ("Land Care Circle › Safety Crew"). */
+export function circleName(graph: WikiGraph, circleId: string | undefined) {
+  const circle = graph.circles.find((entry) => entry.id === circleId);
+  if (!circle) return undefined;
+  const parent = circle.parentId
+    ? graph.circles.find((entry) => entry.id === circle.parentId)
+    : undefined;
+  return parent ? `${parent.name} › ${circle.name}` : circle.name;
 }
 
 /** A node's fill, by kind (pages are white discs; a page's island is its circle's colour). */
@@ -73,8 +89,7 @@ export function NameTip({
   y: number;
   bounds: { width: number; height: number };
 }) {
-  const circle =
-    node.kind !== "circle" ? graph.circles.find((entry) => entry.id === node.circleId) : undefined;
+  const circle = node.kind !== "circle" ? circleName(graph, node.circleId) : undefined;
   return (
     <div
       className="pointer-events-none absolute z-10 max-w-[16rem] truncate rounded-full bg-[#1e2b25]/90 px-3 py-1 text-xs font-medium text-white shadow-elev"
@@ -85,7 +100,7 @@ export function NameTip({
       role="tooltip"
     >
       {node.label}
-      {circle ? <span className="font-normal text-white/60"> · {circle.name}</span> : null}
+      {circle ? <span className="font-normal text-white/60"> · {circle}</span> : null}
     </div>
   );
 }
@@ -177,7 +192,7 @@ export function NodePanel({
                   className="font-medium hover:underline"
                   style={{ color: colors.get(circle.id) }}
                 >
-                  {circle.name}
+                  {circleName(graph, circle.id)}
                 </button>
               </>
             ) : null}
