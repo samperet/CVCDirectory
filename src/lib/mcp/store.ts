@@ -2,15 +2,20 @@ import { mutateJson, readJson } from "@/lib/storage";
 import { hashToken, newToken } from "@/lib/backups/secret";
 
 /**
- * Keys for AI assistants (MCP, `server.ts`): a resident makes one on their
- * profile and gives it to the assistant; the server then reads CVC as that
- * resident. Only each key's hash is kept (`mcp/keys.json`), with whose it is,
- * what it's called, and when it was last used. A key is shown once.
+ * Keys for AI assistants (MCP, `server.ts`): a resident makes one on the
+ * AI assistants page and gives it to the assistant; the server then reads
+ * CVC as that resident — and, with a key that can `write`, starts and
+ * changes pages and documents as them too. Only each key's hash is kept
+ * (`mcp/keys.json`), with whose it is, what it's called, what it may do,
+ * and when it was last used. A key is shown once.
  */
 
 const KEYS = "mcp/keys.json";
 /** How many keys one resident can have. */
 export const MAX_KEYS = 5;
+
+/** What a key may do: read, or read and write (unset on older keys: read). */
+export type McpScope = "read" | "write";
 
 export interface McpKey {
   id: string;
@@ -18,6 +23,7 @@ export interface McpKey {
   personId: string;
   /** What the resident called it ("Claude on my laptop"). */
   label: string;
+  scope?: McpScope;
   createdAt: string;
   lastUsedAt?: string;
 }
@@ -41,7 +47,8 @@ export async function listKeys(personId: string): Promise<McpKeyView[]> {
 /** A new key for a resident: the secret, shown this once — or "full" if they have `MAX_KEYS`. */
 export async function makeKey(
   personId: string,
-  label: string
+  label: string,
+  scope: McpScope = "read"
 ): Promise<{ token: string; key: McpKeyView } | "full"> {
   const { token, hash } = newToken();
   const key: McpKey = {
@@ -49,6 +56,7 @@ export async function makeKey(
     hash,
     personId,
     label: label.trim().slice(0, 60) || "AI assistant",
+    scope,
     createdAt: new Date().toISOString(),
   };
   const made = await mutateJson<boolean>(KEYS, (raw) => {

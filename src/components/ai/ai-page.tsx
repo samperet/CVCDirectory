@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bot, Eye, KeyRound, Lock, Search, ShieldCheck, Wrench } from "lucide-react";
+import { Bot, Eye, KeyRound, Lock, PenLine, Search, ShieldCheck, Wrench } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { AiKeys } from "@/components/ai/ai-keys";
 import { Card } from "@/components/ui/card";
@@ -23,6 +23,34 @@ const TOOLS: [string, string][] = [
   ["list_documents", "The uploaded documents and links, by circle."],
   ["read_document", "The text inside an uploaded document."],
 ];
+
+/** What a key that can write adds. */
+const WRITE_TOOLS: [string, string][] = [
+  ["create_page", "Start a page, kept by one of your circles."],
+  ["update_page", "Save a new version of a page you can edit (never over someone else's edit)."],
+  ["move_page", "Give a page you keep to another of your circles."],
+  ["delete_page", "Put a page you keep in the trash (30 days to restore it)."],
+  ["list_document_types", "A circle's document types."],
+  ["add_link", "Add a Google Doc, Sheet, Slides deck, or web link to a circle's documents."],
+  ["add_file", "Upload a small file (up to 3 MB) as a document, or as a new version of one."],
+  ["update_document", "Change a document's title, description, type or meeting date."],
+  ["delete_document", "Delete a document you may change. No trash: it's gone for good."],
+];
+
+function ToolList({ tools }: { tools: [string, string][] }) {
+  return (
+    <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[auto_1fr]">
+      {tools.map(([name, about]) => (
+        <div key={name} className="contents">
+          <dt>
+            <code className="rounded bg-accent px-1.5 py-0.5 text-xs">{name}</code>
+          </dt>
+          <dd className="text-foreground-light">{about}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 function Steps({ children }: { children: React.ReactNode }) {
   return (
@@ -62,7 +90,11 @@ export function AiPage() {
           <li className="flex gap-2">
             <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
             <span>
-              <strong>It can&apos;t change anything.</strong> No editing, posting, or deleting.
+              <strong>It can&apos;t change anything — unless you let it.</strong> A key only reads,
+              unless you tick <em>Let it also write</em> when you make it. Then it can start and
+              change pages and documents as you — only what you could do yourself, and every change
+              shows under your name, in the page&apos;s history. No posting in the forum, no
+              messages, nothing with people or circles.
             </span>
           </li>
           <li className="flex gap-2">
@@ -170,16 +202,11 @@ export function AiPage() {
           These are the “tools” the assistant gets. You don&apos;t call them yourself — it picks
           what it needs from your question.
         </p>
-        <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[auto_1fr]">
-          {TOOLS.map(([name, about]) => (
-            <div key={name} className="contents">
-              <dt>
-                <code className="rounded bg-accent px-1.5 py-0.5 text-xs">{name}</code>
-              </dt>
-              <dd className="text-foreground-light">{about}</dd>
-            </div>
-          ))}
-        </dl>
+        <ToolList tools={TOOLS} />
+        <h3 className="mt-2 flex items-center gap-2 font-semibold text-foreground" data-ai-writes>
+          <PenLine className="h-4 w-4 text-primary" aria-hidden /> And with a key that can write
+        </h3>
+        <ToolList tools={WRITE_TOOLS} />
       </Card>
 
       <AiKeys />

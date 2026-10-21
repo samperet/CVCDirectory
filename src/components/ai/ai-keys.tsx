@@ -2,21 +2,23 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, KeyRound, Trash2 } from "lucide-react";
+import { Check, Copy, KeyRound, PenLine, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { McpKeyView } from "@/lib/mcp/store";
 import { timeAgo } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Pill } from "@/components/ui/pill";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/use-toast";
 
 /**
  * On the AI assistants page (`ai-page.tsx`): your keys for an AI assistant
  * (Claude, ChatGPT, or any MCP client) to read CVC's pages and documents as
- * you — each shown once when made, with the connector's address and how to
- * add it, and taken away here at any time (`lib/mcp`).
+ * you — or, ticking the box, to write as you too — each shown once when
+ * made, with the connector's address and how to add it, and taken away here
+ * at any time (`lib/mcp`).
  */
 
 type Keys = { keys: McpKeyView[]; url: string };
@@ -48,17 +50,29 @@ export function AiKeys() {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [label, setLabel] = useState("");
-  const [made, setMade] = useState<{ secret: string; url: string; label: string } | null>(null);
+  const [write, setWrite] = useState(false);
+  const [made, setMade] = useState<{
+    secret: string;
+    url: string;
+    label: string;
+    write: boolean;
+  } | null>(null);
   const keys = useQuery({ queryKey: ["mcp-keys"], queryFn: () => apiFetch<Keys>("/api/mcp/keys") });
   const make = useMutation({
     mutationFn: () =>
       apiFetch<{ key: McpKeyView; secret: string; url: string }>("/api/mcp/keys", {
         method: "POST",
-        body: JSON.stringify({ label }),
+        body: JSON.stringify({ label, scope: write ? "write" : "read" }),
       }),
     onSuccess: (result) => {
-      setMade({ secret: result.secret, url: result.url, label: result.key.label });
+      setMade({
+        secret: result.secret,
+        url: result.url,
+        label: result.key.label,
+        write: result.key.scope === "write",
+      });
       setLabel("");
+      setWrite(false);
       void queryClient.invalidateQueries({ queryKey: ["mcp-keys"] });
     },
     onError: (error: Error) =>
@@ -80,8 +94,9 @@ export function AiKeys() {
           <KeyRound className="h-5 w-5 text-primary" aria-hidden /> Your keys
         </h2>
         <p className="text-sm text-foreground-light">
-          A key is what you give an assistant so it can read CVC as you. Make one for each assistant
-          or device, so you can take one away without the others.
+          A key is what you give an assistant so it can read CVC as you — or, if you tick the box,
+          read and write as you. Make one for each assistant or device, so you can take one away
+          without the others.
         </p>
       </div>
 
@@ -93,6 +108,12 @@ export function AiKeys() {
           <p className="font-medium text-foreground">
             Your key “{made.label}” — copy it now, it isn&apos;t shown again.
           </p>
+          {made.write ? (
+            <p className="text-foreground-light" data-ai-made-write>
+              This key can also <strong className="text-foreground">write</strong>: what the
+              assistant starts or changes shows under your name, in each page&apos;s history.
+            </p>
+          ) : null}
           <div className="flex items-center gap-2">
             <code
               className="min-w-0 flex-1 break-all rounded bg-white px-2 py-1.5 text-xs"
@@ -133,25 +154,46 @@ export function AiKeys() {
       ) : null}
 
       <form
-        className="flex flex-wrap items-end gap-2"
+        className="flex flex-col gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           make.mutate();
         }}
       >
-        <label className="flex min-w-0 flex-1 basis-[14rem] flex-col gap-1 text-sm font-medium text-foreground">
-          What&apos;s it for?
-          <Input
-            value={label}
-            maxLength={60}
-            onChange={(event) => setLabel(event.target.value)}
-            placeholder="Claude on my laptop"
-            className="bg-white"
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex min-w-0 flex-1 basis-[14rem] flex-col gap-1 text-sm font-medium text-foreground">
+            What&apos;s it for?
+            <Input
+              value={label}
+              maxLength={60}
+              onChange={(event) => setLabel(event.target.value)}
+              placeholder="Claude on my laptop"
+              className="bg-white"
+            />
+          </label>
+          <Button
+            type="submit"
+            size="sm"
+            className="gap-1.5"
+            disabled={make.isPending}
+            data-ai-make
+          >
+            <KeyRound className="h-4 w-4" /> {make.isPending ? "Making it…" : "Make a key"}
+          </Button>
+        </div>
+        <label className="flex items-start gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-primary"
+            checked={write}
+            onChange={(event) => setWrite(event.target.checked)}
+            data-ai-write
           />
+          <span>
+            Let it also <strong>write</strong> as me — start and change pages, add and change
+            documents, within what I can do. Every change shows under my name.
+          </span>
         </label>
-        <Button type="submit" size="sm" className="gap-1.5" disabled={make.isPending} data-ai-make>
-          <KeyRound className="h-4 w-4" /> {make.isPending ? "Making it…" : "Make a key"}
-        </Button>
       </form>
 
       {keys.data?.keys.length ? (
@@ -165,6 +207,11 @@ export function AiKeys() {
               <span className="min-w-0 flex-1 basis-[10rem] truncate text-foreground">
                 {key.label}
               </span>
+              {key.scope === "write" ? (
+                <Pill tone="amber" size="xs" className="gap-1">
+                  <PenLine className="h-3 w-3" aria-hidden /> Can write
+                </Pill>
+              ) : null}
               <span className="text-xs text-muted">
                 {key.lastUsedAt ? `Used ${timeAgo(key.lastUsedAt)}` : "Not used yet"} · made{" "}
                 {timeAgo(key.createdAt)}
@@ -179,7 +226,7 @@ export function AiKeys() {
                   if (
                     await confirm({
                       title: `Take away “${key.label}”?`,
-                      body: "The assistant holding it can't read CVC any more.",
+                      body: "The assistant holding it can't use CVC any more.",
                       confirmLabel: "Take it away",
                       destructive: true,
                     })

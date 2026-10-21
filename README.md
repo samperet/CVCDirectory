@@ -739,13 +739,22 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   speaks MCP, the tools it gets, and your keys (`components/ai/ai-page.tsx`, `ai-keys.tsx`).
   There, make a **key** for an AI assistant you use — Claude, ChatGPT, Claude Code, anything that
   speaks the Model Context Protocol — and it can search CVC and read its pages (as Markdown) and
-  documents (their extracted text) as you: read-only, and only what any resident sees. The server
-  is `POST /api/mcp` (MCP over plain HTTP, JSON-RPC, no streaming; `lib/mcp/server.ts`) with the
-  key as `Authorization: Bearer …` or `?key=…` (for Claude.ai's custom connectors, which take an
+  documents (their extracted text) as you: only what any resident sees. The server is
+  `POST /api/mcp` (MCP over plain HTTP, JSON-RPC, no streaming; `lib/mcp/server.ts`) with the key
+  as `Authorization: Bearer …` or `?key=…` (for Claude.ai's custom connectors, which take an
   address); tools: `search`, `list_circles`, `list_pages`, `read_page`, `list_documents`,
-  `read_document`. A key is shown once (with the address for Claude.ai and ChatGPT and the
-  `claude mcp add` command for Claude Code); only its hash is kept (`mcp/keys.json`, up to five a
-  resident, with when each was last used); **Take away** shuts that assistant out at once.
+  `read_document`. A key only reads unless **Let it also write** is ticked when it's made: a key
+  that can write (marked **Can write** in the list; `scope` in `mcp/keys.json`) also gets
+  `create_page`, `update_page` (with `baseUpdatedAt` from `read_page`, so an edit made meanwhile
+  is handed back to merge rather than overwritten), `move_page`, `delete_page` (to the trash),
+  `list_document_types`, `add_link`, `add_file` (base64, up to 3 MB; a new version with
+  `replaces`), `update_document` and `delete_document` — each run as the resident's own account
+  through the app's stores and rules (`lib/mcp/writes.ts`: the same permission checks, refusals
+  and side effects as the routes — following, mentions, followers told, documents announced), so
+  the assistant can do only what they could, and every change shows under their name. A key is
+  shown once (with the address for Claude.ai and ChatGPT and the `claude mcp add` command for
+  Claude Code); only its hash is kept (`mcp/keys.json`, up to five a resident, with when each was
+  last used); **Take away** shuts that assistant out at once.
 - **Put CVC on your home screen** – the bottom of the phone menu (☰) folds out plain, large-print
   steps for adding CVC to the home screen as an app (`components/layout/install-help.tsx`): an
   **Install CVC now** button where the browser offers one, Safari's Share → **Add to Home Screen**

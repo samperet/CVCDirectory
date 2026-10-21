@@ -7,9 +7,12 @@ import { siteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({ label: z.string().trim().max(60).default("") });
+const schema = z.object({
+  label: z.string().trim().max(60).default(""),
+  scope: z.enum(["read", "write"]).default("read"),
+});
 
-/** Your keys for AI assistants (GET), and a new one (POST: its secret, shown this once). */
+/** Your keys for AI assistants (GET), and a new one (POST: its secret, shown this once; `scope` read or write). */
 export async function GET() {
   const user = await getSessionUser();
   if (!user?.personId) return problem("Sign in to continue", 401);
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
   if (!user?.personId) return problem("Sign in to continue", 401);
   const parsed = await readBody(request, schema, {});
   if ("error" in parsed) return parsed.error;
-  const made = await makeKey(user.personId, parsed.data.label);
+  const made = await makeKey(user.personId, parsed.data.label, parsed.data.scope);
   if (made === "full") return full(`You can have ${MAX_KEYS} keys — take one away first`);
   return NextResponse.json(
     { key: made.key, secret: made.token, url: `${siteUrl()}/api/mcp` },

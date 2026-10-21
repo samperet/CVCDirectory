@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { keyOwner } from "@/lib/mcp/store";
 import { handleMcp, PROTOCOL_VERSION, type JsonRpcRequest, type McpSource } from "@/lib/mcp/server";
+import { findPage, writerFor } from "@/lib/mcp/writes";
 import { readDirectory } from "@/lib/directory/store";
+import type { DirectoryDocument } from "@/lib/directory/types";
 import { searchSite } from "@/lib/site-search";
 import { readPages } from "@/lib/wiki/store";
 import { excerptOf } from "@/lib/wiki/excerpt";
@@ -9,6 +11,8 @@ import { getDocumentText, listDocuments } from "@/lib/documents/store";
 import { readTypeMap, typeLabelFor } from "@/lib/documents/type-store";
 import { currentVersion, documentDate, shownWithPage } from "@/lib/documents/types";
 import { parentOf } from "@/lib/circles/tiers";
+import { getUserForPerson } from "@/lib/auth/users";
+import { loadAdmins } from "@/lib/auth/admin-store";
 import { siteUrl } from "@/lib/site-url";
 import { rateLimit } from "@/lib/rate-limit";
 import { problem } from "@/lib/http";
@@ -19,8 +23,10 @@ export const maxDuration = 30;
 /**
  * The MCP endpoint (`lib/mcp/server.ts`): JSON-RPC over POST, each request
  * carrying a resident's key — `Authorization: Bearer <key>`, or `?key=` for
- * assistants that can't send headers. GET says what this is. No streaming
- * (no SSE): every answer is one JSON reply.
+ * assistants that can't send headers. A key that can write brings the
+ * write tools (`lib/mcp/writes.ts`), acting as the resident's own account,
+ * so they must have signed in at least once. GET says what this is. No
+ * streaming (no SSE): every answer is one JSON reply.
  */
 
 function keyFrom(request: NextRequest) {
@@ -38,16 +44,14 @@ export async function GET() {
       transport: "streamable-http",
       protocolVersion: PROTOCOL_VERSION,
       about:
-        "An MCP server for AI assistants residents use: POST JSON-RPC here with your key (Authorization: Bearer <key>, or ?key=). Make a key on your profile, under AI assistants.",
+        "An MCP server for AI assistants residents use: POST JSON-RPC here with your key (Authorization: Bearer <key>, or ?key=). Make a key on CVC's AI assistants page.",
     },
     { headers }
   );
 }
 
 /** The real data behind the tools, read as any resident sees it. */
-async function sourceFor(): Promise<McpSource | null> {
-  const directory = await readDirectory();
-  if (!directory) return null;
+function sourceFor(directory: DirectoryDocument): McpSource {
   const circles = directory.circles;
   const circleName = (id: string) => circles.find((circle) => circle.id === id)?.name ?? id;
   const site = siteUrl();
@@ -81,10 +85,7 @@ async function sourceFor(): Promise<McpSource | null> {
         excerpt: excerptOf(page.body, 160),
       })),
     page: async (ref) => {
-      const wanted = ref.toLowerCase();
-      const page = (await readPages()).find(
-        (entry) => entry.slug === wanted || entry.title.toLowerCase() === wanted
-      );
+      const page = await findPage(ref);
       return page
         ? {
             title: page.title,
@@ -132,13 +133,24 @@ async function sourceFor(): Promise<McpSource | null> {
 export async function POST(request: NextRequest) {
   const key = keyFrom(request);
   const owner = key ? await keyOwner(key) : null;
-  if (!owner)
-    return problem("A valid key is needed: make one on your profile, under AI assistants", 401);
+  if (!owner) return problem("A valid key is needed: make one on CVC's AI assistants page", 401);
   if (!rateLimit(`mcp:${owner.id}`, 120)) return problem("Too many requests — slow down", 429);
   const body = (await request.json().catch(() => null)) as JsonRpcRequest | JsonRpcRequest[] | null;
   if (!body) return problem("Send a JSON-RPC request", 400);
-  const source = await sourceFor();
-  if (!source) return problem("The directory hasn't been imported yet", 503);
+  const directory = await readDirectory();
+  if (!directory) return problem("The directory hasn't been imported yet", 503);
+  const source = sourceFor(directory);
+  if (owner.scope === "write") {
+    // Writes are the resident's own: their account, with what they may do today.
+    const user = await getUserForPerson(owner.personId);
+    if (!user)
+      return problem(
+        "This key can write, but its owner hasn't signed in to CVC yet — sign in once, then try again",
+        403
+      );
+    await loadAdmins();
+    source.write = writerFor(user, directory, source.siteUrl);
+  }
   const messages = Array.isArray(body) ? body : [body];
   const replies = (await Promise.all(messages.map((message) => handleMcp(message, source)))).filter(
     (reply) => reply !== null

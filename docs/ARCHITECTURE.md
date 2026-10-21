@@ -83,7 +83,7 @@ Main documents (see each store's `KEY`):
 | `presence/online.json` | Who's online: each person's last check-in (gone three minutes after it) | `lib/presence` |
 | `chat/conversations/<a>-<b>.json`, `chat/people/<personId>.json` | Private messages between two people (their last 500); each person's list of conversations and what they've read | `lib/chat` |
 | `backups/index.json`, `backups/<id>.zip`, `backups/<id>.ots`, `backups/subscribers.json`, `backups/restores.json` | The newest eight community backups and three complete ones (each zip and its OpenTimestamps proof); who signed up for them: email, a feed (its token's hash), their own storage (its key sealed); the restore tests run (never a key). Never in a backup itself | `lib/backups` |
-| `mcp/keys.json` | Residents' keys for AI assistants (hashed), with whose each is and when it was last used | `lib/mcp` |
+| `mcp/keys.json` | Residents' keys for AI assistants (hashed), with whose each is, whether it can write (`scope`), and when it was last used | `lib/mcp` |
 | `me/documents/<userId>.json` | Each account's starred documents (up to 50) and the last 20 opened: pages, files and proposals by id, resolved when read | `lib/me` |
 
 ## Who's who
