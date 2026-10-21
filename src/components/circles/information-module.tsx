@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { BookOpen, Plus } from "lucide-react";
 import { moduleTitle, type CircleModule, type InfoFilter } from "@/lib/circles/layout";
+import { pagesFor } from "@/lib/circles/info-sort";
 import type { Circle } from "@/lib/circles/types";
-import type { WikiPageSummary } from "@/lib/wiki/store";
-import { byDecision, pageStage } from "@/lib/wiki/consent";
 import { ModuleToggle } from "@/components/circles/circle-modules";
 import { AddInformationDialog } from "@/components/circles/add-information-dialog";
 import { PageGrid } from "@/components/wiki/page-cards";
@@ -20,37 +19,6 @@ import { useQuery } from "@tanstack/react-query";
 import { proposalsQuery } from "@/components/proposals/data";
 import { ProposalCards } from "@/components/proposals/proposal-list";
 
-/**
- * The pages a filter picks: chosen ones in their
- * order, a circle's by title, a circle's pages proposed before proposals
- * were their own (the soonest to be decided first, then the newest — the
- * proposals themselves are listed beside them), or the most recently
- * edited first.
- */
-export function pagesFor(filter: InfoFilter, pages: WikiPageSummary[]): WikiPageSummary[] {
-  if (filter.kind === "pages") {
-    const byId = new Map(pages.map((page) => [page.id, page]));
-    return filter.pageIds.flatMap((id) => byId.get(id) ?? []);
-  }
-  if (filter.kind === "proposed")
-    return pages
-      .filter(
-        (page) =>
-          page.keeper === filter.circleId &&
-          pageStage(page) === "proposed" &&
-          !page.proposal?.proposalId
-      )
-      .sort(byDecision);
-  if (filter.kind === "circle")
-    return pages
-      .filter((page) => page.keeper === filter.circleId)
-      .sort((a, b) => a.title.localeCompare(b.title));
-  return pages
-    .filter((page) => !filter.circleId || page.keeper === filter.circleId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, filter.limit);
-}
-
 /** The circle whose pages a filter lists, if it lists one circle's. */
 export const filterCircle = (filter: InfoFilter) =>
   filter.kind === "pages" ? undefined : filter.circleId;
@@ -58,7 +26,8 @@ export const filterCircle = (filter: InfoFilter) =>
 /**
  * A Filtered Documents module on a circle's page: the pages that match what
  * it was set to show (chosen ones, a circle's, proposals waiting for
- * consent, the latest edited), as cards, in full, or titles only. When it
+ * consent, the latest edited), in the order it was set to (`info-sort.ts`),
+ * as cards, in full, or titles only. When it
  * lists this circle's own pages, whoever can start pages for the circle can
  * add one here.
  */
@@ -84,7 +53,7 @@ export function InformationModule({
   }).data?.proposals;
   if (!info) return null;
   const all = data?.pages ?? [];
-  const pages = pagesFor(info.filter, all);
+  const pages = pagesFor(info, all);
   const listed = filterCircle(info.filter);
   // Adding a page here starts a draft, so a list of proposals doesn't offer it.
   const ownPages = listed === circle.id && info.filter.kind !== "proposed";

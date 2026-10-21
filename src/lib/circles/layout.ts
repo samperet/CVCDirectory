@@ -130,6 +130,19 @@ export type InfoFilter =
   | { kind: "proposed"; circleId: string }
   | { kind: "recent"; limit: number; circleId?: string };
 export const MAX_CHOSEN_PAGES = 12;
+
+/** How a Filtered Documents module orders its pages (`lib/circles/info-sort.ts`). */
+export const INFO_SORTS = ["chosen", "title", "updated", "meeting"] as const;
+export type InfoSort = (typeof INFO_SORTS)[number];
+export const INFO_SORT_LABELS: Record<InfoSort, string> = {
+  chosen: "In the order chosen",
+  title: "By title",
+  updated: "Last edited first",
+  meeting: "By meeting date, latest first",
+};
+/** The order a filter has unless the module says otherwise (proposals: the soonest to be decided). */
+export const defaultInfoSort = (filter: InfoFilter): InfoSort =>
+  filter.kind === "pages" ? "chosen" : filter.kind === "recent" ? "updated" : "title";
 export const RECENT_LIMITS = { min: 3, max: 12, default: 6 } as const;
 
 /** Who can add tasks to a circle: its members (and the Board and admins), or any resident. */
@@ -166,7 +179,7 @@ export interface CircleModule {
   /** A heading of its own (Filtered Documents and Custom Text modules); unset is the type's name. */
   title?: string;
   /** Which pages a Filtered Documents module shows, and how. */
-  info?: { filter: InfoFilter; view: InfoView };
+  info?: { filter: InfoFilter; view: InfoView; sort?: InfoSort };
   /** A Tasks module's setting: who can add tasks (unset: the circle's members). */
   /** Who can add tasks (for all of the circle's Tasks modules), and which tasks this one shows. */
   tasks?: { add: TaskAdders; view?: TaskView };

@@ -36,6 +36,7 @@ import { TourProvider } from "@/components/tour/welcome-tour";
 import { useSession, useViewAs } from "@/lib/auth/client";
 import { setUpPwa } from "@/components/notifications/pwa";
 import { SectionArt, hasSectionArt } from "@/components/layout/section-art";
+import { InstallHelp } from "@/components/layout/install-help";
 import { Loading } from "@/components/ui/status";
 
 const links = [
@@ -292,6 +293,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </Fragment>
                 ))}
               </nav>
+              <InstallHelp />
             </div>
           ) : null}
         </header>

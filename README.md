@@ -139,8 +139,8 @@ contact details or unit numbers.
   (returning afterwards to the page they asked for) and answers 401 for every other API route.
 - **Homes for sale** – admins and Board members list homes for sale at `/homes-for-sale` (linked
   from the account menu): title, unit, price, details, description, an optional photo, a listing
-  link, and the buyer contact (name plus email and/or phone), with a status of *For sale*, *Sale
-  pending*, or *Sold* (hidden). For-sale and pending homes appear, with their contact details, in a
+  link, and the buyer contact (name plus email and/or phone), with a status of _For sale_, _Sale
+  pending_, or _Sold_ (hidden). For-sale and pending homes appear, with their contact details, in a
   **Homes for sale** section on the public front page (and its navigation). Stored in
   `homes/listings.json`, photos in `homes/photos/<id>`; a listed home's photo is served publicly
   (`GET /api/homes/<id>/photo`), a sold one's isn't.
@@ -150,7 +150,7 @@ contact details or unit numbers.
   `UNDER_CONSTRUCTION` in `components/home/public-home.tsx`.
 - The public front page is also at `/welcome`, for anyone: residents open it from **Public homepage** in
   the account menu to see what visitors see, with a bar leading back to the app. It leads with the
-  name — **Common Pastures**, *A Champlain Valley Cohousing development (CVC)* — in its header, its
+  name — **Common Pastures**, _A Champlain Valley Cohousing development (CVC)_ — in its header, its
   opening band, the under-construction notice and the footer. It opens on a
   forest-green band with a white oak leaf on the right (`public/home/leaf.webp`) and the aerial photo
   of the neighborhood (`public/home/aerial.jpg`, shown whole so the lake and mountains stay in view)
@@ -235,7 +235,7 @@ kept beside it (`backups/<id>.ots`) — `ots verify` shows the backup existed, u
 Any resident signs up there (`backups/subscribers.json`, by person id):
 
 - **Email** — told when each is ready, with a link back to download it (`PATCH
-  /api/backups/subscription`; respects email test mode).
+/api/backups/subscription`; respects email test mode).
 - **A feed** — a private address (`/api/backups/feed?token=…`, no sign-in: the token is the key,
   shown once, only its hash kept) listing the backups as JSON with links to each zip and proof
   (`/api/backups/feed/file`), for an agent or a script. **New address** replaces it; **Stop**
@@ -318,7 +318,7 @@ Authors always come from the signed-in session, never from the request body.
   when they leave the directory. The other person gets a push notification (topic **Messages**,
   never emailed), which opens the conversation. Messages are private: an admin viewing the app as
   someone can't read theirs (`lib/chat`; `GET /api/chat`, `GET`/`POST
-  /api/chat/with/<personId>`, `DELETE …/<messageId>`).
+/api/chat/with/<personId>`, `DELETE …/<messageId>`).
 
 ## Directory & Skills
 
@@ -580,10 +580,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   - API: `GET`/`POST /api/proposals` (list — `circle`, `status`, `q` — or put one to a circle; with
     `consent`, consented at once), `GET`/`PATCH`/`DELETE /api/proposals/<id>` (`status`:
     "withdrawn" or "proposed"), `POST`/`DELETE /api/proposals/<id>/consent` (`meeting`: `{kind:
-    "page"|"file", id}` or `{kind: "new", date}`; `present` when the notes don't say; `note`;
+"page"|"file", id}` or `{kind: "new", date}`; `present` when the notes don't say; `note`;
     `current: true` to consent to the documents as they are now), `POST
-    /api/proposals/<id>/snapshots` (`{kind, id}`: use the current version), `GET
-    /api/proposals/<id>/snapshots/<snapshotId>` (the snapshot, its copy, and the document now) and
+/api/proposals/<id>/snapshots` (`{kind, id}`: use the current version), `GET
+/api/proposals/<id>/snapshots/<snapshotId>` (the snapshot, its copy, and the document now) and
     `…/file` (a file's copy), `GET /api/proposals/meetings?circle=`. Stored in
     `proposals/proposals.json`, the snapshots' copies as `proposals/snapshots/<snapshotId>.json` (a
     page's or link's) and `proposals/snapshots/<snapshotId>` (a file's); when a circle is deleted
@@ -692,26 +692,26 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **Tasks** – each circle can also track tasks (`/circles/<id>/tasks`), another section it can turn
   on or off (by adding or removing its Tasks modules under **Edit**). A circle can have **several
   Tasks modules, each its own view**: its **Settings** give it a title and say which tasks it
-  shows — *Open*, *Done* or *All*; everyone's, each reader's own, nobody's yet, or one member's;
+  shows — _Open_, _Done_ or _All_; everyone's, each reader's own, nobody's yet, or one member's;
   due any time, overdue, or within 7 or 30 days (overdue included); high priority only — say an
   "Overdue" list beside the usual one, or "Done lately". They also say **who can add tasks** (for
   all the circle's task lists): the circle's members (and the Board and admins; the
   default) or **any resident** — who can then also change and delete the tasks they added. A task has a title, Markdown details
-  (wiki and document links work), a status (*To do*, *In progress*, *Blocked*, *Done*), an owner
+  (wiki and document links work), a status (_To do_, _In progress_, _Blocked_, _Done_), an owner
   (anyone in the directory — the circle's members listed first), a due date, a priority, a
   checklist whose progress shows as a bar, and whether it **repeats** — weekly, monthly, every 3
   months or yearly. When a repeating task is done, the next one is made at once (once): the same
   title, details, owner and priority, not started, its checklist unticked, due a period after this
   one was due (the first such date not already past; a month on from the 31st is the month's last
   day), and the done task says which is next (`nextOccurrence` in `lib/tasks/shared.ts`). The board has a column per status (stacked on phones):
-  drag a card to move it, or use its status menu; filter to *Mine* or *Unassigned*, or find one by
+  drag a card to move it, or use its status menu; filter to _Mine_ or _Unassigned_, or find one by
   title or number. Each task has its own page (`/circles/<id>/tasks/<number>`) with a log of what's
   happened to it and **nested comments** — reply to any comment, fold a conversation away, link to
   one comment; a deleted comment with replies stays as "deleted" so the replies still make sense.
   The circle's members, the Board, and admins (anyone, for Community) add and change tasks; a task's
   owner moves it along (status and checklist) or hands it back; anyone can take on an unowned task
   (**I'll take it**) and comment. The dashboard lists **Your tasks** across circles. Push
-  notifications (topic *tasks*): a task given to you, a task you added being done, and comments on
+  notifications (topic _tasks_): a task given to you, a task you added being done, and comments on
   tasks you own, added, or are replying in. Stored as `tasks/<circleId>.json` and
   `task-comments/<circleId>.json`.
 - **Wiki photos** – a wiki's editors add photos to its pages: the visual editor's picture button,
@@ -731,6 +731,11 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   blocks) into a Paragraph, a **Quote** (shown between two curved strokes, like parentheses), a
   **Callout** (set apart by a light green dotted line with rounded corners; written
   `:::callout` … `:::`, keeping bold and italic), or a heading.
+- **Put CVC on your home screen** – the bottom of the phone menu (☰) folds out plain, large-print
+  steps for adding CVC to the home screen as an app (`components/layout/install-help.tsx`): an
+  **Install CVC now** button where the browser offers one, Safari's Share → **Add to Home Screen**
+  on an iPhone or iPad, or the browser's menu → **Add to Home screen** elsewhere; once installed
+  it says so instead.
 - **Right-click menu** – in the editor, right-clicking offers cut, copy, paste, bold, italic,
   strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link,
   **Link to a page…** (the selected words become a link to a page you pick — this circle's first —
@@ -793,8 +798,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
     Documents" unless given one) and **Settings**: which pages it shows — **Specific pages** (up
     to 12, searched by title, shown in the order chosen), **All pages of a circle** (any circle, by
     title), **Proposals waiting for consent**, or **Recently edited** (3–12, from one circle or
-    the whole wiki, newest first) — and how: **Full**, **Summary** (cards with their opening
-    lines; the first six, then **+N more**), or **Titles only**. A module listing this circle's
+    the whole wiki, newest first) — in what order (**Sort by**: by title, last edited first, by
+    meeting date latest first, or — for chosen pages — in the order chosen; each filter has its
+    own default, kept unset; `lib/circles/info-sort.ts`) — and how: **Full**, **Summary** (cards
+    with their opening lines; the first six, then **+N more**), or **Titles only**. A module listing this circle's
     own pages has **Add a page** for whoever can start pages for the circle.
   - Removing **Tasks** or **Documents** turns them off for the circle (its existing tasks and
     documents are kept, and return when the module is added back). With Documents off, no new
@@ -865,8 +872,9 @@ from then on, so re-importing the directory never overwrites circle changes.
   one, whose documents, pages, and open proposals then go to the circle rather than the Board;
   deleting a circle makes its sub groups circles of their own. On `/circles` a circle's card
   opens out to its sub groups (they have no cards of their own); in the header's **Circles** menu,
-  pointing at a circle (or its arrow, or →) shows them in a tier beside it; the phone menu lists
-  them under their circle; and a sub group's page says whose it is, and goes back there. Lists of
+  pointing at a circle (or its arrow, or →) shows them in a tier beside it; the phone menu keeps
+  them folded under their circle behind a button saying how many (so the list stays short); and
+  a sub group's page says whose it is, and goes back there. Lists of
   circles to choose from name them "Land Care Circle › Hedge Team". Stored as `parentId` on the
   circle (`POST /api/circles` with `parentId`), set when it's started and never moved.
 - **Emailing a circle** – the envelope on each circle's card (and in its members panel) asks

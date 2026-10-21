@@ -51,4 +51,16 @@ describe("modulesSchema", () => {
       ])
     ).toEqual(["Choose whose tasks it shows"]);
   });
+
+  it("lets a Filtered Documents module choose its order, the chosen order only for chosen pages", () => {
+    const info = { id: "info", type: "information", size: "full" };
+    const circle = { filter: { kind: "circle", circleId: "lcc" }, view: "summary" };
+    expect(modulesSchema.parse([{ ...info, info: { ...circle, sort: "updated" } }])).toEqual([
+      { ...info, info: { ...circle, sort: "updated" } },
+    ]);
+    expect(messages([{ ...info, info: { ...circle, sort: "chosen" } }])).toEqual([
+      "Only chosen pages keep their chosen order",
+    ]);
+    expect(messages([{ ...info, info: { ...circle, sort: "random" } }])).toHaveLength(1);
+  });
 });

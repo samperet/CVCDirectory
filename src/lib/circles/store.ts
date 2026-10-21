@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import {
+  INFO_SORTS,
   INFO_VIEWS,
   MAX_CHOSEN_PAGES,
   MAX_MODULES,
@@ -72,7 +73,13 @@ const moduleSchema = z
     title: text(60, "A module's title")
       .optional()
       .transform((value) => value || undefined),
-    info: z.object({ filter: infoFilter, view: z.enum(INFO_VIEWS) }).optional(),
+    info: z
+      .object({ filter: infoFilter, view: z.enum(INFO_VIEWS), sort: z.enum(INFO_SORTS).optional() })
+      .refine(
+        (info) => info.sort !== "chosen" || info.filter.kind === "pages",
+        "Only chosen pages keep their chosen order"
+      )
+      .optional(),
     tasks: z
       .object({
         add: z.enum(TASK_ADDERS),

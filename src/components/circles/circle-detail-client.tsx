@@ -41,7 +41,7 @@ import { AlertModule } from "@/components/alerts/alert-module";
 import { LogModule } from "@/components/circles/log-module";
 import { TextModule } from "@/components/circles/text-module";
 import { TasksModule } from "@/components/tasks/task-board";
-import { type CircleModule, moduleTitle, modulesFor } from "@/lib/circles/layout";
+import { INFO_SORT_LABELS, type CircleModule, moduleTitle, modulesFor } from "@/lib/circles/layout";
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -158,7 +158,11 @@ export function CircleDetailClient({ id }: { id: string }) {
         return {
           title,
           icon: icon(module),
-          detail: module.info ? describeFilter(module.info.filter, circleName) : undefined,
+          detail: module.info
+            ? `${describeFilter(module.info.filter, circleName)}${
+                module.info.sort ? ` · ${INFO_SORT_LABELS[module.info.sort].toLowerCase()}` : ""
+              }`
+            : undefined,
           content: (
             <InformationModule
               circle={circle}
@@ -317,59 +321,19 @@ export function CircleDetailClient({ id }: { id: string }) {
           <option key={role} value={role} />
         ))}
       </datalist>
-      {parent ? (
-        <BackLink href={`/circles/${parent.id}`} label={parent.name} />
-      ) : (
-        <BackLink href="/circles" label="All circles" />
-      )}
-
-      <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="relative w-fit shrink-0">
-          <CircleIcon circle={circle} size={96} />
-          {drawingIcon ? (
-            <span
-              className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-white/80 text-xs font-medium text-foreground"
-              role="status"
-            >
-              <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden /> Drawing…
-            </span>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {detailsDraft ? (
-            <DetailsFields
-              value={detailsDraft}
-              onChange={setDetailsDraft}
-              canSetKind={canSetKind}
-            />
-          ) : (
-            <>
-              {parent ? (
-                <p className="text-sm text-muted" data-breadcrumb>
-                  <Link href={`/circles/${parent.id}`} className="hover:underline">
-                    {parent.name}
-                  </Link>{" "}
-                  › sub group
-                </p>
-              ) : null}
-              <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
-              {circle.kind === "club" && !parent ? (
-                <Pill className="w-fit">Social club</Pill>
-              ) : null}
-              {circle.description ? (
-                <p className="whitespace-pre-wrap text-sm text-foreground-light">
-                  {circle.description}
-                </p>
-              ) : canManage ? (
-                <p className="text-sm text-muted">No description yet.</p>
-              ) : null}
-            </>
-          )}
+      {/* Above the circle's header: the way back, and — for those who manage it — Edit, or the editing controls. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {parent ? (
+          <BackLink href={`/circles/${parent.id}`} label={parent.name} />
+        ) : (
+          <BackLink href="/circles" label="All circles" />
+        )}
+        <div className="flex flex-wrap items-center justify-end gap-2" data-circle-actions>
           {canManage && !pageDraft ? (
             <Button
               size="sm"
               variant="outline"
-              className="w-fit gap-1.5"
+              className="gap-1.5"
               onClick={() => {
                 setPageDraft(modules);
                 setDetailsDraft(detailsDraftOf(circle));
@@ -380,7 +344,7 @@ export function CircleDetailClient({ id }: { id: string }) {
             </Button>
           ) : null}
           {pageDraft ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <IconControls circle={circle} />
               <Button
                 size="sm"
@@ -430,6 +394,51 @@ export function CircleDetailClient({ id }: { id: string }) {
               ) : null}
             </div>
           ) : null}
+        </div>
+      </div>
+
+      <Card className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="relative w-fit shrink-0">
+          <CircleIcon circle={circle} size={96} />
+          {drawingIcon ? (
+            <span
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-white/80 text-xs font-medium text-foreground"
+              role="status"
+            >
+              <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden /> Drawing…
+            </span>
+          ) : null}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {detailsDraft ? (
+            <DetailsFields
+              value={detailsDraft}
+              onChange={setDetailsDraft}
+              canSetKind={canSetKind}
+            />
+          ) : (
+            <>
+              {parent ? (
+                <p className="text-sm text-muted" data-breadcrumb>
+                  <Link href={`/circles/${parent.id}`} className="hover:underline">
+                    {parent.name}
+                  </Link>{" "}
+                  › sub group
+                </p>
+              ) : null}
+              <h1 className="text-2xl font-semibold text-foreground">{circle.name}</h1>
+              {circle.kind === "club" && !parent ? (
+                <Pill className="w-fit">Social club</Pill>
+              ) : null}
+              {circle.description ? (
+                <p className="whitespace-pre-wrap text-sm text-foreground-light">
+                  {circle.description}
+                </p>
+              ) : canManage ? (
+                <p className="text-sm text-muted">No description yet.</p>
+              ) : null}
+            </>
+          )}
         </div>
       </Card>
 

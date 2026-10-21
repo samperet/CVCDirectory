@@ -42,11 +42,13 @@ import {
   LOG_POSTER_LABELS,
   type CircleModule,
   type InfoFilter,
+  type InfoSort,
+  defaultInfoSort,
   type InfoView,
   type ModuleType,
 } from "@/lib/circles/layout";
 import type { Circle } from "@/lib/circles/types";
-import { pagesFor } from "@/components/circles/information-module";
+import { pagesFor, sortsFor } from "@/lib/circles/info-sort";
 import { useWikiPages } from "@/components/wiki/wiki-client";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -581,7 +583,7 @@ const FILTER_KINDS: [InfoFilter["kind"], string][] = [
 /**
  * Setting up a Filtered Documents module: its title, which pages it shows
  * (chosen ones, all of a circle's, its proposals waiting for consent, or
- * the latest edited), and how.
+ * the latest edited), in what order, and how.
  */
 export function InformationSettings({
   circle,
@@ -622,6 +624,7 @@ export function InformationSettings({
     start.filter.kind === "recent" ? start.filter.circleId ?? "" : ""
   );
   const [view, setView] = useState<InfoView>(start.view);
+  const [sort, setSort] = useState<InfoSort | "">(start.sort ?? "");
   const [find, setFind] = useState("");
 
   const filter: InfoFilter =
@@ -647,7 +650,15 @@ export function InformationSettings({
       })
       .slice(0, 8);
   }, [find, pages, pageIds]);
-  const preview = valid && kind !== "pages" ? pagesFor(filter, pages) : [];
+  const preview =
+    valid && kind !== "pages" ? pagesFor({ filter, ...(sort ? { sort } : {}) }, pages) : [];
+  // The order offered depends on the filter: a change of filter goes back to its own order.
+  const chooseKind = (next: InfoFilter["kind"]) => {
+    setKind(next);
+    setSort("");
+  };
+  const sorts = sortsFor(kind);
+  const shownSort = sort || (kind === "proposed" ? "" : defaultInfoSort(filter));
   const moveChosen = (from: number, to: number) => {
     if (to < 0 || to >= pageIds.length) return;
     const next = [...pageIds];
@@ -673,7 +684,11 @@ export function InformationSettings({
           onSave({
             ...rest,
             ...(title.trim() ? { title: title.trim() } : {}),
-            info: { filter, view },
+            info: {
+              filter,
+              view,
+              ...(sort && sort !== defaultInfoSort(filter) ? { sort } : {}),
+            },
           });
         }}
       >
@@ -697,7 +712,7 @@ export function InformationSettings({
                   type="radio"
                   name="info-filter"
                   checked={kind === value}
-                  onChange={() => setKind(value)}
+                  onChange={() => chooseKind(value)}
                   className="h-4 w-4 accent-primary"
                 />
                 {label}
@@ -857,6 +872,22 @@ export function InformationSettings({
             </p>
           ) : null}
         </fieldset>
+
+        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+          Sort by
+          <Select
+            value={shownSort}
+            onChange={(event) => setSort(event.target.value as InfoSort | "")}
+            aria-label="Sort by"
+            className="px-2"
+          >
+            {sorts.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
 
         <fieldset className="flex flex-col gap-1.5">
           <legend className="mb-1 text-sm font-medium text-foreground">Show pages as</legend>

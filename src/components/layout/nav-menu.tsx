@@ -387,25 +387,61 @@ export function MobileDocumentsLinks({ onChoose }: { onChoose: () => void }) {
 export function MobileCircleLinks({ onChoose }: { onChoose: () => void }) {
   const { mine, others, subsOf } = useCircleGroups();
   const [all, setAll] = useState(false);
-  const row = (circle: Circle) => (
-    <div key={circle.id} className="flex flex-col">
-      <Link href={`/circles/${circle.id}`} className={subLink} onClick={onChoose}>
-        <CircleIcon circle={circle} size={20} className="shrink-0 rounded-full" />
-        <span className="truncate">{circle.name}</span>
-      </Link>
-      {subsOf(circle.id).map((sub) => (
-        <Link
-          key={sub.id}
-          href={`/circles/${sub.id}`}
-          className={cn(subLink, "pl-16")}
-          onClick={onChoose}
-        >
-          <CircleIcon circle={sub} size={18} className="shrink-0 rounded-full" />
-          <span className="truncate">{sub.name}</span>
-        </Link>
-      ))}
-    </div>
-  );
+  // A circle's sub groups stay folded until its button is pressed, so the list stays short.
+  const [unfolded, setUnfolded] = useState<Set<string>>(() => new Set());
+  const row = (circle: Circle) => {
+    const subs = subsOf(circle.id);
+    const open = unfolded.has(circle.id);
+    return (
+      <div key={circle.id} className="flex flex-col">
+        <div className="flex items-stretch">
+          <Link
+            href={`/circles/${circle.id}`}
+            className={cn(subLink, "min-w-0 flex-1")}
+            onClick={onChoose}
+          >
+            <CircleIcon circle={circle} size={20} className="shrink-0 rounded-full" />
+            <span className="truncate">{circle.name}</span>
+          </Link>
+          {subs.length ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${open ? "Hide" : "Show"} ${circle.name}'s ${
+                subs.length === 1 ? "sub group" : `${subs.length} sub groups`
+              }`}
+              data-subgroups-toggle={circle.id}
+              onClick={() =>
+                setUnfolded((current) => {
+                  const next = new Set(current);
+                  if (next.has(circle.id)) next.delete(circle.id);
+                  else next.add(circle.id);
+                  return next;
+                })
+              }
+              className="flex shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-medium text-secondary-foreground hover:bg-accent"
+            >
+              {subs.length}
+              <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} aria-hidden />
+            </button>
+          ) : null}
+        </div>
+        {open
+          ? subs.map((sub) => (
+              <Link
+                key={sub.id}
+                href={`/circles/${sub.id}`}
+                className={cn(subLink, "pl-16")}
+                onClick={onChoose}
+              >
+                <CircleIcon circle={sub} size={18} className="shrink-0 rounded-full" />
+                <span className="truncate">{sub.name}</span>
+              </Link>
+            ))
+          : null}
+      </div>
+    );
+  };
   return (
     <>
       {mine.map(row)}
