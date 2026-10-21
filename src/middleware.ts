@@ -41,6 +41,7 @@ const PUBLIC_PATHS = new Set([
   "/api/backups/feed", // a resident's backup feed: its token is the key
   "/api/backups/feed/file", // a backup from that feed: the same token
   "/api/cron/backup", // the weekly backup: Vercel Cron's bearer CRON_SECRET
+  "/api/mcp", // AI assistants: a resident's key is the credential
   "/api/admin/directory", // protected by its own bearer token
   "/api/admin/directory/people", // protected by its own bearer token
   "/api/admin/circles", // protected by its own bearer token

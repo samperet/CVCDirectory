@@ -14,7 +14,7 @@ import { ResultBody, SEARCH_ICONS, termsOf } from "@/components/search/results";
  * screen (the page behind left as it is), with results as you type (a moment after typing stops, from
  * two letters), grouped by kind. ↑ and ↓ choose a result, Enter opens it (or,
  * with none chosen, the full results page), Escape or a click outside closes
- * it. Opened by the magnifying glass, "/", or Ctrl+K (⌘K).
+ * it. Opened by the magnifying glass, "/", "c", or Ctrl+K (⌘K).
  */
 export function SearchPalette({ onClose }: { onClose: () => void }) {
   const router = useRouter();

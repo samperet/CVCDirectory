@@ -372,11 +372,13 @@ Authors always come from the signed-in session, never from the request body.
   entries ("Split entries", for different people who share a name) or combine entries whose names
   differ ("Same person listed elsewhere?"). "Remove from unit N" takes someone out of one of their
   households and keeps them in the others. Links to a combined entry open the one profile.
-- **Search** – the header's magnifying glass, "/" anywhere, or Ctrl+K (⌘K) opens a large search bar
+- **Search** – the header's magnifying glass, "/" or "c" anywhere, or Ctrl+K (⌘K) opens a large search bar
   in the middle of the screen; results appear as you type (from two letters, grouped by kind), ↑/↓
   and Enter open one, and **See all results** goes to the full page (`/search`) – one search across
-  the site for residents: people (by name, bio, and skills), circles, wiki pages, forum discussions,
-  documents (their details and text), tasks, resources, and the loan library. Every word must match
+  the site for residents: the app's own places (its pages, by name and what they're for — so
+  "backup" finds the backups page; admins' pages for admins), people (by name, bio, and skills),
+  circles, wiki pages, forum discussions, documents (their details and text), tasks, resources,
+  and the loan library. Every word must match
   somewhere in a result; titles count most. Results come in groups, best first, with the matching
   passage quoted and the words marked, and **See all** for a group (`GET /api/search?q=…&kind=…`).
   The query stays in the address, so a search can be shared.
@@ -731,6 +733,15 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   blocks) into a Paragraph, a **Quote** (shown between two curved strokes, like parentheses), a
   **Callout** (set apart by a light green dotted line with rounded corners; written
   `:::callout` … `:::`, keeping bold and italic), or a heading.
+- **AI assistants (MCP)** – on your profile under **AI assistants** (also in the menu under your
+  name), make a **key** for an AI assistant you use — Claude, ChatGPT, Claude Code, anything that
+  speaks the Model Context Protocol — and it can search CVC and read its pages (as Markdown) and
+  documents (their extracted text) as you: read-only, and only what any resident sees. The server
+  is `POST /api/mcp` (MCP over plain HTTP, JSON-RPC, no streaming; `lib/mcp/server.ts`) with the
+  key as `Authorization: Bearer …` or `?key=…` (for Claude.ai's custom connectors, which take an
+  address); tools: `search`, `list_circles`, `list_pages`, `read_page`, `list_documents`,
+  `read_document`. A key is shown once; only its hash is kept (`mcp/keys.json`, up to five a
+  resident, with when each was last used); **Take away** shuts that assistant out at once.
 - **Put CVC on your home screen** – the bottom of the phone menu (☰) folds out plain, large-print
   steps for adding CVC to the home screen as an app (`components/layout/install-help.tsx`): an
   **Install CVC now** button where the browser offers one, Safari's Share → **Add to Home Screen**

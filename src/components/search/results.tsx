@@ -2,6 +2,7 @@
 
 import { Fragment } from "react";
 import {
+  Compass,
   BookOpen,
   BookUser,
   ExternalLink,
@@ -23,6 +24,7 @@ import type { SearchKind, SearchResult } from "@/lib/site-search";
  */
 
 export const SEARCH_ICONS: Record<SearchKind, typeof Search> = {
+  places: Compass,
   people: BookUser,
   circles: Layers,
   wiki: BookOpen,

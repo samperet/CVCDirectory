@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/lib/auth/client";
 import { MySkills } from "@/components/skills/person-skills";
 import { AppSettings } from "@/components/notifications/app-settings";
+import { AiAccess } from "@/components/notifications/ai-access";
 import { Loading, ErrorCard } from "@/components/ui/status";
 import { Select } from "@/components/ui/select";
 
@@ -354,6 +355,7 @@ export function ProfileClient({ personId }: { personId?: string } = {}) {
 
       {own ? <MySkills /> : null}
       {own ? <AppSettings /> : null}
+      {own ? <AiAccess /> : null}
     </div>
   );
 }

@@ -68,7 +68,7 @@ function SearchButton({
       aria-label="Search"
       aria-expanded={open}
       aria-haspopup="dialog"
-      title="Search ( / )"
+      title="Search ( / or c )"
       className={cn(
         "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border transition",
         active || open
@@ -118,14 +118,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Register the service worker (installable app, notifications) and catch the install prompt.
   useEffect(() => setUpPwa(), []);
 
-  // "/" from anywhere that isn't a text box, or Ctrl+K (⌘K) from anywhere, opens the search bar.
+  // "/" or "c" from anywhere that isn't a text box, or Ctrl+K (⌘K) from anywhere, opens the search bar.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing =
         !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
       const slash =
-        event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey;
+        (event.key === "/" || event.key.toLowerCase() === "c") &&
+        !typing &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey;
       const commandK = event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey);
       if (slash || commandK) {
         event.preventDefault();

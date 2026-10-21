@@ -20,11 +20,14 @@ import { STATUS_LABELS } from "@/lib/proposals/shared";
 /**
  * Search across the whole site — people (with their bios and skills),
  * circles, documents, proposals, the forum, wiki pages, tasks, resources,
- * and the loan library — for residents. Every term of the query must match somewhere in
- * a result; a match in a title counts most.
+ * the loan library, and the app's own places (its pages: the backups page,
+ * the calendar, settings…; admins' pages for admins) — for residents. Every
+ * term of the query must match somewhere in a result; a match in a title
+ * counts most.
  */
 
 export type SearchKind =
+  | "places"
   | "people"
   | "circles"
   | "wiki"
@@ -54,6 +57,7 @@ export interface SearchGroup {
 }
 
 const LABELS: Record<SearchKind, string> = {
+  places: "Places",
   people: "People",
   circles: "Circles",
   wiki: "Pages",
@@ -64,6 +68,63 @@ const LABELS: Record<SearchKind, string> = {
   resources: "Resources",
   library: "Loan library",
 };
+
+/** The app's own pages, found by their names and what they're for (`admin`: for admins only). */
+export const PLACES: { href: string; title: string; about: string; admin?: boolean }[] = [
+  { href: "/", title: "Dashboard", about: "home start today's events" },
+  {
+    href: "/directory",
+    title: "Directory",
+    about: "residents neighbors units phone email carsheds",
+  },
+  { href: "/circles", title: "Circles", about: "working groups committees sub groups board" },
+  {
+    href: "/documents",
+    title: "Documents",
+    about: "pages files minutes agendas proposals wiki map",
+  },
+  { href: "/library", title: "Loan Library", about: "borrow lend tools items" },
+  { href: "/forum", title: "Forum", about: "discussions posts topics" },
+  { href: "/calendar", title: "Calendar", about: "events meetings dates google calendar" },
+  { href: "/photos", title: "Photos", about: "pictures gallery" },
+  {
+    href: "/resources",
+    title: "Resources",
+    about: "recommendations local services plumber electrician",
+  },
+  { href: "/skills", title: "Skills", about: "what neighbors can help with" },
+  { href: "/messages", title: "Messages", about: "chat private direct messages who's online" },
+  { href: "/appreciations", title: "Appreciations", about: "thank you notes gratitude" },
+  { href: "/homes-for-sale", title: "Homes for sale", about: "listings real estate selling" },
+  { href: "/proposals", title: "Proposals", about: "consent decisions meetings" },
+  { href: "/profile", title: "Your profile", about: "edit my details photo bio about me" },
+  {
+    href: "/profile#app",
+    title: "App & notifications",
+    about: "install home screen push notifications email settings preferences ai mcp connector",
+  },
+  {
+    href: "/backups",
+    title: "Backups",
+    about: "export download data restore copy archive sign up feed storage fingerprint",
+  },
+  { href: "/welcome", title: "Welcome tour", about: "help getting started guide how to" },
+  { href: "/secretary", title: "Secretary", about: "new members invitations welcome", admin: true },
+  { href: "/admin/settings", title: "Admin settings", about: "admins manage", admin: true },
+  { href: "/admin/sign-ins", title: "Sign-in log", about: "last seen who signed in", admin: true },
+  {
+    href: "/admin/feedback",
+    title: "Bugs & requests",
+    about: "feedback ladybug reports",
+    admin: true,
+  },
+  {
+    href: "/admin/email",
+    title: "Email settings",
+    about: "test mode allowed addresses log",
+    admin: true,
+  },
+];
 
 /**
  * Score a result from its fields, weighted, if every term appears in one of
@@ -109,10 +170,22 @@ function collect<T>(
 export async function searchSite(
   query: string,
   directory: DirectoryDocument,
-  perGroup = 5
+  perGroup = 5,
+  { admin = false } = {}
 ): Promise<SearchGroup[]> {
   const terms = searchTerms(query);
   if (!terms.length) return [];
+  const placeResults = collect(
+    PLACES.filter((place) => admin || !place.admin),
+    terms,
+    (place) => ({
+      fields: [
+        [place.title, 20],
+        [place.about, 4],
+      ],
+      result: { title: place.title, href: place.href, meta: "In the app" },
+    })
+  );
   const circles = directory.circles;
   const circleName = (id: string) => circles.find((circle) => circle.id === id)?.name ?? "";
 
@@ -290,6 +363,7 @@ export async function searchSite(
   }));
 
   const groups: [SearchKind, SearchResult[]][] = [
+    ["places", placeResults],
     ["people", people],
     ["circles", circleResults],
     ["wiki", wikiResults],
