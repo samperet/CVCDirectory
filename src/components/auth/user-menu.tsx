@@ -99,24 +99,6 @@ export function UserMenu() {
               </p>
             ) : null}
             <div className="pb-2" />
-            {viewAs
-              ? null
-              : alertCircles.map((circle) => (
-                  <Button
-                    key={circle.id}
-                    variant="ghost"
-                    size="sm"
-                    className="mb-1 w-full justify-start gap-2 text-destructive hover:text-destructive"
-                    onClick={() => {
-                      setOpen(false);
-                      setAlerting({ id: circle.id, name: circle.name });
-                    }}
-                    data-menu-alert={circle.id}
-                  >
-                    <Siren className="h-4 w-4" />
-                    {alertCircles.length > 1 ? `Send a ${circle.name} alert` : "Send an alert"}
-                  </Button>
-                ))}
             <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
               <Link href="/profile" onClick={() => setOpen(false)}>
                 <UserRound className="h-4 w-4" /> Your profile
@@ -128,7 +110,7 @@ export function UserMenu() {
               </Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="mb-1 w-full justify-start gap-2">
-              <Link href="/profile#ai" onClick={() => setOpen(false)} data-menu-ai>
+              <Link href="/ai" onClick={() => setOpen(false)} data-menu-ai>
                 <Bot className="h-4 w-4" /> AI assistants
               </Link>
             </Button>
@@ -236,6 +218,26 @@ export function UserMenu() {
                 <EyeOff className="h-4 w-4" /> Exit view
               </Button>
             ) : null}
+            {/* Last, apart from the rest: the red button that alerts people. */}
+            {!viewAs && alertCircles.length ? <div className="mb-2 mt-1 h-px bg-border" /> : null}
+            {viewAs
+              ? null
+              : alertCircles.map((circle) => (
+                  <Button
+                    key={circle.id}
+                    variant="ghost"
+                    size="sm"
+                    className="mb-1 w-full justify-start gap-2 text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setOpen(false);
+                      setAlerting({ id: circle.id, name: circle.name });
+                    }}
+                    data-menu-alert={circle.id}
+                  >
+                    <Siren className="h-4 w-4" />
+                    {alertCircles.length > 1 ? `Send a ${circle.name} alert` : "Send an alert"}
+                  </Button>
+                ))}
             <Button
               variant="outline"
               size="sm"

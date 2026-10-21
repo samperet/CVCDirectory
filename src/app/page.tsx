@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  Bot,
   ChevronRight,
   Layers,
   Share2,
@@ -58,6 +59,12 @@ const cards = [
     title: "Resources",
     description: "Local services neighbors recommend.",
     icon: Lightbulb,
+  },
+  {
+    href: "/ai",
+    title: "AI assistants",
+    description: "Let Claude or ChatGPT read CVC's pages and answer your questions.",
+    icon: Bot,
   },
 ];
 

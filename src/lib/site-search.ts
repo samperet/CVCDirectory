@@ -101,7 +101,12 @@ export const PLACES: { href: string; title: string; about: string; admin?: boole
   {
     href: "/profile#app",
     title: "App & notifications",
-    about: "install home screen push notifications email settings preferences ai mcp connector",
+    about: "install home screen push notifications email settings preferences",
+  },
+  {
+    href: "/ai",
+    title: "AI assistants",
+    about: "claude chatgpt mcp connector key assistant ask questions about documents",
   },
   {
     href: "/backups",

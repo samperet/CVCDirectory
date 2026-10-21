@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Check, Copy, KeyRound, Trash2 } from "lucide-react";
+import { Check, Copy, KeyRound, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type { McpKeyView } from "@/lib/mcp/store";
 import { timeAgo } from "@/lib/time";
@@ -13,10 +13,10 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/use-toast";
 
 /**
- * On your own profile: keys for an AI assistant (Claude, ChatGPT, or any
- * MCP client) to read CVC's pages and documents as you — each shown once
- * when made, with the connector's address and how to add it, and taken
- * away here at any time (`lib/mcp`).
+ * On the AI assistants page (`ai-page.tsx`): your keys for an AI assistant
+ * (Claude, ChatGPT, or any MCP client) to read CVC's pages and documents as
+ * you — each shown once when made, with the connector's address and how to
+ * add it, and taken away here at any time (`lib/mcp`).
  */
 
 type Keys = { keys: McpKeyView[]; url: string };
@@ -43,7 +43,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-export function AiAccess() {
+export function AiKeys() {
   const { toast } = useToast();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
@@ -70,24 +70,18 @@ export function AiAccess() {
     onError: (error: Error) =>
       toast({ title: "Couldn't take it away", description: error.message, variant: "destructive" }),
   });
-  useEffect(() => {
-    if (window.location.hash === "#ai")
-      document.getElementById("ai")?.scrollIntoView({ behavior: "smooth" });
-  }, []);
   const url = keys.data?.url ?? "";
   const withKey = made ? `${made.url}?key=${made.secret}` : "";
 
   return (
-    <Card id="ai" className="flex scroll-mt-24 flex-col gap-4" data-ai-access>
+    <Card id="keys" className="flex scroll-mt-24 flex-col gap-4" data-ai-access>
       <div className="flex flex-col gap-1">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Bot className="h-5 w-5 text-primary" aria-hidden /> AI assistants
+          <KeyRound className="h-5 w-5 text-primary" aria-hidden /> Your keys
         </h2>
         <p className="text-sm text-foreground-light">
-          Let an AI assistant you use — Claude, ChatGPT, or anything that speaks MCP — read
-          CVC&apos;s pages and documents, search them, and answer your questions about them. It
-          reads as you, can&apos;t change anything, and sees what any resident sees. Make a key,
-          give it to the assistant once, and take it away here whenever you like.
+          A key is what you give an assistant so it can read CVC as you. Make one for each assistant
+          or device, so you can take one away without the others.
         </p>
       </div>
 
