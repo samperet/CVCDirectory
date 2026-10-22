@@ -759,8 +759,9 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
 - **Put CVC on your home screen** – the bottom of the phone menu (☰) folds out plain, large-print
   steps for adding CVC to the home screen as an app (`components/layout/install-help.tsx`): an
   **Install CVC now** button where the browser offers one, Safari's Share → **Add to Home Screen**
-  on an iPhone or iPad, or the browser's menu → **Add to Home screen** elsewhere; once installed
-  it says so instead.
+  on an iPhone, or the browser's menu → **Add to Home screen** elsewhere. Only phones see it
+  (`isPhone` in `components/notifications/pwa.ts`: a phone's browser, or a touch screen as narrow
+  as one), and only until CVC is installed there; laptops and tablets never do.
 - **Right-click menu** – in the editor, right-clicking offers cut, copy, paste, bold, italic,
   strikethrough, code, highlight (or, inside a highlight, change its colour or remove it), link,
   **Link to a page…** (the selected words become a link to a page you pick — this circle's first —

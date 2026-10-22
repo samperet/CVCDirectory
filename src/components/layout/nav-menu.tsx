@@ -356,6 +356,10 @@ export function CirclesMenuItems({ close }: { close: () => void }) {
 
 const subLink =
   "flex items-center gap-2 rounded-lg py-1.5 pl-11 pr-3 text-sm text-foreground/80 hover:bg-accent hover:text-foreground";
+/** The buttons that fold a section's links or a circle's sub groups out: wide, bordered, easy to hit. */
+const foldButton =
+  "flex shrink-0 items-center justify-center rounded-lg border border-primary/40 bg-white text-primary shadow-soft transition hover:bg-accent active:bg-primary/20";
+const foldChevron = "h-5 w-5 stroke-[2.5] transition";
 const mobileGroupLabel =
   "pb-0.5 pl-11 pt-2 text-xs font-semibold uppercase tracking-wide text-muted";
 
@@ -382,13 +386,13 @@ export function MobileFold({
         <div className="min-w-0 flex-1">{row}</div>
         <button
           type="button"
-          className="flex w-10 shrink-0 items-center justify-center rounded-lg text-foreground/70 transition hover:bg-accent hover:text-foreground"
+          className={cn(foldButton, "w-16")}
           aria-expanded={open}
           aria-label={`${open ? "Hide" : "Show"} ${label} links`}
           data-menu-fold={id}
           onClick={() => setOpen((current) => !current)}
         >
-          <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} aria-hidden />
+          <ChevronDown className={cn(foldChevron, open && "rotate-180")} aria-hidden />
         </button>
       </div>
       {open ? children : null}
@@ -456,10 +460,10 @@ export function MobileCircleLinks({ onChoose }: { onChoose: () => void }) {
                   return next;
                 })
               }
-              className="flex shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-medium text-secondary-foreground hover:bg-accent"
+              className={cn(foldButton, "gap-1 px-3 text-sm font-semibold")}
             >
               {subs.length}
-              <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} aria-hidden />
+              <ChevronDown className={cn(foldChevron, open && "rotate-180")} aria-hidden />
             </button>
           ) : null}
         </div>

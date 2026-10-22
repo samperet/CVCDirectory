@@ -50,6 +50,12 @@ export const isIos = () =>
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
+/** A mobile phone (by what the browser says of itself, or a touch screen as narrow as one): where installing is worth suggesting. */
+export const isPhone = () =>
+  typeof window !== "undefined" &&
+  (/iPhone|iPod|Android.*Mobile|Windows Phone/i.test(navigator.userAgent) ||
+    (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 768));
+
 export const pushSupported = () =>
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
@@ -68,9 +74,11 @@ export function useInstall() {
   }, []);
   const [installed, setInstalled] = useState(false);
   const [ios, setIos] = useState(false);
+  const [phone, setPhone] = useState(false);
   useEffect(() => {
     setInstalled(isStandalone());
     setIos(isIos());
+    setPhone(isPhone());
   }, []);
 
   const install = useCallback(async () => {
@@ -82,7 +90,7 @@ export function useInstall() {
     changed();
   }, []);
 
-  return { installed, canPrompt: !!deferredPrompt, ios, install };
+  return { installed, canPrompt: !!deferredPrompt, ios, phone, install };
 }
 
 function keyBytes(base64: string) {
