@@ -359,6 +359,43 @@ const subLink =
 const mobileGroupLabel =
   "pb-0.5 pl-11 pt-2 text-xs font-semibold uppercase tracking-wide text-muted";
 
+/**
+ * In the phone menu: a section's row (Circles, Documents) with its links
+ * folded away behind a chevron until it's pressed, so the menu opens short.
+ * The row itself still goes to the section.
+ */
+export function MobileFold({
+  id,
+  label,
+  row,
+  children,
+}: {
+  id: string;
+  label: string;
+  row: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-stretch gap-1">
+        <div className="min-w-0 flex-1">{row}</div>
+        <button
+          type="button"
+          className="flex w-10 shrink-0 items-center justify-center rounded-lg text-foreground/70 transition hover:bg-accent hover:text-foreground"
+          aria-expanded={open}
+          aria-label={`${open ? "Hide" : "Show"} ${label} links`}
+          data-menu-fold={id}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} aria-hidden />
+        </button>
+      </div>
+      {open ? children : null}
+    </div>
+  );
+}
+
 /** In the phone menu, under Documents: your starred and recent ones, start one (if you can), or the trash. */
 export function MobileDocumentsLinks({ onChoose }: { onChoose: () => void }) {
   const canWrite = (useWikiPages().data?.keepers.length ?? 0) > 0;

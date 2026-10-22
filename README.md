@@ -459,7 +459,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   of files at a time; an export is kept a day, for whoever made it.
 - **Starred and recent** – a **Star** on a page (beside History), a proposal's page, and a file's
   row of actions keeps it in your **Starred** list; pages, proposals and files you open go into
-  your **Recent** list. The Documents menu (and the phone menu, under Documents) shows five of
+  your **Recent** list. The Documents menu (and the phone menu, under Documents, once its chevron
+  is pressed) shows five of
   each, newest first (Recent leaves out what's starred), and `/documents/mine` shows them all, with
   stars to change. Each account has its own (`me/documents/<userId>.json`, `lib/me`; up to 50
   starred and the last 20 opened); what's since deleted or in the trash is left out, and nothing is
@@ -899,8 +900,10 @@ from then on, so re-importing the directory never overwrites circle changes.
   one, whose documents, pages, and open proposals then go to the circle rather than the Board;
   deleting a circle makes its sub groups circles of their own. On `/circles` a circle's card
   opens out to its sub groups (they have no cards of their own); in the header's **Circles** menu,
-  pointing at a circle (or its arrow, or →) shows them in a tier beside it; the phone menu keeps
-  them folded under their circle behind a button saying how many (so the list stays short); and
+  pointing at a circle (or its arrow, or →) shows them in a tier beside it; the phone menu (☰)
+  keeps Circles' and Documents' own links folded behind a chevron on their rows until it's
+  pressed, and sub groups folded under their circle behind a button saying how many (so the menu
+  opens short); and
   a sub group's page says whose it is, and goes back there. Lists of
   circles to choose from name them "Land Care Circle › Hedge Team". Stored as `parentId` on the
   circle (`POST /api/circles` with `parentId`), set when it's started and never moved.

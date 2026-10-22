@@ -27,6 +27,7 @@ import {
   DocumentsMenuItems,
   MobileCircleLinks,
   MobileDocumentsLinks,
+  MobileFold,
   NavMenu,
 } from "@/components/layout/nav-menu";
 import { UserMenu } from "@/components/auth/user-menu";
@@ -268,8 +269,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {menuOpen ? (
             <div className="border-t border-border bg-background px-4 pb-4 pt-2 xl:hidden">
               <nav className="flex flex-col gap-2">
-                {links.map((link) => (
-                  <Fragment key={link.href}>
+                {links.map((link) => {
+                  const row = (
                     <Link
                       href={link.href}
                       className={cn(
@@ -289,13 +290,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       )}
                       {link.label}
                     </Link>
-                    {link.href === "/documents" ? (
-                      <MobileDocumentsLinks onChoose={() => setMenuOpen(false)} />
-                    ) : link.href === "/circles" ? (
-                      <MobileCircleLinks onChoose={() => setMenuOpen(false)} />
-                    ) : null}
-                  </Fragment>
-                ))}
+                  );
+                  // Documents' and Circles' own links stay folded behind a chevron until asked for.
+                  return link.href === "/documents" || link.href === "/circles" ? (
+                    <MobileFold
+                      key={link.href}
+                      id={link.href.slice(1)}
+                      label={link.label}
+                      row={row}
+                    >
+                      {link.href === "/documents" ? (
+                        <MobileDocumentsLinks onChoose={() => setMenuOpen(false)} />
+                      ) : (
+                        <MobileCircleLinks onChoose={() => setMenuOpen(false)} />
+                      )}
+                    </MobileFold>
+                  ) : (
+                    <Fragment key={link.href}>{row}</Fragment>
+                  );
+                })}
               </nav>
               <InstallHelp />
             </div>
