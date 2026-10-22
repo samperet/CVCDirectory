@@ -1,4 +1,4 @@
-import { isCommunity } from "./ids";
+import { isCommunity, isSafetyCrew } from "./ids";
 import type { TaskView } from "@/lib/tasks/shared";
 
 /**
@@ -106,8 +106,10 @@ function layoutFor(stored: SectionLayout[] | undefined, available: ModuleType[])
  * Documents modules (type `information`, from when they were called
  * Information) show the pages that match what they're set to, and Custom
  * Text modules the circle's own formatted words (there can be several of
- * each); the others (members, the duty schedule, tasks, the log, finances,
- * documents, sub groups) appear once each.
+ * each); the others (members, the duty schedule, tasks, the forum,
+ * documents, sub groups) appear once each. Log and Finances modules aren't
+ * offered any more (ones already on a page stay until removed), and the
+ * Alert is the Safety Crew's, always on its page (`modulesFor`).
  */
 export const MODULE_NAMES: Record<ModuleType, string> = {
   information: "Filtered Documents",
@@ -233,6 +235,7 @@ export const moduleTitle = (module: Pick<CircleModule, "type" | "title">, schedu
 export function modulesFor(
   circle: {
     id: string;
+    name?: string;
     modules?: CircleModule[];
     layout?: SectionLayout[];
     features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
@@ -240,11 +243,33 @@ export function modulesFor(
   },
   { hasSchedule }: { hasSchedule: boolean }
 ): CircleModule[] {
-  // A module of a kind that's gone (Meetings, now meeting notes are pages) is left out.
-  if (circle.modules)
-    return circle.modules.filter((module) =>
-      (MODULE_TYPES as readonly string[]).includes(module.type)
-    );
+  const modules = circle.modules
+    ? // A module of a kind that's gone (Meetings, now meeting notes are pages) is left out.
+      circle.modules.filter((module) => (MODULE_TYPES as readonly string[]).includes(module.type))
+    : derivedModulesFor(circle, hasSchedule);
+  // The Safety Crew's page always ends with its Alert, whether or not it was ever saved there.
+  if (isSafetyCrew(circle) && !modules.some((module) => module.type === "alert"))
+    return [
+      ...modules,
+      {
+        id: modules.some((module) => module.id === "alert") ? "alert-safety" : "alert",
+        type: "alert",
+        size: "full",
+      },
+    ];
+  return modules;
+}
+
+/** The page of a circle that never saved one: what it had before pages were modules. */
+function derivedModulesFor(
+  circle: {
+    id: string;
+    layout?: SectionLayout[];
+    features?: { documents?: boolean; wiki?: boolean; tasks?: boolean };
+    infoView?: InfoView;
+  },
+  hasSchedule: boolean
+): CircleModule[] {
   const on = (feature: "documents" | "wiki" | "tasks") => circle.features?.[feature] ?? true;
   const available: ModuleType[] = [
     ...(on("wiki") ? (["information"] as const) : []),

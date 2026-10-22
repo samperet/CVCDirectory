@@ -21,3 +21,11 @@ export const sitsOnBoard = (
   circles.some(
     (circle) => circle.id === BOARD_ID && circle.seats.some((seat) => seat.personId === personId)
   );
+
+/**
+ * The Safety Crew: any circle with "safety" in its name. Its page always has
+ * the Alert module (`modulesFor`), and its alerts can always be sent
+ * (`hasAlert`) — the module isn't offered to other circles any more.
+ */
+export const isSafetyCrew = (circle: { name?: string } | undefined) =>
+  /safety/i.test(circle?.name ?? "");

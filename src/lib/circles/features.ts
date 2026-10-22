@@ -1,4 +1,5 @@
 import type { Circle } from "@/lib/circles/types";
+import { isSafetyCrew } from "./ids";
 import type { FinanceViewers } from "@/lib/circles/layout";
 
 /**
@@ -35,6 +36,10 @@ export const hasFinances = (circle: Pick<Circle, "modules"> | undefined) =>
 export const financeViewers = (circle: Pick<Circle, "modules"> | undefined): FinanceViewers =>
   circle?.modules?.find((module) => module.type === "finances")?.finances?.view ?? "everyone";
 
-/** Whether the circle has an Alert module on its page (alerts are sent from it; only admins add or remove one). */
-export const hasAlert = (circle: Pick<Circle, "modules"> | undefined) =>
-  !!circle?.modules?.some((module) => module.type === "alert");
+/**
+ * Whether alerts can be sent from the circle: the Safety Crew's always can
+ * (`isSafetyCrew`), and so can a circle an admin put an Alert module on
+ * before the module stopped being offered.
+ */
+export const hasAlert = (circle: Pick<Circle, "modules" | "name"> | undefined) =>
+  isSafetyCrew(circle) || !!circle?.modules?.some((module) => module.type === "alert");

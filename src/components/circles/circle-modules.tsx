@@ -227,16 +227,19 @@ export function CircleModules({
 export function ModuleEditor({
   modules: layout,
   sections,
+  safetyCrew,
   onChange,
   onSettings,
 }: {
   modules: CircleModule[];
   sections: ModuleViews;
+  /** The Safety Crew's page: its Alert is built in, so nobody removes it. */
+  safetyCrew: boolean;
   onChange: (modules: CircleModule[]) => void;
   onSettings: (module: CircleModule) => void;
 }) {
   const confirm = useConfirm();
-  // Only admins add or remove an Alert module (the server checks too).
+  // An Alert an admin placed before the module stopped being offered: only an admin removes it (the server checks too).
   const admin = !!useSession().user?.isAdmin;
   const [dragging, setDragging] = useState<string | null>(null);
   const main = layout.filter((module) => !isAside(module));
@@ -342,7 +345,9 @@ export function ModuleEditor({
                 <Settings2 className="h-4 w-4" /> Settings
               </button>
             ) : null}
-            {module.type === "alert" && !admin ? (
+            {module.type === "alert" && safetyCrew ? (
+              <span className="text-xs text-muted">Built in: the Safety Crew&apos;s alert.</span>
+            ) : module.type === "alert" && !admin ? (
               <span className="text-xs text-muted">Only an admin can remove it.</span>
             ) : (
               <button

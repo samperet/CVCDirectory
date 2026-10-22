@@ -45,7 +45,7 @@ import { INFO_SORT_LABELS, type CircleModule, moduleTitle, modulesFor } from "@/
 import { NameCombobox, NameOption } from "@/components/auth/name-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BOARD_ID, isCommunity, sitsOnBoard } from "@/lib/circles/ids";
+import { BOARD_ID, isCommunity, sitsOnBoard, isSafetyCrew } from "@/lib/circles/ids";
 import { managesCircle, parentOf, subgroupsOf } from "@/lib/circles/tiers";
 import { SubgroupsModule } from "@/components/circles/subgroups-module";
 import Link from "next/link";
@@ -448,6 +448,7 @@ export function CircleDetailClient({ id }: { id: string }) {
             <ModuleEditor
               modules={editing}
               sections={sectionsOf(editing)}
+              safetyCrew={isSafetyCrew(circle)}
               onChange={setPageDraft}
               onSettings={(module) => setDialog({ kind: "settings", module })}
             />

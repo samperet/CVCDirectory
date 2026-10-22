@@ -9,6 +9,27 @@ describe("modulesFor", () => {
     expect(modulesFor({ id: "lcc", modules }, { hasSchedule: true })).toEqual(modules);
   });
 
+  it("gives the Safety Crew its Alert at the end of its page, saved there or not", () => {
+    const saved: CircleModule[] = [{ id: "members", type: "members", size: "small" }];
+    expect(
+      types(modulesFor({ id: "crew", name: "Safety Crew", modules: saved }, { hasSchedule: false }))
+    ).toEqual(["members", "alert"]);
+    expect(types(modulesFor({ id: "crew", name: "Safety Crew" }, { hasSchedule: false }))).toEqual([
+      "information",
+      "members",
+      "tasks",
+      "documents",
+      "alert",
+    ]);
+    const withAlert: CircleModule[] = [{ id: "alert", type: "alert", size: "full" }, ...saved];
+    expect(
+      modulesFor({ id: "crew", name: "Safety Crew", modules: withAlert }, { hasSchedule: false })
+    ).toEqual(withAlert);
+    expect(
+      types(modulesFor({ id: "lcc", name: "Land Care", modules: saved }, { hasSchedule: false }))
+    ).toEqual(["members"]);
+  });
+
   it("leaves out a saved Meetings module (meeting notes are pages now)", () => {
     const modules = [
       { id: "meetings", type: "meetings", size: "full" },

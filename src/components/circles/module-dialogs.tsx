@@ -58,7 +58,6 @@ import { isCommunity } from "@/lib/circles/ids";
 import { useCircles } from "@/components/directory/use-directory";
 import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented";
-import { useSession } from "@/lib/auth/client";
 import {
   DEFAULT_TASK_VIEW,
   DUE_LABELS,
@@ -105,7 +104,7 @@ const MODULE_HINTS: Record<ModuleType, string> = {
   subgroups:
     "Smaller groups within the circle, each with its own members, page, and icon — and New sub group to start one.",
   alert:
-    "A button any resident can press to alert the circle's members — or everyone at CVC — by notification and email. Only admins add or remove it.",
+    "A button any resident can press to alert the circle's members — or everyone at CVC — by notification and email. The Safety Crew's; always on its page.",
 };
 
 // The visual editor is large, and needs the browser; load it only when someone edits.
@@ -328,9 +327,10 @@ export function describeFilter(filter: InfoFilter, circleName: (id: string) => s
 }
 
 /**
- * Choosing what to add: Filtered Documents and Custom Text any number of
- * times; the others when they're not on the page — and an Alert only by an
- * admin, on a circle (Community has no members of its own to alert).
+ * Choosing what to add: Filtered Documents, Custom Text and Tasks any number
+ * of times; the others when they're not on the page. Log and Finances aren't
+ * offered any more (`lib/circles/layout.ts`), nor is the Alert: it's the
+ * Safety Crew's, always on its page.
  */
 export function AddModuleDialog({
   circle,
@@ -345,7 +345,6 @@ export function AddModuleDialog({
   onAdd: (module: CircleModule) => void;
   onClose: () => void;
 }) {
-  const admin = !!useSession().user?.isAdmin;
   const offered = (
     [
       "information",
@@ -354,16 +353,12 @@ export function AddModuleDialog({
       "schedule",
       "tasks",
       "forum",
-      "log",
-      "finances",
       "documents",
       "subgroups",
-      "alert",
     ] as const
   ).filter((type) => {
     if (REPEATABLE_MODULES.includes(type)) return true;
     if (modules.some((module) => module.type === type)) return false;
-    if (type === "alert") return admin && !isCommunity(circle.id);
     if (type === "members" || type === "forum") return !isCommunity(circle.id);
     // Sub groups are one level deep.
     if (type === "subgroups") return !isCommunity(circle.id) && !circle.parentId;

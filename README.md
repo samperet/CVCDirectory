@@ -733,7 +733,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   blocks) into a Paragraph, a **Quote** (shown between two curved strokes, like parentheses), a
   **Callout** (set apart by a light green dotted line with rounded corners; written
   `:::callout` … `:::`, keeping bold and italic), or a heading.
-- **AI assistants (MCP)** – its own page, `/mcp` (`/ai` and `/MCP` redirect there; a card on the dashboard, **AI assistants** in
+- **AI assistants (MCP)** – its own page, `/mcp` (`/ai` and `/MCP` redirect there; **AI assistants** in
   the menu under your name, and a search result): what an assistant can and can't do, step-by-step
   instructions for Claude (web, phone, desktop), ChatGPT, Claude Code and anything else that
   speaks MCP, the tools it gets, and your keys (`components/ai/ai-page.tsx`, `ai-keys.tsx`).
@@ -799,8 +799,10 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   each as the circle likes),
   **Members** (not on Community, which is everyone), the **duty schedule** where
   there is one, **Tasks** (as many as the circle likes, each its own view), **Forum** (see Circle
-  forums), **Log**, **Finances**, **Documents**, and **Alert** (each of those once; Alert added and
-  removed only by admins). One **Edit** button (the
+  forums), **Documents**, and **Sub groups** (each of those once). **Log** and **Finances** modules
+  aren't offered any more; a circle that already has one keeps it until it's removed. The
+  **Alert** is the Safety Crew's — any circle with "safety" in its name — and is always on its page
+  (`isSafetyCrew` in `lib/circles/ids.ts`, `modulesFor`), so nobody adds or removes it. One **Edit** button (the
   circle's members, the Board, and admins) edits the whole circle at once: its name and description
   in place (and, for the Board, whether it's a social club), its icon (**Upload icon** / **Change
   icon**, saved as soon as it's chosen), **Delete circle** (the Board), and its page — it adds
@@ -831,8 +833,8 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   - Removing **Tasks** or **Documents** turns them off for the circle (its existing tasks and
     documents are kept, and return when the module is added back). With Documents off, no new
     documents can be added; its existing ones stay searchable. Removing **Finances** keeps the
-    circle's expenses, budgets, and receipts, out of reach (its API answers 404) until it's added
-    back.
+    circle's expenses, budgets, and receipts, out of reach (its API answers 404); as the module is
+    no longer offered, they stay out of reach.
   - A circle that hasn't saved its page yet shows what it had before: a Filtered Documents module with
     all of its own pages, Members, its duty schedule, and Tasks and Documents unless they
     were turned off (from the older `layout`, `features`, and `infoView`).
@@ -975,7 +977,8 @@ from then on, so re-importing the directory never overwrites circle changes.
     taking notes in the page, and saved with the page as it comes (the page's `transcript`, not a
     new version, and searchable). Opened, it shows the whole transcript, with **Copy** and
     **Remove** while editing. Readers see the same folded line and can open it.
-- **Log** – a circle module for short updates, each with replies: a small forum of the circle's
+- **Log** – a circle module (no longer offered to add; circles that have one keep it) for short
+  updates, each with replies: a small forum of the circle's
   own, kept apart from the Forum because it **never notifies or emails anyone**. Its **Settings**
   say who can post updates (the circle's members and the Board, or any resident); anyone signed in
   can reply. Updates show newest first, ten at a time (**Show older updates**). An update can
@@ -986,19 +989,20 @@ from then on, so re-importing the directory never overwrites circle changes.
   Log module on the circle's page (`GET`/`POST /api/circles/<id>/log`,
   `PATCH`/`DELETE …/log/<entryId>`, with `people` alongside `body`; stored in
   `logs/<circleId>.json`, using the shared comment rules; deleted with the circle).
-- **Alert** – a circle module for raising the alarm (the Safety Crew's, in CLC): a red **Send an
+- **Alert** – the Safety Crew's module for raising the alarm (built in: any circle with "safety"
+  in its name has it on its page, at the end, with no way to remove it, and it isn't offered to other
+  circles; a circle an admin placed one on before keeps it): a red **Send an
   alert** button, and the alerts sent, newest first, each with who sent it and to whom. Any resident
   can send one: a short message ("what's happening, where, and what people should do"), to the
   circle's members (the default) or to **Everyone at CVC**. A confirmation says how many people it
   will reach before anything is sent. Each gets a push notification and an email (topic **Safety
   alerts**, on for both by default, which anyone can turn off under **App & notifications**) —
   members are emailed even if they've never signed in; the sender isn't. **Send an alert** is also
-  at the bottom of the menu under your name, set apart by a line, on every page. Only admins add or remove the module
-  (not on Community, which has no members of its own); each person can send one alert a minute
+  at the bottom of the menu under your name, set apart by a line, on every page. Each person can send one alert a minute
   (`GET`/`POST /api/circles/<id>/alerts`; `lib/alerts`; the last 50 kept in
   `alerts/<circleId>.json`, deleted with the circle). Text messages aren't sent: CVC has no SMS
   provider (`lib/alerts/send.ts` is where one would go).
-- **Finances** – a circle module (any circle, Community included) that tracks the circle's spending
+- **Finances** – a circle module (no longer offered to add; circles that have one keep it) that tracks the circle's spending
   against a budget for each year, with receipts. Its members, the Board, and admins (on Community,
   which has no members, just the Board and admins) **Add expense**, edit and delete them, **Set a
   budget**, and record who's been paid back. Its **Settings** say who can see it — **Everyone at
