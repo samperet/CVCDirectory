@@ -117,6 +117,9 @@ async function onward(request: NextRequest, session: Session | null) {
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  // The AI assistants page, typed in capitals (/MCP): the page is at /mcp.
+  if (pathname !== "/mcp" && pathname.toLowerCase() === "/mcp")
+    return NextResponse.redirect(new URL(`/mcp${search}`, request.url), 308);
   const session = await validSession(request.cookies.get(SESSION_COOKIE)?.value);
   if (PUBLIC_PATHS.has(pathname)) return onward(request, session);
   // A sign-in link, and the page it opens (the token is the key; using it takes a POST).

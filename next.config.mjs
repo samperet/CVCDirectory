@@ -6,6 +6,11 @@ const nextConfig = {
     // `ws` (for live connections) has optional native parts and is loaded by @vercel/functions.
     serverComponentsExternalPackages: ["unpdf", "ws", "@vercel/functions"],
   },
+  // The AI assistants page moved from /ai to /mcp. (Sources here match any case, so "/MCP" is
+  // sent to /mcp by the middleware instead: a "/MCP" source would match /mcp itself and loop.)
+  async redirects() {
+    return [{ source: "/ai", destination: "/mcp", permanent: true }];
+  },
   // The service worker must never be served stale, or fixes to it would take days to reach phones.
   async headers() {
     return [

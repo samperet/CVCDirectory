@@ -733,7 +733,7 @@ Object Read & Write scoped to that bucket, and set the four `R2_*` variables in 
   blocks) into a Paragraph, a **Quote** (shown between two curved strokes, like parentheses), a
   **Callout** (set apart by a light green dotted line with rounded corners; written
   `:::callout` … `:::`, keeping bold and italic), or a heading.
-- **AI assistants (MCP)** – its own page, `/ai` (a card on the dashboard, **AI assistants** in
+- **AI assistants (MCP)** – its own page, `/mcp` (`/ai` and `/MCP` redirect there; a card on the dashboard, **AI assistants** in
   the menu under your name, and a search result): what an assistant can and can't do, step-by-step
   instructions for Claude (web, phone, desktop), ChatGPT, Claude Code and anything else that
   speaks MCP, the tools it gets, and your keys (`components/ai/ai-page.tsx`, `ai-keys.tsx`).

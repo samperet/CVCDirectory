@@ -1,16 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bot, Eye, KeyRound, Lock, PenLine, Search, ShieldCheck, Wrench } from "lucide-react";
+import { Bot, PenLine, Search, Wrench } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { AiKeys } from "@/components/ai/ai-keys";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
 
 /**
- * The AI assistants page (`/ai`, on the dashboard, in the menu under your
- * name, and in search): what an assistant can do with CVC, what it can't,
- * how to connect one — Claude on the web, phone or desktop, Claude Code,
+ * The AI assistants page (`/mcp`; `/ai` and `/MCP` are sent there; on the
+ * dashboard, in the menu under your name, and in search): how to connect an
+ * assistant — Claude on the web, phone or desktop, Claude Code,
  * ChatGPT, anything else that speaks MCP — step by step, and your keys
  * (`ai-keys.tsx`). The connector's address comes from the keys route.
  */
@@ -76,44 +76,6 @@ export function AiPage() {
           or “Summarise last month’s minutes”, and it answers from what’s written here.
         </p>
       </div>
-
-      <Card className="flex flex-col gap-3">
-        <SectionHeading icon={ShieldCheck}>What it can and can&apos;t do</SectionHeading>
-        <ul className="flex flex-col gap-2 text-sm text-foreground">
-          <li className="flex gap-2">
-            <Eye className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>
-              <strong>It reads as you.</strong> It sees what you see — the pages, documents, the
-              directory, the forum — and nothing that only admins see.
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>
-              <strong>It can&apos;t change anything — unless you let it.</strong> A key only reads,
-              unless you tick <em>Let it also write</em> when you make it. Then it can start and
-              change pages and documents as you — only what you could do yourself, and every change
-              shows under your name, in the page&apos;s history. No posting in the forum, no
-              messages, nothing with people or circles.
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>
-              <strong>You stay in charge.</strong> It works only with a key you make below, and
-              stops the moment you take the key away. Nobody else&apos;s assistant can use your key.
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <Search className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>
-              <strong>Mind what you ask.</strong> What it reads goes to the company that runs the
-              assistant, as with anything you paste into one. The directory holds neighbours&apos;
-              phone numbers and emails — a good reason not to ask it to copy those out.
-            </span>
-          </li>
-        </ul>
-      </Card>
 
       <Card className="flex flex-col gap-4">
         <SectionHeading icon={Wrench}>Connecting an assistant</SectionHeading>

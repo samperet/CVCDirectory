@@ -104,7 +104,7 @@ export const PLACES: { href: string; title: string; about: string; admin?: boole
     about: "install home screen push notifications email settings preferences",
   },
   {
-    href: "/ai",
+    href: "/mcp",
     title: "AI assistants",
     about: "claude chatgpt mcp connector key assistant ask questions about documents",
   },

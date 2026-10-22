@@ -61,7 +61,7 @@ const cards = [
     icon: Lightbulb,
   },
   {
-    href: "/ai",
+    href: "/mcp",
     title: "AI assistants",
     description: "Let Claude or ChatGPT read CVC's pages and answer your questions.",
     icon: Bot,
